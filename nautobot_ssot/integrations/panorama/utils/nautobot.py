@@ -15,11 +15,12 @@ from nautobot.dcim.models import (
     Manufacturer,
     Platform,
     SoftwareVersion,
+    VirtualDeviceContext,
 )
 from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
 
-from nautobot_ssot.integrations.panorama.models import LogicalGroup, VirtualSystem
+from nautobot_ssot.integrations.panorama.models import LogicalGroup
 
 app_settings = settings.PLUGINS_CONFIG.get("nautobot_ssot")
 
@@ -27,19 +28,25 @@ app_settings = settings.PLUGINS_CONFIG.get("nautobot_ssot")
 class Nautobot:  # pylint: disable=too-many-public-methods
     """Helper methods for interacting with Django ORM."""
 
-    def create_vsys(self, adapter, ids, attrs):
-        """Creates Vsys."""
+    def create_vdc(self, adapter, ids, attrs):
+        """Creates Vdc."""
         if adapter.job.debug:
-            adapter.job.logger.debug(f"Creating VirtualSystem (vsys) with ids: {ids} with attrs: {attrs}")
+            adapter.job.logger.debug(f"Creating VirtualDeviceContext (vsys) with ids: {ids} with attrs: {attrs}")
         try:
             device = Device.objects.get(serial=ids["parent"])
             sysid = int(re.sub("[^0-9]", "", ids["name"]))
-            vsys = VirtualSystem(name=ids["name"], device=device, system_id=sysid)
-            vsys.validated_save()
-            return vsys
+            vdc = VirtualDeviceContext(
+                name=ids["name"], device=device, identifier=sysid, status=adapter.job.default_device_status
+            )
+            vdc.validated_save()
+            return vdc
         except Exception as err:
-            adapter.job.logger.error(f"Unable to create Vsys: {ids}, {err.args}")
+            adapter.job.logger.error(f"Unable to create Vdc: {ids}, {err.args}")
             return None
+
+    def update_vdc(self, adapter, ids, attrs):
+        """Updates Vdc."""
+        ...
 
     def create_firewall(self, adapter, ids, attrs):
         """Creates a Firewall."""
@@ -365,18 +372,18 @@ class Nautobot:  # pylint: disable=too-many-public-methods
                     group.devices.add(Device.objects.get(serial=i))
 
         if "vsys" in attrs:
-            vsys_failed_add = []
-            group.virtual_systems.clear()
+            vdc_failed_add = []
+            group.virtual_device_contexts.clear()
             if isinstance(attrs["vsys"], list):
                 for i in attrs["vsys"]:
                     try:
-                        group.virtual_systems.add(VirtualSystem.objects.get(name=i["name"], device__serial=i["parent"]))
+                        group.virtual_device_contexts.add(
+                            VirtualDeviceContext.objects.get(name=i["name"], device__serial=i["parent"])
+                        )
                     except ObjectDoesNotExist:
-                        vsys_failed_add.append({"name": i["name"], "parent": i["parent"]})
-                if vsys_failed_add:
-                    adapter.job.logger.error(
-                        f"Unable to add Vsys {vsys_failed_add} to {group}. Matching Vsys not found."
-                    )
+                        vdc_failed_add.append({"name": i["name"], "parent": i["parent"]})
+                if vdc_failed_add:
+                    adapter.job.logger.error(f"Unable to add Vdc {vdc_failed_add} to {group}. Matching Vdc not found.")
 
         group.validated_save()
         return group

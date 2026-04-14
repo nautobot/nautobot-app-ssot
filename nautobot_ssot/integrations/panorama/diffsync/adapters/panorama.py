@@ -26,17 +26,20 @@ from nautobot_ssot.integrations.panorama.diffsync.models.panorama import (
     PanoramaIPAddressToInterface,
     PanoramaLogicalGroup,
     PanoramaLogicalGroupToDevice,
-    PanoramaLogicalGroupToVirtualSystem,
+    # PanoramaLogicalGroupToVirtualSystem,
+    PanoramaLogicalGroupToVirtualDeviceContext,
     PanoramaSoftwareVersion,
     PanoramaSoftwareVersionToDevice,
-    PanoramaVirtualSystemAssociation,
-    PanoramaVsys,
+    # PanoramaVsys,
+    PanoramaVdc,
+    # PanoramaVirtualSystemAssociation,
+    PanoramaVirtualDeviceContextAssociation,
 )
 from nautobot_ssot.integrations.panorama.utils.panorama import Panorama
 from nautobot_ssot.integrations.panorama.utils.panorama_adapter_utils import (
     load_firewall_to_diffsync,
     load_ipaddress_to_interface_to_diffsync,
-    load_vsys_interface_to_diffsync,
+    load_vdc_interface_to_diffsync,
 )
 from nautobot_ssot.models import Sync
 
@@ -49,9 +52,9 @@ class PanoSSoTPanoramaAdapter(Adapter):
     firewall = PanoramaFirewall
     firewall_interface = PanoramaFirewallInterface
     ip_address_to_interface = PanoramaIPAddressToInterface
-    vsys = PanoramaVsys
-    virtualsystemassociation = PanoramaVirtualSystemAssociation
-    logicalgrouptovirtualsystem = PanoramaLogicalGroupToVirtualSystem
+    vdc = PanoramaVdc
+    virtualdevicecontextassociation = PanoramaVirtualDeviceContextAssociation
+    logicalgrouptovirtualdevicecontext = PanoramaLogicalGroupToVirtualDeviceContext
     logicalgrouptodevice = PanoramaLogicalGroupToDevice
     softwareversion = PanoramaSoftwareVersion
     softwareversiontodevice = PanoramaSoftwareVersionToDevice
@@ -62,11 +65,11 @@ class PanoSSoTPanoramaAdapter(Adapter):
         "device_type",
         "firewall",
         "firewall_interface",
-        "vsys",
-        "virtualsystemassociation",
+        "vdc",
+        "virtualdevicecontextassociation",
         "ip_address_to_interface",
         "logicalgroup",
-        "logicalgrouptovirtualsystem",
+        "logicalgrouptovirtualdevicecontext",
         "logicalgrouptodevice",
         "softwareversion",
         "softwareversiontodevice",
@@ -209,19 +212,19 @@ class PanoSSoTPanoramaAdapter(Adapter):
                             f"Loading cached data for Vsys: {vsys.get('name')} for firewall: {vsys.get('firewall_name')}"
                         )
                     try:
-                        logicalgrouptovirtualsystem = self.logicalgrouptovirtualsystem(
+                        logicalgrouptovirtualdevicecontext = self.logicalgrouptovirtualdevicecontext(
                             group__name=vsys["devicegroup"],
-                            vsys__device__serial=vsys["firewall_obj"].serial,
-                            vsys__name=vsys["vsys_obj"].name,
+                            virtual_device_context__device__serial=vsys["firewall_obj"].serial,
+                            virtual_device_context__name=vsys["vsys_obj"].name,
                         )
-                        self.add(logicalgrouptovirtualsystem)
+                        self.add(logicalgrouptovirtualdevicecontext)
                     except Exception as err:
                         self.job.logger.error(
                             f"Failed to load logical group to vsys for {vsys.get('firewall_name')} - {vsys.get('name')}, {err}"
                         )
                         continue
                     self.get_or_add(
-                        self.vsys(
+                        self.vdc(
                             name=vsys["vsys_obj"].name,
                             parent=vsys["firewall_obj"].serial,
                         )
@@ -247,7 +250,7 @@ class PanoSSoTPanoramaAdapter(Adapter):
                                 )
                             continue
                         interface_data = interface.about()
-                        load_vsys_interface_to_diffsync(
+                        load_vdc_interface_to_diffsync(
                             adapter=self,
                             interface_obj=interface,
                             interface_data=interface_data,
@@ -261,13 +264,13 @@ class PanoSSoTPanoramaAdapter(Adapter):
                                 vsys=vsys,
                             )
                         try:
-                            virtualsystemassociation = self.virtualsystemassociation(
-                                vsys__device__serial=vsys["firewall_obj"].serial,
-                                vsys__name=vsys["name"],
-                                iface__device__serial=vsys["firewall_obj"].serial,
-                                iface__name=interface.name,
+                            virtualdevicecontextassociation = self.virtualdevicecontextassociation(
+                                virtual_device_context__device__serial=vsys["firewall_obj"].serial,
+                                virtual_device_context__name=vsys["name"],
+                                interface__device__serial=vsys["firewall_obj"].serial,
+                                interface__name=interface.name,
                             )
-                            self.add(virtualsystemassociation)
+                            self.add(virtualdevicecontextassociation)
                         except ObjectAlreadyExists:
                             pass
                         except Exception as err:
@@ -287,7 +290,7 @@ class PanoSSoTPanoramaAdapter(Adapter):
                                         )
                                     continue
                                 interface_data = child.about()
-                                load_vsys_interface_to_diffsync(
+                                load_vdc_interface_to_diffsync(
                                     adapter=self,
                                     interface_obj=child,
                                     interface_data=interface_data,
@@ -301,13 +304,13 @@ class PanoSSoTPanoramaAdapter(Adapter):
                                         vsys=vsys,
                                     )
                                 try:
-                                    virtualsystemassociation = self.virtualsystemassociation(
-                                        vsys__device__serial=vsys["firewall_obj"].serial,
-                                        vsys__name=vsys["name"],
-                                        iface__device__serial=vsys["firewall_obj"].serial,
-                                        iface__name=child.name,
+                                    virtualdevicecontextassociation = self.virtualdevicecontextassociation(
+                                        virtual_device_context__device__serial=vsys["firewall_obj"].serial,
+                                        virtual_device_context__name=vsys["name"],
+                                        interface__device__serial=vsys["firewall_obj"].serial,
+                                        interface__name=child.name,
                                     )
-                                    self.add(virtualsystemassociation)
+                                    self.add(virtualdevicecontextassociation)
                                 except ObjectAlreadyExists:
                                     pass
                                 except Exception as err:

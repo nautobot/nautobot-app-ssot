@@ -12,7 +12,7 @@ from nautobot_ssot.integrations.panorama.jobs import PanoramaDataSource
 from nautobot_ssot.integrations.panorama.utils.panorama_adapter_utils import (
     load_firewall_to_diffsync,
     load_ipaddress_to_interface_to_diffsync,
-    load_vsys_interface_to_diffsync,
+    load_vdc_interface_to_diffsync,
 )
 
 
@@ -224,7 +224,7 @@ class TestPanoramaAdapter(TransactionTestCase):  # pylint: disable=too-many-publ
                 for interface_obj in vsys_data["interfaces"]:
                     interface_data = self.fixture["interfaces"][interface_obj.name]
 
-                    load_vsys_interface_to_diffsync(self.adapter, interface_obj, interface_data, vsys_data)
+                    load_vdc_interface_to_diffsync(self.adapter, interface_obj, interface_data, vsys_data)
 
                     identifier = f"{vsys_data['firewall_obj'].serial}__{interface_data['name']}"
                     stored = self.adapter.store.get(model="firewall_interface", identifier=identifier)
@@ -239,8 +239,8 @@ class TestPanoramaAdapter(TransactionTestCase):  # pylint: disable=too-many-publ
                 for interface_obj in vsys_data["interfaces"]:
                     interface_data = self.fixture["interfaces"][interface_obj.name]
 
-                    load_vsys_interface_to_diffsync(self.adapter, interface_obj, interface_data, vsys_data)
-                    load_vsys_interface_to_diffsync(self.adapter, interface_obj, interface_data, vsys_data)
+                    load_vdc_interface_to_diffsync(self.adapter, interface_obj, interface_data, vsys_data)
+                    load_vdc_interface_to_diffsync(self.adapter, interface_obj, interface_data, vsys_data)
 
                     identifier = f"{vsys_data['firewall_obj'].serial}__{interface_data['name']}"
                     stored = self.adapter.store.get(model="firewall_interface", identifier=identifier)

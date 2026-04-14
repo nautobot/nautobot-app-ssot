@@ -7,10 +7,14 @@ from diffsync import DiffSyncModel
 from diffsync.enum import DiffSyncModelFlags
 from nautobot.dcim.models import ControllerManagedDeviceGroup as NBControllerManagedDeviceGroup
 from nautobot.dcim.models import Interface as NBInterface
+from nautobot.dcim.models import InterfaceVDCAssignment as NBInterfaceVDCAssignment
 from nautobot.dcim.models import SoftwareVersion as NBSoftwareVersion
 
 from nautobot_ssot.contrib import NautobotModel
 from nautobot_ssot.integrations.panorama.models import LogicalGroupToDevice as NBLogicalGroupToDevice
+from nautobot_ssot.integrations.panorama.models import (
+    LogicalGroupToVirtualDeviceContext as NBLogicalGroupToVirtualDeviceContext,
+)
 from nautobot_ssot.integrations.panorama.models import LogicalGroupToVirtualSystem as NBLogicalGroupToVirtualSystem
 from nautobot_ssot.integrations.panorama.models import VirtualSystemAssociation as NBVirtualSystemAssociation
 
@@ -112,6 +116,16 @@ class Vsys(DiffSyncModel):
     parent: str
 
 
+class Vdc(DiffSyncModel):
+    """DiffSync model for Panorama Vsys."""
+
+    _modelname = "vdc"
+    _identifiers = ("parent", "name")
+
+    name: str
+    parent: str
+
+
 class VirtualSystemAssociation(NautobotModel):
     """Diffsync model for VirtualSystemAssociation."""
 
@@ -123,6 +137,24 @@ class VirtualSystemAssociation(NautobotModel):
     vsys__name: str
     iface__device__serial: str
     iface__name: str
+
+
+class VirtualDeviceContextAssociation(NautobotModel):
+    """Diffsync model for InterfaceVDCAssignment."""
+
+    _model = NBInterfaceVDCAssignment
+    _modelname = "virtualdevicecontextassociation"
+    _identifiers = (
+        "virtual_device_context__device__serial",
+        "virtual_device_context__name",
+        "interface__device__serial",
+        "interface__name",
+    )
+
+    virtual_device_context__device__serial: str
+    virtual_device_context__name: str
+    interface__device__serial: str
+    interface__name: str
 
 
 class LogicalGroup(DiffSyncModel):
@@ -149,6 +181,18 @@ class LogicalGroupToVirtualSystem(NautobotModel):
     group__name: str
     vsys__device__serial: str
     vsys__name: str
+
+
+class LogicalGroupToVirtualDeviceContext(NautobotModel):
+    """Diffsync model for LogicalGroupToVirtualSystem."""
+
+    _model = NBLogicalGroupToVirtualDeviceContext
+    _modelname = "logicalgrouptovirtualdevicecontext"
+    _identifiers = ("group__name", "virtual_device_context__device__serial", "virtual_device_context__name")
+
+    group__name: str
+    virtual_device_context__device__serial: str
+    virtual_device_context__name: str
 
 
 class LogicalGroupToDevice(NautobotModel):

@@ -46,6 +46,7 @@ class VirtualSystem(PrimaryModel):  # pylint: disable=too-many-ancestors
         return self.name
 
 
+# class InterfaceVDCAssignment:
 class VirtualSystemAssociation(BaseModel):
     """Enforce an interface is not assigned more than once."""
 
@@ -64,12 +65,15 @@ class VirtualSystemAssociation(BaseModel):
     "webhooks",
 )
 class LogicalGroup(TreeNode, PrimaryModel):  # pylint: disable=too-many-ancestors
-    """Logical grouping of Devices & VirtualSystems."""
+    """Logical grouping of Devices & VirtualSystems, and VirtualDeviceContexts."""
 
     name = models.CharField(max_length=48, unique=True)
     devices = models.ManyToManyField(to="dcim.Device", related_name="logical_group", through="LogicalGroupToDevice")
     virtual_systems = models.ManyToManyField(
         to="nautobot_ssot.VirtualSystem", related_name="logical_group", through="LogicalGroupToVirtualSystem"
+    )
+    virtual_device_contexts = models.ManyToManyField(
+        to="dcim.VirtualDeviceContext", related_name="logical_group", through="LogicalGroupToVirtualDeviceContext"
     )
     control_plane = models.ForeignKey(
         to="dcim.Controller",
@@ -109,3 +113,10 @@ class LogicalGroupToVirtualSystem(BaseModel):
 
     group = models.ForeignKey("nautobot_ssot.LogicalGroup", on_delete=models.CASCADE)
     vsys = models.OneToOneField("nautobot_ssot.VirtualSystem", on_delete=models.CASCADE)
+
+
+class LogicalGroupToVirtualDeviceContext(BaseModel):
+    """Enforce a VirtualSystem is not assigned more than once."""
+
+    group = models.ForeignKey("nautobot_ssot.LogicalGroup", on_delete=models.CASCADE)
+    virtual_device_context = models.OneToOneField("dcim.VirtualDeviceContext", on_delete=models.CASCADE)

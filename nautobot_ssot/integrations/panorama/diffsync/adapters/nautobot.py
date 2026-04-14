@@ -4,7 +4,17 @@ from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.conf import settings
 from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
-from nautobot.dcim.models import ControllerManagedDeviceGroup, Device, DeviceType, Interface
+
+# VirtualSystem,
+# VirtualSystemAssociation,
+from nautobot.dcim.models import (
+    ControllerManagedDeviceGroup,
+    Device,
+    DeviceType,
+    Interface,
+    InterfaceVDCAssignment,
+    VirtualDeviceContext,
+)
 from nautobot.ipam.models import IPAddress, IPAddressToInterface
 
 from nautobot_ssot.contrib import NautobotAdapter
@@ -17,17 +27,19 @@ from nautobot_ssot.integrations.panorama.diffsync.models.nautobot import (
     NautobotIPAddressToInterface,
     NautobotLogicalGroup,
     NautobotLogicalGroupToDevice,
-    NautobotLogicalGroupToVirtualSystem,
+    # NautobotLogicalGroupToVirtualSystem,
+    NautobotLogicalGroupToVirtualDeviceContext,
     NautobotSoftwareVersion,
     NautobotSoftwareVersionToDevice,
-    NautobotVirtualSystemAssociation,
-    NautobotVsys,
+    # NautobotVsys,
+    NautobotVdc,
+    # NautobotVirtualSystemAssociation,
+    NautobotVirtualDeviceContextAssociation,
 )
 from nautobot_ssot.integrations.panorama.models import (
     LogicalGroupToDevice,
-    LogicalGroupToVirtualSystem,
-    VirtualSystem,
-    VirtualSystemAssociation,
+    # LogicalGroupToVirtualSystem,
+    LogicalGroupToVirtualDeviceContext,
 )
 
 app_settings = settings.PLUGINS_CONFIG.get("nautobot_ssot")
@@ -41,9 +53,9 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
     firewall = NautobotFirewall
     firewall_interface = NautobotFirewallInterface
     ip_address_to_interface = NautobotIPAddressToInterface
-    vsys = NautobotVsys
-    virtualsystemassociation = NautobotVirtualSystemAssociation
-    logicalgrouptovirtualsystem = NautobotLogicalGroupToVirtualSystem
+    vdc = NautobotVdc
+    virtualdevicecontextassociation = NautobotVirtualDeviceContextAssociation
+    logicalgrouptovirtualdevicecontext = NautobotLogicalGroupToVirtualDeviceContext
     logicalgrouptodevice = NautobotLogicalGroupToDevice
     softwareversion = NautobotSoftwareVersion
     softwareversiontodevice = NautobotSoftwareVersionToDevice
@@ -55,10 +67,10 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
         "firewall",
         "firewall_interface",
         "ip_address_to_interface",
-        "vsys",
-        "virtualsystemassociation",
+        "vdc",
+        "virtualdevicecontextassociation",
         "logicalgroup",
-        "logicalgrouptovirtualsystem",
+        "logicalgrouptovirtualdevicecontext",
         "logicalgrouptodevice",
         "softwareversion",
         "softwareversiontodevice",
@@ -96,9 +108,9 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
 
         loaders = {
             "logicalgroup": ("Loading Nautobot Logical Groups", self.load_logical_groups),
-            "logicalgrouptovirtualsystem": (
-                "Loading Nautobot Device Group to Vsys associations",
-                self.load_logical_groups_to_virtual_systems,
+            "logicalgrouptovirtualdevicecontext": (
+                "Loading Nautobot Device Group to Vdc (Vsys) associations",
+                self.load_logical_groups_to_virtual_device_contexts,
             ),
             "logicalgrouptodevice": (
                 "Loading Nautobot Device Group to Firewall associations",
@@ -128,13 +140,13 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
                 "Loading Nautobot Devices to Controller Managed Device Groups",
                 self.load_devices_to_controller_managed_device_groups,
             ),
-            "vsys": (
-                "Loading Nautobot Virtual Systems",
-                self.load_virtual_system_objects,
+            "vdc": (
+                "Loading Nautobot Virtual Device Contexts",
+                self.load_virtual_device_contexts,
             ),
-            "virtualsystemassociation": (
-                "Loading Nautobot Interface to Vsys associations",
-                self.load_virtual_system_associations,
+            "virtualdevicecontextassociation": (
+                "Loading Nautobot Interface to Vdc (Vsys) associations",
+                self.load_virtual_device_context_associations,
             ),
         }
         for model_name in self.top_level:
@@ -281,35 +293,37 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
                 self.job.logger.error(f"Error loading device to controller managed device group for {device}, {err}")
                 continue
 
-    def load_virtual_system_objects(self):
-        """Load Nautobot VirtualSystem objects."""
-        for vsys_obj in VirtualSystem.objects.filter(device__serial__in=self.job.loaded_panorama_devices):
+    def load_virtual_device_contexts(self):
+        """Load Nautobot VirtualDeviceContext objects."""
+        for vdc_obj in VirtualDeviceContext.objects.filter(device__serial__in=self.job.loaded_panorama_devices):
             try:
-                vsys = self.vsys(
-                    name=vsys_obj.name,
-                    parent=vsys_obj.device.serial,
+                vdc = self.vdc(
+                    name=vdc_obj.name,
+                    parent=vdc_obj.device.serial,
                 )
-                self.add(vsys)
+                self.add(vdc)
             except ObjectAlreadyExists:
                 pass
             except Exception as err:
-                self.job.logger.error(f"Error loading Nautobot VirtualSystem {vsys_obj}, {err}")
+                self.job.logger.error(f"Error loading Nautobot VirtualDeviceContext{vdc_obj}, {err}")
                 continue
 
-    def load_virtual_system_associations(self):
-        """Load Nautobot VirtualSystemAssociation objects."""
+    def load_virtual_device_context_associations(self):
+        """Load Nautobot VirtualDeviceContextAssociation objects."""
         interfaces = Interface.objects.filter(device__serial__in=self.job.loaded_panorama_devices)
-        for virtualsystemassociation_obj in VirtualSystemAssociation.objects.filter(iface__in=interfaces):
+        for virtualdevicecontextassociation_obj in InterfaceVDCAssignment.objects.filter(interface__in=interfaces):
             try:
-                virtualsystemassociation = self.virtualsystemassociation(
-                    vsys__device__serial=virtualsystemassociation_obj.vsys.device.serial,
-                    vsys__name=virtualsystemassociation_obj.vsys.name,
-                    iface__name=virtualsystemassociation_obj.iface.name,
-                    iface__device__serial=virtualsystemassociation_obj.iface.device.serial,
+                virtualdevicecontextassociation = self.virtualdevicecontextassociation(
+                    virtual_device_context__device__serial=virtualdevicecontextassociation_obj.virtual_device_context.device.serial,
+                    virtual_device_context__name=virtualdevicecontextassociation_obj.virtual_device_context.name,
+                    interface__name=virtualdevicecontextassociation_obj.interface.name,
+                    interface__device__serial=virtualdevicecontextassociation_obj.interface.device.serial,
                 )
-                self.add(virtualsystemassociation)
+                self.add(virtualdevicecontextassociation)
             except Exception as err:
-                self.job.logger.error(f"Error loading virtual system association {virtualsystemassociation_obj}, {err}")
+                self.job.logger.error(
+                    f"Error loading virtual device context assignment {virtualdevicecontextassociation_obj}, {err}"
+                )
 
     def load_logical_groups(self):
         """Load Nautobot LogicalGroup objects."""
@@ -342,20 +356,20 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
                 )
                 continue
 
-    def load_logical_groups_to_virtual_systems(self):
-        """Load Nautobot LogicalGroupToVirtualSystem objects."""
-        for logicalgrouptovirtualsystem_obj in LogicalGroupToVirtualSystem.objects.filter(
-            vsys__device__serial__in=self.job.loaded_panorama_devices
+    def load_logical_groups_to_virtual_device_contexts(self):
+        """Load Nautobot LogicalGroupToVirtualDeviceContext objects."""
+        for logicalgrouptovirtualdevicecontext_obj in LogicalGroupToVirtualDeviceContext.objects.filter(
+            virtual_device_context__device__serial__in=self.job.loaded_panorama_devices
         ):
             try:
-                logicalgrouptovirtualsystem = self.logicalgrouptovirtualsystem(
-                    group__name=logicalgrouptovirtualsystem_obj.group.name,
-                    vsys__name=logicalgrouptovirtualsystem_obj.vsys.name,
-                    vsys__device__serial=logicalgrouptovirtualsystem_obj.vsys.device.serial,
+                logicalgrouptovirtualdevicecontext = self.logicalgrouptovirtualdevicecontext(
+                    group__name=logicalgrouptovirtualdevicecontext_obj.group.name,
+                    virtual_device_context__name=logicalgrouptovirtualdevicecontext_obj.virtual_device_context.name,
+                    virtual_device_context__device__serial=logicalgrouptovirtualdevicecontext_obj.virtual_device_context.device.serial,
                 )
-                self.add(logicalgrouptovirtualsystem)
+                self.add(logicalgrouptovirtualdevicecontext)
             except Exception as err:
                 self.job.logger.error(
-                    f"Error loading logical group to virtual system association {logicalgrouptovirtualsystem_obj}, {err}"
+                    f"Error loading logical group to virtual device contect association {logicalgrouptovirtualdevicecontext_obj}, {err}"
                 )
                 continue
