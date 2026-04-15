@@ -3,10 +3,7 @@
 from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.conf import settings
-from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
-
-# VirtualSystem,
-# VirtualSystemAssociation,
+from django.core.exceptions import ObjectDoesNotExist
 from nautobot.dcim.models import (
     ControllerManagedDeviceGroup,
     Device,
@@ -25,21 +22,14 @@ from nautobot_ssot.integrations.panorama.diffsync.models.nautobot import (
     NautobotFirewall,
     NautobotFirewallInterface,
     NautobotIPAddressToInterface,
-    NautobotLogicalGroup,
-    NautobotLogicalGroupToDevice,
-    # NautobotLogicalGroupToVirtualSystem,
-    NautobotLogicalGroupToVirtualDeviceContext,
     NautobotSoftwareVersion,
     NautobotSoftwareVersionToDevice,
-    # NautobotVsys,
     NautobotVdc,
-    # NautobotVirtualSystemAssociation,
+    NautobotVdcToControllerManagedDeviceGroup,
     NautobotVirtualDeviceContextAssociation,
 )
 from nautobot_ssot.integrations.panorama.models import (
-    LogicalGroupToDevice,
-    # LogicalGroupToVirtualSystem,
-    LogicalGroupToVirtualDeviceContext,
+    VirtualDeviceContextToControllerManagedDeviceGroup,
 )
 
 app_settings = settings.PLUGINS_CONFIG.get("nautobot_ssot")
@@ -48,19 +38,17 @@ app_settings = settings.PLUGINS_CONFIG.get("nautobot_ssot")
 class PanoSSoTNautobotAdapter(NautobotAdapter):
     """DiffSync adapter for Nautobot."""
 
-    logicalgroup = NautobotLogicalGroup
     device_type = NautobotDeviceType
     firewall = NautobotFirewall
     firewall_interface = NautobotFirewallInterface
     ip_address_to_interface = NautobotIPAddressToInterface
     vdc = NautobotVdc
     virtualdevicecontextassociation = NautobotVirtualDeviceContextAssociation
-    logicalgrouptovirtualdevicecontext = NautobotLogicalGroupToVirtualDeviceContext
-    logicalgrouptodevice = NautobotLogicalGroupToDevice
     softwareversion = NautobotSoftwareVersion
     softwareversiontodevice = NautobotSoftwareVersionToDevice
     controllermanageddevicegroup = NautobotControllerManagedDeviceGroup
     devicetocontrollermanageddevicegroup = NautobotDeviceToControllerManagedDeviceGroup
+    vdctocontrollermanageddevicegroup = NautobotVdcToControllerManagedDeviceGroup
 
     top_level = [
         "device_type",
@@ -69,13 +57,11 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
         "ip_address_to_interface",
         "vdc",
         "virtualdevicecontextassociation",
-        "logicalgroup",
-        "logicalgrouptovirtualdevicecontext",
-        "logicalgrouptodevice",
         "softwareversion",
         "softwareversiontodevice",
         "controllermanageddevicegroup",
         "devicetocontrollermanageddevicegroup",
+        "vdctocontrollermanageddevicegroup",
     ]
 
     def __init__(self, *args, **kwargs):
@@ -107,15 +93,6 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
             raise ValueError("'top_level' needs to be set on the class")
 
         loaders = {
-            "logicalgroup": ("Loading Nautobot Logical Groups", self.load_logical_groups),
-            "logicalgrouptovirtualdevicecontext": (
-                "Loading Nautobot Device Group to Vdc (Vsys) associations",
-                self.load_logical_groups_to_virtual_device_contexts,
-            ),
-            "logicalgrouptodevice": (
-                "Loading Nautobot Device Group to Firewall associations",
-                self.load_logical_groups_to_devices,
-            ),
             "device_type": (
                 "Loading Nautobot Device Types",
                 self.load_device_types,
@@ -136,16 +113,24 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
                 "Loading Nautobot Software Versions to Devices",
                 self.load_software_versions_to_devices,
             ),
+            "controllermanageddevicegroup": (
+                "Loading Nautobot Controller Managed Device Groups",
+                self.load_controller_managed_device_groups,
+            ),
             "devicetocontrollermanageddevicegroup": (
                 "Loading Nautobot Devices to Controller Managed Device Groups",
                 self.load_devices_to_controller_managed_device_groups,
+            ),
+            "vdctocontrollermanageddevicegroup": (
+                "Loading Nautobot VDC to Controller Managed Device Group associations",
+                self.load_vdcs_to_controller_managed_device_groups,
             ),
             "vdc": (
                 "Loading Nautobot Virtual Device Contexts",
                 self.load_virtual_device_contexts,
             ),
             "virtualdevicecontextassociation": (
-                "Loading Nautobot Interface to Vdc (Vsys) associations",
+                "Loading Nautobot Interface to VDC associations",
                 self.load_virtual_device_context_associations,
             ),
         }
@@ -264,33 +249,54 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
                 self.job.logger.error(f"Error loading software version to device for {device}, {err}")
                 continue
 
+    def load_controller_managed_device_groups(self):
+        """Load Nautobot ControllerManagedDeviceGroup objects for the current controller."""
+        for cmdg in ControllerManagedDeviceGroup.objects.filter(controller=self.job.panorama_controller):
+            try:
+                parent_name = cmdg.parent.name if cmdg.parent else None
+                controllermanageddevicegroup = self.controllermanageddevicegroup(
+                    name=cmdg.name,
+                    controller__name=cmdg.controller.name,
+                    parent__name=parent_name,
+                )
+                self.add(controllermanageddevicegroup)
+            except Exception as err:
+                self.job.logger.error(f"Error loading controller managed device group {cmdg}, {err}")
+                continue
+
     def load_devices_to_controller_managed_device_groups(self):
         """Load Nautobot DeviceToControllerManagedDeviceGroup objects."""
         for device_serial in self.job.loaded_panorama_devices:
             try:
                 device = Device.objects.get(serial=device_serial)
-                device_group = ControllerManagedDeviceGroup.objects.get(
-                    devices__in=[device], name__icontains="panorama devices"
-                )
-            except (
-                ObjectDoesNotExist
-            ):  # if the panorama devices have not been added to a controller managed device group, this is expected
+                if device.controller_managed_device_group:
+                    self.add(
+                        self.devicetocontrollermanageddevicegroup(
+                            device__serial=device_serial,
+                            controllermanageddevicegroup__name=device.controller_managed_device_group.name,
+                        )
+                    )
+            except ObjectDoesNotExist:
                 continue
-            # It is possible to add a device to multiple controller managed device groups. To account for this, we assume the device
-            # group will contain "Panorama Devices" in the name, and we will only add the device to that group. In the unlikely event
-            # that multiple device groups contain "Panorama Devices" in the name, we will log an error and skip adding the device to the group.
-            # "Panorama Devices" is appended to the controller name in the Panrama adapter when defining the contoller managed device gorup name.
-            except MultipleObjectsReturned as err:
-                self.job.logger.error(f"Multiple controller managed device groups found for {device_serial}: {err}")
-                continue
-            try:
-                controllermanageddevicegroup = self.devicetocontrollermanageddevicegroup(
-                    device__serial=device_serial,
-                    controllermanageddevicegroup__name=device_group.name,
-                )
-                self.add(controllermanageddevicegroup)
             except Exception as err:
-                self.job.logger.error(f"Error loading device to controller managed device group for {device}, {err}")
+                self.job.logger.error(f"Error loading device to CMDG for {device_serial}, {err}")
+                continue
+
+    def load_vdcs_to_controller_managed_device_groups(self):
+        """Load Nautobot VdcToControllerManagedDeviceGroup objects."""
+        for assignment in VirtualDeviceContextToControllerManagedDeviceGroup.objects.filter(
+            virtual_device_context__device__serial__in=self.job.loaded_panorama_devices
+        ):
+            try:
+                self.add(
+                    self.vdctocontrollermanageddevicegroup(
+                        controller_managed_device_group__name=assignment.controller_managed_device_group.name,
+                        virtual_device_context__device__serial=assignment.virtual_device_context.device.serial,
+                        virtual_device_context__name=assignment.virtual_device_context.name,
+                    )
+                )
+            except Exception as err:
+                self.job.logger.error(f"Error loading VDC-to-CMDG for {assignment}, {err}")
                 continue
 
     def load_virtual_device_contexts(self):
@@ -324,52 +330,3 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
                 self.job.logger.error(
                     f"Error loading virtual device context assignment {virtualdevicecontextassociation_obj}, {err}"
                 )
-
-    def load_logical_groups(self):
-        """Load Nautobot LogicalGroup objects."""
-        for group in self.job.panorama_controller.logical_groups.all():
-            parent = None
-            if group.parent:
-                parent = group.parent.name
-
-            logicalgroup = self.logicalgroup(
-                name=group.name,
-                panorama=str(group.control_plane.id),
-                parent=parent,
-            )
-            self.add(logicalgroup)
-
-    def load_logical_groups_to_devices(self):
-        """Load Nautobot LogicalGroupToDevice objects."""
-        for logicalgrouptodevice_obj in LogicalGroupToDevice.objects.filter(
-            device__serial__in=self.job.loaded_panorama_devices
-        ):
-            try:
-                logicalgrouptodevice = self.logicalgrouptodevice(
-                    group__name=logicalgrouptodevice_obj.group.name,
-                    device__serial=logicalgrouptodevice_obj.device.serial,
-                )
-                self.add(logicalgrouptodevice)
-            except Exception as err:
-                self.job.logger.error(
-                    f"Error loading logical group to device association {logicalgrouptodevice_obj}, {err}"
-                )
-                continue
-
-    def load_logical_groups_to_virtual_device_contexts(self):
-        """Load Nautobot LogicalGroupToVirtualDeviceContext objects."""
-        for logicalgrouptovirtualdevicecontext_obj in LogicalGroupToVirtualDeviceContext.objects.filter(
-            virtual_device_context__device__serial__in=self.job.loaded_panorama_devices
-        ):
-            try:
-                logicalgrouptovirtualdevicecontext = self.logicalgrouptovirtualdevicecontext(
-                    group__name=logicalgrouptovirtualdevicecontext_obj.group.name,
-                    virtual_device_context__name=logicalgrouptovirtualdevicecontext_obj.virtual_device_context.name,
-                    virtual_device_context__device__serial=logicalgrouptovirtualdevicecontext_obj.virtual_device_context.device.serial,
-                )
-                self.add(logicalgrouptovirtualdevicecontext)
-            except Exception as err:
-                self.job.logger.error(
-                    f"Error loading logical group to virtual device contect association {logicalgrouptovirtualdevicecontext_obj}, {err}"
-                )
-                continue

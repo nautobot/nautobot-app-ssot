@@ -11,12 +11,9 @@ from nautobot.dcim.models import InterfaceVDCAssignment as NBInterfaceVDCAssignm
 from nautobot.dcim.models import SoftwareVersion as NBSoftwareVersion
 
 from nautobot_ssot.contrib import NautobotModel
-from nautobot_ssot.integrations.panorama.models import LogicalGroupToDevice as NBLogicalGroupToDevice
 from nautobot_ssot.integrations.panorama.models import (
-    LogicalGroupToVirtualDeviceContext as NBLogicalGroupToVirtualDeviceContext,
+    VirtualDeviceContextToControllerManagedDeviceGroup as NBCmdgToVdc,
 )
-from nautobot_ssot.integrations.panorama.models import LogicalGroupToVirtualSystem as NBLogicalGroupToVirtualSystem
-from nautobot_ssot.integrations.panorama.models import VirtualSystemAssociation as NBVirtualSystemAssociation
 
 
 class Firewall(DiffSyncModel):
@@ -106,37 +103,14 @@ class SoftwareVersionToDevice(DiffSyncModel):
     version: str
 
 
-class Vsys(DiffSyncModel):
-    """DiffSync model for Panorama Vsys."""
-
-    _modelname = "vsys"
-    _identifiers = ("parent", "name")
-
-    name: str
-    parent: str
-
-
 class Vdc(DiffSyncModel):
-    """DiffSync model for Panorama Vsys."""
+    """DiffSync model for Panorama VirtualDeviceContext."""
 
     _modelname = "vdc"
     _identifiers = ("parent", "name")
 
     name: str
     parent: str
-
-
-class VirtualSystemAssociation(NautobotModel):
-    """Diffsync model for VirtualSystemAssociation."""
-
-    _model = NBVirtualSystemAssociation
-    _modelname = "virtualsystemassociation"
-    _identifiers = ("vsys__device__serial", "vsys__name", "iface__device__serial", "iface__name")
-
-    vsys__device__serial: str
-    vsys__name: str
-    iface__device__serial: str
-    iface__name: str
 
 
 class VirtualDeviceContextAssociation(NautobotModel):
@@ -155,55 +129,6 @@ class VirtualDeviceContextAssociation(NautobotModel):
     virtual_device_context__name: str
     interface__device__serial: str
     interface__name: str
-
-
-class LogicalGroup(DiffSyncModel):
-    """DiffSync model for Panorama LogicalGroup."""
-
-    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
-
-    _modelname = "logicalgroup"
-    _identifiers = ("name",)
-    _attributes = ("parent", "panorama")
-
-    name: str
-    panorama: Optional[str] = None
-    parent: Optional[str] = None
-
-
-class LogicalGroupToVirtualSystem(NautobotModel):
-    """Diffsync model for LogicalGroupToVirtualSystem."""
-
-    _model = NBLogicalGroupToVirtualSystem
-    _modelname = "logicalgrouptovirtualsystem"
-    _identifiers = ("group__name", "vsys__device__serial", "vsys__name")
-
-    group__name: str
-    vsys__device__serial: str
-    vsys__name: str
-
-
-class LogicalGroupToVirtualDeviceContext(NautobotModel):
-    """Diffsync model for LogicalGroupToVirtualSystem."""
-
-    _model = NBLogicalGroupToVirtualDeviceContext
-    _modelname = "logicalgrouptovirtualdevicecontext"
-    _identifiers = ("group__name", "virtual_device_context__device__serial", "virtual_device_context__name")
-
-    group__name: str
-    virtual_device_context__device__serial: str
-    virtual_device_context__name: str
-
-
-class LogicalGroupToDevice(NautobotModel):
-    """Diffsync model for LogicalGroupToDevice."""
-
-    _model = NBLogicalGroupToDevice
-    _modelname = "logicalgrouptodevice"
-    _identifiers = ("group__name", "device__serial")
-
-    group__name: str
-    device__serial: str
 
 
 class DeviceType(DiffSyncModel):
@@ -228,9 +153,11 @@ class ControllerManagedDeviceGroup(NautobotModel):
     _model = NBControllerManagedDeviceGroup
     _modelname = "controllermanageddevicegroup"
     _identifiers = ("name", "controller__name")
+    _attributes = ("parent__name",)
 
     name: str
     controller__name: str
+    parent__name: Optional[str] = None
 
 
 class DeviceToControllerManagedDeviceGroup(DiffSyncModel):
@@ -244,3 +171,19 @@ class DeviceToControllerManagedDeviceGroup(DiffSyncModel):
 
     device__serial: str
     controllermanageddevicegroup__name: str
+
+
+class VdcToControllerManagedDeviceGroup(NautobotModel):
+    """DiffSync model for VDC-to-CMDG association."""
+
+    _model = NBCmdgToVdc
+    _modelname = "vdctocontrollermanageddevicegroup"
+    _identifiers = (
+        "controller_managed_device_group__name",
+        "virtual_device_context__device__serial",
+        "virtual_device_context__name",
+    )
+
+    controller_managed_device_group__name: str
+    virtual_device_context__device__serial: str
+    virtual_device_context__name: str

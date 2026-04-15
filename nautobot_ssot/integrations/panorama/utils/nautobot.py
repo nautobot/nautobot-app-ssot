@@ -7,7 +7,6 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from nautobot.apps.choices import IPAddressTypeChoices, PrefixTypeChoices
 from nautobot.dcim.models import (
-    Controller,
     ControllerManagedDeviceGroup,
     Device,
     DeviceType,
@@ -19,8 +18,6 @@ from nautobot.dcim.models import (
 )
 from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
-
-from nautobot_ssot.integrations.panorama.models import LogicalGroup
 
 app_settings = settings.PLUGINS_CONFIG.get("nautobot_ssot")
 
@@ -355,35 +352,3 @@ class Nautobot:  # pylint: disable=too-many-public-methods
                 "Unable to remove device from controller managed device group "
                 f"{device_to_controller_managed_device_group.get_identifiers()}, {err}"
             )
-
-    def create_device_group(self, adapter, ids, attrs):
-        """Creates an LogicalGroup and any child objects."""
-        if adapter.job.debug:
-            adapter.job.logger.debug(f"Creating LogicalGroup with ids: {ids} and attrs: {attrs}")
-        group, _ = LogicalGroup.objects.get_or_create(name=ids["name"])
-        if attrs.get("parent"):
-            group.parent, _ = LogicalGroup.objects.get_or_create(name=attrs["parent"])
-        group.control_plane = Controller.objects.get(id=attrs["panorama"])
-
-        if "firewalls" in attrs:
-            group.devices.clear()
-            if isinstance(attrs["firewalls"], list):
-                for i in attrs["firewalls"]:
-                    group.devices.add(Device.objects.get(serial=i))
-
-        if "vsys" in attrs:
-            vdc_failed_add = []
-            group.virtual_device_contexts.clear()
-            if isinstance(attrs["vsys"], list):
-                for i in attrs["vsys"]:
-                    try:
-                        group.virtual_device_contexts.add(
-                            VirtualDeviceContext.objects.get(name=i["name"], device__serial=i["parent"])
-                        )
-                    except ObjectDoesNotExist:
-                        vdc_failed_add.append({"name": i["name"], "parent": i["parent"]})
-                if vdc_failed_add:
-                    adapter.job.logger.error(f"Unable to add Vdc {vdc_failed_add} to {group}. Matching Vdc not found.")
-
-        group.validated_save()
-        return group

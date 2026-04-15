@@ -24,15 +24,10 @@ from nautobot_ssot.integrations.panorama.diffsync.models.panorama import (
     PanoramaFirewall,
     PanoramaFirewallInterface,
     PanoramaIPAddressToInterface,
-    PanoramaLogicalGroup,
-    PanoramaLogicalGroupToDevice,
-    # PanoramaLogicalGroupToVirtualSystem,
-    PanoramaLogicalGroupToVirtualDeviceContext,
     PanoramaSoftwareVersion,
     PanoramaSoftwareVersionToDevice,
-    # PanoramaVsys,
     PanoramaVdc,
-    # PanoramaVirtualSystemAssociation,
+    PanoramaVdcToControllerManagedDeviceGroup,
     PanoramaVirtualDeviceContextAssociation,
 )
 from nautobot_ssot.integrations.panorama.utils.panorama import Panorama
@@ -47,19 +42,17 @@ from nautobot_ssot.models import Sync
 class PanoSSoTPanoramaAdapter(Adapter):
     """DiffSync adapter for Panorama."""
 
-    logicalgroup = PanoramaLogicalGroup
     device_type = PanoramaDeviceType
     firewall = PanoramaFirewall
     firewall_interface = PanoramaFirewallInterface
     ip_address_to_interface = PanoramaIPAddressToInterface
     vdc = PanoramaVdc
     virtualdevicecontextassociation = PanoramaVirtualDeviceContextAssociation
-    logicalgrouptovirtualdevicecontext = PanoramaLogicalGroupToVirtualDeviceContext
-    logicalgrouptodevice = PanoramaLogicalGroupToDevice
     softwareversion = PanoramaSoftwareVersion
     softwareversiontodevice = PanoramaSoftwareVersionToDevice
     controllermanageddevicegroup = PanoramaControllerManagedDeviceGroup
     devicetocontrollermanageddevicegroup = PanoramaDeviceToControllerManagedDeviceGroup
+    vdctocontrollermanageddevicegroup = PanoramaVdcToControllerManagedDeviceGroup
 
     top_level = [
         "device_type",
@@ -68,13 +61,11 @@ class PanoSSoTPanoramaAdapter(Adapter):
         "vdc",
         "virtualdevicecontextassociation",
         "ip_address_to_interface",
-        "logicalgroup",
-        "logicalgrouptovirtualdevicecontext",
-        "logicalgrouptodevice",
         "softwareversion",
         "softwareversiontodevice",
         "controllermanageddevicegroup",
         "devicetocontrollermanageddevicegroup",
+        "vdctocontrollermanageddevicegroup",
     ]
 
     def __init__(self, *args: Any, job: Job, sync: Sync, pan: Controller, **kwargs: Any) -> None:
@@ -140,19 +131,54 @@ class PanoSSoTPanoramaAdapter(Adapter):
         self.job.logger.info(f"Caching Vsys from {self._backend}", extra={"object": self.pan})
         self.pano.firewall.retrieve_vsys()
         self.job.logger.info(f"Loading objects from {self._backend} via cache", extra={"object": self.pan})
-        self.load_cached_objects()
         self.load_controllermanageddevicegroup()
+        self.load_cached_objects()
 
     def load_controllermanageddevicegroup(self):
-        """Load ControllerManagedDeviceGroup to the Diffsync store."""
+        """Load ControllerManagedDeviceGroup hierarchy to the DiffSync store."""
+        controller_name = self.job.panorama_controller.name
+
+        # Root: "Panorama Devices" container
         try:
-            controllermanageddevicegroup = self.controllermanageddevicegroup(
-                name=f"{self.job.panorama_controller.name} - Panorama Devices",
-                controller__name=self.job.panorama_controller.name,
+            self.add(
+                self.controllermanageddevicegroup(
+                    name=f"{controller_name} - Panorama Devices",
+                    controller__name=controller_name,
+                    parent__name=None,
+                )
             )
-            self.add(controllermanageddevicegroup)
         except Exception as err:
-            self.job.logger.error(f"Failed to load Controller Managed Device Group, {err}")
+            self.job.logger.error(f"Failed to load root CMDG, {err}")
+
+        # "shared" default device group (child of root)
+        try:
+            self.add(
+                self.controllermanageddevicegroup(
+                    name=f"{controller_name} - shared",
+                    controller__name=controller_name,
+                    parent__name=f"{controller_name} - Panorama Devices",
+                )
+            )
+        except Exception as err:
+            self.job.logger.error(f"Failed to load 'shared' CMDG, {err}")
+
+        # All Panorama device groups
+        for group_name in self.pano.device_group.device_groups.keys():
+            parent_group_name = self.pano.device_group.get_parent(group_name)
+            if not parent_group_name:
+                parent_cmdg_name = f"{controller_name} - shared"
+            else:
+                parent_cmdg_name = f"{controller_name} - {parent_group_name}"
+            try:
+                self.add(
+                    self.controllermanageddevicegroup(
+                        name=f"{controller_name} - {group_name}",
+                        controller__name=controller_name,
+                        parent__name=parent_cmdg_name,
+                    )
+                )
+            except Exception as err:
+                self.job.logger.error(f"Failed to load CMDG for {group_name}, {err}")
 
     def load_cached_objects(self):
         """Load objects from cache."""
@@ -187,13 +213,15 @@ class PanoSSoTPanoramaAdapter(Adapter):
                 # Add a firewall directly to a device group only if its not a multi-vsys device
                 multi_vsys = firewall_system_info["system"]["multi-vsys"]
                 if multi_vsys == "off":
-                    logicalgrouptodevice = self.logicalgrouptodevice(
-                        group__name=firewall.get("location"),
+                    devicetocontrollermanageddevicegroup = self.devicetocontrollermanageddevicegroup(
                         device__serial=firewall_obj.serial,
+                        controllermanageddevicegroup__name=f"{self.job.panorama_controller.name} - {firewall.get('location')}",
                     )
-                    self.add(logicalgrouptodevice)
+                    self.add(devicetocontrollermanageddevicegroup)
             except Exception as err:
-                self.job.logger.error(f"Failed to load logical group to device for {firewall_name}, {err}")
+                self.job.logger.error(
+                    f"Failed to load device to controller managed device group for {firewall_name}, {err}"
+                )
                 pass
 
         # Add Vsys to the Diffsync store
@@ -212,15 +240,15 @@ class PanoSSoTPanoramaAdapter(Adapter):
                             f"Loading cached data for Vsys: {vsys.get('name')} for firewall: {vsys.get('firewall_name')}"
                         )
                     try:
-                        logicalgrouptovirtualdevicecontext = self.logicalgrouptovirtualdevicecontext(
-                            group__name=vsys["devicegroup"],
+                        vdctocontrollermanageddevicegroup = self.vdctocontrollermanageddevicegroup(
+                            controller_managed_device_group__name=f"{self.job.panorama_controller.name} - {vsys['devicegroup']}",
                             virtual_device_context__device__serial=vsys["firewall_obj"].serial,
                             virtual_device_context__name=vsys["vsys_obj"].name,
                         )
-                        self.add(logicalgrouptovirtualdevicecontext)
+                        self.add(vdctocontrollermanageddevicegroup)
                     except Exception as err:
                         self.job.logger.error(
-                            f"Failed to load logical group to vsys for {vsys.get('firewall_name')} - {vsys.get('name')}, {err}"
+                            f"Failed to load VDC to CMDG for {vsys.get('firewall_name')} - {vsys.get('name')}, {err}"
                         )
                         continue
                     self.get_or_add(
@@ -318,31 +346,3 @@ class PanoSSoTPanoramaAdapter(Adapter):
                                         f"Failed to load interface to Vsys for {vsys.get('firewall_name')}, {err}"
                                     )
                                     continue
-
-        # Load logical groups
-        for group_name in self.pano.device_group.device_groups.keys():
-            if self.job.debug:
-                self.job.logger.debug(f"Loading device group: {group_name}")
-            parent_group_name = self.pano.device_group.get_parent(group_name)
-            if not parent_group_name:
-                parent_group_name = "shared"
-
-            # Load LocicalGroup to Diffsync
-            self.add(
-                self.logicalgroup(
-                    name=group_name,
-                    panorama=str(self.pan.id),
-                    parent=parent_group_name,
-                )
-            )
-        # Always add the "shared" default logical group
-        if self.job.debug:
-            self.job.logger.debug("Loading device group 'shared'")
-        self.add(
-            self.logicalgroup(
-                name="shared",
-                panorama=str(self.pan.id),
-                vsys=[],
-                firewalls=[],
-            )
-        )

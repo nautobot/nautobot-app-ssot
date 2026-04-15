@@ -7,45 +7,20 @@ from nautobot_ssot.integrations.panorama.diffsync.models.base import (
     Firewall,
     FirewallInterface,
     IPAddressToInterface,
-    LogicalGroup,
-    LogicalGroupToDevice,
-    LogicalGroupToVirtualDeviceContext,
-    LogicalGroupToVirtualSystem,
     SoftwareVersion,
     SoftwareVersionToDevice,
     Vdc,
+    VdcToControllerManagedDeviceGroup,
     VirtualDeviceContextAssociation,
-    VirtualSystemAssociation,
-    Vsys,
 )
 
 
-class PanoramaVsys(Vsys):
-    """Panorama implementation of Vsys model."""
-
-
 class PanoramaVdc(Vdc):
-    """Panorama implementation of Vsys model."""
-
-
-class PanoramaVirtualSystemAssociation(VirtualSystemAssociation):
-    """Panorama implementation of VirtualSystemAssociation model."""
+    """Panorama implementation of Vdc model."""
 
 
 class PanoramaVirtualDeviceContextAssociation(VirtualDeviceContextAssociation):
     """Panorama implementation of VirtualDeviceContextAssociation model."""
-
-
-class PanoramaLogicalGroupToVirtualSystem(LogicalGroupToVirtualSystem):
-    """Panorama implementation of LogicalGroupToVirtualSystem model."""
-
-
-class PanoramaLogicalGroupToVirtualDeviceContext(LogicalGroupToVirtualDeviceContext):
-    """Panorama implementation of LogicalGroupToVirtualDeviceContext model."""
-
-
-class PanoramaLogicalGroupToDevice(LogicalGroupToDevice):
-    """Panorama implementation of LogicalGroupToDevice model."""
 
 
 class PanoramaFirewall(Firewall):
@@ -80,5 +55,5 @@ class PanoramaDeviceToControllerManagedDeviceGroup(DeviceToControllerManagedDevi
     """Panorama implementation of DeviceToControllerManagedDeviceGroup model."""
 
 
-class PanoramaLogicalGroup(LogicalGroup):
-    """Panorama implementation of LogicalGroup model."""
+class PanoramaVdcToControllerManagedDeviceGroup(VdcToControllerManagedDeviceGroup):
+    """Panorama implementation of VdcToControllerManagedDeviceGroup model."""
