@@ -24,9 +24,7 @@ from nautobot.ipam.models import IPAddress, Namespace, Prefix
 
 from nautobot_ssot.integrations.panorama.diffsync.adapters.nautobot import PanoSSoTNautobotAdapter
 from nautobot_ssot.integrations.panorama.models import (
-    LogicalGroup,
-    LogicalGroupToDevice,
-    LogicalGroupToVirtualDeviceContext,
+    VirtualDeviceContextToControllerManagedDeviceGroup,
 )
 
 
@@ -119,12 +117,23 @@ class TestNautobotAdapterLoads(TransactionTestCase):  # pylint: disable=too-many
             location=self.location,
             status=self.status_active,
         )
+
+        # Root CMDG: "Panorama Devices" container
         self.controller_managed_device_group, _ = NBControllerManagedDeviceGroup.objects.get_or_create(
             name="panorama-01 - Panorama Devices",
             controller=self.controller,
         )
-        self.controller_managed_device_group.devices.add(self.device)
-        self.controller_managed_device_group.devices.add(self.device_2)
+
+        # Device group CMDG (child of root)
+        self.device_group_cmdg, _ = NBControllerManagedDeviceGroup.objects.get_or_create(
+            name="panorama-01 - device-group-1",
+            controller=self.controller,
+            parent=self.controller_managed_device_group,
+        )
+
+        # Assign device to its specific device group CMDG
+        self.device.controller_managed_device_group = self.device_group_cmdg
+        self.device.save()
 
         self.software_version, _ = SoftwareVersion.objects.get_or_create(
             platform=self.platform,
@@ -149,17 +158,12 @@ class TestNautobotAdapterLoads(TransactionTestCase):  # pylint: disable=too-many
             status=self.status_active,
         )
 
-        self.logical_group, _ = LogicalGroup.objects.get_or_create(
-            name="device-group-1",
-        )
-        self.logical_group_to_device, _ = LogicalGroupToDevice.objects.get_or_create(
-            group=self.logical_group,
-            device=self.device,
-        )
-        self.logical_group_to_vsys, _ = LogicalGroupToVirtualDeviceContext.objects.get_or_create(
-            group=self.logical_group,
+        # VDC-to-CMDG association via through table
+        self.cmdg_to_vdc, _ = VirtualDeviceContextToControllerManagedDeviceGroup.objects.get_or_create(
+            controller_managed_device_group=self.device_group_cmdg,
             virtual_device_context=self.vsys_1,
         )
+
         self.vsys_association, _ = InterfaceVDCAssignment.objects.get_or_create(
             virtual_device_context=self.vsys_1,
             interface=self.interface,
@@ -167,12 +171,13 @@ class TestNautobotAdapterLoads(TransactionTestCase):  # pylint: disable=too-many
 
         self.panorama_controller = MagicMock()
         self.panorama_controller.name = "panorama-01"
-        self.panorama_controller.logical_groups.all.return_value = []
+        # Return the CMDGs for load_controller_managed_device_groups
+        self.panorama_controller.id = self.controller.id
 
         self.job = MagicMock()
         self.job.loaded_panorama_devices = {"serial001", "serial002"}
         self.job.debug = False
-        self.job.panorama_controller = self.panorama_controller
+        self.job.panorama_controller = self.controller
         self.job.logger = MagicMock()
 
     def _create_adapter(self):
@@ -220,13 +225,36 @@ class TestNautobotAdapterLoads(TransactionTestCase):  # pylint: disable=too-many
         stored = adapter.store.get(model="ip_address_to_interface", identifier=identifier)
         self.assertIsNotNone(stored)
 
+    def test_load_controller_managed_device_groups(self):
+        """Test loading controller managed device groups from Nautobot."""
+        adapter = self._create_adapter()
+        adapter.load_controller_managed_device_groups()
+
+        identifier = f"{self.controller_managed_device_group.name}__{self.controller.name}"
+        stored = adapter.store.get(model="controllermanageddevicegroup", identifier=identifier)
+        self.assertIsNotNone(stored)
+
+        identifier = f"{self.device_group_cmdg.name}__{self.controller.name}"
+        stored = adapter.store.get(model="controllermanageddevicegroup", identifier=identifier)
+        self.assertIsNotNone(stored)
+        self.assertEqual(stored.parent__name, self.controller_managed_device_group.name)
+
     def test_load_devices_to_controller_managed_device_groups(self):
         """Test loading device to controller managed device group from Nautobot."""
         adapter = self._create_adapter()
         adapter.load_devices_to_controller_managed_device_groups()
 
-        identifier = f"{self.device.serial}__{self.controller_managed_device_group.name}"
+        identifier = f"{self.device.serial}__{self.device_group_cmdg.name}"
         stored = adapter.store.get(model="devicetocontrollermanageddevicegroup", identifier=identifier)
+        self.assertIsNotNone(stored)
+
+    def test_load_vdcs_to_controller_managed_device_groups(self):
+        """Test loading VDC to controller managed device group from Nautobot."""
+        adapter = self._create_adapter()
+        adapter.load_vdcs_to_controller_managed_device_groups()
+
+        identifier = f"{self.device_group_cmdg.name}__{self.vsys_1.device.serial}__{self.vsys_1.name}"
+        stored = adapter.store.get(model="vdctocontrollermanageddevicegroup", identifier=identifier)
         self.assertIsNotNone(stored)
 
     def test_load_software_versions_to_devices(self):
@@ -239,7 +267,7 @@ class TestNautobotAdapterLoads(TransactionTestCase):  # pylint: disable=too-many
         self.assertIsNotNone(stored)
 
     def test_load_virtual_device_contexts(self):
-        """Test loading virtual system objects from Nautobot."""
+        """Test loading virtual device context objects from Nautobot."""
         adapter = self._create_adapter()
         adapter.load_virtual_device_contexts()
 
@@ -248,17 +276,8 @@ class TestNautobotAdapterLoads(TransactionTestCase):  # pylint: disable=too-many
         self.assertIsNotNone(stored)
         self.assertEqual(stored.name, self.vsys_1.name)
 
-    def test_load_logical_groups_to_devices(self):
-        """Test loading logical groups to devices from Nautobot."""
-        adapter = self._create_adapter()
-        adapter.load_logical_groups_to_devices()
-
-        identifier = f"{self.logical_group.name}__{self.device.serial}"
-        stored = adapter.store.get(model="logicalgrouptodevice", identifier=identifier)
-        self.assertIsNotNone(stored)
-
     def test_load_virtual_device_context_associations(self):
-        """Test loading virtual system associations from Nautobot."""
+        """Test loading virtual device context associations from Nautobot."""
         adapter = self._create_adapter()
         adapter.load_virtual_device_context_associations()
 
@@ -266,13 +285,4 @@ class TestNautobotAdapterLoads(TransactionTestCase):  # pylint: disable=too-many
             f"{self.vsys_1.device.serial}__{self.vsys_1.name}__{self.interface.device.serial}__{self.interface.name}"
         )
         stored = adapter.store.get(model="virtualdevicecontextassociation", identifier=identifier)
-        self.assertIsNotNone(stored)
-
-    def test_load_logical_groups_to_virtual_device_contexts(self):
-        """Test loading logical groups to virtual systems from Nautobot."""
-        adapter = self._create_adapter()
-        adapter.load_logical_groups_to_virtual_device_contexts()
-
-        identifier = f"{self.logical_group.name}__{self.vsys_1.device.serial}__{self.vsys_1.name}"
-        stored = adapter.store.get(model="logicalgrouptovirtualdevicecontext", identifier=identifier)
         self.assertIsNotNone(stored)

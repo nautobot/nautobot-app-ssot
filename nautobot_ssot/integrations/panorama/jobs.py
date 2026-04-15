@@ -66,7 +66,12 @@ class PanoramaDataSource(DataSource):  # pylint: disable=too-many-instance-attri
     def data_mappings(cls):
         """List describing the data mappings involved in this DataSource."""
         return (
-            DataMapping("Device Group", None, "Logical Group", reverse("plugins:nautobot_ssot:logicalgroup_list")),
+            DataMapping(
+                "Device Group",
+                None,
+                "Controller Managed Device Group",
+                reverse("dcim:controllermanageddevicegroup_list"),
+            ),
             DataMapping("VSYS", None, "Virtual Device Context", reverse("dcim:virtualdevicecontext_list")),
             DataMapping("Firewall", None, "Device", reverse("dcim:device_list")),
             DataMapping(

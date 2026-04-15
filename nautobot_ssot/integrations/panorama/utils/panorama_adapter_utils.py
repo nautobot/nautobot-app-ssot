@@ -137,20 +137,6 @@ def load_firewall_to_diffsync(adapter, firewall, firewall_system_info):  # pylin
         adapter.job.logger.error(f"Failed to load software version to device for {firewall}, {err}")
         raise err
 
-    # Add the device to controller managed device group association to the Diffsync store
-    try:
-        devicetocontrollermanageddevicegroup = adapter.devicetocontrollermanageddevicegroup(
-            device__serial=firewall.serial,
-            controllermanageddevicegroup__name=f"{adapter.job.panorama_controller.name} - Panorama Devices",
-        )
-        adapter.add(devicetocontrollermanageddevicegroup)
-    except ObjectAlreadyExists:
-        # Each Vsys is loaded as its own separate firewall, so its possible this will already exist
-        pass
-    except Exception as err:
-        adapter.job.logger.error(f"Failed to load device to controller managed device group for {firewall}, {err}")
-        raise err
-
     try:
         # Only devices that were successfully retrieved from Panorama should be synced to Nautobot
         adapter.job.loaded_panorama_devices.add(firewall.serial)

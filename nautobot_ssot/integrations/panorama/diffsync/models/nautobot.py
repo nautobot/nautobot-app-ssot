@@ -10,47 +10,19 @@ from nautobot_ssot.integrations.panorama.diffsync.models.base import (
     Firewall,
     FirewallInterface,
     IPAddressToInterface,
-    LogicalGroup,
-    LogicalGroupToDevice,
-    LogicalGroupToVirtualDeviceContext,
-    LogicalGroupToVirtualSystem,
     SoftwareVersion,
     SoftwareVersionToDevice,
     Vdc,
+    VdcToControllerManagedDeviceGroup,
     VirtualDeviceContextAssociation,
-    VirtualSystemAssociation,
-    Vsys,
 )
 from nautobot_ssot.integrations.panorama.utils.nautobot import Nautobot
 
 NAUTOBOT = Nautobot()
 
 
-class NautobotVsys(Vsys):
-    """Nautobot implementation of Panorama Vsys model."""
-
-    @classmethod
-    def create(cls, adapter, ids, attrs):
-        """Create Vsys in Nautobot from NautobotVsys object."""
-        vsys = NAUTOBOT.create_vdc(adapter, ids, attrs)
-        if not vsys:
-            raise diffsync_exceptions.ObjectNotCreated
-        return super().create(adapter=adapter, ids=ids, attrs=attrs)
-
-    def update(self, attrs):
-        """Update Vsys in Nautobot from NautobotVsys object."""
-        vsys = NAUTOBOT.update_vdc(self.adapter, self.name, self.parent, attrs)
-        if not vsys:
-            raise diffsync_exceptions.ObjectNotUpdated
-        return super().update(attrs)
-
-    def delete(self):
-        """Delete Vsys in Nautobot from NautobotVsys object."""
-        return self
-
-
 class NautobotVdc(Vdc):
-    """Nautobot implementation of Panorama Vsys model."""
+    """Nautobot implementation of Panorama Vdc model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
@@ -72,24 +44,8 @@ class NautobotVdc(Vdc):
         return self
 
 
-class NautobotVirtualSystemAssociation(VirtualSystemAssociation):
-    """Nautobot implementation of VirtualSystemAssociation model."""
-
-
 class NautobotVirtualDeviceContextAssociation(VirtualDeviceContextAssociation):
     """Nautobot implementation of VirtualDeviceContextAssociation model."""
-
-
-class NautobotLogicalGroupToVirtualSystem(LogicalGroupToVirtualSystem):
-    """Nautobot implementation of LogicalGroupToVirtualSystem model."""
-
-
-class NautobotLogicalGroupToVirtualDeviceContext(LogicalGroupToVirtualDeviceContext):
-    """Nautobot implementation of LogicalGroupToVirtualDeviceContext model."""
-
-
-class NautobotLogicalGroupToDevice(LogicalGroupToDevice):
-    """Nautobot implementation of LogicalGroupToDevice model."""
 
 
 class NautobotFirewall(Firewall):
@@ -120,7 +76,6 @@ class NautobotFirewallInterface(FirewallInterface):
         """Delete Firewall Interface in Nautobot from NautobotFirewall object."""
         try:
             iface = OrmInterface.objects.get(name=self.name, device__serial=self.device__serial)
-            # iface.zones.clear()
             super().delete()
             iface.delete()
         except Exception as e:
@@ -211,17 +166,5 @@ class NautobotDeviceToControllerManagedDeviceGroup(DeviceToControllerManagedDevi
         return self
 
 
-class NautobotLogicalGroup(LogicalGroup):
-    """Nautobot implementation of Panorama LogicalGroup model."""
-
-    @classmethod
-    def create(cls, adapter, ids, attrs):
-        """Create LogicalGroup in Nautobot from NautobotLogicalGroup object."""
-        device_group = NAUTOBOT.create_device_group(adapter, ids, attrs)
-        if not device_group:
-            raise diffsync_exceptions.ObjectNotCreated
-        return super().create(adapter=adapter, ids=ids, attrs=attrs)
-
-    def delete(self):
-        """Delete LogicalGroup in Nautobot from NautobotLogicalGroup object."""
-        return self
+class NautobotVdcToControllerManagedDeviceGroup(VdcToControllerManagedDeviceGroup):
+    """Nautobot implementation of VdcToControllerManagedDeviceGroup."""
