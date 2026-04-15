@@ -1,5 +1,6 @@
 """Nautobot Adapter Tests"""
 
+# pylint: disable=protected-access
 from unittest.mock import MagicMock, patch
 
 from django.core.exceptions import ValidationError
@@ -28,7 +29,7 @@ from nautobot_ssot.integrations.vsphere.diffsync.models.vsphere import (
 from .vsphere_fixtures import create_default_vsphere_config
 
 
-class TestNautobotAdapter(TestCase):  # pylint: disable=too-many-instance-attributes,protected-access
+class TestNautobotAdapter(TestCase):  # pylint: disable=too-many-instance-attributes
     """Test cases for vSphere Nautobot adapter."""
 
     def setUp(self):
