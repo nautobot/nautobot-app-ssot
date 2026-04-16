@@ -1,0 +1,1 @@
+Removed reference to deleted `extras/inc/jobresult_js.html` template that was removed in Nautobot 3.1.0, which caused a `TemplateDoesNotExist` error on the Sync Job Logs tab.
