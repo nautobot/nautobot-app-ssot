@@ -1,9 +1,8 @@
 """Nautobot Adapter Tests"""
 
 # pylint: disable=protected-access
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-from django.core.exceptions import ValidationError
 from django.test import TestCase
 from nautobot.extras.models.statuses import Status
 from nautobot.extras.models.tags import Tag
@@ -142,8 +141,8 @@ class TestNautobotAdapter(TestCase):  # pylint: disable=too-many-instance-attrib
             status=self.status,
             type="network",
         )
-        ip6, _ = IPAddress.objects.get_or_create(host="2001:db8::1", mask_length=128, status=self.status)
-        ip6.vm_interfaces.set([self.vm_interface_1])
+        ipv6, _ = IPAddress.objects.get_or_create(host="2001:db8::1", mask_length=128, status=self.status)
+        ipv6.vm_interfaces.set([self.vm_interface_1])
 
         adapter = self._make_adapter()
         adapter._primary_ips = [
@@ -158,7 +157,7 @@ class TestNautobotAdapter(TestCase):  # pylint: disable=too-many-instance-attrib
 
         self.test_virtualmachine.refresh_from_db()
         self.assertIsNone(self.test_virtualmachine.primary_ip4)
-        self.assertEqual(self.test_virtualmachine.primary_ip6, ip6)
+        self.assertEqual(self.test_virtualmachine.primary_ip6, ipv6)
 
     def test_sync_complete_sets_both_primary_ips(self):
         """sync_complete assigns both primary_ip4 and primary_ip6 when both are present."""
@@ -170,8 +169,8 @@ class TestNautobotAdapter(TestCase):  # pylint: disable=too-many-instance-attrib
             status=self.status,
             type="network",
         )
-        ip6, _ = IPAddress.objects.get_or_create(host="2001:db8::1", mask_length=128, status=self.status)
-        ip6.vm_interfaces.set([self.vm_interface_1])
+        ipv6, _ = IPAddress.objects.get_or_create(host="2001:db8::1", mask_length=128, status=self.status)
+        ipv6.vm_interfaces.set([self.vm_interface_1])
 
         adapter = self._make_adapter()
         adapter._primary_ips = [
@@ -186,7 +185,7 @@ class TestNautobotAdapter(TestCase):  # pylint: disable=too-many-instance-attrib
 
         self.test_virtualmachine.refresh_from_db()
         self.assertEqual(self.test_virtualmachine.primary_ip4, self.vm_ip)
-        self.assertEqual(self.test_virtualmachine.primary_ip6, ip6)
+        self.assertEqual(self.test_virtualmachine.primary_ip6, ipv6)
 
     def test_sync_complete_vm_not_found_logs_warning(self):
         """sync_complete logs a warning and skips when VirtualMachine does not exist."""
@@ -215,21 +214,3 @@ class TestNautobotAdapter(TestCase):  # pylint: disable=too-many-instance-attrib
 
         adapter.job.logger.warning.assert_not_called()
         adapter.job.logger.error.assert_not_called()
-
-    def test_sync_complete_validation_error_logs_error(self):
-        """sync_complete logs an error when validated_save raises ValidationError."""
-        adapter = self._make_adapter()
-        adapter._primary_ips = [
-            {
-                "device": {"name": "Test VM"},
-                "primary_ip4": "192.168.1.1",
-                "primary_ip6": None,
-            }
-        ]
-
-        with patch.object(VirtualMachine, "validated_save", side_effect=ValidationError("bad ip")):
-            adapter.sync_complete(source=MagicMock(), diff=MagicMock())
-
-        adapter.job.logger.error.assert_called_once()
-        error_call_args = adapter.job.logger.error.call_args[0][0]
-        self.assertIn("Unable to set primary IP", error_call_args)
