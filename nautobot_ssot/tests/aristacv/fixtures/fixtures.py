@@ -29,3 +29,9 @@ ACCESS_INTF_MODE_QUERY = load_json(
 )
 IP_INTF_QUERY = load_json("./nautobot_ssot/tests/aristacv/fixtures/get_ip_interfaces_client_query.json")
 IP_INTF_FIXTURE = load_json("./nautobot_ssot/tests/aristacv/fixtures/get_ip_interfaces_response.json")
+IP_INTF_SPLIT_NOTIF_QUERY = load_json(
+    "./nautobot_ssot/tests/aristacv/fixtures/get_ip_interfaces_split_notif_client_query.json"
+)
+IP_INTF_SPLIT_NOTIF_FIXTURE = load_json(
+    "./nautobot_ssot/tests/aristacv/fixtures/get_ip_interfaces_split_notif_response.json"
+)
