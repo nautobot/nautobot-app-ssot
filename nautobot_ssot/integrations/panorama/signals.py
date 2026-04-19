@@ -42,12 +42,13 @@ def nautobot_database_ready_callback(apps=global_apps, **kwargs):  # pylint: dis
     Manufacturer = apps.get_model("dcim", "Manufacturer")
     Platform = apps.get_model("dcim", "Platform")
     Controller = apps.get_model("dcim", "Controller")
-    manufacturer_name = app_settings.get("palo_alto_manufacturer_name", "Palo Alto")
+    manufacturer_name = app_settings.get("panorama_firewall_manufacturer_name", "Palo Alto")
     manufacturer, _ = Manufacturer.objects.get_or_create(name=manufacturer_name)
 
     device_content_type = ContentType.objects.get_for_model(Device)
     controller_content_type = ContentType.objects.get_for_model(Controller)
-    panorama_device_role, _ = Role.objects.get_or_create(name="FW-Other")
+    role_name = app_settings.get("panorama_firewall_role_name", "Firewall")
+    panorama_device_role, _ = Role.objects.get_or_create(name=role_name)
     panorama_device_role.content_types.add(device_content_type)
     panorama_device_role.content_types.add(controller_content_type)
 
