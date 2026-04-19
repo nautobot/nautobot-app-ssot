@@ -86,11 +86,13 @@ class Nautobot:  # pylint: disable=too-many-public-methods
             manufacturer, _ = Manufacturer.objects.get_or_create(name=manufacturer_name)
             platform_name = app_settings.get("panorama_firewall_platform_name", "paloalto_panos")
             platform, _ = Platform.objects.get_or_create(name=platform_name, manufacturer=manufacturer)
+            role_name = app_settings.get("panorama_firewall_role_name", "Firewall")
+            role, _ = Role.objects.get_or_create(name=role_name)
             device = Device(
                 status=adapter.job.default_device_status,
                 serial=ids["serial"],
                 name=attrs["name"],
-                role=Role.objects.get(name="FW-Other"),
+                role=role,
                 device_type=DeviceType.objects.get(model=attrs["model"]),
                 platform=platform,
                 location=adapter.job.panorama_controller.location,

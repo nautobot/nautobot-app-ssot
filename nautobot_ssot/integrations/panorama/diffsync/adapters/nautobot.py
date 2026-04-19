@@ -167,7 +167,7 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
 
     def load_device_types(self):
         """Load Nautobot DeviceType objects."""
-        manufacturer_name = app_settings.get("panorama_firewall_platform_name", "Palo Alto")
+        manufacturer_name = app_settings.get("panorama_firewall_manufacturer_name", "Palo Alto")
         for device_type_obj in DeviceType.objects.filter(manufacturer__name=manufacturer_name):
             device_type = self.device_type(
                 model=device_type_obj.model,
