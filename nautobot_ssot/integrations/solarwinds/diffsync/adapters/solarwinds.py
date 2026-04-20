@@ -65,6 +65,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         sync=None,
         parent=None,
         tenant=None,
+        namespace=None,
     ):
         """Initialize SolarWinds.
 
@@ -76,6 +77,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             location_type (LocationType): The LocationType to create containers as in Nautobot.
             parent (Location, optional): The parent Location to assign created containers to in Nautobot.
             tenant (Tenant, optional): The Tenant to associate with Devices and IPAM data.
+            namespace (Namespace, optional): The Namespace to assign imported Prefixes to. Defaults to 'Global'.
         """
         super().__init__()
         self.job = job
@@ -85,6 +87,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         self.location_type = location_type
         self.parent = parent
         self.tenant = tenant
+        self.namespace = namespace
         self.failed_devices = []
 
     def load(self):  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
@@ -491,7 +494,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             ids={
                 "network": network.split("/")[0],
                 "prefix_length": network.split("/")[1],
-                "namespace__name": self.tenant.name if self.tenant else "Global",
+                "namespace__name": self.namespace.name if self.namespace else "Global",
             },
             attrs={
                 "status__name": "Active",
@@ -516,7 +519,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
                 "host": addr,
                 "parent__network": prefix.split("/")[0],
                 "parent__prefix_length": prefix_length,
-                "parent__namespace__name": self.tenant.name if self.tenant else "Global",
+                "parent__namespace__name": self.namespace.name if self.namespace else "Global",
             },
             attrs={
                 "mask_length": prefix_length,

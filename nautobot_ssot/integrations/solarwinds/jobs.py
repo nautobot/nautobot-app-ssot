@@ -8,6 +8,7 @@ from nautobot.dcim.models import Device, Location, LocationType
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import ExternalIntegration, Role
 from nautobot.tenancy.models import Tenant
+from nautobot.ipam.models import Namespace
 
 from nautobot_ssot.integrations.solarwinds.diffsync.adapters import nautobot, solarwinds
 from nautobot_ssot.integrations.solarwinds.utils.solarwinds import SolarWindsClient
@@ -79,6 +80,13 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         label="Tenant",
         required=False,
     )
+    namespace = ObjectVar(
+        model=Namespace,
+        queryset=Namespace.objects.all(),
+        description="Namespace to assign to imported Prefixes.",
+        label="Namespace",
+        required=False,
+    )
     role_map = JSONVar(
         label="Device Roles Map", description="Mapping of matching object to Role.", default={}, required=False
     )
@@ -122,6 +130,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             "location_override",
             "parent",
             "tenant",
+            "namespace",
             "default_role",
             "role_choice",
             "role_map",
@@ -221,6 +230,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             location_type=self.location_type,
             parent=self.parent,
             tenant=self.tenant,
+            namespace=self.namespace,
         )
         self.source_adapter.load()
 
@@ -245,6 +255,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         )
         self.parent = kwargs.get("parent")
         self.tenant = kwargs.get("tenant")
+        self.namespace = kwargs.get("namespace")
         self.role_map = kwargs.get("role_map")
         self.role_choice = kwargs.get("role_choice")
         self.default_role = kwargs.get("default_role")
