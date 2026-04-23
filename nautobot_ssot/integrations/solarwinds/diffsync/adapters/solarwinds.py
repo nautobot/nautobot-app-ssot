@@ -1,12 +1,14 @@
 """Nautobot SSoT SolarWinds Adapter for SolarWinds SSoT app."""
 
 import json
+import re
 from datetime import datetime
 from typing import Dict, List, Optional
 
 from diffsync import Adapter, DiffSyncModel
 from diffsync.enum import DiffSyncModelFlags
 from netutils.ip import ipaddress_interface, is_ip_within
+from netutils.lib_mapper import NAPALM_LIB_MAPPER_REVERSE
 from netutils.mac import mac_to_format
 
 from nautobot_ssot.integrations.solarwinds.diffsync.models.solarwinds import (
@@ -27,6 +29,19 @@ from nautobot_ssot.integrations.solarwinds.utils.solarwinds import (
     determine_role_from_devicetype,
     determine_role_from_hostname,
 )
+
+DEFAULT_PLATFORM_MAP = {
+    r"AOS-CX": "aruba_aoscx",
+    r"ArubaOS-Switch|Aruba.*\b(?:25|29|38|54)\d*\b": "aruba_osswitch",
+    r"Aruba\s+(?:AP|MC|MM|Mobility|Controller)": "aruba_os",
+    r"Arista": "arista_eos",
+    r"Nexus|\bN[579]K\b": "cisco_nxos",
+    r"Cisco.*(?:Wireless\s+Controller|WLC|Aironet)": "cisco_wlc",
+    r"Cisco": "cisco_ios",
+    r"BIG-IP|F5\s+Networks": "bigip_f5",
+    r"Juniper|JUNOS": "juniper_junos",
+    r"PAN-OS|Palo\s+Alto": "paloalto_panos",
+}
 
 
 class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
@@ -66,6 +81,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         parent=None,
         tenant=None,
         namespace=None,
+        platform_map=None,
     ):
         """Initialize SolarWinds.
 
@@ -78,6 +94,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             parent (Location, optional): The parent Location to assign created containers to in Nautobot.
             tenant (Tenant, optional): The Tenant to associate with Devices and IPAM data.
             namespace (Namespace, optional): The Namespace to assign imported Prefixes to. Defaults to 'Global'.
+            platform_map (dict, optional): User-supplied regex → netutils normalized platform name overrides, checked before the built-in map.
         """
         super().__init__()
         self.job = job
@@ -88,6 +105,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         self.parent = parent
         self.tenant = tenant
         self.namespace = namespace
+        self.platform_map = platform_map or {}
         self.failed_devices = []
 
     def load(self):  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
@@ -349,94 +367,39 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             self.role, ids={"name": role}, attrs={"content_types": [{"app_label": "dcim", "model": "device"}]}
         )
 
-    def load_platform(self, device_type: str, manufacturer: str):  # pylint: disable=too-many-branches
-        """Load Platform into DiffSync model based upon DeviceType.
+    @staticmethod
+    def _platform_attrs(network_driver: str) -> dict:
+        """Build Nautobot Platform attrs from a netutils-normalized driver name."""
+        return {
+            "network_driver": network_driver,
+            "napalm_driver": NAPALM_LIB_MAPPER_REVERSE.get(network_driver, ""),
+        }
+
+    def load_platform(self, device_type: str, manufacturer: str):
+        """Resolve a Platform by matching vendor/device_type text against the platform map.
+
+        The user-supplied `platform_map` job variable is consulted first; falls back
+        to DEFAULT_PLATFORM_MAP. Values are netutils-normalized platform names
+        (e.g. `cisco_ios`, `aruba_aoscx`), which also become the Platform's name and
+        network_driver. NAPALM driver is derived from `netutils.lib_mapper`.
 
         Args:
             device_type (str): DeviceType name for associated Platform.
             manufacturer (str): Manufacturer name for associated Platform.
+
+        Returns:
+            str: Normalized platform name, or "UNKNOWN" when no pattern matches.
         """
-        platform = "UNKNOWN"
-        if "Arista" in manufacturer:
-            self.get_or_instantiate(
-                self.platform,
-                ids={"name": "arista.eos.eos", "manufacturer__name": manufacturer},
-                attrs={"network_driver": "arista_eos", "napalm_driver": ""},
-            )
-            platform = "arista.eos.eos"
-
-        if "Aruba" in manufacturer:
-            if device_type.startswith(("1", "60", "61", "62", "63", "64", "8", "93", "94")):
+        haystack = f"{manufacturer} {device_type}"
+        for pattern, normalized in {**self.platform_map, **DEFAULT_PLATFORM_MAP}.items():
+            if re.search(pattern, haystack, re.IGNORECASE):
                 self.get_or_instantiate(
                     self.platform,
-                    ids={"name": "arubanetworks.aos.aoscx", "manufacturer__name": manufacturer},
-                    attrs={"network_driver": "aruba_aoscx", "napalm_driver": ""},
+                    ids={"name": normalized, "manufacturer__name": manufacturer},
+                    attrs=self._platform_attrs(normalized),
                 )
-                platform = "arubanetworks.aos.aoscx"
-            elif device_type.startswith(("AP", "MC", "MM", "7", "90", "91", "92")):
-                self.get_or_instantiate(
-                    self.platform,
-                    ids={"name": "arubanetworks.aos.os", "manufacturer__name": manufacturer},
-                    attrs={"network_driver": "aruba_os", "napalm_driver": ""},
-                )
-                platform = "arubanetworks.aos.os"
-            elif device_type.startswith(("25", "29", "38", "54")):
-                self.get_or_instantiate(
-                    self.platform,
-                    ids={"name": "arubanetworks.aos.osswitch", "manufacturer__name": manufacturer},
-                    attrs={"network_driver": "aruba_osswitch", "napalm_driver": ""},
-                )
-                platform = "arubanetworks.aos.osswitch"
-
-        if "Cisco" in manufacturer:
-            if device_type.startswith("85"):
-                if "wireless" in device_type.lower() or "wlc" in device_type.lower():
-                    self.get_or_instantiate(
-                        self.platform,
-                        ids={"name": "cisco.ios.aireos", "manufacturer__name": manufacturer},
-                        attrs={"network_driver": "cisco_aireos", "napalm_driver": ""},
-                    )
-                platform = "cisco.ios.aireos"
-            elif not device_type.startswith("N"):
-                self.get_or_instantiate(
-                    self.platform,
-                    ids={"name": "cisco.ios.ios", "manufacturer__name": manufacturer},
-                    attrs={"network_driver": "cisco_ios", "napalm_driver": "ios"},
-                )
-                platform = "cisco.ios.ios"
-            elif device_type.startswith("N"):
-                self.get_or_instantiate(
-                    self.platform,
-                    ids={"name": "cisco.nxos.nxos", "manufacturer__name": manufacturer},
-                    attrs={"network_driver": "cisco_nxos", "napalm_driver": "nxos"},
-                )
-                platform = "cisco.nxos.nxos"
-
-        if "F5 Networks" in manufacturer:
-            self.get_or_instantiate(
-                self.platform,
-                ids={"name": "f5networks.f5_bigip.bigip", "manufacturer__name": manufacturer},
-                attrs={"network_driver": "bigip_f5", "napalm_driver": "bigip_f5"},
-            )
-            platform = "f5networks.f5_bigip.bigip"
-
-        if "Juniper" in manufacturer:
-            self.get_or_instantiate(
-                self.platform,
-                ids={"name": "juniper.junos.junos", "manufacturer__name": manufacturer},
-                attrs={"network_driver": "juniper_junos", "napalm_driver": ""},
-            )
-            platform = "juniper.junos.junos"
-
-        if "Palo" in manufacturer:
-            self.get_or_instantiate(
-                self.platform,
-                ids={"name": "paloaltonetworks.panos.panos", "manufacturer__name": manufacturer},
-                attrs={"network_driver": "paloalto_panos", "napalm_driver": ""},
-            )
-            platform = "paloaltonetworks.panos.panos"
-
-        return platform
+                return normalized
+        return "UNKNOWN"
 
     def load_interfaces(self, device: DiffSyncModel, intfs: dict) -> None:
         """Load interfaces for passed device.

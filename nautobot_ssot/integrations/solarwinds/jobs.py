@@ -7,8 +7,8 @@ from nautobot.apps.jobs import BooleanVar, ChoiceVar, JSONVar, ObjectVar, String
 from nautobot.dcim.models import Device, Location, LocationType
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import ExternalIntegration, Role
-from nautobot.tenancy.models import Tenant
 from nautobot.ipam.models import Namespace
+from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.solarwinds.diffsync.adapters import nautobot, solarwinds
 from nautobot_ssot.integrations.solarwinds.utils.solarwinds import SolarWindsClient
@@ -90,6 +90,15 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
     role_map = JSONVar(
         label="Device Roles Map", description="Mapping of matching object to Role.", default={}, required=False
     )
+    platform_map = JSONVar(
+        label="Platform Map",
+        description=(
+            "Optional mapping of regex pattern (matched against '<Vendor> <DeviceType>') to netutils-normalized "
+            'platform name (e.g. {"AOS-CX": "aruba_aoscx"}). User entries are consulted before the built-in defaults.'
+        ),
+        default={},
+        required=False,
+    )
     role_choice = ChoiceVar(
         choices=ROLE_CHOICES,
         label="Role Map Matching Attribute",
@@ -134,6 +143,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             "default_role",
             "role_choice",
             "role_map",
+            "platform_map",
         ]
 
     @classmethod
@@ -231,6 +241,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             parent=self.parent,
             tenant=self.tenant,
             namespace=self.namespace,
+            platform_map=self.platform_map,
         )
         self.source_adapter.load()
 
@@ -257,6 +268,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         self.tenant = kwargs.get("tenant")
         self.namespace = kwargs.get("namespace")
         self.role_map = kwargs.get("role_map")
+        self.platform_map = kwargs.get("platform_map")
         self.role_choice = kwargs.get("role_choice")
         self.default_role = kwargs.get("default_role")
         self.debug = kwargs.get("debug")
