@@ -231,7 +231,7 @@ class NautobotAdapter(Adapter):
                 port_type=port.type,
                 port_mode=port.mode,
                 mac_addr=str(port.mac_address) if getattr(port, "mac_address") else None,
-                mtu=port.mtu if port.mtu else 1500,
+                mtu=port.mtu if port.mtu and port.mtu != 0 else None,
                 status=port.status.name,
                 uuid=port.id,
             )
