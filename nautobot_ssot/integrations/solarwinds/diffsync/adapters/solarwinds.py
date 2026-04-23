@@ -128,7 +128,11 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
                 role = self.determine_device_role(node, device_type)
                 self.load_role(role)
                 if device_type:
-                    platform_name = self.load_platform(device_type, manufacturer=node.get("Vendor"))
+                    platform_name = self.load_platform(
+                        device_type,
+                        manufacturer=node.get("Vendor"),
+                        description=node.get("DeviceType") or "",
+                    )
                     if platform_name == "UNKNOWN":
                         self.job.logger.error(f"Can't determine platform for {node['NodeHostname']} so skipping load.")
                         self.failed_devices.append({**node, **{"error": "Unable to determine Platform."}})
@@ -375,7 +379,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             "napalm_driver": NAPALM_LIB_MAPPER_REVERSE.get(network_driver, ""),
         }
 
-    def load_platform(self, device_type: str, manufacturer: str):
+    def load_platform(self, device_type: str, manufacturer: str, description: str = ""):
         """Resolve a Platform by matching vendor/device_type text against the platform map.
 
         The user-supplied `platform_map` job variable is consulted first; falls back
@@ -386,11 +390,14 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         Args:
             device_type (str): DeviceType name for associated Platform.
             manufacturer (str): Manufacturer name for associated Platform.
+            description (str, optional): Additional descriptive text (typically the
+                raw SolarWinds DeviceType string) to include in the match haystack
+                alongside manufacturer and device_type.
 
         Returns:
             str: Normalized platform name, or "UNKNOWN" when no pattern matches.
         """
-        haystack = f"{manufacturer} {device_type}"
+        haystack = " ".join(filter(None, [manufacturer, device_type, description]))
         for pattern, normalized in {**self.platform_map, **DEFAULT_PLATFORM_MAP}.items():
             if re.search(pattern, haystack, re.IGNORECASE):
                 self.get_or_instantiate(

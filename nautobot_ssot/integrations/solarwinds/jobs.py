@@ -93,8 +93,10 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
     platform_map = JSONVar(
         label="Platform Map",
         description=(
-            "Optional mapping of regex pattern (matched against '<Vendor> <DeviceType>') to netutils-normalized "
-            'platform name (e.g. {"AOS-CX": "aruba_aoscx"}). User entries are consulted before the built-in defaults.'
+            "Optional mapping of regex pattern to netutils-normalized platform name "
+            '(e.g. {"AOS-CX": "aruba_aoscx"}). Patterns are matched with re.search (case-insensitive) '
+            "against a space-joined string of '<Vendor> <Model> <DeviceType>'. "
+            "User entries are consulted before the built-in defaults."
         ),
         default={},
         required=False,
