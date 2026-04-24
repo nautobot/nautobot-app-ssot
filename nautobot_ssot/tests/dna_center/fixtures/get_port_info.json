@@ -120,7 +120,7 @@
         "mappedPhysicalInterfaceId": null,
         "mappedPhysicalInterfaceName": null,
         "mediaType": null,
-        "mtu": "1500",
+        "mtu": "",
         "name": null,
         "nativeVlanId": "1",
         "networkdevice_id": 295295,
