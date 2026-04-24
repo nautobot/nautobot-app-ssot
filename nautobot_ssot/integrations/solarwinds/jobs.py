@@ -115,6 +115,14 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         required=True,
     )
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
+    skip_deletes = BooleanVar(
+        description=(
+            "If enabled, objects present in Nautobot but missing from this SolarWinds run will NOT be deleted. "
+            "Use when syncing multiple SolarWinds instances into the same Nautobot."
+        ),
+        label="Skip deletes",
+        default=False,
+    )
 
     def __init__(self):
         """Initialize job objects."""
@@ -133,6 +141,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         field_order = [
             "dryrun",
             "debug",
+            "skip_deletes",
             "integration",
             "location_type",
             "custom_property",
@@ -277,6 +286,8 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         self.dryrun = kwargs.get("dryrun")
         self.memory_profiling = kwargs.get("memory_profiling")
         self.parallel_loading = kwargs.get("parallel_loading")
+        if kwargs.get("skip_deletes"):
+            self.diffsync_flags |= DiffSyncFlags.SKIP_UNMATCHED_DST
         super().run(*args, **kwargs)
 
 
