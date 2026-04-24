@@ -78,7 +78,7 @@ class PlatformModel(NautobotModel):
     _attributes = ("network_driver", "napalm_driver")
 
     name: str
-    manufacturer__name: str
+    manufacturer__name: Optional[str] = None
     network_driver: str
     napalm_driver: str
 
