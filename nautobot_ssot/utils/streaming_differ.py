@@ -49,7 +49,14 @@ def _adapter_class_map(adapter) -> Dict[str, Any]:
     return out
 
 
-def dump_adapter(adapter, store: DiffSyncStore, table: str) -> int:
+def dump_adapter(
+    adapter,
+    store: DiffSyncStore,
+    table: str,
+    *,
+    orm_resolver=None,
+    strict: bool = False,
+) -> int:
     """Flatten `adapter.dict()` into rows and bulk-insert into `table`.
 
     Walks `top_level` (and nested `_children`) so each row carries
@@ -59,6 +66,21 @@ def dump_adapter(adapter, store: DiffSyncStore, table: str) -> int:
     DiffSync models — that's fine because the caller is expected to release
     the adapter immediately after this returns. The win is that we do NOT
     keep two adapters live concurrently nor build a Diff tree on top of them.
+
+    Hook 2 — opt-in ORM validation
+    ------------------------------
+    When `orm_resolver` is provided, every row is also validated by building
+    a transient ORM instance and running `full_clean(validate_unique=False,
+    validate_constraints=False)` on it. This catches Nautobot-level domain
+    errors (custom-field schema, model `clean()` rules, value ranges enforced
+    by Django validators) WITHOUT any DB round-trip.
+
+    `orm_resolver` must implement
+        `to_orm_kwargs(model_type, ids, attrs) -> (OrmClass, kwargs, exclude)`
+    (typically the destination adapter, e.g. `BulkNautobotAdapter`).
+
+    `strict=False` (default): validation failures are logged and the row is
+    still dumped. `strict=True`: failures raise `pydantic.ValidationError`.
     """
     class_map = _adapter_class_map(adapter)
     type_order = {modelname: idx for idx, modelname in enumerate(adapter.top_level)}
@@ -67,8 +89,41 @@ def dump_adapter(adapter, store: DiffSyncStore, table: str) -> int:
     # parent_type/parent_key are filled from the parent that referenced it.
     rows = []
     seen_keys = set()  # (modelname, unique_key) to avoid duplicates from cycles
+    validation_errors: list = []  # Hook 2 errors collected here when strict=False
 
     snapshot = adapter.dict()  # {modelname: {unique_id: {field: value}}}
+
+    def _validate_row(modelname: str, ids_dict: dict, attrs_dict: dict) -> None:
+        """Hook 2: build a transient ORM and run clean_fields(exclude=FKs).
+
+        We deliberately call clean_fields() rather than full_clean() because
+        model-level clean() methods (e.g. IPAddress.clean) do queryset lookups
+        for FK targets that may not exist yet at dump time. clean_fields()
+        runs every per-field validator (custom regexes, choices, number ranges,
+        IP/CIDR validators, custom-field schema) — which is what Hook 2 is
+        meant to catch — without the relational dependency.
+
+        Relational/uniqueness/check enforcement is left to the database at
+        INSERT time.
+        """
+        if orm_resolver is None:
+            return
+        resolver = getattr(orm_resolver, "to_orm_kwargs", None)
+        if not callable(resolver):
+            return
+        spec = resolver(modelname, ids_dict, attrs_dict)
+        if spec is None:
+            return
+        OrmCls, orm_kwargs, exclude_fields = spec
+        try:
+            instance = OrmCls(**orm_kwargs)
+            instance.clean_fields(exclude=exclude_fields)
+        except Exception as exc:  # noqa: BLE001 — Django ValidationError is fine here
+            err = (modelname, ids_dict, str(exc))
+            if strict:
+                raise
+            validation_errors.append(err)
+            logger.warning("Hook 2 validation failed: %s ids=%s err=%s", modelname, ids_dict, exc)
 
     def _walk(modelname: str, unique_id: str, parent_type: Optional[str],
               parent_key: Optional[str], depth: int):
@@ -84,6 +139,8 @@ def dump_adapter(adapter, store: DiffSyncStore, table: str) -> int:
 
         ids_dict = {f: record.get(f) for f in cls._identifiers if f in record}
         attrs_dict = {f: record.get(f) for f in cls._attributes if f in record}
+
+        _validate_row(modelname, ids_dict, attrs_dict)
 
         rows.append(
             (
@@ -116,6 +173,12 @@ def dump_adapter(adapter, store: DiffSyncStore, table: str) -> int:
                 continue
             _walk(modelname, unique_id, None, None, 0)
 
+    if validation_errors:
+        logger.info(
+            "dump_adapter: %d validation error(s) collected during dump (strict=%s)",
+            len(validation_errors),
+            strict,
+        )
     if not rows:
         return 0
     return store.insert_records(table, rows)

@@ -236,3 +236,51 @@ class BulkNautobotAdapter(BulkOperationsMixin, NautobotAdapter):
         )
         self._flush_ip_tags()
         super().sync_complete(source, *args, **kwargs)
+
+    # ------------------------------------------------------------------
+    # Hook 2 support: ORM resolver for opt-in dump-time full_clean()
+    # ------------------------------------------------------------------
+
+    def to_orm_kwargs(self, model_type: str, ids: dict, attrs: dict):
+        """Resolve a (model_type, ids, attrs) tuple into ORM construction args.
+
+        Used by `dump_adapter(..., orm_resolver=...)` (Hook 2). Returns
+        `(OrmClass, kwargs, exclude_fields)` so the caller can build a
+        transient ORM instance and run `full_clean(exclude=exclude_fields,
+        validate_unique=False, validate_constraints=False)` to enforce
+        Nautobot-level domain rules WITHOUT a DB round-trip.
+
+        FK fields are intentionally NOT populated and are returned in
+        `exclude_fields` — Hook 2 is shape/value validation, not relational.
+        DB constraints handle FK validity at INSERT time.
+
+        Returns None for model types we don't have a mapping for.
+        """
+        if model_type == "namespace":
+            return OrmNamespace, {"name": ids["name"]}, []
+        if model_type == "prefix":
+            return (
+                OrmPrefix,
+                {
+                    "prefix": ids["network"],
+                    "type": attrs.get("network_type") or "network",
+                    "description": attrs.get("description") or "",
+                },
+                ["namespace", "status"],
+            )
+        if model_type in ("ipaddress", "dnsarecord", "dnshostrecord", "dnsptrrecord"):
+            addr_w_pfxl = f"{ids['address']}/{ids['prefix_length']}"
+            ip_type = (attrs.get("ip_addr_type") or "host").lower()
+            if ip_type not in IPAddressTypeChoices.as_dict():
+                ip_type = "host"
+            return (
+                OrmIPAddress,
+                {
+                    "address": addr_w_pfxl,
+                    "type": ip_type,
+                    "dns_name": attrs.get("dns_name") or "",
+                    "description": attrs.get("description") or "",
+                },
+                ["parent", "status"],
+            )
+        return None

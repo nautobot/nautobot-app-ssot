@@ -63,8 +63,10 @@ def run_streaming_sync(
         src_adapter: source DiffSync adapter (already constructed; not yet loaded
                      unless `skip_load=True`).
         dst_adapter: destination DiffSync adapter (same).
-        flags: SSoTFlags controlling tier + side-effects.
+        flags: SSoTFlags controlling tier + validation hooks.
             * BULK_WRITES       → Tier 2 (bulk_create) instead of Tier 1
+            * VALIDATE_ON_DUMP  → Hook 2 clean_fields() at dump time
+            * VALIDATE_STRICT   → raise on validation failure (else log+continue)
             * BULK_CLEAN        → call Model.bulk_clean(instances) before flush
             * BULK_SIGNAL       → fire bulk_post_* signals after each flush
             * REFIRE_POST_SAVE  → re-fire Django post_save per instance
@@ -76,6 +78,8 @@ def run_streaming_sync(
     Returns the timing/stats record.
     """
     tier = "tier2" if (flags & SSoTFlags.BULK_WRITES) else "tier1"
+    validate_on_dump = bool(flags & SSoTFlags.VALIDATE_ON_DUMP)
+    strict = bool(flags & SSoTFlags.VALIDATE_STRICT)
     bulk_clean = bool(flags & SSoTFlags.BULK_CLEAN)
     bulk_signal = bool(flags & SSoTFlags.BULK_SIGNAL)
     refire_post_save = bool(flags & SSoTFlags.REFIRE_POST_SAVE)
@@ -92,7 +96,13 @@ def run_streaming_sync(
             result.t_src = time.perf_counter() - t0
 
         t0 = time.perf_counter()
-        dump_adapter(src_adapter, store, "source_records")
+        dump_adapter(
+            src_adapter,
+            store,
+            "source_records",
+            orm_resolver=dst_adapter if validate_on_dump else None,
+            strict=strict,
+        )
         result.t_src_dump = time.perf_counter() - t0
 
         # Free in-memory state from src_adapter — leaves the adapter object

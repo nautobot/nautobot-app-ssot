@@ -13,6 +13,7 @@ Modes:
   --bulk-audit     — legacy bulk pipeline + REFIRE_POST_SAVE + deferred_change_logging
                      (full audit chain restored — NO streaming required)
   --stream-tier1   — SQLite-streaming pipeline, replays via validated_save() inside deferred CL
+  --stream-tier1-5 — streaming + Hook 1 (strict source) + Hook 2 (clean_fields at dump) + Tier 2 writes
   --stream-tier2   — SQLite-streaming pipeline, replays via BulkNautobotAdapter (bulk_create)
   --stream-tier2-audit — stream-tier2 + REFIRE_POST_SAVE wrapped in deferred_change_logging
                           (fast bulk + full audit chain — webhooks/jobhooks/events fire)
@@ -239,15 +240,23 @@ def _run_bulk_audit(scale, status_active, mode_label, user):
     return result
 
 
-def _run_stream(scale, status_active, mode_label, user, *, flags: SSoTFlags = SSoTFlags.STREAMING):
+def _run_stream(scale, status_active, mode_label, user, *,
+                flags: SSoTFlags = SSoTFlags.STREAMING,
+                use_strict_source=False):
     """Run the SQLite-streaming pipeline at one scale.
 
-    flags: SSoTFlags word — must include STREAMING; BULK_WRITES picks Tier 2.
+    flags: SSoTFlags word — must include STREAMING; BULK_WRITES picks Tier 2;
+           VALIDATE_ON_DUMP / VALIDATE_STRICT compose Hook 2.
+    use_strict_source: Hook 1 — swap InfobloxAdapter for StrictInfobloxAdapter.
+                       (Hook 1 isn't a flag bit; it's a per-integration adapter
+                       class swap. The benchmark exposes it as a separate kwarg
+                       to keep the framework-vs-integration split clean.)
 
     Returns a dict shaped like the other _run_* helpers so the matrix table
     can pivot results consistently.
     """
     from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
+    from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox_strict import StrictInfobloxAdapter
     from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
     from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot_bulk import BulkNautobotAdapter
     from nautobot_ssot.tests.infoblox.performance.mock_client import MockInfobloxClient
@@ -261,7 +270,8 @@ def _run_stream(scale, status_active, mode_label, user, *, flags: SSoTFlags = SS
     nv_names = [nv["name"] for nv in client.get_network_views()]
     config = _make_config(nv_names, default_status=status_active)
     job = _make_job()
-    src = InfobloxAdapter(job=job, sync=None, conn=client, config=config)
+    src_cls = StrictInfobloxAdapter if use_strict_source else InfobloxAdapter
+    src = src_cls(job=job, sync=None, conn=client, config=config)
     use_bulk = bool(flags & SSoTFlags.BULK_WRITES)
     dst_cls = BulkNautobotAdapter if use_bulk else NautobotAdapter
     dst = dst_cls(job=job, sync=None, config=config)
@@ -342,6 +352,13 @@ def run_mode(mode, scale, status_active, user):
         return _run_stream(scale, status_active, mode, user, flags=SSoTFlags.STREAM_TIER1)
     if mode == "stream_tier2":
         return _run_stream(scale, status_active, mode, user, flags=SSoTFlags.STREAM_TIER2)
+    if mode == "stream_tier1_5":
+        # Composite shorthand from SSoTFlags: STREAMING|BULK_WRITES|VALIDATE_SOURCE_SHAPE|VALIDATE_ON_DUMP
+        return _run_stream(
+            scale, status_active, mode, user,
+            flags=SSoTFlags.STREAM_TIER1_5,
+            use_strict_source=True,  # Hook 1 — adapter class swap, not a flag bit
+        )
     if mode == "stream_tier2_audit":
         # STREAM_TIER2 (bulk_create) + REFIRE_POST_SAVE wrapped in the
         # deferred_change_logging context. Demonstrates the composition that
@@ -362,6 +379,7 @@ MATRIX_MODES = [
     "bulk_b1000",
     "bulk_b250_audit",
     "stream_tier1",
+    "stream_tier1_5",
     "stream_tier2",
     "stream_tier2_audit",
 ]
@@ -449,12 +467,13 @@ if __name__ == "__main__":
     bulk1000_mode = "--bulk-1000" in flags
     bulk_audit_mode = "--bulk-audit" in flags
     stream_t1_mode = "--stream-tier1" in flags
+    stream_t15_mode = "--stream-tier1-5" in flags
     stream_t2_mode = "--stream-tier2" in flags
     stream_t2_audit_mode = "--stream-tier2-audit" in flags
     source_mode = not any([
         matrix_mode, full_mode, full_no_cl_mode, save_mode, save_cl_mode, save_defer_mode,
         bulk_mode, bulk1000_mode, bulk_audit_mode,
-        stream_t1_mode, stream_t2_mode, stream_t2_audit_mode,
+        stream_t1_mode, stream_t15_mode, stream_t2_mode, stream_t2_audit_mode,
     ])
 
     if source_mode:
@@ -514,6 +533,7 @@ if __name__ == "__main__":
         ("bulk_b1000", bulk1000_mode),
         ("bulk_b250_audit", bulk_audit_mode),
         ("stream_tier1", stream_t1_mode),
+        ("stream_tier1_5", stream_t15_mode),
         ("stream_tier2", stream_t2_mode),
         ("stream_tier2_audit", stream_t2_audit_mode),
     ]

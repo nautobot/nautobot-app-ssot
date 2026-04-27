@@ -74,4 +74,39 @@ case_ok("StrictInfobloxIPAddress accepts a valid IP",
 case_ok("Base InfobloxNetwork does NOT reject 'not-a-cidr' (opt-in confirmed)",
         lambda: InfobloxNetwork(network="not-a-cidr", namespace="ns", network_type="network"))
 
+print("\n=== Hook 2: clean_fields() via to_orm_kwargs ===\n")
+
+# Hook 2 uses BulkNautobotAdapter.to_orm_kwargs to build a transient ORM and
+# call clean_fields(). Test directly without running the full pipeline.
+from nautobot.ipam.choices import IPAddressTypeChoices  # noqa: E402
+from nautobot.ipam.models import IPAddress as OrmIPAddress  # noqa: E402
+from nautobot.ipam.models import Prefix as OrmPrefix  # noqa: E402
+from django.core.exceptions import ValidationError as DjangoValidationError  # noqa: E402
+
+
+def _clean_ip(addr, ip_type="host"):
+    inst = OrmIPAddress(address=addr, type=ip_type, dns_name="", description="")
+    inst.clean_fields(exclude=["parent", "status"])
+
+
+def _clean_prefix(prefix):
+    inst = OrmPrefix(prefix=prefix, type="network", description="")
+    inst.clean_fields(exclude=["namespace", "status"])
+
+
+case("OrmIPAddress.clean_fields rejects malformed address '10.0.0.999/24'",
+     lambda: _clean_ip("10.0.0.999/24"))
+
+case("OrmIPAddress.clean_fields rejects type='banana'",
+     lambda: _clean_ip("10.0.0.1/24", ip_type="banana"))
+
+case_ok("OrmIPAddress.clean_fields accepts '10.0.0.1/24', type='host'",
+        lambda: _clean_ip("10.0.0.1/24"))
+
+case("OrmPrefix.clean_fields rejects 'garbage'",
+     lambda: _clean_prefix("garbage"))
+
+case_ok("OrmPrefix.clean_fields accepts '10.0.0.0/24'",
+        lambda: _clean_prefix("10.0.0.0/24"))
+
 print()
