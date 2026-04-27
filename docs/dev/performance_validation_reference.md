@@ -250,3 +250,71 @@ Pattern: register a receiver for `bulk_post_create` (or the relevant
 signal) inside the context's `__enter__`, accumulate affected
 instances in a list, run the batched implementation at `__exit__`.
 Cable demo is the canonical reference.
+
+---
+
+## Scope reference
+
+Defined in `nautobot_ssot/scope.py`.
+
+### `SyncScope` dataclass
+
+```python
+@dataclass(frozen=True)
+class SyncScope:
+    model_type: str       # e.g. "prefix"
+    unique_key: str       # e.g. "10.0.0.0/24__ns-default"
+    include_root: bool = True
+    integration: Optional[str] = None  # selects per-integration expander
+```
+
+### `expand_subtree(scope, store) -> set`
+
+Returns a set of `(model_type, unique_key)` pairs covering the
+subtree. Used by the streaming pipeline to filter the differ.
+
+### Default expander
+
+Walks the `parent_type` / `parent_key` columns that `dump_adapter`
+populates when models use DiffSync's `_children` metadata. Works
+generically for any integration that uses `_children`.
+
+### Per-integration expander
+
+For integrations that encode hierarchy in `_identifiers` instead of
+`_children`, register a custom expander:
+
+```python
+from nautobot_ssot.scope import register_subtree_expander
+from nautobot_ssot.integrations.infoblox.scope import expand_infoblox_subtree
+
+register_subtree_expander("infoblox", expand_infoblox_subtree)
+```
+
+Infoblox's expander walks the implicit identifier-encoded hierarchy
+namespace → prefix → ipaddress, with sibling DNS records (sharing
+identifiers) unioned into the IP's subtree.
+
+### Pipeline composition
+
+```python
+run_streaming_sync(
+    src_adapter, dst_adapter,
+    flags=SSoTFlags.STREAM_TIER2,
+    scope=SyncScope("prefix", "10.0.0.0/24__ns-default", integration="infoblox"),
+)
+```
+
+Scope is orthogonal to flags — any flag composition works with any
+scope.
+
+### Caveats
+
+* **Missing parent FK at INSERT.** Scoped sync on a child whose
+  parent doesn't exist on the dst side will fail at INSERT. Optional
+  `auto_promote_parents=True` (not built) would walk UP from scope
+  root.
+* **Source-side scoping is opt-in per integration.** The pipeline-side
+  scope filter works generically — but to skip *loading* out-of-scope
+  data (memory + API-call savings), the integration's
+  `adapter.load(scope=...)` needs to be implemented per-integration.

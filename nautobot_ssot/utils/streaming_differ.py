@@ -189,11 +189,19 @@ class StreamingDiffer:
 
     Does NOT build a DiffSync `Diff` object. Memory peak is one row pair plus
     the small bookkeeping dicts inside this class.
+
+    `scope_keys` (optional): a set of (model_type, unique_key) pairs limiting
+    which rows participate in the diff. When set, source rows OUTSIDE the
+    scope are skipped (no diff_results entry written), and dest rows OUTSIDE
+    the scope are not eligible for orphan-deletion. Dest rows INSIDE the
+    scope but missing from source still get a DELETE — that's the whole
+    point of scoping (subtree-bounded orphan handling).
     """
 
-    def __init__(self, store: DiffSyncStore):
+    def __init__(self, store: DiffSyncStore, scope_keys: Optional[set] = None):
         self.store = store
-        self.stats = {"create": 0, "update": 0, "delete": 0, "no_op": 0}
+        self.scope_keys = scope_keys
+        self.stats = {"create": 0, "update": 0, "delete": 0, "no_op": 0, "skipped_out_of_scope": 0}
 
     def diff(self) -> Dict[str, int]:
         """Compute the diff. Idempotent — runs only against rows in `store`.
@@ -205,9 +213,17 @@ class StreamingDiffer:
         # "fast" and "agonizing" on row counts in the 10k+ range.
         with self.store.conn:
             for src_row in self.store.fetch_source_in_order():
+                model_type, unique_key = src_row[0], src_row[1]
+                if self.scope_keys is not None and (model_type, unique_key) not in self.scope_keys:
+                    self.stats["skipped_out_of_scope"] += 1
+                    continue
                 self._process_source(src_row)
 
             for dst_row in self.store.fetch_unvisited_dest():
+                model_type, unique_key = dst_row[0], dst_row[1]
+                if self.scope_keys is not None and (model_type, unique_key) not in self.scope_keys:
+                    self.stats["skipped_out_of_scope"] += 1
+                    continue
                 self._emit_delete(dst_row)
         return dict(self.stats)
 

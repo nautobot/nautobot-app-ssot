@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from ..flags import SSoTFlags
+from ..scope import SyncScope, expand_subtree
 from .bulk_syncer import BulkSyncer
 from .sqlite_store import DiffSyncStore
 from .streaming_differ import StreamingDiffer, dump_adapter
@@ -56,6 +57,7 @@ def run_streaming_sync(
     user=None,
     skip_load: bool = False,
     dryrun: bool = False,
+    scope: Optional[SyncScope] = None,
 ) -> StreamingSyncResult:
     """Run the full streaming pipeline. `tier` ∈ {"tier1", "tier2"}.
 
@@ -75,6 +77,12 @@ def run_streaming_sync(
         user: optional user for the change-logging context (Tier 1 only).
         skip_load: if True, the adapters have already been .load()'d.
         dryrun: if True, run the diff but skip the BulkSyncer replay phase.
+        scope: optional SyncScope to constrain the diff to a single subtree.
+            When set, only rows in the subtree (rooted at scope.model_type +
+            scope.unique_key) participate in the diff — everything else is
+            untouched. Per-integration custom expanders selected via
+            scope.integration; defaults to walking parent_type/parent_key
+            in SQLite (works for adapters using DiffSync `_children`).
 
     Returns the timing/stats record.
     """
@@ -132,11 +140,16 @@ def run_streaming_sync(
         _release_adapter_store(dst_adapter)
 
         # ------------------------------------------------------------------
-        # Diff (SQLite-only).
+        # Diff (SQLite-only). If `scope` is set, expand it to the subtree's
+        # (model_type, unique_key) set BEFORE diff so the differ only walks
+        # rows inside the subtree.
         # ------------------------------------------------------------------
         t0 = time.perf_counter()
-        differ = StreamingDiffer(store)
+        scope_keys = expand_subtree(scope, store) if scope is not None else None
+        differ = StreamingDiffer(store, scope_keys=scope_keys)
         result.diff_stats = differ.diff()
+        if scope_keys is not None:
+            result.diff_stats["scope_keys_in_subtree"] = len(scope_keys)
         result.t_diff = time.perf_counter() - t0
 
         # ------------------------------------------------------------------

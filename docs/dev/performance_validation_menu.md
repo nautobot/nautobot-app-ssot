@@ -157,6 +157,40 @@ In-memory `Diff` tree (default, ~30 MiB at medium) vs SQLite-backed
 streaming (~20 MiB at medium). `SSoTFlags.STREAMING` /
 `SSoTFlags.STREAM_TIER2`.
 
+### Sync scope
+
+**What it controls.** Which subset of rows participates in a sync —
+full adapter (default), a subtree, or a single record.
+
+**Default behavior.** Every row from the source adapter is loaded,
+diffed, and synced.
+
+**When you'd dial it.** When external events tell you exactly what
+changed: an Infoblox webhook says prefix X is dirty, a user clicked
+"Resync from SoT" on a Nautobot detail page, a scheduled job wants
+to refresh just one VRF.
+
+**Alternatives.**
+
+| Mode | Behavior |
+|---|---|
+| Full adapter (default) | Every row participates |
+| Subtree-bounded | Pass `scope=SyncScope("prefix", "10.0.0.0/8__Global")` — only rows in the subtree participate |
+| Single record | Same as subtree but identifies one row |
+
+**How to wire it.**
+
+```python
+from nautobot_ssot.scope import SyncScope
+from nautobot_ssot.utils.streaming_pipeline import run_streaming_sync
+
+scope = SyncScope("prefix", "10.0.0.0/24__ns-default", integration="infoblox")
+run_streaming_sync(src, dst, scope=scope, flags=SSoTFlags.STREAM_TIER2)
+```
+
+For the Scope dataclass + per-integration expander contracts see the
+reference doc.
+
 ### Concurrency
 
 Sequential by default. `SSoTFlags.PARALLEL_LOADING` for concurrent
