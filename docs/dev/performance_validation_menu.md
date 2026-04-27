@@ -131,8 +131,14 @@ Driven by `ObjectChange` creation. Disable changelog → none fire.
 ### Business-logic signals (post_save consumers)
 
 Default per-row Django `post_save`. `bulk_create` skips them.
-`SSoTFlags.REFIRE_POST_SAVE` re-fires per instance after bulk;
-`SSoTFlags.BULK_SIGNAL` fires `bulk_post_*` once per FK stage.
+`SSoTFlags.REFIRE_POST_SAVE` re-fires per instance after bulk
+(shape A — per-row replay); `SSoTFlags.BULK_SIGNAL` fires
+`bulk_post_*` once per FK stage. **Shape B — batched-handler
+contexts** in `nautobot_ssot/contexts.py` (e.g.
+`deferred_domainlogic_cable`) capture a signal during the block and
+run one batched implementation at end of block — dramatically
+cheaper than per-row replay when the handler does cross-row work.
+For the contract see the reference doc.
 
 ### Atomic transactions
 

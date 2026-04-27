@@ -195,3 +195,58 @@ Eight realistic subcategories of "validators with non-local context":
 | `IPInPrefixValidator` | B | 2 | Each queued IP fits in a valid prefix in its namespace's prefix tree |
 | `IPAddressContainmentValidator` | A | 4 | IPs whose CIDR doesn't fit any prefix in their namespace |
 | `VlanVidUniqueValidator` | A | 3 | Duplicate VIDs within a VLAN group |
+
+---
+
+## Deferred-X context contract
+
+Defined in `nautobot_ssot/contexts.py`. Two shapes for deferring side
+effects of a bulk write:
+
+> **Shape A — per-row replay.** Handler captures invocations during
+> the bulk window and batches I/O at end of block. Per-row Python
+> work still runs N times. `deferred_change_logging_for_bulk_operation`
+> (Nautobot core) is the canonical example.
+>
+> **Shape B — batched-handler invocation.** Handler is rewritten to
+> take a list and run once at end of block. Dramatically cheaper when
+> the handler does cross-row work. `deferred_domainlogic_cable` is
+> our demonstration.
+
+### Catalog
+
+| Context | Shape | Status | Defers |
+|---|---|---|---|
+| `deferred_change_logging_for_bulk_operation` | A | Nautobot core | OC INSERT batched |
+| `deferred_domainlogic_cable` | **B** | SSoT | Cable termination cache + path computation, batched + deduped |
+| `deferred_domainlogic_rack` | B | Stub | Rack location → child Device cascading |
+| `deferred_domainlogic_rackgroup` | B | Stub | RackGroup → child Rack cascading |
+| `deferred_domainlogic_circuit` | B | Stub | CircuitTermination → parent Circuit state |
+| `deferred_webhook` / `_jobhook` / `_publish` | A | Hypothetical | webhook/jobhook/event dispatch batching |
+
+### The Cable case (why shape B matters)
+
+`dcim.signals.update_connected_endpoints` does cross-row work — for
+each Cable's `post_save`, it updates termination cache fields and
+walks the cable graph to recompute `CablePath` rows. If a hundred
+cables get bulk-created on the same device, per-row replay runs the
+graph walk 100× when one `bulk_update` would do.
+
+`deferred_domainlogic_cable` listens for `bulk_post_create` during
+the block, collects affected terminations, and at end-of-block issues
+one `bulk_update` per termination class + dedup'd path computation.
+
+### Why no generic `defer_signal`
+
+A generic "capture every signal, replay at end" mechanism either
+delivers no value (timing shift only) or requires handler-side
+awareness — at which point you've reinvented `BULK_SIGNAL` minus the
+dedicated signal name. Each new domain that wants the pattern adds
+its own context manager and per-handler flag.
+
+### Writing a new shape-B context
+
+Pattern: register a receiver for `bulk_post_create` (or the relevant
+signal) inside the context's `__enter__`, accumulate affected
+instances in a list, run the batched implementation at `__exit__`.
+Cable demo is the canonical reference.
