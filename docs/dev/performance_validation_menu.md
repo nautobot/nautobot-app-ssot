@@ -204,6 +204,32 @@ On by default. `DryRunVar`.
 
 Off by default. `SSoTFlags.MEMORY_PROFILING` enables `tracemalloc`.
 
+### External triggering
+
+**What it controls.** What can start a sync — Job UI, scheduled task,
+HTTP API, webhook receiver.
+
+**Default behavior.** Job UI (manual) and the scheduler — both
+inherited from Nautobot core.
+
+**Alternatives.**
+
+| Trigger | Use case |
+|---|---|
+| Job UI (default) | Manual operator-initiated runs |
+| Scheduled (Nautobot core) | Cron-style recurring syncs |
+| Scoped sync API (`POST /api/plugins/ssot/sync/scoped/`) | External systems trigger targeted resyncs |
+| Per-integration webhook receiver | Each integration ships its own authenticated receiver that translates the source's notification format into a `SyncScope` |
+
+**Cost & tradeoffs.** Webhook receivers are per-integration because
+every source has a different payload format and auth scheme. The
+framework provides the scope + pipeline + API; integrations provide
+the authenticated receiver + payload translator. For coalescing
+high-volume webhooks, integrations should debounce in their own
+Celery tasks for now.
+
+For the API endpoint shape see the reference doc.
+
 ---
 
 ## Part 3 — Composing it
@@ -237,7 +263,6 @@ class BulkNautobotMyIntAdapter(BulkOperationsMixin, NautobotMyIntAdapter):
     bulk_signal: bool = False
     bulk_clean: bool = False
 
-    # Optional Hook 2: per-field validation hook
     def to_orm_kwargs(self, model_type, ids, attrs):
         if model_type == "foo":
             return OrmFoo, {"field": ids["field"]}, []

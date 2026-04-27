@@ -318,3 +318,56 @@ scope.
   scope filter works generically — but to skip *loading* out-of-scope
   data (memory + API-call savings), the integration's
   `adapter.load(scope=...)` needs to be implemented per-integration.
+
+---
+
+## API endpoint
+
+`POST /api/plugins/ssot/sync/scoped/` — generic framework endpoint.
+Defined in `nautobot_ssot/api/views.py` (`ScopedSyncTrigger`); business
+logic lives in `nautobot_ssot/scoped_sync.py`.
+
+### Request
+
+```http
+POST /api/plugins/ssot/sync/scoped/
+Authorization: Token <token>
+Content-Type: application/json
+
+{
+    "job_class_path": "nautobot_ssot.integrations.infoblox.jobs.InfobloxDataSource",
+    "scope": {
+        "model_type": "prefix",
+        "unique_key": "10.0.0.0/24__ns-default",
+        "include_root": true,
+        "integration": "infoblox"
+    },
+    "flags": ["STREAMING", "BULK_WRITES"],
+    "async": false
+}
+```
+
+### Response
+
+```json
+{
+    "sync_id": "<uuid>",
+    "diff_stats": {"create": 276, "update": 1, "delete": 0,
+                   "no_op": 0, "skipped_out_of_scope": 13698,
+                   "scope_keys_in_subtree": 277},
+    "sync_stats": {"create": 276, "update": 0, "delete": 0,
+                   "errors": 0},
+    "duration_s": 2.04
+}
+```
+
+### Errors
+
+| Status | Meaning |
+|---|---|
+| 401 | Unauthenticated |
+| 400 | Missing/invalid `scope` or unknown flag name |
+| 501 | `async=true` (not in demo path) |
+| 500 | Sync execution error |
+
+Verified by `scripts/test_scoped_sync_api.py`.
