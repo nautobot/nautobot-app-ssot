@@ -43,8 +43,7 @@ decisions clear, and to show you how each one can be implemented.
 
 ## How to read this doc
 
-* **Part 1 — the anatomy of a sync** lays out what fires per object today
-  and frames each downstream effect as a knob you can dial.
+* **Part 1 — the anatomy of a sync** lays out what fires per object today.
 * **Part 2 — the axes** is one chapter per behavioral knob.
 * **Part 3 — composing it** offers pre-mixed presets, the measured matrix,
   and a per-integration recipe.
@@ -58,28 +57,20 @@ feature that backs it lands.
 
 ### The benchmark substrate
 
-Every claim in this document is measured. The bundled benchmark
+Every claim is measured. The bundled benchmark
 (`scripts/benchmark_infoblox.py --matrix`) exercises every available
 mode at three scales — tiny / small / medium (8,143 objects). All
 numbers in this document are from medium scale.
-
-The "audit chain" column in the measured matrix tracks whether each
-mode produces ObjectChange rows and fires webhooks/jobhooks/events.
 
 ### Composable flag word
 
 All SSoT pipeline + validation knobs live in a single `IntFlag` —
 `nautobot_ssot.flags.SSoTFlags`. Compose with `|`. Bits 0..3 mirror
-`diffsync.enum.DiffSyncFlags` exactly so the same flag word passes
-through to `diff_to(flags=...)` / `sync_to(flags=...)` without
-conversion. The Job UI exposes the single-bit flags as a single
-`MultiChoiceVar` (replacing the legacy individual `BooleanVar`s for
-`memory_profiling`, `parallel_loading`, etc.). For the bit table see
+`diffsync.enum.DiffSyncFlags` exactly. The Job UI exposes the
+single-bit flags as a single `MultiChoiceVar`. For the bit table see
 the reference doc.
 
-The default is `CONTINUE_ON_FAILURE | LOG_UNCHANGED_RECORDS`,
-preserving the historical diffsync behavior. Subclass overrides of
-`run()` can OR additional bits onto `self.flags`.
+The default is `CONTINUE_ON_FAILURE | LOG_UNCHANGED_RECORDS`.
 
 ---
 
@@ -87,27 +78,23 @@ preserving the historical diffsync behavior. Subclass overrides of
 
 ```mermaid
 flowchart TD
-    Job([Job invoked]) --> Load[Load source + target adapters]
-    Load --> Diff[Compute diff]
-    Diff --> Apply{Per-row write path?}
+    Job([Job invoked]) --> Q1{streaming?}
 
-    Apply -->|"validated_save (default)"| PerRow["full_clean → save → post_save signals"]
-    Apply -->|"save (no clean)"| PerRowNoClean["save → post_save signals"]
-    Apply -->|"bulk_create / bulk_update"| Bulk["bulk INSERT batches<br/>(no signals fire)"]
+    Q1 -->|No — legacy| L1[load src + dst<br/>both fully in memory]
+    L1 --> L2[diff_to&#40;&#41; — build DiffSync Diff tree]
+    L2 --> L3[sync_to&#40;&#41; — per-object validated_save / bulk_create]
+    L3 --> Done([Done])
 
-    PerRow --> Signals[post_save fires for every row]
-    PerRowNoClean --> Signals
-    Signals --> Audit["Audit chain:<br/>ObjectChange → webhooks / jobhooks / events"]
-    Signals --> Domain["Domain-logic signals:<br/>Cable propagation, cache invalidation, …"]
-
-    Bulk --> Skipped[All signals skipped by default]
+    Q1 -->|Yes — streaming| S_src[load src adapter] --> Sd_src[dump src to SQLite<br/>release src adapter store]
+    Sd_src --> L_dst[load dst adapter]
+    L_dst --> Sd_dst[dump dst to SQLite<br/>release dst adapter store]
+    Sd_dst --> Diff[StreamingDiffer:<br/>walk SQLite -> diff_results]
+    Diff --> Replay[BulkSyncer replays<br/>tier1 (per-row) or tier2 (bulk_create)]
+    Replay --> Done
 
     classDef knob fill:#fff7e6,stroke:#d97706,color:#92400e
-    class Apply,PerRow,PerRowNoClean,Bulk,Signals,Audit,Domain,Skipped knob
+    class Q1,L1,L3,S_src,Sd_src,Sd_dst,Diff,Replay knob
 ```
-
-Every yellow node above is a knob. The default path is the leftmost —
-the KISS guarantee. The rest of Part 2 walks each axis individually.
 
 ---
 
@@ -116,145 +103,111 @@ the KISS guarantee. The rest of Part 2 walks each axis individually.
 ### Change logging — `ObjectChange` rows
 
 **What it controls.** Whether each create/update/delete writes an
-`ObjectChange` row recording who changed what when.
+`ObjectChange` row.
 
-**Default behavior.** Every `validated_save()` (or plain `save()`)
-inside a `web_request_context` fires `post_save`, which the changelog
-signal handler captures and INSERTs as one `ObjectChange` per row.
+**Default behavior.** Per-row immediate via `validated_save()` inside
+`web_request_context`.
 
-**Alternatives.**
+**Alternatives.** Deferred-batched (
+`deferred_change_logging_for_bulk_operation()`) or none (when
+`bulk_create()` skips `post_save`).
 
-| Mode | Behavior |
-|---|---|
-| Per-row immediate (default) | One INSERT per save |
-| Deferred-batched | Capture during the block, flush in one bulk_create at end |
-| None | `bulk_create()` skips `post_save` so no `ObjectChange`s |
+### Webhooks / Job hooks / Events
 
-**How to wire it.**
-
-```python
-from nautobot.extras.context_managers import (
-    deferred_change_logging_for_bulk_operation, web_request_context,
-)
-with web_request_context(user, context_detail="my-job"):
-    with deferred_change_logging_for_bulk_operation():
-        ...
-```
-
-### Webhooks
-
-**What it controls.** Outbound HTTP notifications fired by Nautobot in
-response to `ObjectChange` rows.
-
-**Alternatives.** Driven by the change-logging axis: disable changelog
-→ webhooks don't fire.
-
-### Job hooks
-
-**What it controls.** `JobHook` objects firing in response to data
-changes — same shape as webhooks but firing internal Jobs.
-
-**Alternatives.** Driven by the change-logging axis.
-
-### Events (Nautobot Event framework)
-
-**What it controls.** Nautobot's pub/sub Event publication on data
-changes.
-
-**Alternatives.** Driven by the change-logging axis.
+Driven by `ObjectChange` creation. Disable changelog → none of these
+fire. Same shape across all three.
 
 ### Business-logic signals (post_save consumers)
 
 **What it controls.** Nautobot core's `post_save` handlers — Cable
-propagation, Rack location cascading, custom-field cache invalidation,
-etc.
+propagation, Rack cascading, custom-field cache invalidation, etc.
 
 **Default behavior.** With per-row save, every handler fires per row.
-With `bulk_create()`, **none of them fire**.
+With `bulk_create()`, none of them fire.
 
 **Alternatives.**
 
-| Mode | Behavior | Activated by |
-|---|---|---|
-| Per-row Django `post_save` | Default | Default |
-| Refire after bulk | Loop and re-fire `post_save` per instance | `SSoTFlags.REFIRE_POST_SAVE` |
-| Per-batch dispatch | One `bulk_post_*` signal per FK stage | `SSoTFlags.BULK_SIGNAL` |
-| None | All post_save consumers skipped | `SSoTFlags.BULK_WRITES` alone |
+| Mode | Activated by |
+|---|---|
+| Per-row Django `post_save` | Default |
+| Refire after bulk | `SSoTFlags.REFIRE_POST_SAVE` |
+| Per-batch dispatch | `SSoTFlags.BULK_SIGNAL` |
+| None | `SSoTFlags.BULK_WRITES` alone |
 
-IPAM models (Namespace, Prefix, IPAddress, VLAN, VLANGroup) have no
-direct `post_save` handlers — `BULK_WRITES` alone is safe. DCIM models
-(Cable, Rack, RackGroup) DO have handlers — pair with
-`REFIRE_POST_SAVE`.
+IPAM models have no direct `post_save` handlers — `BULK_WRITES` alone
+is safe. DCIM models DO — pair with `REFIRE_POST_SAVE`.
 
 ### Atomic transactions
 
-**What it controls.** The granularity of rollback.
-
-**Default behavior.** Per-Job atomic block.
-
-**Alternatives today.** SSoT does not currently expose a knob for
-transaction scope.
+Per-Job atomic block by default. SSoT does not currently expose a
+knob for transaction scope.
 
 ### Bulk-write batching
 
-**What it controls.** Whether each row is INSERTed individually or in
-batches.
+**What it controls.** Per-row INSERT vs batched.
 
 **Default behavior.** `validated_save()` per row.
 
+**Alternatives.** `bulk_create` / `bulk_update` (default batch 250)
+via `BulkOperationsMixin` adapter or `SSoTFlags.BULK_WRITES` in the
+streaming pipeline. At medium scale, ~30× faster than `validated_save`.
+The `bulk_b250_audit` mode demonstrates same audit semantics as
+production at ~5 s vs ~150 s.
+
+### Memory shape
+
+**What it controls.** Peak memory footprint during the diff phase.
+
+**Default behavior.** Both adapters fully in memory plus the `Diff`
+tree built by `src.diff_to(dst)`. At medium scale, peak is ~30 MiB.
+The persisted `Sync.diff` JSONField also has a ~1 GB limit that
+real-world large diffs can exceed.
+
+**When you'd dial it.** OOM on large initial syncs, or syncs whose
+diff serialization would exceed the JSONField cap.
+
 **Alternatives.**
 
-| Mode | Behavior | Activated by |
-|---|---|---|
-| Per-row save (default) | One INSERT per row | Default |
-| `bulk_create` / `bulk_update` | One INSERT per batch (default 250) | `SSoTFlags.BULK_WRITES` (in streaming pipeline) or per-integration `BulkOperationsMixin` adapter |
+| Mode | Behavior | Peak memory at medium |
+|---|---|---:|
+| In-memory `Diff` tree (default) | Both adapters + `Diff` tree concurrent | ~30 MiB |
+| SQLite-backed streaming | Dump each adapter to SQLite, release adapter store, walk SQLite for diff | ~20 MiB |
 
-`bulk_create` skips `post_save`. The audit-chain restoration uses the
-`refire_post_save` / `bulk_signal` / `bulk_clean` kwargs on
-`flush_creates` / `flush_updates`. Composing with
-`deferred_change_logging_for_bulk_operation` gives the full audit chain
-on the bulk path — `bulk_b250_audit` benchmark mode demonstrates ~5 s
-at medium with same audit semantics as production (~150 s).
+**Cost & tradeoffs.** Streaming caps memory by holding only
+`source_records` + `dest_records` in SQLite, releasing the in-memory
+DiffSync model instances after dump. Memory savings scale with row
+count: ~10 MiB freed at 8k rows projects to ~60 MiB at 100k and ~600
+MiB at 1M.
+
+The streaming pipeline orchestrator
+(`nautobot_ssot/utils/streaming_pipeline.py`) handles
+load → dump → release → diff → replay. The `BulkSyncer` walks
+`diff_results` and replays per-row (Tier 1) or bulk_create (Tier 2).
+
+**How to wire it.** `SSoTFlags.STREAMING` (Tier 1, per-row replay) or
+`SSoTFlags.STREAM_TIER2` (= `STREAMING | BULK_WRITES`, bulk replay).
 
 ### Concurrency
 
-**What it controls.** Whether source and target adapters load
-sequentially or in parallel.
+**What it controls.** Sequential vs parallel adapter loading.
 
 **Default behavior.** Sequential.
 
-**When you'd dial it.** When both adapters are I/O-bound and don't
-contend for the same resource. Source is typically a remote API
-(network-bound); target is the local Nautobot DB. Loading concurrently
-overlaps wall-clock — about 50% saving on the load phase if both
-phases are similar in length.
-
-**Alternatives.** On / off — `SSoTFlags.PARALLEL_LOADING`.
-
-**Cost & tradeoffs.** Concurrent threads increase peak memory (both
-adapters in flight at once). Doesn't help when one phase dominates the
-other.
+**Alternatives.** `SSoTFlags.PARALLEL_LOADING`. Reduces wall-clock
+when both adapters are I/O-bound and don't contend.
 
 ### Dry-run
 
-**What it controls.** Whether the sync writes or just computes the diff.
-
-**Default behavior.** On by default in the Job UI.
-
-**Alternatives.** On / off (the `DryRunVar`).
+On by default. `DryRunVar` toggles writes off.
 
 ### Memory profiling
 
-**What it controls.** Whether `tracemalloc` records peak memory per
-phase and stores it on the `Sync` record.
+**What it controls.** `tracemalloc` per phase, results stored on the
+`Sync` record.
 
 **Default behavior.** Off.
 
-**When you'd dial it.** Diagnosing OOM symptoms or budgeting against a
-memory ceiling.
-
-**Alternatives.** On / off — `SSoTFlags.MEMORY_PROFILING`. Populates
-`Sync.<phase>_memory_*` fields.
+**Alternatives.** `SSoTFlags.MEMORY_PROFILING`.
 
 ---
 
@@ -262,8 +215,7 @@ memory ceiling.
 
 ### Per-integration recipe (in progress)
 
-Recipe steps land here as the relevant infrastructure ships. Today
-Step 2 (bulk write adapter) is documented.
+Recipe steps land here as the relevant infrastructure ships.
 
 #### Step 2 — Bulk write adapter
 
@@ -275,7 +227,6 @@ class BulkNautobotMyIntAdapter(BulkOperationsMixin, NautobotMyIntAdapter):
     bar = BulkNautobotBar
     _bulk_create_order = [OrmFoo, OrmBar]
 
-    # Optional: opt into the audit chain side-effects
     refire_post_save: bool = False
     bulk_signal: bool = False
     bulk_clean: bool = False

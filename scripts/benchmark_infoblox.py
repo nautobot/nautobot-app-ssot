@@ -12,6 +12,10 @@ Modes:
   --bulk-1000      — bulk pipeline with batch_size=1000
   --bulk-audit     — legacy bulk pipeline + REFIRE_POST_SAVE + deferred_change_logging
                      (full audit chain restored — NO streaming required)
+  --stream-tier1   — SQLite-streaming pipeline, replays via validated_save() inside deferred CL
+  --stream-tier2   — SQLite-streaming pipeline, replays via BulkNautobotAdapter (bulk_create)
+  --stream-tier2-audit — stream-tier2 + REFIRE_POST_SAVE wrapped in deferred_change_logging
+                          (fast bulk + full audit chain — webhooks/jobhooks/events fire)
   --matrix         — runs all of the above across tiny / small / medium and prints a summary table
 
 Usage (inside the container):
@@ -59,6 +63,9 @@ from nautobot_ssot.tests.infoblox.performance.test_infoblox_full_pipeline import
 from nautobot_ssot.tests.infoblox.performance.test_infoblox_bulk_pipeline import (  # noqa: E402
     _InfobloxBulkPipelineBase,
 )
+
+from nautobot_ssot.flags import SSoTFlags  # noqa: E402
+from nautobot_ssot.utils.streaming_pipeline import run_streaming_sync  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -232,6 +239,63 @@ def _run_bulk_audit(scale, status_active, mode_label, user):
     return result
 
 
+def _run_stream(scale, status_active, mode_label, user, *, flags: SSoTFlags = SSoTFlags.STREAMING):
+    """Run the SQLite-streaming pipeline at one scale.
+
+    flags: SSoTFlags word — must include STREAMING; BULK_WRITES picks Tier 2.
+
+    Returns a dict shaped like the other _run_* helpers so the matrix table
+    can pivot results consistently.
+    """
+    from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
+    from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
+    from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot_bulk import BulkNautobotAdapter
+    from nautobot_ssot.tests.infoblox.performance.mock_client import MockInfobloxClient
+    from nautobot_ssot.tests.infoblox.performance.test_infoblox_full_pipeline import (
+        SCALES as PIPELINE_SCALES,
+        _make_config,
+        _make_job,
+    )
+
+    client = MockInfobloxClient(**PIPELINE_SCALES[scale])
+    nv_names = [nv["name"] for nv in client.get_network_views()]
+    config = _make_config(nv_names, default_status=status_active)
+    job = _make_job()
+    src = InfobloxAdapter(job=job, sync=None, conn=client, config=config)
+    use_bulk = bool(flags & SSoTFlags.BULK_WRITES)
+    dst_cls = BulkNautobotAdapter if use_bulk else NautobotAdapter
+    dst = dst_cls(job=job, sync=None, config=config)
+
+    sr = run_streaming_sync(src, dst, flags=flags, user=user)
+
+    tier_label = "TIER2" if use_bulk else "TIER1"
+    print(
+        f"\n{'='*62}\n"
+        f"  SCALE : {scale.upper()}  [STREAM-{tier_label}]  flags={flags!r}\n"
+        f"{'='*62}\n"
+        f"  Phase 1 src load   : {sr.t_src:.3f}s\n"
+        f"  Phase 1b src dump  : {sr.t_src_dump:.3f}s\n"
+        f"  Phase 2 dst load   : {sr.t_dst:.3f}s\n"
+        f"  Phase 2b dst dump  : {sr.t_dst_dump:.3f}s\n"
+        f"  Phase 3 diff       : {sr.t_diff:.3f}s   diff_stats={sr.diff_stats}\n"
+        f"  Phase 4 sync       : {sr.t_sync:.3f}s   sync_stats={sr.sync_stats}\n"
+        f"  ──────────────────────────────────────\n"
+        f"  TOTAL              : {sr.total:.3f}s\n"
+    )
+
+    # Map streaming timings into the same shape used by _run_full / _run_bulk.
+    return {
+        "mode": mode_label,
+        "scale": scale,
+        "t_src": sr.t_src + sr.t_src_dump,
+        "t_dst": sr.t_dst + sr.t_dst_dump,
+        "t_diff": sr.t_diff,
+        "t_sync": sr.t_sync,
+        "creates": sr.diff_stats.get("create", 0),
+        "src_objects": sr.store_counts.get("source_records", 0),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Mode dispatch
 # ---------------------------------------------------------------------------
@@ -274,6 +338,17 @@ def run_mode(mode, scale, status_active, user):
         return _run_bulk(scale, status_active, 1000, mode)
     if mode == "bulk_b250_audit":
         return _run_bulk_audit(scale, status_active, mode, user)
+    if mode == "stream_tier1":
+        return _run_stream(scale, status_active, mode, user, flags=SSoTFlags.STREAM_TIER1)
+    if mode == "stream_tier2":
+        return _run_stream(scale, status_active, mode, user, flags=SSoTFlags.STREAM_TIER2)
+    if mode == "stream_tier2_audit":
+        # STREAM_TIER2 (bulk_create) + REFIRE_POST_SAVE wrapped in the
+        # deferred_change_logging context. Demonstrates the composition that
+        # gives "fast bulk + full audit chain".
+        flags = SSoTFlags.STREAM_TIER2 | SSoTFlags.REFIRE_POST_SAVE
+        with _deferred_changelog_context(user):
+            return _run_stream(scale, status_active, mode, user, flags=flags)
     raise ValueError(f"Unknown mode: {mode}")
 
 
@@ -286,6 +361,9 @@ MATRIX_MODES = [
     "bulk_b250",
     "bulk_b1000",
     "bulk_b250_audit",
+    "stream_tier1",
+    "stream_tier2",
+    "stream_tier2_audit",
 ]
 MATRIX_SCALES = ["tiny", "small", "medium"]
 
@@ -370,9 +448,13 @@ if __name__ == "__main__":
     bulk_mode = "--bulk" in flags
     bulk1000_mode = "--bulk-1000" in flags
     bulk_audit_mode = "--bulk-audit" in flags
+    stream_t1_mode = "--stream-tier1" in flags
+    stream_t2_mode = "--stream-tier2" in flags
+    stream_t2_audit_mode = "--stream-tier2-audit" in flags
     source_mode = not any([
         matrix_mode, full_mode, full_no_cl_mode, save_mode, save_cl_mode, save_defer_mode,
         bulk_mode, bulk1000_mode, bulk_audit_mode,
+        stream_t1_mode, stream_t2_mode, stream_t2_audit_mode,
     ])
 
     if source_mode:
@@ -431,6 +513,9 @@ if __name__ == "__main__":
         ("bulk_b250", bulk_mode),
         ("bulk_b1000", bulk1000_mode),
         ("bulk_b250_audit", bulk_audit_mode),
+        ("stream_tier1", stream_t1_mode),
+        ("stream_tier2", stream_t2_mode),
+        ("stream_tier2_audit", stream_t2_audit_mode),
     ]
     for mode, on in mode_flags:
         if not on:
