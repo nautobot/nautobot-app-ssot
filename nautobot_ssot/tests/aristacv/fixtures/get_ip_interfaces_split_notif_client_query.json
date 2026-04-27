@@ -1,0 +1,93 @@
+[
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "deletes": [],
+                "path_elements": [
+                    "Sysdb",
+                    "ip",
+                    "config",
+                    "ipIntfConfig",
+                    "Ethernet1"
+                ],
+                "retracts": [],
+                "timestamp": {
+                    "seconds": 1666161641,
+                    "nanos": 192093825
+                },
+                "updates": {
+                    "intfId": "Ethernet1"
+                }
+            },
+            {
+                "deletes": [],
+                "path_elements": [
+                    "Sysdb",
+                    "ip",
+                    "config",
+                    "ipIntfConfig",
+                    "Ethernet1"
+                ],
+                "retracts": [],
+                "timestamp": {
+                    "seconds": 1666161641,
+                    "nanos": 192093826
+                },
+                "updates": {
+                    "addrWithMask": "10.0.0.1/30",
+                    "virtualAddrWithMask": "0.0.0.0/0"
+                }
+            }
+        ]
+    },
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "deletes": [],
+                "path_elements": [
+                    "Sysdb",
+                    "ip",
+                    "config",
+                    "ipIntfConfig",
+                    "Vlan100"
+                ],
+                "retracts": [],
+                "timestamp": {
+                    "seconds": 1666161641,
+                    "nanos": 192093825
+                },
+                "updates": {
+                    "intfId": "Vlan100",
+                    "addrWithMask": "0.0.0.0/0",
+                    "virtualAddrWithMask": "0.0.0.0/0"
+                }
+            },
+            {
+                "deletes": [],
+                "path_elements": [
+                    "Sysdb",
+                    "ip",
+                    "config",
+                    "ipIntfConfig",
+                    "Vlan100"
+                ],
+                "retracts": [],
+                "timestamp": {
+                    "seconds": 1666161641,
+                    "nanos": 192093826
+                },
+                "updates": {
+                    "virtualAddrWithMask": "192.168.1.1/24"
+                }
+            }
+        ]
+    }
+]
