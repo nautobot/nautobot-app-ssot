@@ -27,50 +27,36 @@ includes the following:
 * The ability to track changes per job run
 
 Some — or even all — of these features may not be needed for your
-implementation. For example, if you're migrating from a legacy system
-where data ownership is not yet established, do you really need a changelog?
-Do you want webhooks firing if you're syncing thousands of records in one
-go?
-
-Sometimes the answer is a resounding yes; other times a clean no. Sometimes
-you want most of these features but are willing to trade a slightly weaker
-correctness guarantee for speed. Sometimes you already know the data is
-valid and don't need to validate it again. There are many reasons to choose
-speed over the KISS default — and this document is intended to make those
-decisions clear, and to show you how each one can be implemented.
+implementation. There are many reasons to choose speed over the KISS
+default — and this document is intended to make those decisions clear.
 
 ---
 
 ## How to read this doc
 
-* **Part 1 — the anatomy of a sync** lays out what fires per object today.
-* **Part 2 — the axes** is one chapter per behavioral knob.
-* **Part 3 — composing it** offers pre-mixed presets, the measured matrix,
-  and a per-integration recipe.
-* For mechanical contracts (`SSoTFlags` enum, where the code lives), see
-  the [Performance & Validation Reference][ref] document.
+* **Part 1** — anatomy of a sync.
+* **Part 2** — one chapter per axis (knob).
+* **Part 3** — pre-mixed presets, measured matrix, per-integration recipe.
+* For mechanical contracts (`SSoTFlags`, where the code lives), see
+  [Performance & Validation Reference][ref].
 
 [ref]: performance_validation_reference.md
 
-This document grows alongside the codebase. Each axis is added as the
-feature that backs it lands.
+This document grows alongside the codebase.
 
 ### The benchmark substrate
 
-Every claim is measured. The bundled benchmark
+The bundled benchmark
 (`scripts/benchmark_infoblox.py --matrix`) exercises every available
 mode at three scales — tiny / small / medium (8,143 objects). All
-numbers in this document are from medium scale.
+numbers are from medium scale.
 
 ### Composable flag word
 
-All SSoT pipeline + validation knobs live in a single `IntFlag` —
-`nautobot_ssot.flags.SSoTFlags`. Compose with `|`. Bits 0..3 mirror
-`diffsync.enum.DiffSyncFlags` exactly. The Job UI exposes the
-single-bit flags as a single `MultiChoiceVar`. For the bit table see
-the reference doc.
-
-The default is `CONTINUE_ON_FAILURE | LOG_UNCHANGED_RECORDS`.
+`nautobot_ssot.flags.SSoTFlags` is the single composable knob word.
+Bits 0..3 mirror `diffsync.enum.DiffSyncFlags`. The Job UI exposes
+single-bit flags as one `MultiChoiceVar`. Default is
+`CONTINUE_ON_FAILURE | LOG_UNCHANGED_RECORDS`.
 
 ---
 
@@ -85,116 +71,83 @@ flowchart TD
     L2 --> L3[sync_to&#40;&#41; — per-object validated_save / bulk_create]
     L3 --> Done([Done])
 
-    Q1 -->|Yes — streaming| S_src[load src adapter] --> Sd_src[dump src to SQLite<br/>release src adapter store]
+    Q1 -->|Yes — streaming| Q2{strict source?}
+    Q2 -->|Yes| H1[Hook 1: Pydantic validators<br/>fire on every DiffSyncModel __init__]
+    Q2 -->|No| S_src
+    H1 --> S_src
+
+    S_src[load src adapter] --> Sd_src[dump src to SQLite<br/>release adapter store]
     Sd_src --> L_dst[load dst adapter]
-    L_dst --> Sd_dst[dump dst to SQLite<br/>release dst adapter store]
+    L_dst --> Sd_dst[dump dst to SQLite]
     Sd_dst --> Diff[StreamingDiffer:<br/>walk SQLite -> diff_results]
-    Diff --> Replay[BulkSyncer replays<br/>tier1 (per-row) or tier2 (bulk_create)]
+    Diff --> Replay[BulkSyncer replays<br/>tier1 or tier2]
     Replay --> Done
 
     classDef knob fill:#fff7e6,stroke:#d97706,color:#92400e
-    class Q1,L1,L3,S_src,Sd_src,Sd_dst,Diff,Replay knob
+    class Q1,Q2,H1,L1,L3,S_src,Sd_src,Sd_dst,Diff,Replay knob
 ```
 
 ---
 
 ## Part 2 — The axes
 
+### Validation
+
+**What it controls.** What gets checked about each row, when, and how
+expensively, before the row reaches the database.
+
+**Default behavior.** `validated_save()` runs Django's `full_clean()`
+on every row before INSERT — per-field validators (CIDR / IP /
+choices), the model's own `clean()` method, and uniqueness checks.
+Cost ~1.7 ms/row.
+
+**Alternatives.**
+
+| Sub-axis | When it runs | Cost | Activated by |
+|---|---|---|---|
+| **Source-shape** validation (Pydantic) | At `adapter.load()` time, before diff | µs/row | Per-integration: subclass source models with `IPAMShapeValidationMixin` and use a `Strict<Adapter>` |
+| **Model `clean()`** (today) | Per row inside `validated_save()` | ~1.7 ms/row | Default |
+
+(Per-field, relational, and batched-clean sub-axes land in later
+commits and will appear here as they ship.)
+
 ### Change logging — `ObjectChange` rows
 
-**What it controls.** Whether each create/update/delete writes an
-`ObjectChange` row.
-
-**Default behavior.** Per-row immediate via `validated_save()` inside
-`web_request_context`.
-
-**Alternatives.** Deferred-batched (
-`deferred_change_logging_for_bulk_operation()`) or none (when
+Per-row immediate (default) / Deferred-batched
+(`deferred_change_logging_for_bulk_operation`) / None (when
 `bulk_create()` skips `post_save`).
 
 ### Webhooks / Job hooks / Events
 
-Driven by `ObjectChange` creation. Disable changelog → none of these
-fire. Same shape across all three.
+Driven by `ObjectChange` creation. Disable changelog → none fire.
 
 ### Business-logic signals (post_save consumers)
 
-**What it controls.** Nautobot core's `post_save` handlers — Cable
-propagation, Rack cascading, custom-field cache invalidation, etc.
-
-**Default behavior.** With per-row save, every handler fires per row.
-With `bulk_create()`, none of them fire.
-
-**Alternatives.**
-
-| Mode | Activated by |
-|---|---|
-| Per-row Django `post_save` | Default |
-| Refire after bulk | `SSoTFlags.REFIRE_POST_SAVE` |
-| Per-batch dispatch | `SSoTFlags.BULK_SIGNAL` |
-| None | `SSoTFlags.BULK_WRITES` alone |
-
-IPAM models have no direct `post_save` handlers — `BULK_WRITES` alone
-is safe. DCIM models DO — pair with `REFIRE_POST_SAVE`.
+Default per-row Django `post_save`. `bulk_create` skips them.
+`SSoTFlags.REFIRE_POST_SAVE` re-fires per instance after bulk;
+`SSoTFlags.BULK_SIGNAL` fires `bulk_post_*` once per FK stage.
 
 ### Atomic transactions
 
-Per-Job atomic block by default. SSoT does not currently expose a
-knob for transaction scope.
+Per-Job atomic block by default; no SSoT-side knob.
 
 ### Bulk-write batching
 
-**What it controls.** Per-row INSERT vs batched.
-
-**Default behavior.** `validated_save()` per row.
-
-**Alternatives.** `bulk_create` / `bulk_update` (default batch 250)
-via `BulkOperationsMixin` adapter or `SSoTFlags.BULK_WRITES` in the
-streaming pipeline. At medium scale, ~30× faster than `validated_save`.
-The `bulk_b250_audit` mode demonstrates same audit semantics as
-production at ~5 s vs ~150 s.
+`validated_save()` per row by default. `bulk_create` (default batch
+250) via `BulkOperationsMixin` or `SSoTFlags.BULK_WRITES` in the
+streaming pipeline. ~30× faster at medium. `bulk_b250_audit` restores
+full audit chain on the bulk path.
 
 ### Memory shape
 
-**What it controls.** Peak memory footprint during the diff phase.
-
-**Default behavior.** Both adapters fully in memory plus the `Diff`
-tree built by `src.diff_to(dst)`. At medium scale, peak is ~30 MiB.
-The persisted `Sync.diff` JSONField also has a ~1 GB limit that
-real-world large diffs can exceed.
-
-**When you'd dial it.** OOM on large initial syncs, or syncs whose
-diff serialization would exceed the JSONField cap.
-
-**Alternatives.**
-
-| Mode | Behavior | Peak memory at medium |
-|---|---|---:|
-| In-memory `Diff` tree (default) | Both adapters + `Diff` tree concurrent | ~30 MiB |
-| SQLite-backed streaming | Dump each adapter to SQLite, release adapter store, walk SQLite for diff | ~20 MiB |
-
-**Cost & tradeoffs.** Streaming caps memory by holding only
-`source_records` + `dest_records` in SQLite, releasing the in-memory
-DiffSync model instances after dump. Memory savings scale with row
-count: ~10 MiB freed at 8k rows projects to ~60 MiB at 100k and ~600
-MiB at 1M.
-
-The streaming pipeline orchestrator
-(`nautobot_ssot/utils/streaming_pipeline.py`) handles
-load → dump → release → diff → replay. The `BulkSyncer` walks
-`diff_results` and replays per-row (Tier 1) or bulk_create (Tier 2).
-
-**How to wire it.** `SSoTFlags.STREAMING` (Tier 1, per-row replay) or
-`SSoTFlags.STREAM_TIER2` (= `STREAMING | BULK_WRITES`, bulk replay).
+In-memory `Diff` tree (default, ~30 MiB at medium) vs SQLite-backed
+streaming (~20 MiB at medium). `SSoTFlags.STREAMING` /
+`SSoTFlags.STREAM_TIER2`.
 
 ### Concurrency
 
-**What it controls.** Sequential vs parallel adapter loading.
-
-**Default behavior.** Sequential.
-
-**Alternatives.** `SSoTFlags.PARALLEL_LOADING`. Reduces wall-clock
-when both adapters are I/O-bound and don't contend.
+Sequential by default. `SSoTFlags.PARALLEL_LOADING` for concurrent
+adapter loading.
 
 ### Dry-run
 
@@ -202,12 +155,8 @@ On by default. `DryRunVar` toggles writes off.
 
 ### Memory profiling
 
-**What it controls.** `tracemalloc` per phase, results stored on the
-`Sync` record.
-
-**Default behavior.** Off.
-
-**Alternatives.** `SSoTFlags.MEMORY_PROFILING`.
+Off by default. `SSoTFlags.MEMORY_PROFILING` enables `tracemalloc`
+per-phase.
 
 ---
 
@@ -215,7 +164,22 @@ On by default. `DryRunVar` toggles writes off.
 
 ### Per-integration recipe (in progress)
 
-Recipe steps land here as the relevant infrastructure ships.
+#### Step 1 — Strict source models (optional)
+
+```python
+from nautobot_ssot.utils.diffsync_validators import IPAMShapeValidationMixin
+from .base import MyIntPrefix, MyIntIPAddress
+
+class StrictMyIntPrefix(IPAMShapeValidationMixin, MyIntPrefix):
+    pass
+
+class StrictMyIntAdapter(MyIntAdapter):
+    prefix = StrictMyIntPrefix
+    # ... wire each model attr to its Strict* variant
+```
+
+The mixin only validates fields the model actually has (`network`,
+`prefix`, `address`, `prefix_length`, `vid`, `dns_name`).
 
 #### Step 2 — Bulk write adapter
 
@@ -232,5 +196,5 @@ class BulkNautobotMyIntAdapter(BulkOperationsMixin, NautobotMyIntAdapter):
     bulk_clean: bool = False
 ```
 
-For a working reference see `BulkNautobotAdapter` in
-`nautobot_ssot/integrations/infoblox/diffsync/adapters/nautobot_bulk.py`.
+For a working reference see Infoblox's
+`StrictInfobloxAdapter` and `BulkNautobotAdapter`.
