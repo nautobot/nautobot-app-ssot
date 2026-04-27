@@ -184,9 +184,10 @@ class BulkNautobotAdapter(BulkOperationsMixin, NautobotAdapter):
     # ------------------------------------------------------------------
     # Bulk-write side-effect config (read by sync_complete() when it
     # invokes flush_all). Set as class attrs OR per-instance attrs BEFORE
-    # src.sync_to(dst) runs. This lets the LEGACY bulk pipeline (the
-    # diff_to / sync_to path) opt into the same side-effects as the
-    # streaming pipeline. See nautobot_ssot/utils/bulk.py for kwarg semantics.
+    # src.sync_to(dst) runs. Mirrors the same kwargs `BulkSyncer` uses for
+    # the streaming path; this lets the LEGACY bulk pipeline (the diff_to /
+    # sync_to path) opt into the same side-effects without going through
+    # streaming. See nautobot_ssot/utils/bulk.py for kwarg semantics.
     # ------------------------------------------------------------------
     refire_post_save: bool = False
     bulk_signal: bool = False

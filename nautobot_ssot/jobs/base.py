@@ -546,6 +546,8 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         self.sync.summary = dict(result.diff_stats)
 
         # Write only the small summary to Sync.diff — never the full blob.
+        # Plan Step 5 will make `Sync.diff` nullable and add a `diff_store_path`
+        # field; until then we keep the field non-empty with a compact dict.
         self.sync.diff = {
             "_streaming": True,
             "tier": tier,

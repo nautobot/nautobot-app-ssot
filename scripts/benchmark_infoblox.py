@@ -18,14 +18,13 @@ Modes:
   --stream-tier2   — SQLite-streaming pipeline, replays via BulkNautobotAdapter (bulk_create)
   --stream-tier2-audit — stream-tier2 + REFIRE_POST_SAVE wrapped in deferred_change_logging
                           (fast bulk + full audit chain — webhooks/jobhooks/events fire)
-  --stream-tier2-pydict — stream-tier2 with PyDictStore (in-memory dicts) instead of SQLite
-                          (isolates "what does SQLite actually buy us" from streaming speed)
   --matrix         — runs all of the above across tiny / small / medium and prints a summary table
 
 Usage (inside the container):
     python scripts/benchmark_infoblox.py                # source load only, all scales
     python scripts/benchmark_infoblox.py small          # source load, one scale
     python scripts/benchmark_infoblox.py --full tiny    # baseline pipeline
+    python scripts/benchmark_infoblox.py --bulk tiny    # bulk pipeline
     python scripts/benchmark_infoblox.py --matrix       # full grid, takes a few minutes
 
 Required env (only needed when this container has its own postgres + redis):
@@ -90,19 +89,27 @@ def _setup_db():
 
 
 def _clean_sync_data():
-    """Remove all IP/Prefix/Namespace objects written by a previous benchmark run."""
+    """Remove all IP/Prefix/Namespace objects written by a previous benchmark run.
+
+    Prevents the next run's NautobotAdapter.load() from picking up stale data
+    from the prior run. Safe for the dev environment — only removes objects
+    that live under namespaces named 'ns-*' (created by MockInfobloxClient).
+    """
     mock_ns_names = list(OrmNamespace.objects.filter(name__startswith="ns-").values_list("name", flat=True))
     if not mock_ns_names:
         return
-    OrmIPAddress.objects.filter(parent__namespace__name__in=mock_ns_names).delete()
-    OrmPrefix.objects.filter(namespace__name__in=mock_ns_names).delete()
-    OrmNamespace.objects.filter(name__in=mock_ns_names).delete()
+    deleted_ips, _ = OrmIPAddress.objects.filter(parent__namespace__name__in=mock_ns_names).delete()
+    deleted_pfx, _ = OrmPrefix.objects.filter(namespace__name__in=mock_ns_names).delete()
+    deleted_ns, _ = OrmNamespace.objects.filter(name__startswith="ns-").delete()
+    total = deleted_ips + deleted_pfx + deleted_ns
+    if total:
+        print(f"\n[cleanup] Removed {deleted_ips} IPs, {deleted_pfx} prefixes, {deleted_ns} namespaces from prior run.")
 
 
 def _bench_user():
-    """Get-or-create a user that can be passed into web_request_context()."""
+    """Return a user record to drive web_request_context (creates one if absent)."""
     User = get_user_model()
-    user, _ = User.objects.get_or_create(username="benchmark-runner")
+    user, _ = User.objects.get_or_create(username="benchmark", defaults={"is_superuser": True, "is_active": True})
     return user
 
 
@@ -117,6 +124,9 @@ def _patched_validated_save_to_save():
 
     Isolates the cost of clean() so we can compare:
         validated_save (full_clean + save)   vs   save (no clean)
+
+    Touches only OrmNamespace/OrmPrefix/OrmIPAddress so we don't bleed into other
+    Nautobot operations the test harness performs (Status setup etc.).
     """
     targets = [OrmNamespace, OrmPrefix, OrmIPAddress]
     originals = {cls: cls.validated_save for cls in targets}
@@ -131,7 +141,10 @@ def _patched_validated_save_to_save():
 
 @contextmanager
 def _deferred_changelog_context(user):
-    """Wrap a block in web_request_context + deferred_change_logging_for_bulk_operation."""
+    """Wrap a block in web_request_context + deferred_change_logging_for_bulk_operation.
+
+    Defers ObjectChange row writes until block exit, batching them.
+    """
     with web_request_context(user, context_detail="benchmark"):
         with deferred_change_logging_for_bulk_operation():
             yield
@@ -139,7 +152,12 @@ def _deferred_changelog_context(user):
 
 @contextmanager
 def _immediate_changelog_context(user):
-    """Wrap a block in just web_request_context (no deferral)."""
+    """Wrap a block in just web_request_context (no deferral).
+
+    Activates the change context so post_save signals fire and write
+    ObjectChange rows IMMEDIATELY, per-save. Baseline for measuring what
+    `deferred_change_logging` actually saves vs the per-save default.
+    """
     with web_request_context(user, context_detail="benchmark"):
         yield
 
@@ -160,6 +178,7 @@ def _run_full(scale, status_active, mode_label, sync_wrapper=None):
     runner.SCALE = scale
 
     if sync_wrapper is not None:
+        # Wrap only the sync_to() call by monkey-patching for this run.
         from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
 
         original_sync_to = InfobloxAdapter.sync_to
@@ -221,9 +240,9 @@ def _run_bulk_audit(scale, status_active, mode_label, user):
            bulk_create OC rows
         5. Exit web_request_context: cleanup loop fires webhooks/jobhooks/events
 
-    Same audit semantics as Tier 2 streaming with REFIRE + deferred CL but
-    uses the LEGACY bulk pipeline (no streaming, no SQLite). Useful for
-    measuring "audit composition" independent of "streaming."
+    Same audit semantics as `stream_tier2_audit` but uses the LEGACY bulk
+    pipeline (no streaming, no SQLite). Useful for measuring "audit
+    composition" independent of "streaming."
     """
     from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot_bulk import BulkNautobotAdapter
 
@@ -319,8 +338,16 @@ def run_mode(mode, scale, status_active, user):
     """Dispatch one mode × scale and return the timing dict."""
     _clean_sync_data()
     if mode == "validated_save_no_cl":
+        # validated_save() running OUTSIDE any web_request_context. The
+        # changelog signal handler short-circuits because change_context_state
+        # is None, so no OC rows get written. NOT a production-shaped path —
+        # it's a strict lower bound on validated_save's cost without changelog.
         return _run_full(scale, status_active, mode)
     if mode == "validated_save":
+        # **Production baseline**: validated_save() inside web_request_context
+        # with NO deferral. This is what an SSoT job actually does today —
+        # signals fire, OC rows get INSERTed per save, web_request_context
+        # cleanup fires webhooks/jobhooks/events.
         return _run_full(
             scale,
             status_active,
@@ -339,6 +366,8 @@ def run_mode(mode, scale, status_active, user):
                 sync_wrapper=lambda: _deferred_changelog_context(user),
             )
     if mode == "save_immediate_cl":
+        # Same as save_deferred_cl but signals write OC rows per-save instead
+        # of batching at end of block. Quantifies what the deferral actually saves.
         with _patched_validated_save_to_save():
             return _run_full(
                 scale,
@@ -373,10 +402,18 @@ def run_mode(mode, scale, status_active, user):
     if mode == "stream_tier2_audit":
         # STREAM_TIER2 (bulk_create) + REFIRE_POST_SAVE wrapped in the
         # deferred_change_logging context. Demonstrates the composition that
-        # gives "fast bulk + full audit chain".
+        # gives "fast bulk + full audit chain" — bulk INSERT speed for the
+        # data path, post_save re-fired per row so the changelog handler
+        # captures into the deferred dict, deferred CL flushes OCs in one
+        # bulk_create at end of block, web_request_context cleanup fires
+        # webhooks/jobhooks/events. Same audit semantics as stream_tier1
+        # but skips the per-row save() round-trip and full_clean().
         flags = SSoTFlags.STREAM_TIER2 | SSoTFlags.REFIRE_POST_SAVE
         with _deferred_changelog_context(user):
-            return _run_stream(scale, status_active, mode, user, flags=flags)
+            return _run_stream(
+                scale, status_active, mode, user,
+                flags=flags,
+            )
     if mode == "stream_tier2_pydict":
         # Same as stream_tier2 but the diff store is in-memory Python dicts
         # instead of SQLite. Isolates "what does SQLite specifically buy us
@@ -393,20 +430,21 @@ def run_mode(mode, scale, status_active, user):
 
 
 MATRIX_MODES = [
-    "validated_save",
-    "validated_save_no_cl",
+    "validated_save",         # PRODUCTION baseline: validated_save inside web_request_context
+    "validated_save_no_cl",   # reference: validated_save outside any change context (no OC writes)
     "save",
     "save_immediate_cl",
     "save_deferred_cl",
     "bulk_b250",
     "bulk_b1000",
-    "bulk_b250_audit",
+    "bulk_b250_audit",        # legacy bulk pipeline + REFIRE + deferred CL: same audit story without streaming
+
     "stream_tier1",
     "stream_tier1_5",
     "stream_tier1_7",
     "stream_tier2",
-    "stream_tier2_audit",
-    "stream_tier2_pydict",
+    "stream_tier2_audit",     # bulk_create + REFIRE + deferred CL: fast bulk with full audit chain
+    "stream_tier2_pydict",    # SAME as stream_tier2 but diff store is Python dicts instead of SQLite
 ]
 MATRIX_SCALES = ["tiny", "small", "medium"]
 
@@ -483,8 +521,8 @@ if __name__ == "__main__":
     scales_arg = [a for a in args if not a.startswith("--")]
 
     matrix_mode = "--matrix" in flags
-    full_mode = "--full" in flags
-    full_no_cl_mode = "--full-no-cl" in flags
+    full_mode = "--full" in flags                  # PRODUCTION baseline (validated_save + web_request_context)
+    full_no_cl_mode = "--full-no-cl" in flags      # validated_save outside change context (reference only)
     save_mode = "--save" in flags
     save_cl_mode = "--save-cl" in flags
     save_defer_mode = "--save-defer" in flags
@@ -542,6 +580,7 @@ if __name__ == "__main__":
         print(f"Raw results written to {out_path}")
         sys.exit(0)
 
+    # Single-mode dispatch (one or more flags can be combined for side-by-side).
     valid = list(PIPELINE_SCALES.keys())
     requested = scales_arg or valid
     invalid = [s for s in requested if s not in valid]

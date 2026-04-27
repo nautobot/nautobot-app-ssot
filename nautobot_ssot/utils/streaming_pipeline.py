@@ -71,10 +71,10 @@ def run_streaming_sync(
             * VALIDATE_ON_DUMP    → Hook 2 clean_fields() at dump time
             * VALIDATE_STRICT     → raise on validation failure (else log+continue)
             * VALIDATE_RELATIONS  → Hook 3 phased validator registry
-            * BULK_CLEAN          → call Model.bulk_clean(instances) before flush
-            * BULK_SIGNAL         → fire bulk_post_* signals after each flush
-            * REFIRE_POST_SAVE    → re-fire Django post_save per instance
-        sqlite_path: path for the SQLite store. None → ":memory:".
+            (Hook 1 — strict source models — is a per-integration adapter class
+             swap, not a flag the pipeline itself can enable.)
+        sqlite_path: path for the SQLite store. None → ":memory:". Pass "auto"
+                     for a temp file kept around for inspection.
         user: optional user for the change-logging context (Tier 1 only).
         skip_load: if True, the adapters have already been .load()'d.
         dryrun: if True, run the diff but skip the BulkSyncer replay phase.
