@@ -126,12 +126,40 @@ class BulkOperationsMixin:
     # Flushing
     # ------------------------------------------------------------------
 
-    def flush_creates(self, model_class, batch_size: int | None = None) -> list:
+    def flush_creates(
+        self,
+        model_class,
+        batch_size: int | None = None,
+        *,
+        bulk_clean: bool = False,
+        bulk_signal: bool = False,
+        refire_post_save: bool = False,
+        signal_context: str | None = None,
+    ) -> list:
         """Execute bulk_create for one model class and return the created objects.
 
         Args:
             model_class: The ORM model class to flush.
             batch_size: Objects per INSERT. Defaults to _bulk_batch_size.
+            bulk_clean: When True, call ``model_class.bulk_clean(queue)`` before
+                INSERT. Hypothetical Nautobot core feature
+                (`Model.bulk_clean(instances)`) that batches Django's per-row
+                ``clean()`` queries into a single query when the model overrides
+                it. If the method doesn't exist, this flag is a silent no-op —
+                the plumbing is here so the day Nautobot ships the feature, our
+                bulk path picks it up automatically.
+            bulk_signal: When True, fire ``bulk_post_create.send(...)`` after
+                bulk_create returns. Subscribed handlers see the full batch as
+                ``instances=[...]``. See `nautobot_ssot.signals` for the contract.
+            refire_post_save: When True, re-fire Django's ``post_save`` signal
+                per instance after the bulk_create completes. This restores
+                Nautobot core handlers that bulk_create normally skips (Cable
+                propagation, Rack location cascading, custom-field cache
+                invalidation, etc.). Per-row dispatch — pays back some of the
+                speed bulk_create bought, but keeps existing handler semantics.
+                See `docs/dev/performance_validation_menu.md` §10.
+            signal_context: Optional string passed to the bulk signal as
+                the ``context=`` kwarg (e.g. the SSoT job's run identifier).
 
         Returns:
             List of created ORM instances (PKs confirmed by DB on PostgreSQL).
@@ -140,14 +168,38 @@ class BulkOperationsMixin:
         if not queue:
             return []
 
+        if bulk_clean:
+            _maybe_invoke_bulk_clean(model_class, queue)
+
         size = batch_size or self._bulk_batch_size
         created = model_class.objects.bulk_create(queue, batch_size=size)
         if hasattr(self, "job"):
             self.job.logger.debug(f"Bulk created {len(created)} {model_class.__name__}.")
+
+        if refire_post_save and created:
+            _refire_post_save(model_class, created, created_kw=True)
+
+        if bulk_signal and created:
+            from nautobot_ssot.signals import bulk_post_create
+            bulk_post_create.send(sender=model_class, instances=created, context=signal_context)
+
         return created
 
-    def flush_updates(self, model_class, batch_size: int | None = None) -> None:
-        """Execute bulk_update for one model class."""
+    def flush_updates(
+        self,
+        model_class,
+        batch_size: int | None = None,
+        *,
+        bulk_clean: bool = False,
+        bulk_signal: bool = False,
+        refire_post_save: bool = False,
+        signal_context: str | None = None,
+    ) -> None:
+        """Execute bulk_update for one model class.
+
+        Args mirror `flush_creates` — see that method for `bulk_clean`,
+        `bulk_signal`, and `refire_post_save` semantics.
+        """
         entry = self._update_queue.pop(model_class, None)
         if not entry or not entry["objects"]:
             return
@@ -155,12 +207,33 @@ class BulkOperationsMixin:
         objs = entry["objects"]
         fields = entry["fields"]
 
+        if bulk_clean:
+            _maybe_invoke_bulk_clean(model_class, objs)
+
         size = batch_size or self._bulk_batch_size
         model_class.objects.bulk_update(objs, list(fields), batch_size=size)
         if hasattr(self, "job"):
             self.job.logger.debug(f"Bulk updated {len(objs)} {model_class.__name__}.")
 
-    def flush_all(self, create_order: list | None = None, batch_size: int | None = None) -> None:
+        if refire_post_save and objs:
+            _refire_post_save(model_class, objs, created_kw=False, update_fields=set(fields))
+
+        if bulk_signal:
+            from nautobot_ssot.signals import bulk_post_update
+            bulk_post_update.send(
+                sender=model_class, instances=objs, fields=fields, context=signal_context
+            )
+
+    def flush_all(
+        self,
+        create_order: list | None = None,
+        batch_size: int | None = None,
+        *,
+        bulk_clean: bool = False,
+        bulk_signal: bool = False,
+        refire_post_save: bool = False,
+        signal_context: str | None = None,
+    ) -> None:
         """Flush all queued creates and updates.
 
         Creates are flushed in FK dependency order (parents before children)
@@ -170,20 +243,29 @@ class BulkOperationsMixin:
             create_order: Explicit FK-ordered list of model classes for creates.
                           Defaults to self._bulk_create_order.
             batch_size: Batch size for all operations. Defaults to _bulk_batch_size.
+            bulk_clean / bulk_signal / signal_context: forwarded to per-model
+                flush_creates / flush_updates calls. See those methods.
         """
         order = create_order if create_order is not None else self._bulk_create_order
+        kwargs = {
+            "batch_size": batch_size,
+            "bulk_clean": bulk_clean,
+            "bulk_signal": bulk_signal,
+            "refire_post_save": refire_post_save,
+            "signal_context": signal_context,
+        }
 
         # Flush creates in explicit dependency order
         for model_class in order:
-            self.flush_creates(model_class, batch_size=batch_size)
+            self.flush_creates(model_class, **kwargs)
 
         # Flush any remaining creates not covered by the explicit order
         for model_class in list(self._create_queue.keys()):
-            self.flush_creates(model_class, batch_size=batch_size)
+            self.flush_creates(model_class, **kwargs)
 
         # Flush all updates
         for model_class in list(self._update_queue.keys()):
-            self.flush_updates(model_class, batch_size=batch_size)
+            self.flush_updates(model_class, **kwargs)
 
     def pending_create_count(self) -> int:
         """Return total number of objects queued for creation (not yet written)."""
@@ -192,3 +274,70 @@ class BulkOperationsMixin:
     def pending_update_count(self) -> int:
         """Return total number of objects queued for update (not yet written)."""
         return sum(len(v["objects"]) for v in self._update_queue.values())
+
+
+# ---------------------------------------------------------------------------
+# bulk_clean shim
+# ---------------------------------------------------------------------------
+
+
+def _refire_post_save(model_class, instances, *, created_kw: bool, update_fields=None) -> None:
+    """Re-fire Django's `post_save` signal once per instance.
+
+    `bulk_create()` / `bulk_update()` skip Django signals by design — that's
+    the source of their speed. This helper restores the signal dispatch *after*
+    the bulk operation has completed, so handlers subscribed to `post_save`
+    (Cable propagation, Rack location cascading, custom-field cache
+    invalidation, etc.) get to run.
+
+    The trade-off: per-row dispatch is N invocations of the handler, which
+    pays back some of the speed bulk_create bought. But the alternative is
+    "silent loss of cascading state" (e.g., Cable.connection_state never
+    gets updated), which is worse than slow.
+
+    Args:
+        model_class: ORM model class for the bulk operation.
+        instances:   list of the model instances that were created/updated.
+        created_kw:  value passed as `created=` to the post_save signal.
+                     True for bulk_create, False for bulk_update.
+        update_fields: optional set of fields, passed as `update_fields=` to
+                       the post_save signal — relevant only for bulk_update,
+                       where some receivers branch on which fields changed.
+    """
+    from django.db import router
+    from django.db.models.signals import post_save
+
+    using = router.db_for_write(model_class) or "default"
+    for instance in instances:
+        post_save.send(
+            sender=model_class,
+            instance=instance,
+            created=created_kw,
+            raw=False,
+            using=using,
+            update_fields=update_fields,
+        )
+
+
+def _maybe_invoke_bulk_clean(model_class, instances) -> None:
+    """Call ``model_class.bulk_clean(instances)`` if the model defines it.
+
+    `Model.bulk_clean(instances)` is a hypothetical Nautobot core API that
+    runs validation across a batch of instances, ideally amortizing per-row
+    DB queries (e.g. `IPAddress._get_closest_parent`) into a single query.
+
+    Contract (when Nautobot core ships it):
+
+        @classmethod
+        def bulk_clean(cls, instances) -> None:
+            '''Validate a batch. Raises ValidationError on failure.'''
+            ...
+
+    Until that lands, this function is a no-op for models that don't define
+    the method — the SSoT bulk path picks up the optimization automatically
+    on the day Nautobot adds it. No SSoT-side change required.
+    """
+    bulk_clean_fn = getattr(model_class, "bulk_clean", None)
+    if not callable(bulk_clean_fn):
+        return  # Nautobot core hasn't shipped Model.bulk_clean yet — silently skip
+    bulk_clean_fn(instances)

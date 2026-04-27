@@ -10,6 +10,8 @@ Modes:
   --save-defer     — per-object .save() inside web_request_context + deferred_change_logging
   --bulk           — full pipeline, bulk_create / bulk_update (batch=250, no clean/signals/cl)
   --bulk-1000      — bulk pipeline with batch_size=1000
+  --bulk-audit     — legacy bulk pipeline + REFIRE_POST_SAVE + deferred_change_logging
+                     (full audit chain restored — NO streaming required)
   --matrix         — runs all of the above across tiny / small / medium and prints a summary table
 
 Usage (inside the container):
@@ -185,6 +187,51 @@ def _run_bulk(scale, status_active, batch_size, mode_label):
     return result
 
 
+def _run_bulk_audit(scale, status_active, mode_label, user):
+    """Legacy bulk pipeline (DiffSync diff_to + sync_to) with audit chain restored.
+
+    This proves the bulk + audit composition does NOT require the streaming
+    pipeline. Wraps `src.sync_to(dst)` in `web_request_context` +
+    `deferred_change_logging_for_bulk_operation`, with `BulkNautobotAdapter`
+    configured to re-fire post_save (so the changelog handler captures into
+    the deferred dict) and emit `bulk_post_create` after each flush stage.
+
+    The composition:
+        1. diff_to: builds the in-memory Diff tree (no signals)
+        2. sync_to: walks the Diff tree, calling per-model create() which
+           queues ORM objects to the BulkNautobotAdapter's flush queues
+        3. sync_complete: flush_all(refire_post_save=True, bulk_signal=True)
+           - bulk_create per model class
+           - per-instance post_save re-fire → changelog handler captures OCs
+             into the deferred dict (because defer_object_changes=True from
+             the wrapping context)
+           - bulk_post_create signal fires once per model class
+        4. Exit deferred CL block: flush_deferred_object_changes →
+           bulk_create OC rows
+        5. Exit web_request_context: cleanup loop fires webhooks/jobhooks/events
+
+    Same audit semantics as Tier 2 streaming with REFIRE + deferred CL but
+    uses the LEGACY bulk pipeline (no streaming, no SQLite). Useful for
+    measuring "audit composition" independent of "streaming."
+    """
+    from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot_bulk import BulkNautobotAdapter
+
+    BulkNautobotAdapter.refire_post_save = True
+    BulkNautobotAdapter.bulk_signal = True
+    try:
+        runner = _InfobloxBulkPipelineBase()
+        runner.status_active = status_active
+        runner.SCALE = scale
+        with _deferred_changelog_context(user):
+            result = runner._run_pipeline()
+    finally:
+        BulkNautobotAdapter.refire_post_save = False
+        BulkNautobotAdapter.bulk_signal = False
+    result["mode"] = mode_label
+    result["scale"] = scale
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Mode dispatch
 # ---------------------------------------------------------------------------
@@ -225,6 +272,8 @@ def run_mode(mode, scale, status_active, user):
         return _run_bulk(scale, status_active, 250, mode)
     if mode == "bulk_b1000":
         return _run_bulk(scale, status_active, 1000, mode)
+    if mode == "bulk_b250_audit":
+        return _run_bulk_audit(scale, status_active, mode, user)
     raise ValueError(f"Unknown mode: {mode}")
 
 
@@ -236,6 +285,7 @@ MATRIX_MODES = [
     "save_deferred_cl",
     "bulk_b250",
     "bulk_b1000",
+    "bulk_b250_audit",
 ]
 MATRIX_SCALES = ["tiny", "small", "medium"]
 
@@ -319,9 +369,10 @@ if __name__ == "__main__":
     save_defer_mode = "--save-defer" in flags
     bulk_mode = "--bulk" in flags
     bulk1000_mode = "--bulk-1000" in flags
+    bulk_audit_mode = "--bulk-audit" in flags
     source_mode = not any([
         matrix_mode, full_mode, full_no_cl_mode, save_mode, save_cl_mode, save_defer_mode,
-        bulk_mode, bulk1000_mode,
+        bulk_mode, bulk1000_mode, bulk_audit_mode,
     ])
 
     if source_mode:
@@ -379,6 +430,7 @@ if __name__ == "__main__":
         ("save_deferred_cl", save_defer_mode),
         ("bulk_b250", bulk_mode),
         ("bulk_b1000", bulk1000_mode),
+        ("bulk_b250_audit", bulk_audit_mode),
     ]
     for mode, on in mode_flags:
         if not on:

@@ -175,6 +175,18 @@ class BulkNautobotAdapter(BulkOperationsMixin, NautobotAdapter):
 
     _bulk_create_order = [OrmNamespace, OrmPrefix, OrmIPAddress]
 
+    # ------------------------------------------------------------------
+    # Bulk-write side-effect config (read by sync_complete() when it
+    # invokes flush_all). Set as class attrs OR per-instance attrs BEFORE
+    # src.sync_to(dst) runs. This lets the LEGACY bulk pipeline (the
+    # diff_to / sync_to path) opt into the same side-effects as the
+    # streaming pipeline. See nautobot_ssot/utils/bulk.py for kwarg semantics.
+    # ------------------------------------------------------------------
+    refire_post_save: bool = False
+    bulk_signal: bool = False
+    bulk_clean: bool = False
+    signal_context = None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Pre-create/cache the sync tag so it's only fetched once, not once per IP.
@@ -216,6 +228,11 @@ class BulkNautobotAdapter(BulkOperationsMixin, NautobotAdapter):
         if pending_updates:
             self.job.logger.info(f"Flushing {pending_updates} queued updates via bulk_update().")
 
-        self.flush_all()
+        self.flush_all(
+            refire_post_save=self.refire_post_save,
+            bulk_signal=self.bulk_signal,
+            bulk_clean=self.bulk_clean,
+            signal_context=self.signal_context,
+        )
         self._flush_ip_tags()
         super().sync_complete(source, *args, **kwargs)
