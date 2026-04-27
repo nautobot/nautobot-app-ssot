@@ -99,9 +99,17 @@ on every row before INSERT. Cost ~1.7 ms/row.
 | **Source-shape** (Pydantic) | At `adapter.load()`, before diff | µs/row | Per-integration: `IPAMShapeValidationMixin` + `Strict<Adapter>` |
 | **Per-field** (`clean_fields()`) | At dump time, no DB round-trip | 10–20 µs/row | `SSoTFlags.VALIDATE_ON_DUMP` (streaming pipeline) + `to_orm_kwargs()` resolver on the target adapter |
 | **Model `clean()`** | Per row inside `validated_save()` | ~1.7 ms/row | Default |
+| **Relational** (validator registry) | Phase A (pre-flush) / B (between flushes) / C (post-flush) | depends; e.g. IP-in-prefix Phase B ≈ 37 µs/row | `SSoTFlags.VALIDATE_RELATIONS`; validators registered on the adapter via `validator_registry` class attr |
+| **Batched `bulk_clean()`** | Once per flush stage | depends on the model | `SSoTFlags.BULK_CLEAN`; **no-op until Nautobot core ships `Model.bulk_clean(instances)`** |
 | **Strict failure mode** | Combines with above | — | `SSoTFlags.VALIDATE_STRICT` (raise instead of log) |
 
-(Relational and batched-clean sub-axes land in later commits.)
+**How to wire relational (Hook 3).** Subclass `Validator` (in
+`nautobot_ssot/utils/validator_registry.py`) and register on the
+adapter's `validator_registry` class attribute. Phase A validators run
+once before any flush; Phase B run between FK-ordered flushes; Phase C
+run after. Shipped IPAM validators: `IPAddressContainmentValidator`
+(Phase A), `VlanVidUniqueValidator` (Phase A), `IPInPrefixValidator`
+(Phase B). For the registry contract see the reference doc.
 
 **How to wire per-field (Hook 2).** The streaming pipeline calls the
 target adapter's `to_orm_kwargs(model_type, ids, attrs)` to construct

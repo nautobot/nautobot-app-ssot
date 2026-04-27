@@ -14,6 +14,7 @@ Modes:
                      (full audit chain restored — NO streaming required)
   --stream-tier1   — SQLite-streaming pipeline, replays via validated_save() inside deferred CL
   --stream-tier1-5 — streaming + Hook 1 (strict source) + Hook 2 (clean_fields at dump) + Tier 2 writes
+  --stream-tier1-7 — stream-tier1-5 + Hook 3 (Phase B IP-in-prefix validator) + Tier 2 writes
   --stream-tier2   — SQLite-streaming pipeline, replays via BulkNautobotAdapter (bulk_create)
   --stream-tier2-audit — stream-tier2 + REFIRE_POST_SAVE wrapped in deferred_change_logging
                           (fast bulk + full audit chain — webhooks/jobhooks/events fire)
@@ -359,6 +360,13 @@ def run_mode(mode, scale, status_active, user):
             flags=SSoTFlags.STREAM_TIER1_5,
             use_strict_source=True,  # Hook 1 — adapter class swap, not a flag bit
         )
+    if mode == "stream_tier1_7":
+        # Adds Hook 3 (Phase B IP-in-prefix validator) on top of stream_tier1_5
+        return _run_stream(
+            scale, status_active, mode, user,
+            flags=SSoTFlags.STREAM_TIER1_7,
+            use_strict_source=True,
+        )
     if mode == "stream_tier2_audit":
         # STREAM_TIER2 (bulk_create) + REFIRE_POST_SAVE wrapped in the
         # deferred_change_logging context. Demonstrates the composition that
@@ -380,6 +388,7 @@ MATRIX_MODES = [
     "bulk_b250_audit",
     "stream_tier1",
     "stream_tier1_5",
+    "stream_tier1_7",
     "stream_tier2",
     "stream_tier2_audit",
 ]
@@ -468,12 +477,13 @@ if __name__ == "__main__":
     bulk_audit_mode = "--bulk-audit" in flags
     stream_t1_mode = "--stream-tier1" in flags
     stream_t15_mode = "--stream-tier1-5" in flags
+    stream_t17_mode = "--stream-tier1-7" in flags
     stream_t2_mode = "--stream-tier2" in flags
     stream_t2_audit_mode = "--stream-tier2-audit" in flags
     source_mode = not any([
         matrix_mode, full_mode, full_no_cl_mode, save_mode, save_cl_mode, save_defer_mode,
         bulk_mode, bulk1000_mode, bulk_audit_mode,
-        stream_t1_mode, stream_t15_mode, stream_t2_mode, stream_t2_audit_mode,
+        stream_t1_mode, stream_t15_mode, stream_t17_mode, stream_t2_mode, stream_t2_audit_mode,
     ])
 
     if source_mode:
@@ -534,6 +544,7 @@ if __name__ == "__main__":
         ("bulk_b250_audit", bulk_audit_mode),
         ("stream_tier1", stream_t1_mode),
         ("stream_tier1_5", stream_t15_mode),
+        ("stream_tier1_7", stream_t17_mode),
         ("stream_tier2", stream_t2_mode),
         ("stream_tier2_audit", stream_t2_audit_mode),
     ]

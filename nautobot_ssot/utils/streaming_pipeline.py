@@ -64,12 +64,13 @@ def run_streaming_sync(
                      unless `skip_load=True`).
         dst_adapter: destination DiffSync adapter (same).
         flags: SSoTFlags controlling tier + validation hooks.
-            * BULK_WRITES       → Tier 2 (bulk_create) instead of Tier 1
-            * VALIDATE_ON_DUMP  → Hook 2 clean_fields() at dump time
-            * VALIDATE_STRICT   → raise on validation failure (else log+continue)
-            * BULK_CLEAN        → call Model.bulk_clean(instances) before flush
-            * BULK_SIGNAL       → fire bulk_post_* signals after each flush
-            * REFIRE_POST_SAVE  → re-fire Django post_save per instance
+            * BULK_WRITES         → Tier 2 (bulk_create) instead of Tier 1
+            * VALIDATE_ON_DUMP    → Hook 2 clean_fields() at dump time
+            * VALIDATE_STRICT     → raise on validation failure (else log+continue)
+            * VALIDATE_RELATIONS  → Hook 3 phased validator registry
+            * BULK_CLEAN          → call Model.bulk_clean(instances) before flush
+            * BULK_SIGNAL         → fire bulk_post_* signals after each flush
+            * REFIRE_POST_SAVE    → re-fire Django post_save per instance
         sqlite_path: path for the SQLite store. None → ":memory:".
         user: optional user for the change-logging context (Tier 1 only).
         skip_load: if True, the adapters have already been .load()'d.
@@ -80,6 +81,10 @@ def run_streaming_sync(
     tier = "tier2" if (flags & SSoTFlags.BULK_WRITES) else "tier1"
     validate_on_dump = bool(flags & SSoTFlags.VALIDATE_ON_DUMP)
     strict = bool(flags & SSoTFlags.VALIDATE_STRICT)
+    validate_relations = (
+        "strict" if (flags & SSoTFlags.VALIDATE_RELATIONS and strict)
+        else bool(flags & SSoTFlags.VALIDATE_RELATIONS)
+    )
     bulk_clean = bool(flags & SSoTFlags.BULK_CLEAN)
     bulk_signal = bool(flags & SSoTFlags.BULK_SIGNAL)
     refire_post_save = bool(flags & SSoTFlags.REFIRE_POST_SAVE)
@@ -144,6 +149,7 @@ def run_streaming_sync(
                 store=store,
                 tier=tier,
                 user=user,
+                validate_relations=validate_relations,
                 bulk_clean=bulk_clean,
                 bulk_signal=bulk_signal,
                 refire_post_save=refire_post_save,

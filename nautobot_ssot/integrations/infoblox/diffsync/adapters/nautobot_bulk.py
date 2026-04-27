@@ -49,6 +49,12 @@ from nautobot_ssot.integrations.infoblox.utils.diffsync import (
     map_network_view_to_namespace,
 )
 from nautobot_ssot.utils.bulk import BulkOperationsMixin
+from nautobot_ssot.utils.validator_registry import ValidatorRegistry
+from nautobot_ssot.utils.validators_ipam import (
+    IPAddressContainmentValidator,
+    IPInPrefixValidator,
+    VlanVidUniqueValidator,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -186,6 +192,21 @@ class BulkNautobotAdapter(BulkOperationsMixin, NautobotAdapter):
     bulk_signal: bool = False
     bulk_clean: bool = False
     signal_context = None
+
+    # Hook 3 — phased validators. Composed of:
+    #   Phase A — pre-flush, see source_records / dest_records / diff_results
+    #   Phase B — between FK-ordered flushes, see DB ∪ adapter maps ∪ queues
+    # Each validator runs only when SSoTFlags.VALIDATE_RELATIONS is set
+    # (or "strict"). Empty registry == zero overhead.
+    validator_registry = ValidatorRegistry(
+        [
+            # Phase A
+            IPAddressContainmentValidator(),
+            VlanVidUniqueValidator(),
+            # Phase B
+            IPInPrefixValidator(),
+        ]
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

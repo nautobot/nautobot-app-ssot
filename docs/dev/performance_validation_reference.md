@@ -75,3 +75,123 @@ setting `self.flags |= SSoTFlags.X` after calling
 `self.diffsync_flags` is a property derived from `self.flags` (low 4
 bits). The setter is preserved for backward compatibility with code
 that does `self.diffsync_flags = DiffSyncFlags.X`.
+
+---
+
+## Validation registry
+
+Defined in `nautobot_ssot/utils/validator_registry.py`.
+
+### Phase enum
+
+```python
+class Phase(str, Enum):
+    A = "A"  # after both dumps, before any flush
+    B = "B"  # between parent and child flushes (Tier 2 only)
+    C = "C"  # after all flushes
+```
+
+### Phase semantics
+
+```mermaid
+flowchart TB
+    subgraph PA["Phase A — after both dumps, before any flush<br/>context: source_records, dest_records, diff_results"]
+        A1[Same-model uniqueness in scope]
+        A2[Same-model topology]
+        A3[Cross-model conditional]
+        A4[Aggregate / cardinality]
+    end
+
+    subgraph PB["Phase B — between parent and child flushes<br/>context: DB &#43; remaining queues &#43; adapter maps"]
+        B1[FK existence pre-check]
+        B2[FK containment / fit — IP fits in prefix etc.]
+    end
+
+    subgraph PC["Phase C — after all flushes<br/>context: final DB"]
+        C1[Post-hoc consistency audit]
+    end
+
+    Reg([Validator registry]) --> PA
+    Reg --> PB
+    Reg --> PC
+
+    classDef phaseA fill:#eef2ff,stroke:#6366f1
+    classDef phaseB fill:#ecfdf5,stroke:#10b981
+    classDef phaseC fill:#fdf4ff,stroke:#a855f7
+    class A1,A2,A3,A4 phaseA
+    class B1,B2 phaseB
+    class C1 phaseC
+```
+
+### `Severity` / `Issue` / `ValidatorContext` / `Validator`
+
+```python
+class Severity(str, Enum):
+    WARN = "warn"
+    ERROR = "error"
+    STRICT = "strict"
+
+@dataclass
+class Issue:
+    validator: str
+    severity: Severity
+    model_type: str
+    unique_key: str
+    message: str
+    extra: dict | None = None
+
+@dataclass
+class ValidatorContext:
+    store: DiffSyncStore
+    dst_adapter: object
+    pending_queues: dict | None
+    # helpers: row(), scope(), queue(), aggregate()
+
+class Validator:
+    name: str
+    phase: Phase
+    category: int                              # 1..8
+    severity: Severity = Severity.ERROR
+    fires_before_flush_of: type | None = None  # Phase B only
+
+    def run(self, ctx: ValidatorContext) -> list[Issue]: ...
+```
+
+### Registration
+
+```python
+class BulkNautobotMyIntAdapter(BulkOperationsMixin, NautobotMyIntAdapter):
+    validator_registry = ValidatorRegistry([
+        IPAddressContainmentValidator(),    # Phase A
+        VlanVidUniqueValidator(),           # Phase A
+        IPInPrefixValidator(),              # Phase B
+    ])
+```
+
+The `BulkSyncer` reads the registry off the adapter and dispatches per
+phase. Empty registry → zero overhead.
+
+### Validator categories
+
+Eight realistic subcategories of "validators with non-local context":
+
+| Cat | Name | Needs to see | Phase | Examples |
+|---|---|---|---|---|
+| 1 | Referential existence | FK target | B | VLAN→VLANGroup |
+| 2 | Referential containment / fit | FK target's content | B | IP fits in prefix |
+| 3 | Same-model uniqueness in scope | all rows in scope | A | VID unique in vlangroup |
+| 4 | Same-model topology | all rows of model | A | prefix tree, cable graph |
+| 5 | Cross-model conditional | rows of A AND B | A | if active then primary_ip set |
+| 6 | Aggregate / cardinality | all rows in scope | A | ≤ N VLANs per group |
+| 7 | Mutual exclusion / exactly-one | all rows in scope | A | one primary_ip4 per Device |
+| 8 | State-machine / transition | old + new for same row | A | status transition table |
+
+### Shipped IPAM validators
+
+`nautobot_ssot/utils/validators_ipam.py`:
+
+| Validator | Phase | Category | Description |
+|---|---|---|---|
+| `IPInPrefixValidator` | B | 2 | Each queued IP fits in a valid prefix in its namespace's prefix tree |
+| `IPAddressContainmentValidator` | A | 4 | IPs whose CIDR doesn't fit any prefix in their namespace |
+| `VlanVidUniqueValidator` | A | 3 | Duplicate VIDs within a VLAN group |
