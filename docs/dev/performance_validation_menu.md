@@ -54,9 +54,7 @@ decisions clear, and to show you how each one can be implemented.
   integration.
 
 This document grows alongside the codebase. Each axis is added as the
-feature that backs it lands. Today only the baseline behavior ships;
-later commits add bulk writes, validation hooks, streaming, scope, and
-the rest.
+feature that backs it lands.
 
 ### The benchmark substrate
 
@@ -78,10 +76,6 @@ The "audit chain" column in the measured matrix tracks whether each
 mode produces ObjectChange rows and fires webhooks/jobhooks/events —
 that distinction matters more than raw speed for many integrations.
 
-Today's matrix has five modes covering the production-shaped baselines:
-`validated_save`, `validated_save_no_cl`, `save`, `save_immediate_cl`,
-`save_deferred_cl`. Future commits add bulk and streaming modes.
-
 ---
 
 ## Part 1 — The anatomy of a sync
@@ -94,29 +88,67 @@ flowchart TD
 
     Apply -->|"validated_save (default)"| PerRow["full_clean → save → post_save signals"]
     Apply -->|"save (no clean)"| PerRowNoClean["save → post_save signals"]
+    Apply -->|"bulk_create / bulk_update"| Bulk["bulk INSERT batches<br/>(no signals fire)"]
 
     PerRow --> Signals[post_save fires for every row]
     PerRowNoClean --> Signals
     Signals --> Audit["Audit chain:<br/>ObjectChange → webhooks / jobhooks / events"]
     Signals --> Domain["Domain-logic signals:<br/>Cable propagation, cache invalidation, …"]
 
+    Bulk --> Skipped[All signals skipped by default]
+
     classDef knob fill:#fff7e6,stroke:#d97706,color:#92400e
-    class Apply,PerRow,PerRowNoClean,Signals,Audit,Domain knob
+    class Apply,PerRow,PerRowNoClean,Bulk,Signals,Audit,Domain,Skipped knob
 ```
 
 Every yellow node above is a knob. The default path is the leftmost —
-the KISS guarantee. Future commits add additional branches (bulk
-writes, streaming, validation hooks). The rest of Part 2 walks through
-each axis individually.
+the KISS guarantee. The other branches exist because not every sync
+needs the full default chain, and the framework lets you opt out of
+pieces you've measured aren't worth the cost.
 
 ---
 
 ## Part 2 — The axes
 
-The chapters below grow as the feature set grows. Today only the
-baselines that come with vanilla DiffSync are described; subsequent
-commits add new axes for bulk writes, validation, streaming, scoped
-sync, and more.
+### Bulk-write batching
+
+**What it controls.** Whether each row is INSERTed individually
+(`save()`) or in batches (`bulk_create()` / `bulk_update()`).
+
+**Default behavior.** `validated_save()` per row — one round-trip per
+row.
+
+**When you'd dial it.** When per-row INSERT round-trips dominate sync
+time (typically true above a few hundred rows). The headline
+measurement on the bundled benchmark: at medium scale (8,143 rows),
+switching from `validated_save` to `bulk_b250` is roughly 30× faster
+all by itself. This is the single largest write-path lever in the menu.
+
+**Alternatives.**
+
+| Mode | Behavior | Cost |
+|---|---|---|
+| **Per-row save (default)** | One INSERT per row | N round-trips |
+| **`bulk_create` / `bulk_update`** | One INSERT per batch (batch size configurable, default 250) | ⌈N / batch_size⌉ round-trips |
+
+**Cost & tradeoffs.** `bulk_create()` skips:
+
+* `post_save` signals (covered by separate axes once they land)
+* Per-row `clean()` (covered by validation axis once it lands)
+* Per-row changelog (covered by changelog axis once it lands)
+
+Each of those concerns gets its own axis later in this doc as the
+relevant infrastructure ships. For now, `bulk_create()` alone is the
+"raw speed, no audit chain" lever.
+
+**Batch size.** Default 250. Larger batches reduce round-trip count
+but increase memory footprint per batch. Empirically 250 wins at our
+scale; higher (1000) gives no measurable improvement.
+
+**How to wire it.** Subclass the integration's `NautobotAdapter` with
+`BulkOperationsMixin`, override each model's `create()` / `update()`
+to queue rather than save, and call `self.flush_all()` in
+`sync_complete()`. See the per-integration recipe in Part 3.
 
 ### Dry-run
 
@@ -137,3 +169,57 @@ preview, capacity planning, and CI smoke tests.
 
 **How to wire it.** `dryrun=True` on the Job — provided by the standard
 `DataSyncBaseJob` base class.
+
+---
+
+## Part 3 — Composing it
+
+### Per-integration recipe (in progress)
+
+The framework in `nautobot_ssot/utils/` is integration-agnostic. Each
+integration adds glue files that wire its DiffSync models to the
+framework. Recipe steps land here as the relevant infrastructure
+ships. Today only Step 2 (bulk write adapter) is documented.
+
+#### Step 2 — Bulk write adapter
+
+**File: `nautobot_ssot/integrations/<myint>/diffsync/adapters/nautobot_bulk.py`**
+
+```python
+from <orm.models> import OrmFoo, OrmBar
+from nautobot_ssot.utils.bulk import BulkOperationsMixin
+from ..models.nautobot import NautobotFoo, NautobotBar
+from .nautobot import NautobotMyIntAdapter
+
+# 1) Override each model.create() to queue instead of validated_save()
+class BulkNautobotFoo(NautobotFoo):
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        _orm = OrmFoo(field=ids["field"])
+        adapter.foo_map[ids["field"]] = _orm.pk     # update lookup map
+        adapter.queue_for_create(OrmFoo, _orm)
+        return NautobotFoo.create(ids=ids, adapter=adapter, attrs=attrs)
+
+# 2) Compose the bulk adapter
+class BulkNautobotMyIntAdapter(BulkOperationsMixin, NautobotMyIntAdapter):
+    foo = BulkNautobotFoo
+    bar = BulkNautobotBar
+
+    _bulk_create_order = [OrmFoo, OrmBar]   # FK dependency order
+```
+
+**Per-integration knowledge.**
+
+* **FK ordering**: `_bulk_create_order` must list ORM classes
+  parent-first; otherwise `bulk_create()` hits FK violations.
+* **Adapter maps**: queueing requires updating
+  `adapter.<thing>_map[key] = orm.pk` *before* the queued object is
+  flushed. UUID PKs are set at `OrmModel(...)` instantiation, so this
+  is straightforward.
+* **Post-flush hooks**: integrations that need extra bulk-write work
+  after `flush_all()` define a `bulk_sync_complete()` method on the
+  adapter; later infrastructure will call it automatically.
+
+For a working reference see Infoblox's
+`BulkNautobotAdapter` in
+`nautobot_ssot/integrations/infoblox/diffsync/adapters/nautobot_bulk.py`.

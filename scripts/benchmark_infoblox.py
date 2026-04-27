@@ -8,6 +8,8 @@ Modes:
   --save           — full pipeline, per-object .save() — NO active change_context, no changelog
   --save-cl        — per-object .save() inside web_request_context (signals fire, OC INSERTs per-save)
   --save-defer     — per-object .save() inside web_request_context + deferred_change_logging
+  --bulk           — full pipeline, bulk_create / bulk_update (batch=250, no clean/signals/cl)
+  --bulk-1000      — bulk pipeline with batch_size=1000
   --matrix         — runs all of the above across tiny / small / medium and prints a summary table
 
 Usage (inside the container):
@@ -51,6 +53,9 @@ from nautobot_ssot.tests.infoblox.performance.test_infoblox_baseline import (  #
 from nautobot_ssot.tests.infoblox.performance.test_infoblox_full_pipeline import (  # noqa: E402
     SCALES as PIPELINE_SCALES,
     _InfobloxFullPipelineBase,
+)
+from nautobot_ssot.tests.infoblox.performance.test_infoblox_bulk_pipeline import (  # noqa: E402
+    _InfobloxBulkPipelineBase,
 )
 
 
@@ -162,6 +167,24 @@ def _run_full(scale, status_active, mode_label, sync_wrapper=None):
     return result
 
 
+def _run_bulk(scale, status_active, batch_size, mode_label):
+    """Run the bulk_create/bulk_update pipeline at the given batch size."""
+    from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot_bulk import BulkNautobotAdapter
+
+    original = BulkNautobotAdapter._bulk_batch_size
+    BulkNautobotAdapter._bulk_batch_size = batch_size
+    try:
+        runner = _InfobloxBulkPipelineBase()
+        runner.status_active = status_active
+        runner.SCALE = scale
+        result = runner._run_pipeline()
+    finally:
+        BulkNautobotAdapter._bulk_batch_size = original
+    result["mode"] = mode_label
+    result["scale"] = scale
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Mode dispatch
 # ---------------------------------------------------------------------------
@@ -198,6 +221,10 @@ def run_mode(mode, scale, status_active, user):
                 mode,
                 sync_wrapper=lambda: _immediate_changelog_context(user),
             )
+    if mode == "bulk_b250":
+        return _run_bulk(scale, status_active, 250, mode)
+    if mode == "bulk_b1000":
+        return _run_bulk(scale, status_active, 1000, mode)
     raise ValueError(f"Unknown mode: {mode}")
 
 
@@ -207,6 +234,8 @@ MATRIX_MODES = [
     "save",
     "save_immediate_cl",
     "save_deferred_cl",
+    "bulk_b250",
+    "bulk_b1000",
 ]
 MATRIX_SCALES = ["tiny", "small", "medium"]
 
@@ -288,8 +317,11 @@ if __name__ == "__main__":
     save_mode = "--save" in flags
     save_cl_mode = "--save-cl" in flags
     save_defer_mode = "--save-defer" in flags
+    bulk_mode = "--bulk" in flags
+    bulk1000_mode = "--bulk-1000" in flags
     source_mode = not any([
         matrix_mode, full_mode, full_no_cl_mode, save_mode, save_cl_mode, save_defer_mode,
+        bulk_mode, bulk1000_mode,
     ])
 
     if source_mode:
@@ -345,6 +377,8 @@ if __name__ == "__main__":
         ("save", save_mode),
         ("save_immediate_cl", save_cl_mode),
         ("save_deferred_cl", save_defer_mode),
+        ("bulk_b250", bulk_mode),
+        ("bulk_b1000", bulk1000_mode),
     ]
     for mode, on in mode_flags:
         if not on:
