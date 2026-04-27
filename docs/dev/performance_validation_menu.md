@@ -45,13 +45,13 @@ decisions clear, and to show you how each one can be implemented.
 
 * **Part 1 — the anatomy of a sync** lays out what fires per object today
   and frames each downstream effect as a knob you can dial.
-* **Part 2 — the axes** is one chapter per behavioral knob. Each chapter
-  follows the same shape: *what it controls, default behavior, when you'd
-  dial it, alternatives, cost & tradeoffs, how to wire it*. Skip to the
-  axis you care about.
+* **Part 2 — the axes** is one chapter per behavioral knob.
 * **Part 3 — composing it** offers pre-mixed presets, the measured matrix,
-  and a per-integration recipe for adding the menu to a new SSoT
-  integration.
+  and a per-integration recipe.
+* For mechanical contracts (`SSoTFlags` enum, where the code lives), see
+  the [Performance & Validation Reference][ref] document.
+
+[ref]: performance_validation_reference.md
 
 This document grows alongside the codebase. Each axis is added as the
 feature that backs it lands.
@@ -64,8 +64,22 @@ mode at three scales — tiny / small / medium (8,143 objects). All
 numbers in this document are from medium scale.
 
 The "audit chain" column in the measured matrix tracks whether each
-mode produces ObjectChange rows and fires webhooks/jobhooks/events —
-that distinction matters more than raw speed for many integrations.
+mode produces ObjectChange rows and fires webhooks/jobhooks/events.
+
+### Composable flag word
+
+All SSoT pipeline + validation knobs live in a single `IntFlag` —
+`nautobot_ssot.flags.SSoTFlags`. Compose with `|`. Bits 0..3 mirror
+`diffsync.enum.DiffSyncFlags` exactly so the same flag word passes
+through to `diff_to(flags=...)` / `sync_to(flags=...)` without
+conversion. The Job UI exposes the single-bit flags as a single
+`MultiChoiceVar` (replacing the legacy individual `BooleanVar`s for
+`memory_profiling`, `parallel_loading`, etc.). For the bit table see
+the reference doc.
+
+The default is `CONTINUE_ON_FAILURE | LOG_UNCHANGED_RECORDS`,
+preserving the historical diffsync behavior. Subclass overrides of
+`run()` can OR additional bits onto `self.flags`.
 
 ---
 
@@ -93,9 +107,7 @@ flowchart TD
 ```
 
 Every yellow node above is a knob. The default path is the leftmost —
-the KISS guarantee. The other branches exist because not every sync
-needs the full default chain, and the framework lets you opt out of
-pieces you've measured aren't worth the cost.
+the KISS guarantee. The rest of Part 2 walks each axis individually.
 
 ---
 
@@ -108,22 +120,15 @@ pieces you've measured aren't worth the cost.
 
 **Default behavior.** Every `validated_save()` (or plain `save()`)
 inside a `web_request_context` fires `post_save`, which the changelog
-signal handler captures and INSERTs as one `ObjectChange` per row —
-~7.4 ms/row INSERT plus ~6.3 ms/row of `to_objectchange()`
-serialization at medium scale.
-
-**When you'd dial it.** Two opposing pressures: you don't need the
-audit (initial bulk load, throwaway migration) → turn it off; or you
-need the audit but per-row INSERT cost is dominating → batch the
-INSERTs.
+signal handler captures and INSERTs as one `ObjectChange` per row.
 
 **Alternatives.**
 
-| Mode | Behavior | Cost |
-|---|---|---|
-| Per-row immediate (default) | One INSERT per save | ~7.4 ms/row INSERT + ~6.3 ms/row serialization |
-| Deferred-batched | Capture during the block, flush in one bulk_create at end | ~6.3 ms/row serialization (INSERT amortized) |
-| None | `bulk_create()` skips `post_save` so no `ObjectChange`s | 0 |
+| Mode | Behavior |
+|---|---|
+| Per-row immediate (default) | One INSERT per save |
+| Deferred-batched | Capture during the block, flush in one bulk_create at end |
+| None | `bulk_create()` skips `post_save` so no `ObjectChange`s |
 
 **How to wire it.**
 
@@ -131,10 +136,8 @@ INSERTs.
 from nautobot.extras.context_managers import (
     deferred_change_logging_for_bulk_operation, web_request_context,
 )
-
 with web_request_context(user, context_detail="my-job"):
     with deferred_change_logging_for_bulk_operation():
-        # saves / bulk_creates inside here are batched at end of block
         ...
 ```
 
@@ -143,175 +146,115 @@ with web_request_context(user, context_detail="my-job"):
 **What it controls.** Outbound HTTP notifications fired by Nautobot in
 response to `ObjectChange` rows.
 
-**Default behavior.** Webhooks dispatch at the end of a
-`web_request_context` block, iterating the `ObjectChange` rows
-produced and matching them against configured `Webhook` objects.
-
-**When you'd dial it.** Almost always when running a bulk migration —
-firing 8,000 webhooks for a single sync rarely matches what downstream
-consumers expect. Driven by axis "Change logging": disable changelog
+**Alternatives.** Driven by the change-logging axis: disable changelog
 → webhooks don't fire.
-
-**Cost & tradeoffs.** Per-row dispatch by default. SSoT does not
-currently provide a "batched webhook" primitive.
-
-**How to wire it.** Driven by axis "Change logging".
 
 ### Job hooks
 
 **What it controls.** `JobHook` objects firing in response to data
-changes — same shape as webhooks but firing internal Jobs instead of
-HTTP calls.
+changes — same shape as webhooks but firing internal Jobs.
 
-**Default behavior.** Driven by `ObjectChange` creation. Each matching
-`JobHook` enqueues a Celery task at end of `web_request_context`.
-
-**Alternatives.** Same shape as webhooks — driven by axis "Change
-logging".
-
-**How to wire it.** Driven by axis "Change logging".
+**Alternatives.** Driven by the change-logging axis.
 
 ### Events (Nautobot Event framework)
 
 **What it controls.** Nautobot's pub/sub Event publication on data
 changes.
 
-**Default behavior.** Driven by `ObjectChange` creation. One event
-published per `ObjectChange` at end of `web_request_context`.
-
-**Alternatives.** Same as webhooks — driven by axis "Change logging".
-
-**How to wire it.** Driven by axis "Change logging".
+**Alternatives.** Driven by the change-logging axis.
 
 ### Business-logic signals (post_save consumers)
 
 **What it controls.** Nautobot core's `post_save` handlers — Cable
 propagation, Rack location cascading, custom-field cache invalidation,
-search-index updates, etc. Not gated on `web_request_context`; they
-fire on every `save()`.
+etc.
 
-**Default behavior.** With per-row `validated_save()` or `save()`,
-every `post_save` handler fires per row. With `bulk_create()`, **none
-of them fire** — that's where the speed comes from, but it silently
-loses every side-effect they were responsible for.
-
-**When you'd dial it.** Whenever you choose `bulk_create`, you've
-implicitly dialed this to "none." Decide whether that's acceptable for
-the models you're touching.
+**Default behavior.** With per-row save, every handler fires per row.
+With `bulk_create()`, **none of them fire**.
 
 **Alternatives.**
 
 | Mode | Behavior | Activated by |
 |---|---|---|
-| Per-row Django `post_save` | Default — dispatch per row | Default |
-| Refire after bulk | After each bulk batch, loop and re-fire `post_save` per instance | `refire_post_save=True` kwarg on `flush_creates` / `flush_updates` |
-| Per-batch dispatch | One `bulk_post_create` / `bulk_post_update` / `bulk_post_delete` signal per FK stage with the full batch | `bulk_signal=True` kwarg |
-| None | All post_save consumers skipped | `bulk_create` alone with no replay |
+| Per-row Django `post_save` | Default | Default |
+| Refire after bulk | Loop and re-fire `post_save` per instance | `SSoTFlags.REFIRE_POST_SAVE` |
+| Per-batch dispatch | One `bulk_post_*` signal per FK stage | `SSoTFlags.BULK_SIGNAL` |
+| None | All post_save consumers skipped | `SSoTFlags.BULK_WRITES` alone |
 
-**Audit of what's at risk.** When `bulk_create` runs with no replay:
-
-| Category | Examples | Consequence |
-|---|---|---|
-| Cable / connection propagation | `update_connected_endpoints` | Cable.connection_state never updates |
-| Location cascading | `handle_rackgroup_location_change` | Child Racks / Devices keep old location |
-| Cluster membership | `assign_virtualchassis_master` | VirtualChassis never picks a master |
-| Cross-model validation (m2m) | `vrf_prefix_associated`, `vrf_device_associated` | Validation row consistency doesn't run |
-| Cache invalidation | `invalidate_choices_cache`, `invalidate_relationship_models_cache` | Stale cached choices / metadata |
-
-**IPAM models** (Namespace, Prefix, IPAddress, VLAN, VLANGroup) have
-no direct `post_save` handlers in core — `bulk_create` alone is safe
-for IPAM-only syncs. **DCIM models** (Cable, Rack, RackGroup,
-VirtualChassis) DO have handlers that do real work — pair with
-`refire_post_save=True`.
-
-**`bulk_post_*` signals.** A new pair of signals emitted by
-`BulkOperationsMixin.flush_*` when `bulk_signal=True`. Subscribers see
-the batch:
-
-```python
-from django.dispatch import receiver
-from nautobot_ssot.signals import bulk_post_create
-
-@receiver(bulk_post_create, sender=IPAddress)
-def invalidate_caches(sender, instances, **kwargs):
-    cache.delete_many([f"ip:{i.pk}" for i in instances])  # one Redis op
-```
+IPAM models (Namespace, Prefix, IPAddress, VLAN, VLANGroup) have no
+direct `post_save` handlers — `BULK_WRITES` alone is safe. DCIM models
+(Cable, Rack, RackGroup) DO have handlers — pair with
+`REFIRE_POST_SAVE`.
 
 ### Atomic transactions
 
-**What it controls.** The granularity of rollback. If part of the sync
-fails, what gets rolled back?
+**What it controls.** The granularity of rollback.
 
-**Default behavior.** Per-Job atomic block. The sync runs inside one
-`transaction.atomic()`; if it raises, all writes roll back.
+**Default behavior.** Per-Job atomic block.
 
 **Alternatives today.** SSoT does not currently expose a knob for
-transaction scope; it inherits Nautobot's per-Job atomic behavior.
-Bulk pipeline's per-batch flushes commit incrementally — if the sync
-fails mid-stream, already-flushed batches stay committed unless the
-outer transaction rolls them back.
-
-**Cost & tradeoffs.** Wider transactions hold locks longer (concurrency
-cost). Narrower transactions risk partial-commit on failure
-(consistency cost). The current default tries to balance both.
+transaction scope.
 
 ### Bulk-write batching
 
-**What it controls.** Whether each row is INSERTed individually
-(`save()`) or in batches (`bulk_create()` / `bulk_update()`).
+**What it controls.** Whether each row is INSERTed individually or in
+batches.
 
 **Default behavior.** `validated_save()` per row.
 
-**When you'd dial it.** When per-row INSERT round-trips dominate sync
-time. At medium scale, switching from `validated_save` to `bulk_b250`
-is roughly 30× faster all by itself.
-
 **Alternatives.**
 
-| Mode | Behavior | Cost |
+| Mode | Behavior | Activated by |
 |---|---|---|
-| Per-row save (default) | One INSERT per row | N round-trips |
-| `bulk_create` / `bulk_update` | One INSERT per batch (default 250) | ⌈N / batch_size⌉ round-trips |
+| Per-row save (default) | One INSERT per row | Default |
+| `bulk_create` / `bulk_update` | One INSERT per batch (default 250) | `SSoTFlags.BULK_WRITES` (in streaming pipeline) or per-integration `BulkOperationsMixin` adapter |
 
-**Composing with the audit chain.** `bulk_create` skips `post_save`,
-which means no `ObjectChange` rows, no webhooks, no jobhooks, no
-events. Restoring the chain on the bulk path uses three opt-in kwargs
-on `BulkOperationsMixin.flush_*`:
+`bulk_create` skips `post_save`. The audit-chain restoration uses the
+`refire_post_save` / `bulk_signal` / `bulk_clean` kwargs on
+`flush_creates` / `flush_updates`. Composing with
+`deferred_change_logging_for_bulk_operation` gives the full audit chain
+on the bulk path — `bulk_b250_audit` benchmark mode demonstrates ~5 s
+at medium with same audit semantics as production (~150 s).
 
-| kwarg | what it does |
-|---|---|
-| `refire_post_save=True` | Re-fire `post_save` per instance after each bulk batch — restores Nautobot core handlers |
-| `bulk_signal=True` | Fire `bulk_post_*` once per flush stage with the full batch |
-| `bulk_clean=True` | Call hypothetical `Model.bulk_clean(instances)` (no-op until Nautobot core ships the API) |
+### Concurrency
 
-Compose with Nautobot core's existing context managers for full audit:
+**What it controls.** Whether source and target adapters load
+sequentially or in parallel.
 
-```python
-from nautobot.extras.context_managers import (
-    deferred_change_logging_for_bulk_operation, web_request_context,
-)
-# BulkNautobotAdapter set with refire_post_save=True, bulk_signal=True
-with web_request_context(user, context_detail="my-job"):
-    with deferred_change_logging_for_bulk_operation():
-        src.diff_to(dst)
-        src.sync_to(dst)
-```
+**Default behavior.** Sequential.
 
-The `bulk_b250_audit` benchmark mode demonstrates this composition:
-~5 s at medium with the **same audit semantics as production** (~150 s)
-— roughly 30× faster.
+**When you'd dial it.** When both adapters are I/O-bound and don't
+contend for the same resource. Source is typically a remote API
+(network-bound); target is the local Nautobot DB. Loading concurrently
+overlaps wall-clock — about 50% saving on the load phase if both
+phases are similar in length.
 
-**Batch size.** Default 250.
+**Alternatives.** On / off — `SSoTFlags.PARALLEL_LOADING`.
+
+**Cost & tradeoffs.** Concurrent threads increase peak memory (both
+adapters in flight at once). Doesn't help when one phase dominates the
+other.
 
 ### Dry-run
 
 **What it controls.** Whether the sync writes or just computes the diff.
 
-**Default behavior.** Dry-run is on by default in the Job UI.
+**Default behavior.** On by default in the Job UI.
 
 **Alternatives.** On / off (the `DryRunVar`).
 
-**How to wire it.** `dryrun=True` on the Job.
+### Memory profiling
+
+**What it controls.** Whether `tracemalloc` records peak memory per
+phase and stores it on the `Sync` record.
+
+**Default behavior.** Off.
+
+**When you'd dial it.** Diagnosing OOM symptoms or budgeting against a
+memory ceiling.
+
+**Alternatives.** On / off — `SSoTFlags.MEMORY_PROFILING`. Populates
+`Sync.<phase>_memory_*` fields.
 
 ---
 
@@ -319,35 +262,24 @@ The `bulk_b250_audit` benchmark mode demonstrates this composition:
 
 ### Per-integration recipe (in progress)
 
-The framework in `nautobot_ssot/utils/` is integration-agnostic. Each
-integration adds glue files. Today Step 2 (bulk write adapter) is
-documented.
+Recipe steps land here as the relevant infrastructure ships. Today
+Step 2 (bulk write adapter) is documented.
 
 #### Step 2 — Bulk write adapter
 
 ```python
 from nautobot_ssot.utils.bulk import BulkOperationsMixin
-# ...
+
 class BulkNautobotMyIntAdapter(BulkOperationsMixin, NautobotMyIntAdapter):
     foo = BulkNautobotFoo
     bar = BulkNautobotBar
-    _bulk_create_order = [OrmFoo, OrmBar]   # FK dependency order
+    _bulk_create_order = [OrmFoo, OrmBar]
 
-    # Optional: opt into the audit chain side-effects on the legacy bulk pipeline
+    # Optional: opt into the audit chain side-effects
     refire_post_save: bool = False
     bulk_signal: bool = False
     bulk_clean: bool = False
 ```
-
-**Per-integration knowledge.**
-
-* **FK ordering**: `_bulk_create_order` must list ORM classes
-  parent-first.
-* **Adapter maps**: queueing requires updating
-  `adapter.<thing>_map[key] = orm.pk` *before* the queued object is
-  flushed.
-* **Post-flush hooks**: `bulk_sync_complete()` for extra bulk-write
-  work after `flush_all()`.
 
 For a working reference see `BulkNautobotAdapter` in
 `nautobot_ssot/integrations/infoblox/diffsync/adapters/nautobot_bulk.py`.

@@ -192,6 +192,7 @@ nav:
       - Release Checklist: "dev/release_checklist.md"
       - Model Diagrams: "dev/diagrams.md"
       - Performance & Validation Menu: "dev/performance_validation_menu.md"
+      - Performance & Validation Reference: "dev/performance_validation_reference.md"
       - Code Reference:
           - "dev/code_reference/index.md"
           - Package: "dev/code_reference/package.md"
