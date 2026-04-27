@@ -58,6 +58,7 @@ def run_streaming_sync(
     skip_load: bool = False,
     dryrun: bool = False,
     scope: Optional[SyncScope] = None,
+    store_class=None,
 ) -> StreamingSyncResult:
     """Run the full streaming pipeline. `tier` ∈ {"tier1", "tier2"}.
 
@@ -83,6 +84,11 @@ def run_streaming_sync(
             untouched. Per-integration custom expanders selected via
             scope.integration; defaults to walking parent_type/parent_key
             in SQLite (works for adapters using DiffSync `_children`).
+        store_class: optional concrete store implementation. Defaults to
+            `DiffSyncStore` (SQLite-backed). Pass `PyDictStore` to compare
+            "what does SQLite actually buy us vs Python dicts?" — but note
+            that PyDictStore lacks `.conn` and is incompatible with
+            validators / scope expansion that hit SQL directly.
 
     Returns the timing/stats record.
     """
@@ -97,7 +103,8 @@ def run_streaming_sync(
     bulk_signal = bool(flags & SSoTFlags.BULK_SIGNAL)
     refire_post_save = bool(flags & SSoTFlags.REFIRE_POST_SAVE)
     result = StreamingSyncResult()
-    store = DiffSyncStore(path=sqlite_path)
+    store_cls = store_class if store_class is not None else DiffSyncStore
+    store = store_cls(path=sqlite_path)
 
     try:
         # ------------------------------------------------------------------

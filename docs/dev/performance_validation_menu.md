@@ -155,7 +155,10 @@ the bulk path.
 
 In-memory `Diff` tree (default, ~30 MiB at medium) vs SQLite-backed
 streaming (~20 MiB at medium). `SSoTFlags.STREAMING` /
-`SSoTFlags.STREAM_TIER2`.
+`SSoTFlags.STREAM_TIER2`. A PyDict-backed streaming variant (24.4 MiB)
+exists as a benchmark instrument — proves the streaming speed wins
+come from "skip the Diff tree," not "use SQL." See the engineering
+note in the reference doc.
 
 ### Sync scope
 

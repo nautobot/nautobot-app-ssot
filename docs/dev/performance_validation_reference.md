@@ -371,3 +371,56 @@ Content-Type: application/json
 | 500 | Sync execution error |
 
 Verified by `scripts/test_scoped_sync_api.py`.
+
+---
+
+## Engineering note: SQLite vs PyDict (honest sizing)
+
+The `stream_tier2_pydict` mode swaps the SQLite-backed `DiffSyncStore`
+for an in-memory `PyDictStore` with the same interface. Same dump →
+release → diff → replay sequence; only the storage layer differs. The
+purpose is to isolate "what does SQLite specifically contribute vs
+plain Python dicts in the same streaming flow?"
+
+### Time at medium (8,143 rows)
+
+| phase | SQLite | PyDict | Δ |
+|---|---:|---:|---:|
+| dump | 0.166 s | 0.118 s | PyDict 30% faster (no SQLite INSERTs) |
+| diff | 0.081 s | 0.004 s | PyDict ~20× faster (no B-tree, no query parser) |
+| sync | 0.682 s | 0.678 s | identical |
+| **TOTAL** | 1.631 s | 1.470 s | **PyDict ~10% faster** |
+
+### Memory at medium (peak during diff phase)
+
+| store | peak resident |
+|---|---:|
+| Legacy (in-memory Diff tree) | 30.3 MiB |
+| Streaming (SQLite) | 19.8 MiB |
+| Streaming (PyDict) | 24.4 MiB |
+
+**Honest reading.** SQLite costs ~10% on time but saves ~5 MiB at 8k
+rows (575 bytes/row of Python object overhead PyDict pays). Memory
+crossover scales with row count.
+
+### What SQLite enables (and PyDict cannot)
+
+* **Validators** — Phase A `IPAddressContainmentValidator`,
+  `VlanVidUniqueValidator` hit `store.conn.execute(...)`. PyDict has
+  no `.conn`.
+* **Scope expansion** — per-integration subtree walkers use SQL
+  filters. Same constraint.
+* **Inspectability** — pass `sqlite_path="auto"` for a temp file
+  that persists past the run.
+* **Cross-process pathway** — same shape generalizes to a real RDBMS.
+
+### Recommendation
+
+Ship SQLite as the default. PyDict is a benchmark instrument to keep
+us honest about where the streaming win actually comes from.
+
+```bash
+python scripts/benchmark_infoblox.py --stream-tier2 medium
+python scripts/benchmark_infoblox.py --stream-tier2-pydict medium
+python scripts/test_memory_comparison.py
+```

@@ -18,6 +18,8 @@ Modes:
   --stream-tier2   — SQLite-streaming pipeline, replays via BulkNautobotAdapter (bulk_create)
   --stream-tier2-audit — stream-tier2 + REFIRE_POST_SAVE wrapped in deferred_change_logging
                           (fast bulk + full audit chain — webhooks/jobhooks/events fire)
+  --stream-tier2-pydict — stream-tier2 with PyDictStore (in-memory dicts) instead of SQLite
+                          (isolates "what does SQLite actually buy us" from streaming speed)
   --matrix         — runs all of the above across tiny / small / medium and prints a summary table
 
 Usage (inside the container):
@@ -243,11 +245,12 @@ def _run_bulk_audit(scale, status_active, mode_label, user):
 
 def _run_stream(scale, status_active, mode_label, user, *,
                 flags: SSoTFlags = SSoTFlags.STREAMING,
-                use_strict_source=False):
+                use_strict_source=False,
+                store_class=None):
     """Run the SQLite-streaming pipeline at one scale.
 
     flags: SSoTFlags word — must include STREAMING; BULK_WRITES picks Tier 2;
-           VALIDATE_ON_DUMP / VALIDATE_STRICT compose Hook 2.
+           VALIDATE_ON_DUMP / VALIDATE_RELATIONS / VALIDATE_STRICT compose Hooks 2/3.
     use_strict_source: Hook 1 — swap InfobloxAdapter for StrictInfobloxAdapter.
                        (Hook 1 isn't a flag bit; it's a per-integration adapter
                        class swap. The benchmark exposes it as a separate kwarg
@@ -277,7 +280,7 @@ def _run_stream(scale, status_active, mode_label, user, *,
     dst_cls = BulkNautobotAdapter if use_bulk else NautobotAdapter
     dst = dst_cls(job=job, sync=None, config=config)
 
-    sr = run_streaming_sync(src, dst, flags=flags, user=user)
+    sr = run_streaming_sync(src, dst, flags=flags, user=user, store_class=store_class)
 
     tier_label = "TIER2" if use_bulk else "TIER1"
     print(
@@ -374,6 +377,18 @@ def run_mode(mode, scale, status_active, user):
         flags = SSoTFlags.STREAM_TIER2 | SSoTFlags.REFIRE_POST_SAVE
         with _deferred_changelog_context(user):
             return _run_stream(scale, status_active, mode, user, flags=flags)
+    if mode == "stream_tier2_pydict":
+        # Same as stream_tier2 but the diff store is in-memory Python dicts
+        # instead of SQLite. Isolates "what does SQLite specifically buy us
+        # vs plain Python dicts in the streaming pipeline?" — should produce
+        # identical correctness at slightly different timing for the diff
+        # phase. No validators / scope (PyDictStore has no SQL conn).
+        from nautobot_ssot.utils.pydict_store import PyDictStore
+        return _run_stream(
+            scale, status_active, mode, user,
+            flags=SSoTFlags.STREAM_TIER2,
+            store_class=PyDictStore,
+        )
     raise ValueError(f"Unknown mode: {mode}")
 
 
@@ -391,6 +406,7 @@ MATRIX_MODES = [
     "stream_tier1_7",
     "stream_tier2",
     "stream_tier2_audit",
+    "stream_tier2_pydict",
 ]
 MATRIX_SCALES = ["tiny", "small", "medium"]
 
@@ -480,10 +496,12 @@ if __name__ == "__main__":
     stream_t17_mode = "--stream-tier1-7" in flags
     stream_t2_mode = "--stream-tier2" in flags
     stream_t2_audit_mode = "--stream-tier2-audit" in flags
+    stream_t2_pydict_mode = "--stream-tier2-pydict" in flags
     source_mode = not any([
         matrix_mode, full_mode, full_no_cl_mode, save_mode, save_cl_mode, save_defer_mode,
         bulk_mode, bulk1000_mode, bulk_audit_mode,
-        stream_t1_mode, stream_t15_mode, stream_t17_mode, stream_t2_mode, stream_t2_audit_mode,
+        stream_t1_mode, stream_t15_mode, stream_t17_mode,
+        stream_t2_mode, stream_t2_audit_mode, stream_t2_pydict_mode,
     ])
 
     if source_mode:
@@ -547,6 +565,7 @@ if __name__ == "__main__":
         ("stream_tier1_7", stream_t17_mode),
         ("stream_tier2", stream_t2_mode),
         ("stream_tier2_audit", stream_t2_audit_mode),
+        ("stream_tier2_pydict", stream_t2_pydict_mode),
     ]
     for mode, on in mode_flags:
         if not on:

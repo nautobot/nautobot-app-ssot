@@ -26,6 +26,7 @@ from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import Infob
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter  # noqa: E402
 from nautobot_ssot.tests.infoblox.performance.mock_client import MockInfobloxClient  # noqa: E402
 from nautobot_ssot.tests.infoblox.performance.test_infoblox_full_pipeline import _make_config, _make_job  # noqa: E402
+from nautobot_ssot.utils.pydict_store import PyDictStore  # noqa: E402
 from nautobot_ssot.utils.sqlite_store import DiffSyncStore  # noqa: E402
 from nautobot_ssot.utils.streaming_differ import StreamingDiffer, dump_adapter  # noqa: E402
 from nautobot_ssot.utils.streaming_pipeline import _release_adapter_store  # noqa: E402
@@ -168,6 +169,56 @@ store.close()
 tracemalloc.stop()
 
 # ---------------------------------------------------------------------------
+# RUN 3 — Streaming with PyDictStore (Python dict backend instead of SQLite)
+# ---------------------------------------------------------------------------
+
+print()
+print("=" * 72)
+print(" RUN 3 — STREAMING with PyDictStore (Python dicts; no SQL engine)")
+print("=" * 72)
+
+IPAddress.objects.filter(parent__namespace__name__startswith="ns-").delete()
+Prefix.objects.filter(namespace__name__startswith="ns-").delete()
+Namespace.objects.filter(name__startswith="ns-").delete()
+
+tracemalloc.start()
+gc.collect()
+peak_pydict = [0, 0]
+
+src, dst = make_adapters()
+store = PyDictStore()
+measure("Before any load", peak_pydict)
+
+src.load()
+measure("After src.load()", peak_pydict)
+
+dump_adapter(src, store, "source_records")
+measure("After dump_adapter(src) [PyDict]", peak_pydict)
+
+_release_adapter_store(src)
+gc.collect()
+measure("After _release(src) + gc", peak_pydict)
+
+dst.load()
+measure("After dst.load()", peak_pydict)
+
+dump_adapter(dst, store, "dest_records")
+measure("After dump_adapter(dst) [PyDict]", peak_pydict)
+
+_release_adapter_store(dst)
+gc.collect()
+measure("After _release(dst) + gc", peak_pydict)
+
+differ_stats_pd = StreamingDiffer(store).diff()
+measure("After StreamingDiffer.diff() [PyDict]", peak_pydict)
+
+print(f"\n  diff stats: {differ_stats_pd}")
+print(f"  PyDict counts: {store.counts()}")
+
+store.close()
+tracemalloc.stop()
+
+# ---------------------------------------------------------------------------
 # Comparison
 # ---------------------------------------------------------------------------
 
@@ -177,6 +228,11 @@ print(" COMPARISON — peak resource usage during the diff phase")
 print("=" * 72)
 print(f"  LEGACY (in-mem Diff tree)  : peak_models={peak_legacy[0]:,}   peak_current={fmt_bytes(peak_legacy[1])}")
 print(f"  STREAMING (SQLite)         : peak_models={peak_streaming[0]:,}   peak_current={fmt_bytes(peak_streaming[1])}")
+print(f"  STREAMING (PyDict)         : peak_models={peak_pydict[0]:,}   peak_current={fmt_bytes(peak_pydict[1])}")
 print()
-delta_legacy_vs_sql = peak_legacy[1] - peak_streaming[1]
+delta_legacy_vs_sql    = peak_legacy[1] - peak_streaming[1]
+delta_legacy_vs_pydict = peak_legacy[1] - peak_pydict[1]
+delta_sql_vs_pydict    = peak_streaming[1] - peak_pydict[1]
 print(f"  legacy → SQLite : {fmt_bytes(delta_legacy_vs_sql)} freed (ratio {peak_legacy[1]/peak_streaming[1]:.2f}×)")
+print(f"  legacy → PyDict : {fmt_bytes(delta_legacy_vs_pydict)} freed (ratio {peak_legacy[1]/peak_pydict[1]:.2f}×)")
+print(f"  SQLite → PyDict : {fmt_bytes(delta_sql_vs_pydict)} ({'PyDict uses MORE' if delta_sql_vs_pydict < 0 else 'PyDict uses LESS'})")
