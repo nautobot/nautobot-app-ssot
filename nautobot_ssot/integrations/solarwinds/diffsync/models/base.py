@@ -183,7 +183,7 @@ class DeviceModel(SolarWindsModel):
     location__location_type__name: str
     location__parent__name: Optional[str] = None
     location__parent__location_type__name: Optional[str] = None
-    platform__name: str
+    platform__name: Optional[str] = None
     role__name: str
     serial: str
     software_version__version: Optional[str] = None
