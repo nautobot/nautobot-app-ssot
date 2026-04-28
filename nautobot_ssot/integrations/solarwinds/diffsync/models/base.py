@@ -3,6 +3,7 @@
 
 from typing import Annotated, List, Optional
 
+from diffsync import DiffSyncModel
 from diffsync.enum import DiffSyncModelFlags
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, Manufacturer, Platform, SoftwareVersion
 from nautobot.extras.models import Role
@@ -35,7 +36,7 @@ class SolarWindsModel(NautobotModel):
                     self._modelname,
                     self.get_unique_id(),
                 )
-                return self
+                return DiffSyncModel.update(self, attrs)
         return super().update(attrs)
 
 
