@@ -24,6 +24,9 @@ from nautobot_ssot.integrations.solarwinds.diffsync.models.solarwinds import (
     SolarWindsRole,
     SolarWindsSoftwareVersion,
 )
+from nautobot_ssot.integrations.solarwinds.onboarding_script import (
+    extract_floor_level_deck_handling_edge_cases,
+)
 from nautobot_ssot.integrations.solarwinds.utils.solarwinds import (
     SolarWindsClient,
     determine_role_from_devicetype,
@@ -82,6 +85,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         tenant=None,
         namespace=None,
         platform_map=None,
+        sub_location_type=None,
     ):
         """Initialize SolarWinds.
 
@@ -95,6 +99,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             tenant (Tenant, optional): The Tenant to associate with Devices and IPAM data.
             namespace (Namespace, optional): The Namespace to assign imported Prefixes to. Defaults to 'Global'.
             platform_map (dict, optional): User-supplied regex → netutils normalized platform name overrides, checked before the built-in map.
+            sub_location_type (LocationType, optional): When set, derive a Deck/Floor/Level sub-Location from each device's hostname (using onboarding_script.extract_floor_level_deck_handling_edge_cases) and place the device there under its container's Location.
         """
         super().__init__()
         self.job = job
@@ -106,6 +111,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         self.tenant = tenant
         self.namespace = namespace
         self.platform_map = platform_map or {}
+        self.sub_location_type = sub_location_type
         self.failed_devices = []
 
     def load(self):  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
@@ -146,6 +152,10 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
                                 ids={"version": version, "platform__name": platform_name, "status__name": "Active"},
                                 attrs={},
                             )
+                        device_location_name, device_location_type = self._resolve_device_location(
+                            hostname=node["NodeHostname"],
+                            container_name=container_name,
+                        )
                         new_dev, loaded = self.get_or_instantiate(
                             self.device,
                             ids={
@@ -154,8 +164,8 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
                             attrs={
                                 "device_type__manufacturer__name": node["Vendor"],
                                 "device_type__model": device_type,
-                                "location__name": container_name,
-                                "location__location_type__name": self.location_type.name,
+                                "location__name": device_location_name,
+                                "location__location_type__name": device_location_type,
                                 "platform__name": platform_name,
                                 "role__name": role,
                                 "snmp_location": node["SNMPLocation"] if node.get("SNMPLocation") else None,
@@ -234,6 +244,42 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             self.job.logger.warning(
                 f"List of {len(self.failed_devices)} devices that were unable to be loaded. {json.dumps(self.failed_devices, indent=2)}"
             )
+
+    def _resolve_device_location(self, hostname: str, container_name: str) -> tuple:
+        """Return the (location_name, location_type_name) for a Device.
+
+        When `sub_location_type` is configured on the Job, the hostname is parsed
+        with the onboarding script's `extract_floor_level_deck_handling_edge_cases`
+        to derive a Deck/Floor/Level identifier. If a sub-Location is derived, it
+        is loaded into DiffSync as a child of the container's Location and used
+        as the Device's location. If no sub-Location can be derived, or
+        `sub_location_type` is not set, the Device falls back to the container's
+        Location (existing behavior).
+        """
+        if not self.sub_location_type:
+            return container_name, self.location_type.name
+
+        sub_loc_name = extract_floor_level_deck_handling_edge_cases(
+            hostname=hostname,
+            location=container_name,
+        )
+        if not sub_loc_name:
+            self.job.logger.debug(
+                "No sub-Location derived for %s under %s; placing at parent Location.",
+                hostname,
+                container_name,
+            )
+            return container_name, self.location_type.name
+
+        # Ensure the sub-Location exists in DiffSync as a child of the container.
+        self.load_location(
+            loc_name=sub_loc_name,
+            location_type=self.sub_location_type.name,
+            status="Active",
+            parent_name=container_name,
+            parent_type=self.location_type.name,
+        )
+        return sub_loc_name, self.sub_location_type.name
 
     def load_manufacturer_and_device_type(self, manufacturer: str, device_type: str):
         """Load Manufacturer and DeviceType into DiffSync models.

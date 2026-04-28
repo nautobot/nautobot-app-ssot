@@ -66,6 +66,19 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         label="Location Type",
         required=False,
     )
+    sub_location_type = ObjectVar(
+        model=LocationType,
+        queryset=LocationType.objects.all(),
+        description=(
+            "Optional LocationType for sub-Locations (Deck/Floor/Level) derived from device hostnames. "
+            "When set, each hostname is parsed (using onboarding_script.extract_floor_level_deck_handling_edge_cases) "
+            "to extract a Deck_/Floor_/Level_ identifier; the device is placed in that sub-Location under "
+            "its container's Location. Must support Device ContentType and have its parent LocationType "
+            "match the Location Type field above."
+        ),
+        label="Sub-location Type",
+        required=False,
+    )
     parent = ObjectVar(
         model=Location,
         queryset=Location.objects.all(),
@@ -144,6 +157,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             "skip_deletes",
             "integration",
             "location_type",
+            "sub_location_type",
             "custom_property",
             "containers",
             "top_container",
@@ -212,6 +226,27 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             )
             raise JobConfigError
 
+        if self.sub_location_type:
+            if (
+                self.sub_location_type.parent is not None
+                and self.sub_location_type.parent != self.location_type
+            ):
+                self.logger.error(
+                    "Sub-location Type %s expects parent LocationType %s, but Location Type is %s.",
+                    self.sub_location_type,
+                    self.sub_location_type.parent,
+                    self.location_type,
+                )
+                raise JobConfigError
+            if ("dcim", "device") not in self.sub_location_type.content_types.values_list(
+                "app_label", "model"
+            ):
+                self.logger.error(
+                    "Sub-location Type %s is missing Device ContentType.",
+                    self.sub_location_type,
+                )
+                raise JobConfigError
+
     def validate_role_map(self):
         """Confirm configuration of Role Map Job var."""
         if self.role_map and not self.role_choice:
@@ -249,6 +284,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             client=client,
             containers=self.containers,
             location_type=self.location_type,
+            sub_location_type=self.sub_location_type,
             parent=self.parent,
             tenant=self.tenant,
             namespace=self.namespace,
@@ -275,6 +311,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             if self.location_override
             else None
         )
+        self.sub_location_type = kwargs.get("sub_location_type")
         self.parent = kwargs.get("parent")
         self.tenant = kwargs.get("tenant")
         self.namespace = kwargs.get("namespace")
