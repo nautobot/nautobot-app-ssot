@@ -218,7 +218,7 @@ class InterfaceModel(SolarWindsModel):
     device__name: str
     enabled: bool
     mac_address: Optional[str] = None
-    mtu: int
+    mtu: Optional[int] = None
     type: str
     status__name: str
 
