@@ -13,7 +13,33 @@ from nautobot_ssot.contrib.types import CustomFieldAnnotation
 from nautobot_ssot.tests.contrib_base_classes import ContentTypeDict
 
 
-class LocationModel(NautobotModel):
+class SolarWindsModel(NautobotModel):
+    """SolarWinds DiffSync base model. Honors the Job's `skip_updates` flag.
+
+    `skip_updates` is a comma-separated list of DiffSync model names to freeze
+    from UPDATE actions. The literal value `"all"` freezes every model. When a
+    model is frozen, attribute drift between SolarWinds and Nautobot is logged
+    at DEBUG level but no write occurs.
+    """
+
+    def update(self, attrs):
+        """Skip the UPDATE if this model is named in the Job's skip_updates flag."""
+        adapter = self.adapter
+        job = getattr(adapter, "job", None)
+        if job is not None:
+            raw = (getattr(job, "skip_updates", "") or "").lower()
+            frozen = {name.strip() for name in raw.split(",") if name.strip()}
+            if frozen and ("all" in frozen or self._modelname in frozen):
+                job.logger.debug(
+                    "skip_updates active for %s — leaving %s untouched",
+                    self._modelname,
+                    self.get_unique_id(),
+                )
+                return self
+        return super().update(attrs)
+
+
+class LocationModel(SolarWindsModel):
     """Diffsync model for SolarWinds containers."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
@@ -40,7 +66,7 @@ class LocationModel(NautobotModel):
     parent__parent__location_type__name: Optional[str] = None
 
 
-class DeviceTypeModel(NautobotModel):
+class DeviceTypeModel(SolarWindsModel):
     """DiffSync model for SolarWinds device types."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
@@ -53,7 +79,7 @@ class DeviceTypeModel(NautobotModel):
     manufacturer__name: str
 
 
-class ManufacturerModel(NautobotModel):
+class ManufacturerModel(SolarWindsModel):
     """DiffSync model for SolarWinds device manufacturers."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
@@ -67,7 +93,7 @@ class ManufacturerModel(NautobotModel):
     device_types: List[DeviceTypeModel] = []
 
 
-class PlatformModel(NautobotModel):
+class PlatformModel(SolarWindsModel):
     """Shared data model representing a Platform in either of the local or remote Nautobot instances."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
@@ -83,7 +109,7 @@ class PlatformModel(NautobotModel):
     napalm_driver: str
 
 
-class RoleModel(NautobotModel):
+class RoleModel(SolarWindsModel):
     """DiffSync model for SolarWinds Device roles."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
@@ -97,7 +123,7 @@ class RoleModel(NautobotModel):
     content_types: List[ContentTypeDict] = []
 
 
-class SoftwareVersionModel(NautobotModel):
+class SoftwareVersionModel(SolarWindsModel):
     """DiffSync model for SolarWinds Device Software versions."""
 
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
@@ -112,7 +138,7 @@ class SoftwareVersionModel(NautobotModel):
     status__name: str
 
 
-class DeviceModel(NautobotModel):
+class DeviceModel(SolarWindsModel):
     """DiffSync model for SolarWinds devices."""
 
     _model = Device
@@ -161,7 +187,7 @@ class DeviceModel(NautobotModel):
         return Device.objects.filter(_custom_field_data__system_of_record="SolarWinds")
 
 
-class InterfaceModel(NautobotModel):
+class InterfaceModel(SolarWindsModel):
     """Shared data model representing an Interface."""
 
     # Metadata about this model
@@ -191,7 +217,7 @@ class InterfaceModel(NautobotModel):
         return Interface.objects.filter(device___custom_field_data__system_of_record="SolarWinds")
 
 
-class PrefixModel(NautobotModel):
+class PrefixModel(SolarWindsModel):
     """Shared data model representing a Prefix."""
 
     # Metadata about this model
@@ -224,7 +250,7 @@ class PrefixModel(NautobotModel):
         return Prefix.objects.filter(_custom_field_data__system_of_record="SolarWinds")
 
 
-class IPAddressModel(NautobotModel):
+class IPAddressModel(SolarWindsModel):
     """Shared data model representing an IPAddress."""
 
     _model = IPAddress
@@ -261,7 +287,7 @@ class IPAddressModel(NautobotModel):
         return IPAddress.objects.filter(_custom_field_data__system_of_record="SolarWinds")
 
 
-class IPAddressToInterfaceModel(NautobotModel):
+class IPAddressToInterfaceModel(SolarWindsModel):
     """Shared data model representing an IPAddressToInterface."""
 
     _model = IPAddressToInterface

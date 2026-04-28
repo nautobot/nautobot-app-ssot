@@ -136,6 +136,17 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         label="Skip deletes",
         default=False,
     )
+    skip_updates = StringVar(
+        description=(
+            "Comma-separated list of DiffSync model names to freeze from UPDATEs "
+            "(e.g. 'interface,ipaddress'). Use 'all' to freeze every model. Leave blank to update normally. "
+            "Available: location, manufacturer, platform, role, softwareversion, device, "
+            "interface, prefix, ipaddress, ipassignment."
+        ),
+        label="Skip updates for",
+        default="",
+        required=False,
+    )
 
     def __init__(self):
         """Initialize job objects."""
@@ -155,6 +166,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             "dryrun",
             "debug",
             "skip_deletes",
+            "skip_updates",
             "integration",
             "location_type",
             "sub_location_type",
@@ -325,6 +337,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         self.parallel_loading = kwargs.get("parallel_loading")
         if kwargs.get("skip_deletes"):
             self.diffsync_flags |= DiffSyncFlags.SKIP_UNMATCHED_DST
+        self.skip_updates = kwargs.get("skip_updates") or ""
         super().run(*args, **kwargs)
 
 
