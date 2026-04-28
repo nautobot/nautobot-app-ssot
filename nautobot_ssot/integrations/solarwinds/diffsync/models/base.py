@@ -23,6 +23,17 @@ class SolarWindsModel(NautobotModel):
     at DEBUG level but no write occurs.
     """
 
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Create the ORM object, surfacing exceptions that DiffSync would otherwise swallow."""
+        try:
+            return super().create(adapter, ids, attrs)
+        except Exception as error:
+            job = getattr(adapter, "job", None)
+            if job is not None:
+                job.logger.error("CREATE failed for %s %s: %s", cls._modelname, ids, error)
+            raise
+
     def update(self, attrs):
         """Skip the UPDATE if this model is named in the Job's skip_updates flag."""
         adapter = self.adapter
@@ -151,6 +162,8 @@ class DeviceModel(SolarWindsModel):
         "device_type__model",
         "location__name",
         "location__location_type__name",
+        "location__parent__name",
+        "location__parent__location_type__name",
         "platform__name",
         "role__name",
         "serial",
@@ -168,6 +181,8 @@ class DeviceModel(SolarWindsModel):
     device_type__model: str
     location__name: str
     location__location_type__name: str
+    location__parent__name: Optional[str] = None
+    location__parent__location_type__name: Optional[str] = None
     platform__name: str
     role__name: str
     serial: str

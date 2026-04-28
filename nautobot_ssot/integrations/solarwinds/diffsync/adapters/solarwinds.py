@@ -152,7 +152,12 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
                                 ids={"version": version, "platform__name": platform_name, "status__name": "Active"},
                                 attrs={},
                             )
-                        device_location_name, device_location_type = self._resolve_device_location(
+                        (
+                            device_location_name,
+                            device_location_type,
+                            device_parent_name,
+                            device_parent_type,
+                        ) = self._resolve_device_location(
                             hostname=node["NodeHostname"],
                             container_name=container_name,
                         )
@@ -166,6 +171,8 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
                                 "device_type__model": device_type,
                                 "location__name": device_location_name,
                                 "location__location_type__name": device_location_type,
+                                "location__parent__name": device_parent_name,
+                                "location__parent__location_type__name": device_parent_type,
                                 "platform__name": platform_name,
                                 "role__name": role,
                                 "snmp_location": node["SNMPLocation"] if node.get("SNMPLocation") else None,
@@ -246,18 +253,21 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             )
 
     def _resolve_device_location(self, hostname: str, container_name: str) -> tuple:
-        """Return the (location_name, location_type_name) for a Device.
+        """Return the (location_name, location_type, parent_name, parent_type) for a Device.
 
         When `sub_location_type` is configured on the Job, the hostname is parsed
         with the onboarding script's `extract_floor_level_deck_handling_edge_cases`
         to derive a Deck/Floor/Level identifier. If a sub-Location is derived, it
         is loaded into DiffSync as a child of the container's Location and used
-        as the Device's location. If no sub-Location can be derived, or
-        `sub_location_type` is not set, the Device falls back to the container's
-        Location (existing behavior).
+        as the Device's location, with the container as parent. If no sub-Location
+        can be derived, or `sub_location_type` is not set, the Device falls back
+        to the container's Location with no parent context.
+
+        The parent fields are required to disambiguate Device location lookups
+        when sub-Locations like `Deck_05` exist under multiple ships.
         """
         if not self.sub_location_type:
-            return container_name, self.location_type.name
+            return container_name, self.location_type.name, None, None
 
         sub_loc_name = extract_floor_level_deck_handling_edge_cases(
             hostname=hostname,
@@ -269,7 +279,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
                 hostname,
                 container_name,
             )
-            return container_name, self.location_type.name
+            return container_name, self.location_type.name, None, None
 
         # Ensure the sub-Location exists in DiffSync as a child of the container.
         self.load_location(
@@ -279,7 +289,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             parent_name=container_name,
             parent_type=self.location_type.name,
         )
-        return sub_loc_name, self.sub_location_type.name
+        return sub_loc_name, self.sub_location_type.name, container_name, self.location_type.name
 
     def load_manufacturer_and_device_type(self, manufacturer: str, device_type: str):
         """Load Manufacturer and DeviceType into DiffSync models.
