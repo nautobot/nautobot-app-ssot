@@ -182,11 +182,6 @@ class DeviceModel(SolarWindsModel):
     system_of_record: Annotated[Optional[str], CustomFieldAnnotation(name="system_of_record")] = None
     last_synced_from_sor: Annotated[Optional[str], CustomFieldAnnotation(name="last_synced_from_sor")] = None
 
-    @classmethod
-    def get_queryset(cls):
-        """Return only Devices with system_of_record set to SolarWinds."""
-        return Device.objects.filter(_custom_field_data__system_of_record="SolarWinds")
-
 
 class InterfaceModel(SolarWindsModel):
     """Shared data model representing an Interface."""
@@ -211,11 +206,6 @@ class InterfaceModel(SolarWindsModel):
     mtu: int
     type: str
     status__name: str
-
-    @classmethod
-    def get_queryset(cls):
-        """Return only Interfaces with system_of_record set to SolarWinds."""
-        return Interface.objects.filter(device___custom_field_data__system_of_record="SolarWinds")
 
 
 class PrefixModel(SolarWindsModel):
@@ -244,11 +234,6 @@ class PrefixModel(SolarWindsModel):
     namespace__name: str
     system_of_record: Annotated[Optional[str], CustomFieldAnnotation(name="system_of_record")] = None
     last_synced_from_sor: Annotated[Optional[str], CustomFieldAnnotation(name="last_synced_from_sor")] = None
-
-    @classmethod
-    def get_queryset(cls):
-        """Return only Prefixes with system_of_record set to SolarWinds."""
-        return Prefix.objects.filter(_custom_field_data__system_of_record="SolarWinds")
 
 
 class IPAddressModel(SolarWindsModel):
@@ -282,11 +267,6 @@ class IPAddressModel(SolarWindsModel):
     system_of_record: Annotated[Optional[str], CustomFieldAnnotation(name="system_of_record")] = None
     last_synced_from_sor: Annotated[Optional[str], CustomFieldAnnotation(name="last_synced_from_sor")] = None
 
-    @classmethod
-    def get_queryset(cls):
-        """Return only IP Addresses with system_of_record set to SolarWinds."""
-        return IPAddress.objects.filter(_custom_field_data__system_of_record="SolarWinds")
-
 
 class IPAddressToInterfaceModel(SolarWindsModel):
     """Shared data model representing an IPAddressToInterface."""
@@ -305,8 +285,3 @@ class IPAddressToInterfaceModel(SolarWindsModel):
     ip_address__host: str
     interface__device__primary_ip4__host: Optional[str] = None
     interface__device__primary_ip6__host: Optional[str] = None
-
-    @classmethod
-    def get_queryset(cls):
-        """Return only IPAddressToInterface with system_of_record set to SolarWinds."""
-        return IPAddressToInterface.objects.filter(interface__device___custom_field_data__system_of_record="SolarWinds")
