@@ -9,7 +9,7 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from nautobot.core.models.utils import slugify
 from nautobot.core.settings_funcs import is_truthy
-from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer
+from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer, SoftwareVersion
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import (
     ExternalIntegration,
@@ -226,6 +226,25 @@ def verify_device_type_object(device_type):
         device_type_obj = DeviceType(manufacturer=Manufacturer.objects.get(name="Arista"), model=device_type)
         device_type_obj.validated_save()
     return device_type_obj
+
+
+def verify_software_version_object(version, platform):
+    """Verifies whether SoftwareVersion object already exists in Nautobot. If not, creates it with Active status.
+
+    Args:
+        version (str): EOS software version string gathered from CloudVision.
+        platform (Platform): Platform ORM object the SoftwareVersion belongs to.
+    """
+    try:
+        software_version_obj = SoftwareVersion.objects.get(version=version, platform=platform)
+    except SoftwareVersion.DoesNotExist:
+        software_version_obj = SoftwareVersion(
+            version=version,
+            platform=platform,
+            status=Status.objects.get(name="Active"),
+        )
+        software_version_obj.validated_save()
+    return software_version_obj
 
 
 def verify_device_role_object(role_name, role_color):
