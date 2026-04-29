@@ -1,0 +1,2 @@
+Fixed Arista SSoT integration to assign a device's software version on the first sync run.
+Fixed Arista SSoT integration to create new SoftwareVersion records with an Active status.

@@ -2,9 +2,10 @@
 
 from django.test import override_settings
 from nautobot.core.testing import TestCase
-from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer
+from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer, Platform, SoftwareVersion
 from nautobot.extras.models import Role, Status, Tag
 
+from nautobot_ssot.integrations.aristacv.constants import ARISTA_PLATFORM
 from nautobot_ssot.integrations.aristacv.utils import nautobot
 
 
@@ -16,6 +17,7 @@ class TestNautobotUtils(TestCase):
     def setUp(self):
         """Configure shared test vars."""
         self.arista_manu = Manufacturer.objects.get_or_create(name="Arista")[0]
+        self.arista_platform = Platform.objects.get_or_create(name=ARISTA_PLATFORM, manufacturer=self.arista_manu)[0]
 
     def test_verify_site_success(self):
         """Test the verify_site method for existing Site."""
@@ -43,6 +45,24 @@ class TestNautobotUtils(TestCase):
         result = nautobot.verify_device_type_object(device_type="DCS-7150S-24")
         self.assertEqual(result.model, "DCS-7150S-24")
         self.assertTrue(isinstance(result, DeviceType))
+
+    def test_verify_software_version_object_success(self):
+        """Test the verify_software_version_object method for existing SoftwareVersion."""
+        existing = SoftwareVersion.objects.create(
+            version="4.28.1F",
+            platform=self.arista_platform,
+            status=Status.objects.get(name="Active"),
+        )
+        result = nautobot.verify_software_version_object(version="4.28.1F", platform=self.arista_platform)
+        self.assertEqual(result, existing)
+
+    def test_verify_software_version_object_fail(self):
+        """Test the verify_software_version_object method for non-existing SoftwareVersion."""
+        result = nautobot.verify_software_version_object(version="4.29.0F", platform=self.arista_platform)
+        self.assertEqual(result.version, "4.29.0F")
+        self.assertEqual(result.platform, self.arista_platform)
+        self.assertEqual(result.status, Status.objects.get(name="Active"))
+        self.assertTrue(isinstance(result, SoftwareVersion))
 
     def test_verify_device_role_object_success(self):
         """Test the verify_device_role_object method for existing DeviceRole."""
