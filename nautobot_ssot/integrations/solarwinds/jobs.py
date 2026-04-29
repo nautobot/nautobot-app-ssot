@@ -70,13 +70,23 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         model=LocationType,
         queryset=LocationType.objects.all(),
         description=(
-            "Optional LocationType for sub-Locations (Deck/Floor/Level) derived from device hostnames. "
-            "When set, each hostname is parsed (using onboarding_script.extract_floor_level_deck_handling_edge_cases) "
-            "to extract a Deck_/Floor_/Level_ identifier; the device is placed in that sub-Location under "
-            "its container's Location. Must support Device ContentType and have its parent LocationType "
-            "match the Location Type field above."
+            "Optional LocationType used when creating sub-Locations derived from device hostnames. "
+            "Sub-Location names themselves come from the Sub-location Map field below. Must support "
+            "Device ContentType and have its parent LocationType match the Location Type field above."
         ),
         label="Sub-location Type",
+        required=False,
+    )
+    sub_location_map = JSONVar(
+        label="Sub-location Map",
+        description=(
+            "Optional mapping that derives a sub-Location name from each device's hostname. "
+            'Format: {"<parent location>": {"patterns": ["<regex>"], "prefix": "<str>", '
+            '"overrides": {"<substring>": "<full sub-location name>"}}}. Locations not listed '
+            "are skipped (device stays at the parent container). See "
+            "docs/user/integrations/solarwinds_sub_location_mapping.md for the full reference."
+        ),
+        default={},
         required=False,
     )
     parent = ObjectVar(
@@ -170,6 +180,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             "integration",
             "location_type",
             "sub_location_type",
+            "sub_location_map",
             "custom_property",
             "containers",
             "top_container",
@@ -297,6 +308,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             containers=self.containers,
             location_type=self.location_type,
             sub_location_type=self.sub_location_type,
+            sub_location_map=self.sub_location_map,
             parent=self.parent,
             tenant=self.tenant,
             namespace=self.namespace,
@@ -324,6 +336,7 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
             else None
         )
         self.sub_location_type = kwargs.get("sub_location_type")
+        self.sub_location_map = kwargs.get("sub_location_map") or {}
         self.parent = kwargs.get("parent")
         self.tenant = kwargs.get("tenant")
         self.namespace = kwargs.get("namespace")

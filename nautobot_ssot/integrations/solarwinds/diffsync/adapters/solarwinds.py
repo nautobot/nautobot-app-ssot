@@ -24,14 +24,12 @@ from nautobot_ssot.integrations.solarwinds.diffsync.models.solarwinds import (
     SolarWindsRole,
     SolarWindsSoftwareVersion,
 )
-from nautobot_ssot.integrations.solarwinds.onboarding_script import (
-    extract_floor_level_deck_handling_edge_cases,
-)
 from nautobot_ssot.integrations.solarwinds.utils.solarwinds import (
     SolarWindsClient,
     determine_role_from_devicetype,
     determine_role_from_hostname,
 )
+from nautobot_ssot.integrations.solarwinds.utils.sub_location import derive_sub_location
 
 DEFAULT_PLATFORM_MAP = {
     r"AOS-CX": "aruba_aoscx",
@@ -86,6 +84,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         namespace=None,
         platform_map=None,
         sub_location_type=None,
+        sub_location_map=None,
     ):
         """Initialize SolarWinds.
 
@@ -99,7 +98,8 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
             tenant (Tenant, optional): The Tenant to associate with Devices and IPAM data.
             namespace (Namespace, optional): The Namespace to assign imported Prefixes to. Defaults to 'Global'.
             platform_map (dict, optional): User-supplied regex → netutils normalized platform name overrides, checked before the built-in map.
-            sub_location_type (LocationType, optional): When set, derive a Deck/Floor/Level sub-Location from each device's hostname (using onboarding_script.extract_floor_level_deck_handling_edge_cases) and place the device there under its container's Location.
+            sub_location_type (LocationType, optional): When set together with `sub_location_map`, derive a sub-Location from each device's hostname and place the device there under its container's Location.
+            sub_location_map (dict, optional): Operator-supplied mapping that drives sub-Location name derivation from hostnames. See ``utils.sub_location.derive_sub_location``.
         """
         super().__init__()
         self.job = job
@@ -112,6 +112,7 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
         self.namespace = namespace
         self.platform_map = platform_map or {}
         self.sub_location_type = sub_location_type
+        self.sub_location_map = sub_location_map or {}
         self.failed_devices = []
 
     def load(self):  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
@@ -255,23 +256,24 @@ class SolarWindsAdapter(Adapter):  # pylint: disable=too-many-instance-attribute
     def _resolve_device_location(self, hostname: str, container_name: str) -> tuple:
         """Return the (location_name, location_type, parent_name, parent_type) for a Device.
 
-        When `sub_location_type` is configured on the Job, the hostname is parsed
-        with the onboarding script's `extract_floor_level_deck_handling_edge_cases`
-        to derive a Deck/Floor/Level identifier. If a sub-Location is derived, it
-        is loaded into DiffSync as a child of the container's Location and used
-        as the Device's location, with the container as parent. If no sub-Location
-        can be derived, or `sub_location_type` is not set, the Device falls back
-        to the container's Location with no parent context.
+        When `sub_location_type` is configured on the Job, the hostname is run
+        through `derive_sub_location` against the operator-supplied
+        `sub_location_map`. If a sub-Location name is produced, it is loaded
+        into DiffSync as a child of the container's Location and used as the
+        Device's location, with the container as parent. Otherwise the Device
+        falls back to the container's Location with no parent context.
 
         The parent fields are required to disambiguate Device location lookups
-        when sub-Locations like `Deck_05` exist under multiple ships.
+        when sub-Locations with the same name (e.g. `Deck_05`) exist under
+        multiple parents.
         """
         if not self.sub_location_type:
             return container_name, self.location_type.name, None, None
 
-        sub_loc_name = extract_floor_level_deck_handling_edge_cases(
+        sub_loc_name = derive_sub_location(
             hostname=hostname,
-            location=container_name,
+            location_name=container_name,
+            mapping=self.sub_location_map,
         )
         if not sub_loc_name:
             self.job.logger.debug(
