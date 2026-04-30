@@ -303,7 +303,10 @@ class VsphereDiffSync(Adapter):
             diffsync_virtualmachine.add_child(diffsync_vminterface)
             # Get detail interfaces w/ ip's from VM - Only if VM is Enabled
             if vsphere_virtual_machine_details["power_state"] == "POWERED_ON":
-                vm_interfaces = self.client.get_vm_interfaces(vm_id=vm_id).json()["value"]
+                # VMware Tools may not be installed/running; the guest networking API
+                # returns an error dict without "value" in that case — treat as no IPs.
+                _resp = self.client.get_vm_interfaces(vm_id=vm_id).json()
+                vm_interfaces = _resp.get("value", []) if isinstance(_resp, dict) else []
 
                 # Load any IP addresses associated to this NIC/MAC
                 ipv4_addresses, ipv6_addresses = self.load_ip_addresses(
