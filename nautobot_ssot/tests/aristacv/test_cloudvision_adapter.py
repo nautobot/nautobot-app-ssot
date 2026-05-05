@@ -24,10 +24,10 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         super().setUp()
         self.client = MagicMock()
         self.client.comm_channel = MagicMock()
+        self.client.get_inventory = MagicMock(return_value=fixtures.INVENTORY_FIXTURE)
+        self.client.get_version = MagicMock(return_value="2024.3.0")
 
         self.cloudvision = MagicMock()
-        self.cloudvision.get_devices = MagicMock()
-        self.cloudvision.get_devices.return_value = fixtures.DEVICE_FIXTURE
         self.cloudvision.get_tags_by_type = MagicMock()
         self.cloudvision.get_tags_by_type.return_value = []
         self.cloudvision.get_device_type = MagicMock()
@@ -54,22 +54,21 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
     def test_load_devices(self):
         """Test the load_devices() adapter method."""
         # Update config namedtuple `create_controller` to False
-        self.job.app_config = self.job.app_config._replace(create_controller=False)
-        with patch(
-            "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_devices",
-            self.cloudvision.get_devices,
-        ):
-            with patch(
+        self.job.app_config = self.job.app_config._replace(create_controller=False, import_active=False)
+        with (
+            patch(
                 "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_device_type",
                 self.cloudvision.get_device_type,
-            ):
-                with patch(
-                    "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interfaces_fixed",
-                    self.cloudvision.get_interfaces_fixed,
-                ):
-                    self.cvp.load_devices()
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interfaces_fixed",
+                self.cloudvision.get_interfaces_fixed,
+            ),
+        ):
+            self.cvp.load_devices()
+        expected_hostnames = {dev["hostname"] for dev in fixtures.INVENTORY_FIXTURE if dev["hostname"]}
         self.assertEqual(
-            {dev["hostname"] for dev in fixtures.DEVICE_FIXTURE},
+            expected_hostnames,
             {dev.get_unique_id() for dev in self.cvp.get_all("device")},
         )
 
@@ -115,19 +114,21 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         mock_device.serial = MagicMock()
         mock_device.serial.return_value = "JPE12345678"
 
-        with patch(
-            "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_ip_interfaces",
-            self.cloudvision.get_ip_interfaces,
-        ):
-            with patch(
+        with (
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_ip_interfaces",
+                self.cloudvision.get_ip_interfaces,
+            ),
+            patch(
                 "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_description",
                 self.cloudvision.get_interface_description,
-            ):
-                with patch(
-                    "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_vrf",
-                    self.cloudvision.get_interface_vrf,
-                ):
-                    self.cvp.load_ip_addresses(dev=mock_device)
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_vrf",
+                self.cloudvision.get_interface_vrf,
+            ),
+        ):
+            self.cvp.load_ip_addresses(dev=mock_device, primary_ip="192.0.2.1/24")
         self.assertEqual(
             {
                 f"{ipaddr['address']}__{ipaddress.ip_interface(ipaddr['address']).network.with_prefixlen}__Global"
@@ -135,3 +136,34 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
             },
             {ipaddr.get_unique_id() for ipaddr in self.cvp.get_all("ipaddr")},
         )
+
+    def test_load_ip_addresses_marks_matching_address_primary(self):
+        """Regression test for #1174: only the IP equal to primary_ip is marked primary.
+
+        CloudVision's inventory ``ipAddress`` is a bare IP (no mask), while interface
+        addresses include a prefix length, so the comparison must strip the mask.
+        """
+        mock_device = MagicMock()
+        mock_device.name = "mock_device"
+        mock_device.serial = "JPE12345678"
+        primary_ip = "203.0.113.2"
+
+        with (
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_ip_interfaces",
+                self.cloudvision.get_ip_interfaces,
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_description",
+                self.cloudvision.get_interface_description,
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_vrf",
+                self.cloudvision.get_interface_vrf,
+            ),
+        ):
+            self.cvp.load_ip_addresses(dev=mock_device, primary_ip=primary_ip)
+
+        primary_by_interface = {a.interface: a.primary for a in self.cvp.get_all("ipassignment")}
+        self.assertTrue(primary_by_interface["Loopback2"])
+        self.assertFalse(primary_by_interface["Loopback1"])

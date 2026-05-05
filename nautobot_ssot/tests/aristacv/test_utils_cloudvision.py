@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from cloudvision.Connector.codec.custom_types import FrozenDict
+from cvprac.cvp_client import CvpLoginError
 from django.test import override_settings
 from nautobot.core.testing import TestCase
 from parameterized import parameterized
@@ -10,6 +11,13 @@ from parameterized import parameterized
 from nautobot_ssot.integrations.aristacv.utils import cloudvision
 from nautobot_ssot.integrations.aristacv.utils.nautobot import get_config
 from nautobot_ssot.tests.aristacv.fixtures import fixtures
+
+CVAAS_PLUGIN_CONFIG = {
+    "nautobot_ssot": {
+        "aristacv_cvaas_url": "www.arista.io:443",
+        "aristacv_cvp_token": "1234567890abcdef",
+    },
+}
 
 
 class TestCloudvisionApi(TestCase):
@@ -31,20 +39,61 @@ class TestCloudvisionApi(TestCase):
         with self.assertRaises(cloudvision.AuthFailure):
             cloudvision.CloudvisionApi(config)  # nosec
 
-    @override_settings(
-        PLUGINS_CONFIG={
-            "nautobot_ssot": {
-                "aristacv_cvaas_url": "www.arista.io:443",
-                "aristacv_cvp_token": "1234567890abcdef",
-            },
-        },
-    )
+    @override_settings(PLUGINS_CONFIG=CVAAS_PLUGIN_CONFIG)
     def test_auth_cvass_with_token(self):
         """Test that authentication against CVaaS with token works."""
         config = get_config()
-        cloudvision.CloudvisionApi(config)
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.CvpClient"):
+            cloudvision.CloudvisionApi(config)
         self.assertEqual(config.url, "https://www.arista.io:443")
         self.assertEqual(config.token, "1234567890abcdef")
+
+    @override_settings(PLUGINS_CONFIG=CVAAS_PLUGIN_CONFIG)
+    def test_get_version_returns_version_from_response(self):
+        """get_version returns the value of the 'version' key from get_cvp_info()."""
+        config = get_config()
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.CvpClient") as mock_cvp:
+            mock_cvp.return_value.api.get_cvp_info.return_value = {"version": "2024.3.0"}
+            api = cloudvision.CloudvisionApi(config)
+            self.assertEqual(api.get_version(), "2024.3.0")
+            mock_cvp.return_value.connect.assert_called_once()
+
+    @override_settings(PLUGINS_CONFIG=CVAAS_PLUGIN_CONFIG)
+    def test_get_version_returns_blank_when_missing(self):
+        """get_version returns '' when the response lacks a 'version' key."""
+        config = get_config()
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.CvpClient") as mock_cvp:
+            mock_cvp.return_value.api.get_cvp_info.return_value = {}
+            api = cloudvision.CloudvisionApi(config)
+            self.assertEqual(api.get_version(), "")
+
+    @override_settings(PLUGINS_CONFIG=CVAAS_PLUGIN_CONFIG)
+    def test_get_inventory_passthrough(self):
+        """get_inventory delegates to CvpClient.api.get_inventory()."""
+        config = get_config()
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.CvpClient") as mock_cvp:
+            mock_cvp.return_value.api.get_inventory.return_value = fixtures.INVENTORY_FIXTURE
+            api = cloudvision.CloudvisionApi(config)
+            self.assertEqual(api.get_inventory(), fixtures.INVENTORY_FIXTURE)
+
+    @override_settings(PLUGINS_CONFIG=CVAAS_PLUGIN_CONFIG)
+    def test_rest_login_failure_wrapped_as_authfailure(self):
+        """A CvpLoginError during connect is wrapped as AuthFailure."""
+        config = get_config()
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.CvpClient") as mock_cvp:
+            mock_cvp.return_value.connect.side_effect = CvpLoginError("bad creds")
+            with self.assertRaises(cloudvision.AuthFailure):
+                cloudvision.CloudvisionApi(config)
+
+    @override_settings(PLUGINS_CONFIG=CVAAS_PLUGIN_CONFIG)
+    def test_get_cvp_version_emits_deprecation_warning(self):
+        """The legacy get_cvp_version function emits DeprecationWarning."""
+        config = get_config()
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.CvpClient") as mock_cvp:
+            mock_cvp.return_value.api.get_cvp_info.return_value = {"version": "2024.3.0"}
+            with self.assertWarns(DeprecationWarning):
+                result = cloudvision.get_cvp_version(config)
+            self.assertEqual(result, "2024.3.0")
 
 
 class TestCloudvisionUtils(TestCase):
@@ -58,33 +107,24 @@ class TestCloudvisionUtils(TestCase):
 
     def test_get_all_devices(self):
         """Test get_devices function for active and inactive devices."""
-        device1 = MagicMock()
-        device1.value.key.device_id.value = "JPE12345678"
-        device1.value.hostname.value = "ams01-edge-01.ntc.com"
-        device1.value.fqdn.value = "ams01-edge-01.ntc.com"
-        device1.value.software_version.value = "4.26.5M"
-        device1.value.streaming_status = 2
-        device1.value.model_name.value = "DCS-7280CR2-60"
-        device1.value.system_mac_address.value = "12:34:56:78:ab:cd"
-
-        device2 = MagicMock()
-        device2.value.key.device_id.value = "JPE12345679"
-        device2.value.hostname.value = "ams01-edge-02.ntc.com"
-        device2.value.fqdn.value = "ams01-edge-02.ntc.com"
-        device2.value.software_version.value = "4.26.5M"
-        device2.value.streaming_status = 2
-        device2.value.model_name.value = "DCS-7280CR2-60"
-        device2.value.system_mac_address.value = "12:34:56:78:ab:ce"
-
-        device_list = [device1, device2]
+        device_list = []
+        for entry in fixtures.DEVICE_FIXTURE:
+            mock_dev = MagicMock()
+            mock_dev.value.key.device_id.value = entry["device_id"]
+            mock_dev.value.hostname.value = entry["hostname"]
+            mock_dev.value.fqdn.value = entry["fqdn"]
+            mock_dev.value.software_version.value = entry["sw_ver"]
+            mock_dev.value.streaming_status = 2 if entry["status"] == "Active" else 0
+            mock_dev.value.model_name.value = entry["model"]
+            mock_dev.value.system_mac_address.value = entry["system_mac_address"]
+            device_list.append(mock_dev)
 
         device_svc_stub = MagicMock()
         device_svc_stub.DeviceServiceStub.return_value.GetAll.return_value = device_list
 
         with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.services", device_svc_stub):
             results = cloudvision.get_devices(client=self.client, logger=MagicMock(), import_active=False)
-        expected = fixtures.DEVICE_FIXTURE
-        self.assertEqual(results, expected)
+        self.assertEqual(results, fixtures.DEVICE_FIXTURE)
 
     def test_get_active_devices(self):
         """Test get_devices function for active devices."""
