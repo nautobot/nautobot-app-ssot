@@ -177,7 +177,7 @@ class CloudvisionAdapter(Adapter):
                 new_port = self.port(
                     name=intf["interface"],
                     device=dev.name,
-                    description=cloudvision.get_interface_description(
+                    description=cloudvision.get_routed_interface_description(
                         client=self.conn, dId=dev.serial, interface=intf["interface"]
                     ),
                     mac_addr="",

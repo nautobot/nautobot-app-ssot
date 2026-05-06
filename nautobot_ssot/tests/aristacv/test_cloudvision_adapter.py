@@ -40,6 +40,8 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         self.cloudvision.get_interface_transceiver.return_value = "1000BASE-T"
         self.cloudvision.get_interface_description = MagicMock()
         self.cloudvision.get_interface_description.return_value = "Uplink to DC1"
+        self.cloudvision.get_routed_interface_description = MagicMock()
+        self.cloudvision.get_routed_interface_description.return_value = "hello!"
         self.cloudvision.get_ip_interfaces = MagicMock()
         self.cloudvision.get_ip_interfaces.return_value = fixtures.IP_INTF_FIXTURE
         self.cloudvision.get_interface_vrf = MagicMock()
@@ -120,8 +122,8 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
             self.cloudvision.get_ip_interfaces,
         ):
             with patch(
-                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_description",
-                self.cloudvision.get_interface_description,
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_routed_interface_description",
+                self.cloudvision.get_routed_interface_description,
             ):
                 with patch(
                     "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_vrf",

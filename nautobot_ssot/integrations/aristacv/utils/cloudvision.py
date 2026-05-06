@@ -623,6 +623,28 @@ def get_interface_description(client: CloudvisionApi, dId: str, interface: str):
     return ""
 
 
+def get_routed_interface_description(client: CloudvisionApi, dId: str, interface: str) -> str:
+    """Gets description for a non-physical interface (Loopback, Vlan SVI, Port-Channel, etc.).
+
+    Walks a wildcard intfConfig subtree that covers every non-eth/phy interface kind in one query.
+    Use get_interface_description for physical Ethernet interfaces.
+
+    Args:
+        client (CloudvisionApi): CloudVision connection.
+        dId (str): Device ID to get description for.
+        interface (str): Name of interface to get description for.
+    """
+    pathElts = ["Sysdb", "interface", "config", Wildcard(), Wildcard(), "intfConfig", Wildcard()]
+    query = [create_query([(pathElts, [])], dId)]
+
+    for batch in client.get(query):
+        for notif in batch["notifications"]:
+            updates = notif["updates"]
+            if updates.get("intfId") == interface:
+                return updates.get("description") or ""
+    return ""
+
+
 def get_interface_vrf(client: CloudvisionApi, dId: str, interface: str) -> str:
     """Gets interface VRF.
 
