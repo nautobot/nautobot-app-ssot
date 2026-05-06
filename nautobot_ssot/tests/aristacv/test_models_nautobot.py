@@ -1,4 +1,4 @@
-"""Unit tests for Arista CV Nautobot DiffSync model behavior."""
+"""Unit tests for Arista CV Nautobot DiffSync models."""
 
 from collections import defaultdict
 from unittest.mock import MagicMock, patch
@@ -221,3 +221,72 @@ class TestNautobotDeviceVersion(TransactionTestCase):
         model.update({"version": None})
         device.refresh_from_db()
         self.assertIsNone(device.software_version)
+
+
+@override_settings(
+    PLUGINS_CONFIG={
+        "nautobot_ssot": {
+            "aristacv_cvaas_url": "https://www.arista.io",
+            "aristacv_cvp_user": "admin",
+        },
+    },
+)
+class TestNautobotDeviceUpdate(TransactionTestCase):
+    """Test NautobotDevice.update() persists supported attribute changes."""
+
+    databases = ("default", "job_logs")
+
+    def setUp(self):
+        """Build a Device with Active status and a configured adapter."""
+        super().setUp()
+        self.adapter = MagicMock()
+        self.adapter.job = MagicMock()
+        self.adapter.job.app_config = get_config()
+
+        device_ct = ContentType.objects.get_for_model(OrmDevice)
+        location_ct = ContentType.objects.get_for_model(Location)
+
+        self.status_active = Status.objects.get(name="Active")
+        self.status_offline, _ = Status.objects.get_or_create(name="Offline")
+        for status in (self.status_active, self.status_offline):
+            status.content_types.add(device_ct)
+            status.content_types.add(location_ct)
+
+        self.role, _ = Role.objects.get_or_create(name="aristacv-test-switch")
+        self.role.content_types.add(device_ct)
+        self.manufacturer, _ = Manufacturer.objects.get_or_create(name="Arista")
+        self.device_type, _ = DeviceType.objects.get_or_create(
+            model="aristacv-test-dt",
+            manufacturer=self.manufacturer,
+        )
+        self.location_type, _ = LocationType.objects.get_or_create(name="Site")
+        self.location_type.content_types.add(device_ct)
+        self.location = Location.objects.create(
+            name="DeviceUpdateSite",
+            location_type=self.location_type,
+            status=self.status_active,
+        )
+        self.device = OrmDevice(
+            name="sw-update-test",
+            status=self.status_active,
+            role=self.role,
+            device_type=self.device_type,
+            location=self.location,
+        )
+        self.device.validated_save()
+
+    def test_update_persists_status_change(self):
+        """update() with a status attribute writes the new status to the database."""
+        model = NautobotDevice(
+            name=self.device.name,
+            device_model=self.device_type.model,
+            serial="",
+            status="Active",
+            uuid=self.device.pk,
+        )
+        model.adapter = self.adapter
+
+        model.update(attrs={"status": "Offline"})
+
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.status.name, "Offline")
