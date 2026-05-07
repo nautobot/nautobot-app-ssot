@@ -140,11 +140,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         for device_record in optimized_query:
             if self.job.debug:
                 logger.debug("Loading Nautobot Device: %s", device_record.name)
-            device_role = (
-                str(device_record.role.cf.get("ipfabric_type"))
-                if device_record.role.cf.get("ipfabric_type")
-                else device_record.role.name
-            )
+            ipfabric_type = device_record.role.cf.get("ipfabric_type")
+            device_role = str(ipfabric_type) if ipfabric_type else device_record.role.name
             device = self.device(
                 name=device_record.name,
                 model=str(device_record.device_type),
