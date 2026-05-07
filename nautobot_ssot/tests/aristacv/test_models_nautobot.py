@@ -274,6 +274,7 @@ class TestNautobotDeviceUpdate(TransactionTestCase):  # pylint: disable=too-many
             location=self.location,
         )
         self.device.validated_save()
+        self.platform = Platform.objects.create(name="Arista")
 
     def test_update_persists_status_change(self):
         """update() with a status attribute writes the new status to the database."""
