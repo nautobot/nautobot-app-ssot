@@ -217,7 +217,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         location_objects = self.get_initial_location(ssot_tag)
         # The parent object that stores all children, is the Location.
         if self.job.debug:
-            logger.debug("Found %s Nautobot Location objects to start sync from", location_objects.count())
+            logger.debug("Found %s Nautobot Location objects to start sync from", len(location_objects))
 
         if location_objects:
             for location_record in location_objects:
@@ -241,13 +241,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                         )
                     else:
                         nautobot_location_devices = Device.objects.filter(location=location_record)
-                    if nautobot_location_devices.exists():
-                        self.load_device(nautobot_location_devices, location)
+                    self.load_device(nautobot_location_devices, location)
 
                     # Load Location Children - Vlans, if any.
-                    nautobot_location_vlans = VLAN.objects.filter(location=location_record)
-                    if not nautobot_location_vlans.exists():
-                        continue
+                    nautobot_location_vlans = VLAN.objects.filter(location=location_record).select_related("location", "status")
                     self.load_vlans(nautobot_location_vlans, location)
                 except Location.DoesNotExist:
                     logger.error("Unable to find Location, %s.", location_record)
