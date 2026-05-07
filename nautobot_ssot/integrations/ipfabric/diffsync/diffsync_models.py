@@ -908,7 +908,7 @@ class Vlan(DiffSyncExtras):
                     if device_tags.exists():
                         vlan.tags.remove(safe_delete_tag)
                 if attrs.get("description"):
-                    vlan.description = vlan.description
+                    vlan.description = attrs.get("description")
             try:
                 tonb_nbutils.tag_object(nautobot_object=vlan, custom_field=LAST_SYNCHRONIZED_CF_NAME)
             except (DjangoBaseDBError, ValidationError):
