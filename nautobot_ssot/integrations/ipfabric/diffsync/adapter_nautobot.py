@@ -198,9 +198,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         if self.sync_ipfabric_tagged_only:
             location_objects = Location.objects.filter(tags__name=ssot_tag.name)
             if self.location_filter:
-                location_objects = Location.objects.filter(
-                    Q(name=self.location_filter.name) & Q(tags__name=ssot_tag.name)
-                )
+                location_objects = location_objects.filter(name=self.location_filter.name)
                 if not location_objects:
                     logger.warning(
                         f"{self.location_filter.name} was used to filter, alongside SSoT Tag. {self.location_filter.name} is not tagged."
