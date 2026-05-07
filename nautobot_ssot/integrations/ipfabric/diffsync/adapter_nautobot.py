@@ -91,7 +91,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             device_primary_ip = device_record.primary_ip6
 
         for interface_record in device_record.interfaces.all():
-            # Use .all() and [0] instead of .first() to preserve prefetch cache
+            # Avoid .first() to preserve prefetch cache
             ip_addresses = interface_record.ip_addresses.all()
             if ip_addresses:
                 ip_address_obj = ip_addresses[0]
