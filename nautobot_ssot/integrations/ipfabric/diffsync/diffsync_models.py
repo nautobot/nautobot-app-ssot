@@ -601,7 +601,7 @@ class Interface(DiffSyncExtras):
                         if ip_address_obj.ip_version == 4:
                             device_obj.primary_ip4 = ip_address_obj
                             device_obj.save()
-                        if ip_address_obj.ip_version == 6:
+                        elif ip_address_obj.ip_version == 6:
                             device_obj.primary_ip6 = ip_address_obj
                             device_obj.save()
                 else:
