@@ -47,6 +47,7 @@ class TestCloudvisionApi(TestCase):
         self.assertEqual(config.token, "1234567890abcdef")
 
 
+# pylint: disable=too-many-public-methods
 class TestCloudvisionUtils(TestCase):
     """Test CloudVision utility methods."""
 
