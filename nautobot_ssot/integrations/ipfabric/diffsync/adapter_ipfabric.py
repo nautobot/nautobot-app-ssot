@@ -194,8 +194,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         # using `or` syntax in case memberSn is defined as None
                         member_sn = member.get("memberSn") or ""
                         args = base_args.copy()
-                        if _ := member.get("pn"):
-                            args["model"] = _
+                        if pn := member.get("pn"):
+                            args["model"] = pn
                         args.update(
                             {
                                 "serial_number": member_sn if len(member_sn) < device_serial_max_length else "",
