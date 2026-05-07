@@ -91,11 +91,14 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             device_primary_ip = device_record.primary_ip6
 
         for interface_record in device_record.interfaces.all():
-            ip_address_obj = interface_record.ip_addresses.first()
-            if ip_address_obj:
+            # Use .all() and [0] instead of .first() to preserve prefetch cache
+            ip_addresses = interface_record.ip_addresses.all()
+            if ip_addresses:
+                ip_address_obj = ip_addresses[0]
                 ip_address = ip_address_obj.host
                 subnet_mask = cidr_to_netmask(ip_address_obj.mask_length)
             else:
+                ip_address_obj = None
                 ip_address = None
                 subnet_mask = None
             interface = self.interface(
@@ -123,7 +126,14 @@ class NautobotDiffSync(DiffSyncModelAdapters):
     def load_device(self, filtered_devices: List, location):
         """Load Devices from Nautobot."""
         optimized_query = filtered_devices.select_related(
-            "location", "device_type__manufacturer", "role", "status", "platform", "virtual_chassis",
+            "location",
+            "device_type__manufacturer",
+            "primary_ip4",
+            "primary_ip6",
+            "role",
+            "status",
+            "platform",
+            "virtual_chassis",
         ).prefetch_related(
             "interfaces__ip_addresses", "interfaces__tags"
         ).iterator(1000)
@@ -202,7 +212,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 location_objects = Location.objects.filter(name=self.location_filter.name)
             else:
                 location_objects = Location.objects.all()
-        return location_objects
+        return location_objects.select_related("status")
 
     @transaction.atomic
     def load_data(self):
