@@ -231,7 +231,7 @@ class TestNautobotDeviceVersion(TransactionTestCase):
         },
     },
 )
-class TestNautobotDeviceUpdate(TransactionTestCase):
+class TestNautobotDeviceUpdate(TransactionTestCase):  # pylint: disable=too-many-instance-attributes
     """Test NautobotDevice.update() persists supported attribute changes."""
 
     databases = ("default", "job_logs")
