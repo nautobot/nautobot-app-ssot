@@ -173,8 +173,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):
     def load_vlans(self, filtered_vlans: List, location):
         """Add Nautobot VLAN objects as DiffSync VLAN models."""
         for vlan_record in filtered_vlans:
-            if not vlan_record:
-                continue
             vlan = self.vlan(
                 name=vlan_record.name,
                 location=vlan_record.location.name,
