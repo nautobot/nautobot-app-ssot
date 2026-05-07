@@ -884,7 +884,6 @@ class Vlan(DiffSyncExtras):
                 f"Retrieve the VLAN named {self.name} to perform updates"
             )
         else:
-            return_super = True
             try:
                 vlan = VLAN.objects.get(name=self.name, vid=self.vid, location=location_obj)
             except VLAN.MultipleObjectsReturned:
@@ -892,13 +891,13 @@ class Vlan(DiffSyncExtras):
                     f"Multiple VLANs found with a name {self.name} and VLAN ID {self.vid} "
                     f"at a Location named {self.location}, unable to perform updates"
                 )
-                return_super = False
+                return None
             except VLAN.DoesNotExist:
                 self.adapter.job.logger.error(
                     f"Could not find a VLAN named {self.name} and VLAN ID {self.vid} "
                     f"at a Location named {self.location}, unable to perform updates"
                 )
-                return_super = False
+                return None
             else:
                 if attrs.get("status") == "Active":
                     safe_delete_tag, _ = Tag.objects.get_or_create(name="SSoT Safe Delete")
@@ -915,9 +914,8 @@ class Vlan(DiffSyncExtras):
                 self.adapter.job.logger.warning(
                     f"Unable to perform a validated_save() on VLAN {self.name} with an ID of {vlan.id}"
                 )
-                return_super = False
-            if return_super:
-                return super().update(attrs)
+                return None
+            return super().update(attrs)
         return None
 
 
