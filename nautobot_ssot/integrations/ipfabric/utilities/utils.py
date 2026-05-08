@@ -1,6 +1,9 @@
 """General utils for IPFabric."""
 
 import re
+import threading
+from collections import defaultdict
+from functools import wraps
 
 from nautobot_ssot.integrations.ipfabric.constants import DEFAULT_INTERFACE_TYPE
 
@@ -158,3 +161,98 @@ def convert_media_type(  # pylint: disable=too-many-return-statements,too-many-b
                 return iface_type
 
     return DEFAULT_INTERFACE_TYPE
+
+
+class job_scoped_cache:  # pylint: disable=invalid-name
+    """Drop-in replacement for @lru_cache, safe for concurrent job runs.
+
+    Each thread/process gets its own isolated cache store.
+
+    Usage:
+        @job_scoped_cache
+        def get_status(name):
+            return Status.objects.get(name=name)
+
+        @job_scoped_cache(group="facility_circuits")
+        def get_service_type(code):
+            return ServiceType.objects.filter(service_type_code=code).first()
+
+        # Clear only one group:
+        job_scoped_cache.clear_group("facility_circuits")
+
+        # Clear everything (backward-compatible):
+        job_scoped_cache.clear_all()
+    """
+
+    _all_instances = []
+    _groups = defaultdict(list)
+    _local = threading.local()
+
+    def __init__(self, fn=None, *, group=None):
+        """Initialize the cache."""
+        self._group = group
+        if fn is not None:
+            # Called as @job_scoped_cache (no arguments)
+            self._init_fn(fn)
+
+    def _init_fn(self, fn):
+        """Initialize function."""
+        self._fn = fn
+        self._id = id(self)
+        wraps(fn)(self)
+        job_scoped_cache._all_instances.append(self)
+        if self._group:
+            job_scoped_cache._groups[self._group].append(self)
+
+    def __call__(self, *args, **kwargs):
+        """Handle call to function, checks cache, calls function if missing and caches result."""
+        if not hasattr(self, "_fn"):
+            # Called as @job_scoped_cache(group="...") — receives the function
+            self._init_fn(args[0])
+            return self
+        state = self._get_state()
+        key = (args, tuple(sorted(kwargs.items())))
+        if key in state["store"]:
+            state["hits"] += 1
+            return state["store"][key]
+        state["misses"] += 1
+        result = self._fn(*args, **kwargs)
+        state["store"][key] = result
+        return result
+
+    def _get_state(self):
+        """Return state of cache."""
+        stores = getattr(job_scoped_cache._local, "stores", None)
+        if stores is None:
+            stores = {}
+            job_scoped_cache._local.stores = stores
+        if self._id not in stores:
+            stores[self._id] = {"store": {}, "hits": 0, "misses": 0}
+        return stores[self._id]
+
+    def cache_clear(self):
+        """Clear all cache info for an instance."""
+        state = self._get_state()
+        state["store"].clear()
+        state["hits"] = 0
+        state["misses"] = 0
+
+    def cache_info(self):
+        """Returns cache info."""
+        from collections import namedtuple  # pylint: disable=import-outside-toplevel
+
+        state = self._get_state()
+        _CacheInfo = namedtuple("CacheInfo", ["hits", "misses", "maxsize", "currsize"])
+        return _CacheInfo(state["hits"], state["misses"], None, len(state["store"]))
+
+    @classmethod
+    def clear_group(cls, group):
+        """Clear caches for all functions registered under a specific group."""
+        for instance in cls._groups.get(group, []):
+            instance.cache_clear()
+
+    @classmethod
+    def clear_all(cls):
+        """Clears all cache info on all instances and groups."""
+        for instance in cls._all_instances:
+            instance.cache_clear()

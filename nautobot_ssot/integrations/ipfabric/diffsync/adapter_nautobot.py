@@ -18,6 +18,7 @@ from nautobot.ipam.models import VLAN, Interface
 from netutils.ip import cidr_to_netmask
 from netutils.mac import mac_to_format
 
+import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_utils
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_MAC,
     DEFAULT_INTERFACE_MTU,
@@ -53,6 +54,22 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         self.sync = sync
         self.sync_ipfabric_tagged_only = sync_ipfabric_tagged_only
         self.location_filter = location_filter
+        self.ssot_tag = tonb_utils.get_or_create_tag_object(
+            tag_name="SSoT Synced from IPFabric",
+            tag_color=ColorChoices.COLOR_LIGHT_GREEN,
+            description="Object synced at some point from IPFabric to Nautobot",
+            app_label="dcim",
+            model="device",
+            logger=self.job.logger,
+        )
+        self.safe_delete_tag = tonb_utils.get_or_create_tag_object(
+            tag_name="SSoT Safe Delete",
+            tag_color=ColorChoices.COLOR_RED,
+            description="Safe Delete Mode tag to flag an object, but not delete from Nautobot.",
+            app_label="dcim",
+            model="device",
+            logger=self.job.logger,
+        )
 
     def sync_complete(self, source: Adapter, *args, **kwargs):
         """Clean up function for DiffSync sync.
@@ -212,14 +229,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
     @transaction.atomic
     def load_data(self):
         """Add Nautobot Location objects as DiffSync Location models."""
-        ssot_tag, _ = Tag.objects.get_or_create(
-            name="SSoT Synced from IPFabric",
-            defaults={
-                "description": "Object synced at some point from IPFabric to Nautobot",
-                "color": ColorChoices.COLOR_LIGHT_GREEN,
-            },
-        )
-        location_objects = self.get_initial_location(ssot_tag)
+        location_objects = self.get_initial_location(self.ssot_tag)
         # The parent object that stores all children, is the Location.
         if self.job.debug:
             logger.debug("Found %s Nautobot Location objects to start sync from", len(location_objects))
@@ -242,7 +252,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     # Load Location's Children - Devices with Interfaces, if any.
                     if self.sync_ipfabric_tagged_only:
                         nautobot_location_devices = Device.objects.filter(
-                            Q(location=location_record) & Q(tags__name=ssot_tag.name)
+                            Q(location=location_record) & Q(tags=self.ssot_tag)
                         )
                     else:
                         nautobot_location_devices = Device.objects.filter(location=location_record)

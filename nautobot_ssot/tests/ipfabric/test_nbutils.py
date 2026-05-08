@@ -15,16 +15,17 @@ from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
 
 from nautobot_ssot.integrations.ipfabric.utilities import (
-    create_device_type_object,
     create_interface,
     create_ip,
-    create_location,
-    create_manufacturer,
-    create_platform_object,
-    create_status,
     create_vlan,
     get_or_create_device_role_object,
+    get_or_create_device_type_object,
+    get_or_create_location_object,
+    get_or_create_manufacturer_object,
+    get_or_create_platform_object,
+    get_or_create_status_object,
 )
+from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 
 # pylint: disable=too-many-instance-attributes,too-many-arguments,too-many-public-methods
@@ -33,6 +34,7 @@ class TestNautobotUtils(TestCase):
 
     def setUp(self):
         """Setup."""
+        job_scoped_cache.clear_all()
         site_location_type = LocationType.objects.update_or_create(name="Site")[0]
         site_location_type.content_types.set([ContentType.objects.get_for_model(VLAN)])
         self.location = Location.objects.create(
@@ -91,25 +93,27 @@ class TestNautobotUtils(TestCase):
 
     def test_create_location_existing_location_no_location_id(self):
         """Test `create_location` Utility."""
-        test_location = create_location(location_name="Test-Location")
+        test_location = get_or_create_location_object(location_name="Test-Location")
         self.assertEqual(test_location.id, self.location.id)
 
     def test_create_location_existing_location_with_location_id(self):
         """Test `create_location` Utility."""
         self.assertFalse(self.location.cf.get("ipfabric_site_id"))
-        test_location = create_location(location_name="Test-Location", location_id="Test-Location")
+        test_location = get_or_create_location_object(location_name="Test-Location", location_id="Test-Location")
         self.assertEqual(test_location.id, self.location.id)
         self.assertEqual(test_location.cf["ipfabric_site_id"], "Test-Location")
 
     def test_create_location_no_location_id(self):
         """Test `create_location` Utility."""
-        test_location = create_location(location_name="Test-Location-new")
+        test_location = get_or_create_location_object(location_name="Test-Location-new")
         self.assertEqual(test_location.name, "Test-Location-new")
 
     def test_create_location_with_location_id(self):
         """Test `create_location` Utility."""
         self.assertFalse(Location.objects.filter(name="Test-Location-new"))
-        test_location = create_location(location_name="Test-Location-new", location_id="Test-Location-new")
+        test_location = get_or_create_location_object(
+            location_name="Test-Location-new", location_id="Test-Location-new"
+        )
         self.assertEqual(test_location.name, "Test-Location-new")
         self.assertEqual(test_location.cf["ipfabric_site_id"], "Test-Location-new")
 
@@ -122,7 +126,9 @@ class TestNautobotUtils(TestCase):
         """Test `create_location` Utility."""
         mock_location.side_effect = [Location.MultipleObjectsReturned]
         logger = mock_logger("nb_job")
-        test_location = create_location(location_name="Test-Location", location_id="Test-Location", logger=logger)
+        test_location = get_or_create_location_object(
+            location_name="Test-Location", location_id="Test-Location", logger=logger
+        )
         self.assertEqual(test_location, None)
         logger.error.assert_called_with("Multiple Locations returned with name Test-Location")
         mock_tag_object.assert_not_called()
@@ -136,7 +142,9 @@ class TestNautobotUtils(TestCase):
         """Test `create_location` Utility."""
         mock_location.side_effect = [DjangoBaseDBError]
         logger = mock_logger("nb_job")
-        test_location = create_location(location_name="Test-Location", location_id="Test-Location", logger=logger)
+        test_location = get_or_create_location_object(
+            location_name="Test-Location", location_id="Test-Location", logger=logger
+        )
         self.assertEqual(test_location, None)
         logger.error.assert_called_with("Unable to create a new Location named Test-Location with LocationType Site")
         mock_tag_object.assert_not_called()
@@ -150,7 +158,9 @@ class TestNautobotUtils(TestCase):
         """Test `create_location` Utility."""
         mock_location.side_effect = [ValidationError("failure")]
         logger = mock_logger("nb_job")
-        test_location = create_location(location_name="Test-Location", location_id="Test-Location", logger=logger)
+        test_location = get_or_create_location_object(
+            location_name="Test-Location", location_id="Test-Location", logger=logger
+        )
         self.assertEqual(test_location, None)
         logger.error.assert_called_with("Unable to create a new Location named Test-Location with LocationType Site")
         mock_tag_object.assert_not_called()
@@ -161,7 +171,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_location` Utility."""
         mock_tag_object.side_effect = [DjangoBaseDBError]
         logger = mock_logger("nb_job")
-        test_location = create_location(location_name="Test-Location-new", logger=logger)
+        test_location = get_or_create_location_object(location_name="Test-Location-new", logger=logger)
         self.assertEqual(test_location.name, "Test-Location-new")
         logger.warning.assert_called_with(
             f"Unable to perform a validated_save() on Location {test_location.name} with an ID of {test_location.id}"
@@ -173,32 +183,40 @@ class TestNautobotUtils(TestCase):
         """Test `create_location` Utility."""
         mock_tag_object.side_effect = [ValidationError("failure")]
         logger = mock_logger("nb_job")
-        test_location = create_location(location_name="Test-Location-new", logger=logger)
+        test_location = get_or_create_location_object(location_name="Test-Location-new", logger=logger)
         self.assertEqual(test_location.name, "Test-Location-new")
         logger.warning.assert_called_with(
             f"Unable to perform a validated_save() on Location {test_location.name} with an ID of {test_location.id}"
         )
 
-    def test_create_device_type_object(self):
+    def test_get_or_create_device_type_object(self):
         """Test `create_device_type_object` Utility."""
-        test_device_type = create_device_type_object(device_type="Test-DeviceType-New", vendor_name="Test-Manufacturer")
+        test_device_type = get_or_create_device_type_object(
+            device_type="Test-DeviceType-New", vendor_name="Test-Manufacturer"
+        )
         self.assertEqual(test_device_type.model, "Test-DeviceType-New")
 
     def test_create_device_type_object_existing_device_type(self):
         """Test `create_device_type_object` Utility."""
-        test_device_type = create_device_type_object(device_type="Test-DeviceType", vendor_name="Test-Manufacturer")
+        test_device_type = get_or_create_device_type_object(
+            device_type="Test-DeviceType", vendor_name="Test-Manufacturer"
+        )
         self.assertEqual(test_device_type.id, self.device_type.id)
 
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.create_manufacturer", autospec=True)
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.get_or_create_manufacturer_object", autospec=True
+    )
     @unittest.mock.patch(
         "nautobot_ssot.integrations.ipfabric.utilities.nbutils.DeviceType.objects.get_or_create", autospec=True
     )
     @unittest.mock.patch("logging.Logger", autospec=True)
-    def test_create_device_type_fail_to_get_manufacturer(self, mock_logger, mock_device_type, mock_create_manufacturer):
+    def test_create_device_type_fail_to_get_manufacturer(
+        self, mock_logger, mock_device_type, mock_get_or_create_manufacturer_object
+    ):
         """Test `create_device_type_object` Utility."""
-        mock_create_manufacturer.return_value = None
+        mock_get_or_create_manufacturer_object.return_value = None
         logger = mock_logger("nb_job")
-        test_device_type = create_device_type_object(
+        test_device_type = get_or_create_device_type_object(
             device_type="Test-DeviceType", vendor_name="Test-Manufacturer", logger=logger
         )
         mock_device_type.assert_not_called()
@@ -215,7 +233,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         mock_device_type.side_effect = [DeviceType.MultipleObjectsReturned]
         logger = mock_logger("nb_job")
-        test_device_type = create_device_type_object(
+        test_device_type = get_or_create_device_type_object(
             device_type="Test-DeviceType", vendor_name="Test-Manufacturer", logger=logger
         )
         logger.error.assert_called_with(
@@ -231,7 +249,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         mock_device_type.side_effect = [DjangoBaseDBError]
         logger = mock_logger("nb_job")
-        test_device_type = create_device_type_object(
+        test_device_type = get_or_create_device_type_object(
             device_type="Test-DeviceType", vendor_name="Test-Manufacturer", logger=logger
         )
         logger.error.assert_called_with(
@@ -247,7 +265,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         mock_device_type.side_effect = [ValidationError("failure")]
         logger = mock_logger("nb_job")
-        test_device_type = create_device_type_object(
+        test_device_type = get_or_create_device_type_object(
             device_type="Test-DeviceType", vendor_name="Test-Manufacturer", logger=logger
         )
         logger.error.assert_called_with(
@@ -261,7 +279,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         mock_tag_object.side_effect = [None, DjangoBaseDBError]
         logger = mock_logger("nb_job")
-        test_device_type = create_device_type_object(
+        test_device_type = get_or_create_device_type_object(
             device_type="Test-DeviceType-new", vendor_name="Test-Manufacturer", logger=logger
         )
         self.assertEqual(test_device_type.model, "Test-DeviceType-new")
@@ -275,7 +293,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         mock_tag_object.side_effect = [None, ValidationError("failure")]
         logger = mock_logger("nb_job")
-        test_device_type = create_device_type_object(
+        test_device_type = get_or_create_device_type_object(
             device_type="Test-DeviceType-new", vendor_name="Test-Manufacturer", logger=logger
         )
         self.assertEqual(test_device_type.model, "Test-DeviceType-new")
@@ -283,47 +301,47 @@ class TestNautobotUtils(TestCase):
             f"Unable to perform a validated_save() on DeviceType Test-DeviceType-new with an ID of {test_device_type.id}"
         )
 
-    def test_create_manufacturer(self):
-        """Test `create_manufacturer` Utility."""
-        test_manufacturer = create_manufacturer(vendor_name="Test-Manufacturer")
+    def test_get_or_create_manufacturer_object(self):
+        """Test `get_or_create_manufacturer_object` Utility."""
+        test_manufacturer = get_or_create_manufacturer_object(vendor_name="Test-Manufacturer")
         self.assertEqual(test_manufacturer.id, self.manufacturer.id)
 
-    def test_create_platform_object_platform_created_no_napalm_driver(self):
-        """Test `create_platform_object` Utility."""
+    def test_get_or_create_platform_object_platform_created_no_napalm_driver(self):
+        """Test `get_or_create_platform_object_object` Utility."""
         platform = "does_not_exist"
         self.assertEqual(Platform.objects.filter(name=platform).count(), 0)
-        platform_obj = create_platform_object(platform, self.manufacturer)
+        platform_obj = get_or_create_platform_object(platform, self.manufacturer)
         self.assertEqual(self.manufacturer.id, platform_obj.manufacturer.id)
         self.assertEqual(platform_obj.name, platform)
         expected_network_driver = f"{self.manufacturer.name.lower()}_{platform}"
         self.assertEqual(platform_obj.network_driver, expected_network_driver)
         self.assertEqual(platform_obj.napalm_driver, "")
 
-    def test_create_platform_object_platform_created_with_napalm_driver(self):
-        """Test `create_platform_object` Utility."""
+    def test_get_or_create_platform_object_platform_created_with_napalm_driver(self):
+        """Test `get_or_create_platform_object` Utility."""
         manufacturer_obj, _ = Manufacturer.objects.get_or_create(name="Cisco")
         platform = "ios"
         self.assertEqual(Platform.objects.filter(name=platform).count(), 0)
-        platform_obj = create_platform_object(platform, manufacturer_obj)
+        platform_obj = get_or_create_platform_object(platform, manufacturer_obj)
         self.assertEqual(manufacturer_obj.id, platform_obj.manufacturer.id)
         self.assertEqual(platform_obj.name, platform)
         self.assertEqual(platform_obj.network_driver, "cisco_ios")
         self.assertEqual(platform_obj.napalm_driver, "cisco_ios")
 
-    def test_create_platform_object_platform_created_iosxe(self):
+    def test_get_or_create_platform_object_platform_created_iosxe(self):
         """Test `create_platform_object` Utility."""
         platform = "ios-xe"
         self.assertEqual(Platform.objects.filter(name=platform).count(), 0)
-        platform_obj = create_platform_object(platform, self.manufacturer)
+        platform_obj = get_or_create_platform_object(platform, self.manufacturer)
         self.assertEqual(platform_obj.network_driver, "cisco_ios")
         self.assertEqual(platform_obj.napalm_driver, "cisco_ios")
 
-    def test_create_platform_object_existing_platform_returned(self):
-        """Test `create_platform_object` Utility."""
+    def test_get_or_create_platform_object_existing_platform_returned(self):
+        """Test `get_or_create_platform_object` Utility."""
         manufacturer_obj, _ = Manufacturer.objects.get_or_create(name="Cisco")
         platform = "ios"
         platform_obj = Platform.objects.create(name=platform, manufacturer=manufacturer_obj)
-        existing_platform_obj = create_platform_object(platform, manufacturer_obj)
+        existing_platform_obj = get_or_create_platform_object(platform, manufacturer_obj)
         self.assertEqual(platform_obj.id, existing_platform_obj.id)
         self.assertEqual(platform_obj.network_driver, "")
         self.assertEqual(platform_obj.napalm_driver, "")
@@ -333,14 +351,14 @@ class TestNautobotUtils(TestCase):
         test_device_role = get_or_create_device_role_object("Test-Role", role_color=ColorChoices.COLOR_RED)
         self.assertEqual(test_device_role.id, self.device_role.id)
 
-    def test_create_status(self):
-        """Test `create_status` Utility."""
-        test_status = create_status(status_name="Test-Status", status_color=ColorChoices.COLOR_AMBER)
+    def test_get_or_create_status_object(self):
+        """Test `get_or_create_status_object` Utility."""
+        test_status = get_or_create_status_object(status_name="Test-Status", status_color=ColorChoices.COLOR_AMBER)
         self.assertEqual(test_status.id, self.status.id)
 
-    def test_create_status_doesnt_exist(self):
-        """Test `create_status` Utility."""
-        test_status = create_status(status_name="Test-Status-100", status_color=ColorChoices.COLOR_AMBER)
+    def test_get_or_create_status_object_doesnt_exist(self):
+        """Test `get_or_create_status_object` Utility."""
+        test_status = get_or_create_status_object(status_name="Test-Status-100", status_color=ColorChoices.COLOR_AMBER)
         self.assertEqual(test_status.id, Status.objects.get(name="Test-Status-100").id)
 
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddressToInterface")
