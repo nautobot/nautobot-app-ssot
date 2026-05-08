@@ -142,10 +142,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 vlan_name = vlan_record.get("vlanName")
                 vlan_id = vlan_record["vlanId"]
                 vlan_desc = vlan_record.get("dscr")
-                if not vlan_id or not (1 <= vlan_id <= 4094):
-                    logger.warning(
-                        f"Not syncing VLAN, NAME: {vlan_name} due to invalid VLAN ID: {vlan_id}."
-                    )
+                if not vlan_id or not 1 <= vlan_id <= 4094:
+                    logger.warning(f"Not syncing VLAN, NAME: {vlan_name} due to invalid VLAN ID: {vlan_id}.")
                     continue
                 description = vlan_desc if vlan_desc else f"VLAN ID: {vlan_id}"
                 vlan_label = vlan_name if vlan_name else f"{vlan_record['siteName']}:{vlan_id}"

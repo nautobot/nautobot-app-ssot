@@ -125,18 +125,20 @@ class NautobotDiffSync(DiffSyncModelAdapters):
 
     def load_device(self, filtered_devices: List, location):
         """Load Devices from Nautobot."""
-        optimized_query = filtered_devices.select_related(
-            "location",
-            "device_type__manufacturer",
-            "primary_ip4",
-            "primary_ip6",
-            "role",
-            "status",
-            "platform",
-            "virtual_chassis",
-        ).prefetch_related(
-            "interfaces__ip_addresses", "interfaces__tags"
-        ).iterator(1000)
+        optimized_query = (
+            filtered_devices.select_related(
+                "location",
+                "device_type__manufacturer",
+                "primary_ip4",
+                "primary_ip6",
+                "role",
+                "status",
+                "platform",
+                "virtual_chassis",
+            )
+            .prefetch_related("interfaces__ip_addresses", "interfaces__tags")
+            .iterator(1000)
+        )
         for device_record in optimized_query:
             if self.job.debug:
                 logger.debug("Loading Nautobot Device: %s", device_record.name)
@@ -247,7 +249,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     self.load_device(nautobot_location_devices, location)
 
                     # Load Location Children - Vlans, if any.
-                    nautobot_location_vlans = VLAN.objects.filter(location=location_record).select_related("location", "status")
+                    nautobot_location_vlans = VLAN.objects.filter(location=location_record).select_related(
+                        "location", "status"
+                    )
                     self.load_vlans(nautobot_location_vlans, location)
                 except Location.DoesNotExist:
                     logger.error("Unable to find Location, %s.", location_record)
