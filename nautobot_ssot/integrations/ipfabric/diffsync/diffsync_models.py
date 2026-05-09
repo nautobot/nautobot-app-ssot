@@ -329,7 +329,6 @@ class Device(DiffSyncExtras):
                                 master=attrs.get("vc_master", False),
                                 position=attrs.get("vc_position"),
                                 priority=attrs.get("vc_priority"),
-                                logger=adapter.job.logger,
                             )
                     except (DjangoBaseDBError, ValidationError):
                         adapter.job.logger.error(f"Unable to update Device {device_name} with VirtualChassis data")
@@ -463,7 +462,6 @@ class Device(DiffSyncExtras):
                             master=attrs.get("vc_master", False),
                             position=attrs.get("vc_position"),
                             priority=attrs.get("vc_priority"),
-                            logger=self.adapter.job.logger,
                         )
                 except (DjangoBaseDBError, ValidationError):
                     self.adapter.job.logger.error(f"Unable to update VirtualChassis {vc_name} for Device {self.name}")

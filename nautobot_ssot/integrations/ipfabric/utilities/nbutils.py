@@ -390,7 +390,7 @@ def get_or_create_virtual_chassis_object(name: str, logger=None) -> Optional[Vir
     return None
 
 
-def assign_device_to_virtual_chassis(device, virtual_chassis, master=False, position=None, priority=None, logger=None):  # pylint: disable=too-many-arguments
+def assign_device_to_virtual_chassis(device, virtual_chassis, position, master=False, priority=None):  # pylint: disable=too-many-arguments
     """Assign an existing device to an existing VirtualChassis. Update attributes if required."""
     updated = False
     if device.virtual_chassis != virtual_chassis:
@@ -399,15 +399,9 @@ def assign_device_to_virtual_chassis(device, virtual_chassis, master=False, posi
     if position and device.vc_position != position:
         device.vc_position = position
         updated = True
-    if priority and device.vc_position:
-        if device.vc_priority != priority:
-            device.vc_priority = priority
-            updated = True
-    elif priority and logger:
-        logger.warning(
-            f"Device {device.name} assigned to VirtualChassis {virtual_chassis.name} has a "
-            f"priority of {priority}, but this cannot be set without a vc_position"
-        )
+    if priority and device.vc_priority != priority:
+        device.vc_priority = priority
+        updated = True
     if updated:
         device.validated_save()
     if master and virtual_chassis.master != device:
