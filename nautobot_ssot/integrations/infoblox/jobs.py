@@ -94,17 +94,17 @@ class InfobloxDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         self.logger.info("Loading data from Nautobot...")
         self.target_adapter.load()
 
-    def run(self, *args, **kwargs):
+    def run(self, *args, **kwargs):  # pylint: disable=arguments-differ
         """Perform data synchronization."""
         self.debug = kwargs.get("debug")
         self.dryrun = kwargs.get("dryrun")
         self.config = kwargs.get("config")
-        if not self.config.enable_sync_to_nautobot:
+        if not getattr(self.config, "enable_sync_to_nautobot", True):
             self.logger.error("Can't run sync to Nautobot, provided config doesn't have it enabled...")
             raise ValueError("Config not enabled for sync to Nautobot.")
         self.memory_profiling = kwargs.get("memory_profiling")
         self.parallel_loading = kwargs.get("parallel_loading")
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        super().run(*args, **kwargs)
 
 
 class InfobloxDataTarget(DataTarget):  # pylint: disable=too-many-instance-attributes
