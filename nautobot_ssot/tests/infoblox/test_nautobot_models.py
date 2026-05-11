@@ -199,9 +199,7 @@ class TestModelNautobotNetwork(TestCase):
 
         # Verify RelationshipAssociation is created (Regression test for line 258 fix)
         rel = Relationship.objects.get(label="Prefix -> VLAN")
-        assoc = RelationshipAssociation.objects.filter(
-            relationship=rel, source_id=prefix.id, destination_id=vlan.id
-        )
+        assoc = RelationshipAssociation.objects.filter(relationship=rel, source_id=prefix.id, destination_id=vlan.id)
         self.assertTrue(assoc.exists())
 
     def test_network_update_network_no_debug(self):
