@@ -104,7 +104,7 @@ class TestModelInfobloxNetwork(TestCase):
         "Test class set up."
         self.config = create_default_infoblox_config()
         self.nb_adapter = NautobotAdapter(config=self.config)
-        self.nb_adapter.job = Mock()
+        self.nb_adapter.job = Mock(debug=True)
 
     @unittest.mock.patch(
         "nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot.NautobotMixin.tag_involved_objects",
@@ -125,7 +125,7 @@ class TestModelInfobloxNetwork(TestCase):
                 ext_attrs={},
             )
             infoblox_adapter.add(inf_ds_namespace)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             self.nb_adapter.sync_to(infoblox_adapter)
             infoblox_adapter.conn.create_network.assert_called_once()
             infoblox_adapter.conn.create_network.assert_called_with(
@@ -153,7 +153,7 @@ class TestModelInfobloxNetwork(TestCase):
                 ext_attrs={},
             )
             infoblox_adapter.add(inf_ds_namespace)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             self.nb_adapter.sync_to(infoblox_adapter)
             infoblox_adapter.conn.create_network_container.assert_called_once()
             infoblox_adapter.conn.create_network_container.assert_called_with(
@@ -188,7 +188,7 @@ class TestModelInfobloxNetwork(TestCase):
             }
             inf_ds_network = infoblox_adapter.prefix(**_get_network_dict(inf_network_atrs))
             infoblox_adapter.add(inf_ds_network)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             self.nb_adapter.sync_to(infoblox_adapter)
             infoblox_adapter.conn.update_network.assert_called_once()
             infoblox_adapter.conn.update_network.assert_called_with(
@@ -204,7 +204,7 @@ class TestModelInfobloxIPAddress(TestCase):
         "Test class set up."
         self.config = create_default_infoblox_config()
         self.nb_adapter = NautobotAdapter(config=self.config)
-        self.nb_adapter.job = Mock()
+        self.nb_adapter.job = Mock(debug=True)
 
     @unittest.mock.patch(
         "nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot.NautobotMixin.tag_involved_objects",
@@ -227,7 +227,7 @@ class TestModelInfobloxIPAddress(TestCase):
                 ext_attrs={},
             )
             infoblox_adapter.add(inf_ds_namespace)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             self.nb_adapter.sync_to(infoblox_adapter)
             infoblox_adapter.conn.create_fixed_address.assert_not_called()
             infoblox_adapter.conn.create_a_record.assert_not_called()
@@ -260,7 +260,7 @@ class TestModelInfobloxIPAddress(TestCase):
                 ext_attrs={},
             )
             infoblox_adapter.add(inf_ds_namespace)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             self.nb_adapter.sync_to(infoblox_adapter)
             infoblox_adapter.conn.create_fixed_address.assert_called_once()
             infoblox_adapter.conn.create_fixed_address.assert_called_with(
@@ -299,7 +299,7 @@ class TestModelInfobloxIPAddress(TestCase):
                 ext_attrs={},
             )
             infoblox_adapter.add(inf_ds_namespace)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             self.nb_adapter.sync_to(infoblox_adapter)
             infoblox_adapter.conn.create_fixed_address.assert_called_once()
             infoblox_adapter.conn.create_fixed_address.assert_called_with(
@@ -340,7 +340,7 @@ class TestModelInfobloxIPAddress(TestCase):
                 ext_attrs={},
             )
             infoblox_adapter.add(inf_ds_namespace)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             self.nb_adapter.sync_to(infoblox_adapter)
             infoblox_adapter.conn.create_fixed_address.assert_called_once()
             infoblox_adapter.conn.create_fixed_address.assert_called_with(
@@ -382,7 +382,7 @@ class TestModelInfobloxIPAddress(TestCase):
                 ext_attrs={},
             )
             infoblox_adapter.add(inf_ds_namespace)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             self.nb_adapter.sync_to(infoblox_adapter)
             infoblox_adapter.conn.create_fixed_address.assert_called_once()
             infoblox_adapter.conn.create_fixed_address.assert_called_with(
@@ -419,7 +419,7 @@ class TestModelInfobloxIPAddress(TestCase):
             self.config.fixed_address_type = FixedAddressTypeChoices.RESERVED
             self.config.dns_record_type = DNSRecordTypeChoices.DONT_CREATE_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
@@ -465,7 +465,7 @@ class TestModelInfobloxIPAddress(TestCase):
             self.config.fixed_address_type = FixedAddressTypeChoices.RESERVED
             self.config.dns_record_type = DNSRecordTypeChoices.DONT_CREATE_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
@@ -510,7 +510,7 @@ class TestModelInfobloxIPAddress(TestCase):
             self.config.fixed_address_type = FixedAddressTypeChoices.MAC_ADDRESS
             self.config.dns_record_type = DNSRecordTypeChoices.DONT_CREATE_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
@@ -555,7 +555,7 @@ class TestModelInfobloxIPAddress(TestCase):
             self.config.fixed_address_type = FixedAddressTypeChoices.MAC_ADDRESS
             self.config.dns_record_type = DNSRecordTypeChoices.DONT_CREATE_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
@@ -601,7 +601,7 @@ class TestModelInfobloxIPAddress(TestCase):
             self.config.fixed_address_type = FixedAddressTypeChoices.MAC_ADDRESS
             self.config.dns_record_type = DNSRecordTypeChoices.DONT_CREATE_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
@@ -640,7 +640,7 @@ class TestModelInfobloxIPAddress(TestCase):
             self.config.fixed_address_type = FixedAddressTypeChoices.MAC_ADDRESS
             self.config.infoblox_deletable_models = []
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
@@ -673,7 +673,7 @@ class TestModelInfobloxIPAddress(TestCase):
             self.config.fixed_address_type = FixedAddressTypeChoices.MAC_ADDRESS
             self.config.infoblox_deletable_models = [InfobloxDeletableModelChoices.FIXED_ADDRESS]
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
@@ -701,7 +701,7 @@ class TestModelInfobloxDnsARecord(TestCase):
         "Test class set up."
         self.config = create_default_infoblox_config()
         self.nb_adapter = NautobotAdapter(config=self.config)
-        self.nb_adapter.job = Mock()
+        self.nb_adapter.job = Mock(debug=True)
 
     @unittest.mock.patch(
         "nautobot_ssot.integrations.infoblox.diffsync.models.infoblox.validate_dns_name",
@@ -729,7 +729,7 @@ class TestModelInfobloxDnsARecord(TestCase):
                 ext_attrs={},
             )
             infoblox_adapter.add(inf_ds_namespace)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             self.nb_adapter.sync_to(infoblox_adapter)
             infoblox_adapter.conn.create_fixed_address.assert_not_called()
             infoblox_adapter.conn.create_a_record.assert_not_called()
@@ -764,7 +764,7 @@ class TestModelInfobloxDnsARecord(TestCase):
                 ext_attrs={},
             )
             infoblox_adapter.add(inf_ds_namespace)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             self.nb_adapter.sync_to(infoblox_adapter)
             infoblox_adapter.conn.create_a_record.assert_called_once()
             infoblox_adapter.conn.create_a_record.assert_called_with(
@@ -804,7 +804,7 @@ class TestModelInfobloxDnsARecord(TestCase):
                 ext_attrs={},
             )
             infoblox_adapter.add(inf_ds_namespace)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             job_logger = Mock()
             infoblox_adapter.job.logger = job_logger
             self.nb_adapter.sync_to(infoblox_adapter)
@@ -843,7 +843,7 @@ class TestModelInfobloxDnsARecord(TestCase):
                 ext_attrs={},
             )
             infoblox_adapter.add(inf_ds_namespace)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             job_logger = Mock()
             infoblox_adapter.job.logger = job_logger
             self.nb_adapter.sync_to(infoblox_adapter)
@@ -880,7 +880,7 @@ class TestModelInfobloxDnsARecord(TestCase):
             self.config.fixed_address_type = FixedAddressTypeChoices.DONT_CREATE_RECORD
             self.config.dns_record_type = DNSRecordTypeChoices.A_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
@@ -941,7 +941,7 @@ class TestModelInfobloxDnsARecord(TestCase):
             }
             inf_ds_arecord = infoblox_adapter.dnsarecord(**_get_dns_a_record_dict(inf_arecord_atrs))
             infoblox_adapter.add(inf_ds_arecord)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             job_logger = Mock()
             infoblox_adapter.job.logger = job_logger
             self.nb_adapter.sync_to(infoblox_adapter)
@@ -970,7 +970,7 @@ class TestModelInfobloxDnsARecord(TestCase):
             self.config.dns_record_type = DNSRecordTypeChoices.A_RECORD
             self.config.infoblox_deletable_models = []
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
@@ -1001,7 +1001,7 @@ class TestModelInfobloxDnsARecord(TestCase):
             self.config.dns_record_type = DNSRecordTypeChoices.A_RECORD
             self.config.infoblox_deletable_models = [InfobloxDeletableModelChoices.DNS_A_RECORD]
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
@@ -1026,7 +1026,7 @@ class TestModelInfobloxDnsHostRecord(TestCase):
         "Test class set up."
         self.config = create_default_infoblox_config()
         self.nb_adapter = NautobotAdapter(config=self.config)
-        self.nb_adapter.job = Mock()
+        self.nb_adapter.job = Mock(debug=True)
 
     @unittest.mock.patch(
         "nautobot_ssot.integrations.infoblox.diffsync.models.infoblox.validate_dns_name",
@@ -1054,7 +1054,7 @@ class TestModelInfobloxDnsHostRecord(TestCase):
                 ext_attrs={},
             )
             infoblox_adapter.add(inf_ds_namespace)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             self.nb_adapter.sync_to(infoblox_adapter)
             infoblox_adapter.conn.create_fixed_address.assert_not_called()
             infoblox_adapter.conn.create_a_record.assert_not_called()
@@ -1089,7 +1089,7 @@ class TestModelInfobloxDnsHostRecord(TestCase):
                 ext_attrs={},
             )
             infoblox_adapter.add(inf_ds_namespace)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             job_logger = Mock()
             infoblox_adapter.job.logger = job_logger
             self.nb_adapter.sync_to(infoblox_adapter)
@@ -1131,7 +1131,7 @@ class TestModelInfobloxDnsHostRecord(TestCase):
                 ext_attrs={},
             )
             infoblox_adapter.add(inf_ds_namespace)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             job_logger = Mock()
             infoblox_adapter.job.logger = job_logger
             self.nb_adapter.sync_to(infoblox_adapter)
@@ -1170,7 +1170,7 @@ class TestModelInfobloxDnsHostRecord(TestCase):
                 ext_attrs={},
             )
             infoblox_adapter.add(inf_ds_namespace)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             job_logger = Mock()
             infoblox_adapter.job.logger = job_logger
             self.nb_adapter.sync_to(infoblox_adapter)
@@ -1208,7 +1208,7 @@ class TestModelInfobloxDnsHostRecord(TestCase):
             self.config.fixed_address_type = FixedAddressTypeChoices.DONT_CREATE_RECORD
             self.config.dns_record_type = DNSRecordTypeChoices.HOST_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
@@ -1269,7 +1269,7 @@ class TestModelInfobloxDnsHostRecord(TestCase):
             }
             inf_ds_hostrecord = infoblox_adapter.dnshostrecord(**_get_dns_host_record_dict(inf_hostrecord_atrs))
             infoblox_adapter.add(inf_ds_hostrecord)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             job_logger = Mock()
             infoblox_adapter.job.logger = job_logger
             self.nb_adapter.sync_to(infoblox_adapter)
@@ -1298,7 +1298,7 @@ class TestModelInfobloxDnsHostRecord(TestCase):
             self.config.dns_record_type = DNSRecordTypeChoices.HOST_RECORD
             self.config.infoblox_deletable_models = []
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
@@ -1329,7 +1329,7 @@ class TestModelInfobloxDnsHostRecord(TestCase):
             self.config.dns_record_type = DNSRecordTypeChoices.HOST_RECORD
             self.config.infoblox_deletable_models = [InfobloxDeletableModelChoices.DNS_HOST_RECORD]
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
@@ -1354,7 +1354,7 @@ class TestModelInfobloxDnsPTRRecord(TestCase):
         "Test class set up."
         self.config = create_default_infoblox_config()
         self.nb_adapter = NautobotAdapter(config=self.config)
-        self.nb_adapter.job = Mock()
+        self.nb_adapter.job = Mock(debug=True)
 
     @unittest.mock.patch(
         "nautobot_ssot.integrations.infoblox.diffsync.models.infoblox.validate_dns_name",
@@ -1388,7 +1388,7 @@ class TestModelInfobloxDnsPTRRecord(TestCase):
             inf_arecord_atrs = {}
             inf_ds_arecord = infoblox_adapter.dnsarecord(**_get_dns_a_record_dict(inf_arecord_atrs))
             infoblox_adapter.add(inf_ds_arecord)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             job_logger = Mock()
             infoblox_adapter.job.logger = job_logger
             self.nb_adapter.sync_to(infoblox_adapter)
@@ -1436,7 +1436,7 @@ class TestModelInfobloxDnsPTRRecord(TestCase):
             inf_arecord_atrs = {}
             inf_ds_arecord = infoblox_adapter.dnsarecord(**_get_dns_a_record_dict(inf_arecord_atrs))
             infoblox_adapter.add(inf_ds_arecord)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             job_logger = Mock()
             infoblox_adapter.job.logger = job_logger
             self.nb_adapter.sync_to(infoblox_adapter)
@@ -1481,7 +1481,7 @@ class TestModelInfobloxDnsPTRRecord(TestCase):
             inf_arecord_atrs = {}
             inf_ds_arecord = infoblox_adapter.dnsarecord(**_get_dns_a_record_dict(inf_arecord_atrs))
             infoblox_adapter.add(inf_ds_arecord)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             job_logger = Mock()
             infoblox_adapter.job.logger = job_logger
             self.nb_adapter.sync_to(infoblox_adapter)
@@ -1522,7 +1522,7 @@ class TestModelInfobloxDnsPTRRecord(TestCase):
             self.config.fixed_address_type = FixedAddressTypeChoices.DONT_CREATE_RECORD
             self.config.dns_record_type = DNSRecordTypeChoices.A_AND_PTR_RECORD
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
@@ -1586,7 +1586,7 @@ class TestModelInfobloxDnsPTRRecord(TestCase):
             inf_arecord_atrs = {}
             inf_ds_arecord = infoblox_adapter.dnsarecord(**_get_dns_a_record_dict(inf_arecord_atrs))
             infoblox_adapter.add(inf_ds_arecord)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             job_logger = Mock()
             infoblox_adapter.job.logger = job_logger
             self.nb_adapter.sync_to(infoblox_adapter)
@@ -1615,7 +1615,7 @@ class TestModelInfobloxDnsPTRRecord(TestCase):
             self.config.dns_record_type = DNSRecordTypeChoices.A_AND_PTR_RECORD
             self.config.infoblox_deletable_models = []
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
@@ -1646,7 +1646,7 @@ class TestModelInfobloxDnsPTRRecord(TestCase):
             self.config.dns_record_type = DNSRecordTypeChoices.A_AND_PTR_RECORD
             self.config.infoblox_deletable_models = [InfobloxDeletableModelChoices.DNS_PTR_RECORD]
             infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
-            infoblox_adapter.job = Mock()
+            infoblox_adapter.job = Mock(debug=True)
             inf_ds_namespace = infoblox_adapter.namespace(
                 name="Global",
                 ext_attrs={},
