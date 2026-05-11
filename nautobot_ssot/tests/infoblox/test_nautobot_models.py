@@ -215,12 +215,39 @@ class TestModelNautobotNetwork(TestCase):
         assoc = RelationshipAssociation.objects.filter(relationship=rel, source_id=prefix.id, destination_id=vlan.id)
         self.assertTrue(assoc.exists())
 
+    def test_network_update_network_vlan_not_found(self):
+        """Validate network update handles missing VLAN gracefully."""
+        inf_network_atrs = {
+            "network_type": "network",
+            "namespace": "dev",
+            "vlans": {"20": {"vid": 20, "name": "Missing VLAN", "group": "Test Group"}},
+        }
+        inf_ds_network = self.infoblox_adapter.prefix(**_get_network_dict(inf_network_atrs))
+        self.infoblox_adapter.add(inf_ds_network)
+
+        Prefix.objects.get_or_create(
+            prefix="10.0.0.0/24",
+            status=self.status_active,
+            type="network",
+            namespace=self.namespace_dev,
+        )
+
+        nb_adapter = NautobotAdapter(config=self.config)
+        nb_adapter.job = Mock(debug=True)
+        nb_adapter.load()
+        # This should not raise DoesNotExist but skip the VLAN and cover line 272
+        self.infoblox_adapter.sync_to(nb_adapter)
+
     def test_network_update_network_no_debug(self):
         """Validate network gets updated when debug is disabled (Regression test for Truthy Mock)."""
+        vg, _ = VLANGroup.objects.get_or_create(name="Test Group", location=self.location)
+        VLAN.objects.get_or_create(vid=10, name="Test VLAN", vlan_group=vg, status=self.status_active)
+
         inf_network_atrs = {
             "network_type": "network",
             "namespace": "dev",
             "description": "No debug update",
+            "vlans": {"10": {"vid": 10, "name": "Test VLAN", "group": "Test Group"}},
         }
         inf_ds_network = self.infoblox_adapter.prefix(**_get_network_dict(inf_network_atrs))
         self.infoblox_adapter.add(inf_ds_network)
@@ -240,6 +267,9 @@ class TestModelNautobotNetwork(TestCase):
 
         prefix = Prefix.objects.get(network="10.0.0.0", prefix_length="8", namespace__name="dev")
         self.assertEqual("No debug update", prefix.description)
+        # Verify VLAN is added even with debug=False (covers line 258 branch)
+        rel = Relationship.objects.get(label="Prefix -> VLAN")
+        self.assertTrue(RelationshipAssociation.objects.filter(relationship=rel, source_id=prefix.id).exists())
 
 
 class TestModelNautobotIPAddress(TestCase):
