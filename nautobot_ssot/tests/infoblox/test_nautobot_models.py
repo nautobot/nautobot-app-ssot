@@ -164,6 +164,14 @@ class TestModelNautobotNetwork(TestCase):
         vg, _ = VLANGroup.objects.get_or_create(name="Test Group", location=self.location)
         vlan, _ = VLAN.objects.get_or_create(vid=10, name="Test VLAN", vlan_group=vg, status=self.status_active)
 
+        # Add VLAN and VLANGroup to infoblox_adapter to prevent them from being deleted during sync
+        inf_ds_vlangroup = self.infoblox_adapter.vlangroup(name="Test Group", description="")
+        self.infoblox_adapter.add(inf_ds_vlangroup)
+        inf_ds_vlan = self.infoblox_adapter.vlan(
+            vid=10, name="Test VLAN", vlangroup="Test Group", status="ASSIGNED", description=""
+        )
+        self.infoblox_adapter.add(inf_ds_vlan)
+
         inf_network_atrs = {
             "network_type": "network",
             "namespace": "dev",
