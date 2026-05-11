@@ -20,6 +20,24 @@ TRANSCEIVER_LOCAL_QUERY = load_json(
 )
 FIXED_INTERFACE_FIXTURE = load_json("./nautobot_ssot/tests/aristacv/fixtures/get_interfaces_fixed_response.json")
 CHASSIS_INTERFACE_FIXTURE = load_json("./nautobot_ssot/tests/aristacv/fixtures/get_interfaces_chassis_response.json")
+PORT_CHANNEL_INTERFACE_FIXTURE = load_json(
+    "./nautobot_ssot/tests/aristacv/fixtures/get_interfaces_port_channel_response.json"
+)
+PORT_CHANNEL_MEMBERS_FIXTURE = load_json(
+    "./nautobot_ssot/tests/aristacv/fixtures/get_port_channel_members_response.json"
+)
+PORT_CHANNEL_STATUS_QUERY = load_json(
+    "./nautobot_ssot/tests/aristacv/fixtures/get_interfaces_port_channel_status_client_query.json"
+)
+PORT_CHANNEL_CONFIG_QUERY = load_json(
+    "./nautobot_ssot/tests/aristacv/fixtures/get_interfaces_port_channel_config_client_query.json"
+)
+LAG_INPUT_PHYINTF_QUERY = load_json(
+    "./nautobot_ssot/tests/aristacv/fixtures/get_lag_input_config_cli_phyintf_client_query.json"
+)
+PORTCHANNEL_DESCRIPTION_QUERY = load_json(
+    "./nautobot_ssot/tests/aristacv/fixtures/get_interface_portchannel_description_client_query.json"
+)
 INTF_DESCRIPTION_QUERY = load_json(
     "./nautobot_ssot/tests/aristacv/fixtures/get_interface_description_client_query.json"
 )

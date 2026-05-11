@@ -44,6 +44,7 @@ class Port(DiffSyncModel):
         "mtu",
         "port_type",
         "status",
+        "lag",
     )
     _children = {}
 
@@ -56,6 +57,7 @@ class Port(DiffSyncModel):
     mtu: Optional[int] = None
     port_type: str
     status: str
+    lag: Optional[str] = None
     uuid: Optional[UUID] = None
 
 

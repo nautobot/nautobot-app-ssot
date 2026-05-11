@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from cloudvision.Connector.codec.custom_types import FrozenDict
+from cloudvision.Connector.codec.custom_types import FrozenDict, Path
 from django.test import override_settings
 from nautobot.core.testing import TestCase
 from parameterized import parameterized
@@ -161,6 +161,24 @@ class TestCloudvisionUtils(TestCase):
         set_result = cloudvision.unfreeze_frozen_dict(frozen_dict="test")
         self.assertEqual(set_result, ("test"))
 
+    def test_unpath(self):
+        """Test that unpath converts Path values into plain lists while leaving other types alone."""
+        path = Path(("Sysdb", "interface", "config", "eth", "lag", "intfConfig", "Port-Channel1000"))
+        nested = FrozenDict({"intfId": "Ethernet53/1", "lag": path, "mode": FrozenDict({"Name": "lacpModeActive"})})
+
+        result = cloudvision.unpath(nested)
+        self.assertEqual(
+            result,
+            {
+                "intfId": "Ethernet53/1",
+                "lag": ["Sysdb", "interface", "config", "eth", "lag", "intfConfig", "Port-Channel1000"],
+                "mode": {"Name": "lacpModeActive"},
+            },
+        )
+        # Already-plain structures must round-trip unchanged.
+        already_plain = {"a": [1, 2, {"b": "c"}]}
+        self.assertEqual(cloudvision.unpath(already_plain), already_plain)
+
     def test_get_device_type_modular(self):
         """Test the get_device_type method for modular chassis."""
         mock_query = MagicMock()
@@ -211,6 +229,39 @@ class TestCloudvisionUtils(TestCase):
             results = cloudvision.get_interfaces_fixed(client=self.client, dId="JPE12345678")
         expected = fixtures.FIXED_INTERFACE_FIXTURE
         self.assertEqual(results, expected)
+
+    def test_get_interfaces_fixed_multi_notification_batch(self):
+        """Test that get_interfaces_fixed returns one entry per notification, not per batch.
+
+        Regression: CloudVision can pack multiple interfaces into a single batch (observed
+        with breakout sub-ports like Ethernet53/1-4). The previous implementation built one
+        result dict per batch and only retained the last interface's fields, silently
+        dropping the rest.
+        """
+
+        def make_notif(intf_id):
+            return {
+                "updates": {
+                    "intfId": intf_id,
+                    "linkStatus": {"Name": "linkUp"},
+                    "operStatus": {"Name": "intfOperUp"},
+                    "enabledState": {"Name": "enabled"},
+                    "burnedInAddr": "ab:cd:ef:00:00:01",
+                    "mtu": 1500,
+                }
+            }
+
+        batches = [
+            {"notifications": [make_notif("Ethernet1")]},
+            {"notifications": [make_notif("Ethernet53/1"), make_notif("Ethernet53/2"), make_notif("Ethernet54/1")]},
+        ]
+        with patch("cloudvision.Connector.grpc_client.grpcClient.create_query", MagicMock()):
+            self.client.get = MagicMock(return_value=batches)
+            results = cloudvision.get_interfaces_fixed(client=self.client, dId="JPE12345678")
+        self.assertEqual(
+            [r["interface"] for r in results],
+            ["Ethernet1", "Ethernet53/1", "Ethernet53/2", "Ethernet54/1"],
+        )
 
     def test_get_interfaces_chassis(self):
         """Test get_interfaces_chassis method."""
@@ -351,6 +402,82 @@ class TestCloudvisionUtils(TestCase):
     def test_get_interface_status(self, name, sent, received):  # pylint: disable=unused-argument
         """Test the get_interface_status method."""
         self.assertEqual(cloudvision.get_interface_status(port_info=sent), received)
+
+    def test_get_interfaces_port_channel(self):
+        """Test get_interfaces_port_channel merges intfStatus and intfConfig notifications."""
+        self.client.get = MagicMock(
+            side_effect=[fixtures.PORT_CHANNEL_STATUS_QUERY, fixtures.PORT_CHANNEL_CONFIG_QUERY]
+        )
+        results = cloudvision.get_interfaces_port_channel(client=self.client, dId="JPE12345678")
+        by_name = {entry["interface"]: entry for entry in results}
+        self.assertEqual(set(by_name), {"Port-Channel1000", "Recirc-Channel1"})
+        self.assertEqual(
+            by_name["Port-Channel1000"],
+            {
+                "interface": "Port-Channel1000",
+                "link_status": "down",
+                "oper_status": "down",
+                "mac_addr": "fc:bd:67:0f:6f:04",
+                "mtu": 9214,
+                "enabled": True,
+            },
+        )
+        self.assertEqual(
+            by_name["Recirc-Channel1"],
+            {
+                "interface": "Recirc-Channel1",
+                "link_status": "up",
+                "oper_status": "up",
+                "mac_addr": "fc:bd:67:0f:6e:d5",
+                "mtu": 9214,
+                "enabled": True,
+            },
+        )
+
+    def test_get_interfaces_port_channel_empty(self):
+        """Test get_interfaces_port_channel returns an empty list when there are no port-channels."""
+        self.client.get = MagicMock(return_value=[{"notifications": []}])
+        self.assertEqual(cloudvision.get_interfaces_port_channel(client=self.client, dId="JPE12345678"), [])
+
+    def test_get_port_channel_members(self):
+        """Test get_port_channel_members reads LAG membership from Sysdb/lag/input/config/cli/phyIntf."""
+        self.client.get = MagicMock(return_value=fixtures.LAG_INPUT_PHYINTF_QUERY)
+        results = cloudvision.get_port_channel_members(client=self.client, dId="JPE12345678")
+        self.assertEqual(
+            results,
+            {
+                "Ethernet53/1": "Port-Channel1000",
+                "Ethernet54/1": "Port-Channel1000",
+                "Ethernet6": "Recirc-Channel1",
+            },
+        )
+
+    def test_get_interface_description_port_channel(self):
+        """Test get_interface_description for Port-Channel interfaces against a real CV response.
+
+        Asserts two things:
+        1. The function queries the lag intfConfig path (`eth/lag/intfConfig`), not the
+           eth/phy path used for regular Ethernet interfaces.
+        2. The function returns the description parsed from the captured CloudVision
+           response shape.
+        """
+        captured_paths = []
+
+        def fake_create_query(args, _dataset):
+            for path_elts, _ in args:
+                captured_paths.append(list(path_elts))
+            return MagicMock()
+
+        self.client.get = MagicMock(return_value=fixtures.PORTCHANNEL_DESCRIPTION_QUERY)
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.create_query", side_effect=fake_create_query):
+            result = cloudvision.get_interface_description(
+                client=self.client, dId="JPE12345678", interface="Port-Channel1000"
+            )
+        self.assertEqual(result, "Uplink to spine1")
+        self.assertEqual(
+            captured_paths[0],
+            ["Sysdb", "interface", "config", "eth", "lag", "intfConfig", "Port-Channel1000"],
+        )
 
     def test_get_interface_description(self):
         """Test get_interface_description method."""

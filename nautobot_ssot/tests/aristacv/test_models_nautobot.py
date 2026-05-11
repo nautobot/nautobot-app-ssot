@@ -8,15 +8,17 @@ from django.contrib.contenttypes.models import ContentType
 from django.test import override_settings
 from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import Device as OrmDevice
-from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer, Platform, SoftwareVersion
+from nautobot.dcim.models import DeviceType, Interface, Location, LocationType, Manufacturer, Platform, SoftwareVersion
 from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import Namespace as OrmNamespace
 from nautobot.ipam.models import Prefix as OrmPrefix
 
 from nautobot_ssot.integrations.aristacv.constants import ARISTA_PLATFORM
+from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.aristacv.diffsync.models.nautobot import (
     NautobotDevice,
     NautobotNamespace,
+    NautobotPort,
     NautobotPrefix,
 )
 from nautobot_ssot.integrations.aristacv.utils.nautobot import get_config
@@ -221,3 +223,74 @@ class TestNautobotDeviceVersion(TransactionTestCase):
         model.update({"version": None})
         device.refresh_from_db()
         self.assertIsNone(device.software_version)
+
+
+class TestNautobotPortCreate(TransactionTestCase):
+    """Test NautobotPort.create() handles breakout interface names and lag references."""
+
+    databases = ("default", "job_logs")
+
+    def setUp(self):
+        """Create the minimal Nautobot scaffolding (status/site/devicetype/role/device)."""
+        super().setUp()
+        self.status_active, _ = Status.objects.get_or_create(name="Active")
+        arista_manu, _ = Manufacturer.objects.get_or_create(name="Arista")
+
+        loc_type, _ = LocationType.objects.get_or_create(name="Site")
+        self.status_active.content_types.add(ContentType.objects.get_for_model(Location))
+        self.site, _ = Location.objects.get_or_create(name="HQ", status=self.status_active, location_type=loc_type)
+
+        self.device_type, _ = DeviceType.objects.get_or_create(model="DCS-7280CR2-60", manufacturer=arista_manu)
+        role, _ = Role.objects.get_or_create(name="Switch")
+
+        self.device = OrmDevice.objects.create(
+            name="ams01-switch-01",
+            device_type=self.device_type,
+            status=self.status_active,
+            role=role,
+            location=self.site,
+        )
+
+        self.warnings = []
+        mock_job = MagicMock()
+        mock_job.debug = False
+        mock_job.logger.warning = lambda msg: self.warnings.append(str(msg))
+        self.adapter = NautobotAdapter(job=mock_job)
+
+    def _attrs(self, **overrides):
+        attrs = {
+            "description": "",
+            "mac_addr": "fc:bd:67:00:00:01",
+            "enabled": True,
+            "mode": "access",
+            "mtu": 9214,
+            "port_type": "other",
+            "status": "Active",
+            "lag": None,
+        }
+        attrs.update(overrides)
+        return attrs
+
+    def test_create_breakout_interface_with_slash_in_name(self):
+        """Regression: NautobotPort.create() must persist breakout interfaces (e.g. Ethernet53/1)."""
+        ids = {"name": "Ethernet53/1", "device": self.device.name}
+        NautobotPort.create(adapter=self.adapter, ids=ids, attrs=self._attrs())
+        self.assertEqual(self.warnings, [], f"Unexpected warnings: {self.warnings}")
+        self.assertTrue(
+            Interface.objects.filter(device=self.device, name="Ethernet53/1").exists(),
+            "Breakout interface Ethernet53/1 was not created on the device.",
+        )
+
+    def test_create_lag_member_when_parent_already_exists(self):
+        """When the lag parent already exists, create() assigns the lag FK on the new interface."""
+        parent = Interface.objects.create(
+            device=self.device,
+            name="Port-Channel1000",
+            type="lag",
+            status=self.status_active,
+        )
+        ids = {"name": "Ethernet53/1", "device": self.device.name}
+        NautobotPort.create(adapter=self.adapter, ids=ids, attrs=self._attrs(lag="Port-Channel1000"))
+        self.assertEqual(self.warnings, [], f"Unexpected warnings: {self.warnings}")
+        intf = Interface.objects.get(device=self.device, name="Ethernet53/1")
+        self.assertEqual(intf.lag_id, parent.id)

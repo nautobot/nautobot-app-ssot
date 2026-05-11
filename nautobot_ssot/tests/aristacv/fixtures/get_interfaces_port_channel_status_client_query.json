@@ -1,0 +1,274 @@
+[
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": "seconds: 1777925084, nanos: 276796433",
+                "deletes": [],
+                "updates": {
+                    "mtu": 9214,
+                    "addr": "fc:bd:67:0f:6f:04",
+                    "name": "Port-Channel1000",
+                    "genId": 1,
+                    "l2Mru": 0,
+                    "l2Mtu": 9236,
+                    "active": true,
+                    "intfId": "Port-Channel1000",
+                    "maxMtu": 9214,
+                    "member": [
+                        "Sysdb",
+                        "lag",
+                        "input",
+                        "interface",
+                        "lag",
+                        "intfStatus",
+                        "Port-Channel1000",
+                        "member"
+                    ],
+                    "portId": {
+                        "value": 100
+                    },
+                    "ifIndex": 1001000,
+                    "l2MruMax": 65535,
+                    "l2MruMin": 68,
+                    "maxLinks": null,
+                    "minLinks": 0,
+                    "macActive": true,
+                    "speedEnum": {
+                        "Name": "speedUnknown",
+                        "Value": 0
+                    },
+                    "speedMbps": 0,
+                    "deviceName": "po1000",
+                    "intfConfig": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "lag",
+                        "intfConfig",
+                        "Port-Channel1000"
+                    ],
+                    "linkDamped": false,
+                    "linkStatus": {
+                        "Name": "linkDown",
+                        "Value": 1
+                    },
+                    "operStatus": {
+                        "Name": "intfOperLowerLayerDown",
+                        "Value": 7
+                    },
+                    "routedAddr": "fc:bd:67:0f:6e:cf",
+                    "userVisible": true,
+                    "defaultConfig": [],
+                    "macActivePrev": true,
+                    "rawLinkStatus": {
+                        "Name": "linkUnknown",
+                        "Value": 0
+                    },
+                    "timestampMode": {
+                        "Name": "timestampModeDisabled",
+                        "Value": 0
+                    },
+                    "fallbackEnabled": {
+                        "Name": "fallbackNone",
+                        "Value": 0
+                    },
+                    "forwardingModel": {
+                        "Name": "intfForwardingModelBridged",
+                        "Value": 7
+                    },
+                    "localDeviceName": "po1000",
+                    "macRxLocalFault": false,
+                    "macActiveChanges": 0,
+                    "macRxRemoteFault": false,
+                    "membersAreActive": true,
+                    "operStatusChange": {
+                        "time": 1773412254.0731525,
+                        "count": 1
+                    },
+                    "linkStatusChanges": 0,
+                    "activeStatusChanges": 0,
+                    "debouncedLinkStatus": {
+                        "Name": "linkUnknown",
+                        "Value": 0
+                    },
+                    "lastMacActiveChange": 0.0,
+                    "debugFallbackSmState": {
+                        "Name": "fallbackStateUnconfigured",
+                        "Value": 0
+                    },
+                    "fabricConnLinkStatus": {
+                        "Name": "linkUnknown",
+                        "Value": 0
+                    },
+                    "stormControlSupported": true,
+                    "macRxLocalFaultChanges": 0,
+                    "macRxRemoteFaultChanges": 0,
+                    "lastLinkStatusChangeTime": 0.0,
+                    "macLayerAdditionalStatus": [
+                        "Sysdb",
+                        "lag",
+                        "input",
+                        "interface",
+                        "lag",
+                        "intfStatus",
+                        "Port-Channel1000",
+                        "macLayerAdditionalStatus"
+                    ],
+                    "lastMacRxLocalFaultChange": 0.0,
+                    "lastMacRxRemoteFaultChange": 0.0
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "lag",
+                    "input",
+                    "interface",
+                    "lag",
+                    "intfStatus",
+                    "Port-Channel1000"
+                ]
+            }
+        ]
+    },
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": "seconds: 1777925084, nanos: 280260745",
+                "deletes": [],
+                "updates": {
+                    "mtu": 9214,
+                    "addr": "fc:bd:67:0f:6e:d5",
+                    "name": "Recirc-Channel1",
+                    "genId": 0,
+                    "l2Mru": 0,
+                    "l2Mtu": 9236,
+                    "active": true,
+                    "intfId": "Recirc-Channel1",
+                    "maxMtu": 9214,
+                    "member": [
+                        "Sysdb",
+                        "lag",
+                        "input",
+                        "interface",
+                        "lag",
+                        "intfStatus",
+                        "Recirc-Channel1",
+                        "member"
+                    ],
+                    "portId": {
+                        "value": 101
+                    },
+                    "ifIndex": -2,
+                    "l2MruMax": 65535,
+                    "l2MruMin": 68,
+                    "maxLinks": null,
+                    "minLinks": 0,
+                    "macActive": true,
+                    "speedEnum": {
+                        "Name": "speedUnknown",
+                        "Value": 0
+                    },
+                    "speedMbps": 2500,
+                    "deviceName": "re1",
+                    "intfConfig": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "lag",
+                        "intfConfig",
+                        "Recirc-Channel1"
+                    ],
+                    "linkDamped": false,
+                    "linkStatus": {
+                        "Name": "linkUp",
+                        "Value": 2
+                    },
+                    "operStatus": {
+                        "Name": "intfOperUp",
+                        "Value": 1
+                    },
+                    "routedAddr": "fc:bd:67:0f:6e:cf",
+                    "userVisible": true,
+                    "defaultConfig": [],
+                    "macActivePrev": true,
+                    "rawLinkStatus": {
+                        "Name": "linkUnknown",
+                        "Value": 0
+                    },
+                    "timestampMode": {
+                        "Name": "timestampModeDisabled",
+                        "Value": 0
+                    },
+                    "fallbackEnabled": {
+                        "Name": "fallbackNone",
+                        "Value": 0
+                    },
+                    "forwardingModel": {
+                        "Name": "intfForwardingModelRecirculation",
+                        "Value": 3
+                    },
+                    "localDeviceName": "re1",
+                    "macRxLocalFault": false,
+                    "macActiveChanges": 0,
+                    "macRxRemoteFault": false,
+                    "membersAreActive": true,
+                    "operStatusChange": {
+                        "time": 1773412254.0807228,
+                        "count": 2
+                    },
+                    "linkStatusChanges": 0,
+                    "activeStatusChanges": 0,
+                    "debouncedLinkStatus": {
+                        "Name": "linkUnknown",
+                        "Value": 0
+                    },
+                    "lastMacActiveChange": 0.0,
+                    "debugFallbackSmState": {
+                        "Name": "fallbackStateUnconfigured",
+                        "Value": 0
+                    },
+                    "fabricConnLinkStatus": {
+                        "Name": "linkUnknown",
+                        "Value": 0
+                    },
+                    "stormControlSupported": true,
+                    "macRxLocalFaultChanges": 0,
+                    "macRxRemoteFaultChanges": 0,
+                    "lastLinkStatusChangeTime": 0.0,
+                    "macLayerAdditionalStatus": [
+                        "Sysdb",
+                        "lag",
+                        "input",
+                        "interface",
+                        "lag",
+                        "intfStatus",
+                        "Recirc-Channel1",
+                        "macLayerAdditionalStatus"
+                    ],
+                    "lastMacRxLocalFaultChange": 0.0,
+                    "lastMacRxRemoteFaultChange": 0.0
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "lag",
+                    "input",
+                    "interface",
+                    "lag",
+                    "intfStatus",
+                    "Recirc-Channel1"
+                ]
+            }
+        ]
+    }
+]
