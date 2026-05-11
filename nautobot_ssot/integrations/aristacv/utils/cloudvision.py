@@ -542,6 +542,7 @@ def clean_query_results(path_elements: List[str], client: CloudvisionApi, datase
     return query
 
 
+# pylint: disable=too-many-branches
 def get_interfaces_port_channel(client: CloudvisionApi, dId: str):
     """Gets information about Port-Channel (LAG) interfaces for a device.
 
