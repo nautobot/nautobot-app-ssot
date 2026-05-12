@@ -186,13 +186,13 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             location.add_child(device)
             self.load_interfaces(device_record=device_record, diffsync_device=device)
 
-    def load_vlans(self, filtered_vlans: List, location):
+    def load_vlans(self, filtered_vlans: List, location, location_record):
         """Add Nautobot VLAN objects as DiffSync VLAN models."""
         for vlan_record in filtered_vlans:
             vlan = self.vlan(
                 name=vlan_record.name,
-                location=vlan_record.location.name,
-                status=vlan_record.status.name if vlan_record.status else "Active",
+                location=location_record.name,
+                status=vlan_record.status.name,
                 vid=vlan_record.vid,
                 vlan_pk=vlan_record.pk,
                 description=vlan_record.description,
@@ -259,10 +259,12 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     self.load_device(nautobot_location_devices, location)
 
                     # Load Location Children - Vlans, if any.
-                    nautobot_location_vlans = VLAN.objects.filter(location=location_record).select_related(
-                        "location", "status"
+                    nautobot_location_vlans = (
+                        VLAN.objects.filter(location=location_record)
+                        .select_related("status")
+                        .prefetch_related("locations")
                     )
-                    self.load_vlans(nautobot_location_vlans, location)
+                    self.load_vlans(nautobot_location_vlans, location, location_record)
                 except Location.DoesNotExist:
                     logger.error("Unable to find Location, %s.", location_record)
         else:
