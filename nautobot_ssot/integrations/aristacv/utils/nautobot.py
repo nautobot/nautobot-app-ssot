@@ -234,6 +234,9 @@ def verify_software_version_object(version, platform):
     Args:
         version (str): EOS software version string gathered from CloudVision.
         platform (Platform): Platform ORM object the SoftwareVersion belongs to.
+
+    Returns:
+        SoftwareVersion: SoftwareVersion object.
     """
     try:
         software_version_obj = SoftwareVersion.objects.get(version=version, platform=platform)
