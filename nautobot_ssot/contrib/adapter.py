@@ -28,7 +28,7 @@ from nautobot_ssot.utils.orm import (
     orm_attribute_lookup,
 )
 from nautobot_ssot.utils.typing import get_inner_type
-
+from nautobot_ssot.contrib.loaders import NautobotORMInterface
 
 class NautobotAdapter(Adapter, BaseNautobotAdapter):
     """
@@ -46,6 +46,89 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         self.metadata_type = None
         self.metadata_scope_fields = {}
         self.validate_adapter()
+
+
+
+
+    def load(self):
+        """Generic implementation of the load function."""
+        # This function directly mutates the diffsync store, i.e. it will create and load the objects
+        # for this specific model class as well as its children without returning anything.
+        self._load_objects(self._get_diffsync_class(model_name for model_name in self.top_level))
+
+
+    def _load_objects(self, diffsync_model: BaseNautobotModel):
+        """Given a diffsync model class, load a list of models from the database and return them."""
+        parameter_names = diffsync_model.get_synced_attributes()
+        for database_object in diffsync_model._get_queryset():
+            self._load_single_object(database_object, diffsync_model, parameter_names)
+
+
+    def _load_single_object(self, database_object, diffsync_model, parameter_names):
+        """Load a single diffsync object from a single database object."""
+        parameters = {}
+        for parameter_name in parameter_names:
+            self._handle_single_parameter(parameters, parameter_name, database_object, diffsync_model)
+        parameters["pk"] = database_object.pk
+        try:
+            diffsync_model_instance = diffsync_model(**parameters)
+        except pydantic.ValidationError as error:
+            raise ValueError(f"Parameters: {parameters}") from error
+        self.add(diffsync_model_instance)
+        
+        
+        
+        for children_parameter, children_field in diffsync_model._children.items():
+            children = getattr(database_object, children_field).all()
+            diffsync_model_child: BaseNautobotModel = self._get_diffsync_class(model_name=children_parameter)
+            for child in children:
+                parameter_names = diffsync_model_child.get_synced_attributes()
+                child_diffsync_object = self._load_single_object(child, diffsync_model_child, parameter_names)
+                diffsync_model.add_child(child_diffsync_object)
+        
+        # self._handle_children(database_object, diffsync_model_instance)
+
+
+
+        return diffsync_model_instance
+
+
+
+
+    # def _handle_children(self, database_object, diffsync_model: BaseNautobotModel):
+    #     """Recurse through all the children for this model."""
+    #     for children_parameter, children_field in diffsync_model._children.items():
+    #         children = getattr(database_object, children_field).all()
+    #         diffsync_model_child: BaseNautobotModel = self._get_diffsync_class(model_name=children_parameter)
+    #         for child in children:
+    #             parameter_names = diffsync_model_child.get_synced_attributes()
+    #             child_diffsync_object = self._load_single_object(child, diffsync_model_child, parameter_names)
+    #             diffsync_model.add_child(child_diffsync_object)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def validate_adapter(self):
         """Validate adapter is properly built."""
@@ -69,11 +152,6 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         )
         self.cache.invalidate_cache(zero_out_hits=zero_out_hits)
 
-    def _load_objects(self, diffsync_model: BaseNautobotModel):
-        """Given a diffsync model class, load a list of models from the database and return them."""
-        parameter_names = diffsync_model.get_synced_attributes()
-        for database_object in diffsync_model._get_queryset():
-            self._load_single_object(database_object, diffsync_model, parameter_names)
 
     def _handle_single_parameter(self, parameters, parameter_name, database_object, diffsync_model):
         # Handle custom fields and custom relationships. See CustomFieldAnnotation and CustomRelationshipAnnotation
@@ -123,36 +201,7 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         else:
             parameters[parameter_name] = getattr(database_object, parameter_name)
 
-    def _load_single_object(self, database_object, diffsync_model, parameter_names):
-        """Load a single diffsync object from a single database object."""
-        parameters = {}
-        for parameter_name in parameter_names:
-            self._handle_single_parameter(parameters, parameter_name, database_object, diffsync_model)
-        parameters["pk"] = database_object.pk
-        try:
-            diffsync_model_instance = diffsync_model(**parameters)
-        except pydantic.ValidationError as error:
-            raise ValueError(f"Parameters: {parameters}") from error
-        self.add(diffsync_model_instance)
-        self._handle_children(database_object, diffsync_model_instance)
-        return diffsync_model_instance
 
-    def _handle_children(self, database_object, diffsync_model: BaseNautobotModel):
-        """Recurse through all the children for this model."""
-        for children_parameter, children_field in diffsync_model._children.items():
-            children = getattr(database_object, children_field).all()
-            diffsync_model_child: BaseNautobotModel = self._get_diffsync_class(model_name=children_parameter)
-            for child in children:
-                parameter_names = diffsync_model_child.get_synced_attributes()
-                child_diffsync_object = self._load_single_object(child, diffsync_model_child, parameter_names)
-                diffsync_model.add_child(child_diffsync_object)
-
-    def load(self):
-        """Generic implementation of the load function."""
-        for model_name in self.top_level:
-            # This function directly mutates the diffsync store, i.e. it will create and load the objects
-            # for this specific model class as well as its children without returning anything.
-            self._load_objects(self._get_diffsync_class(model_name))
 
     def _get_diffsync_class(self, model_name):
         """Given a model name, return the diffsync class."""
