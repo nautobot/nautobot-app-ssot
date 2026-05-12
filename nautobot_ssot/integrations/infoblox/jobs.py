@@ -99,7 +99,7 @@ class InfobloxDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         self.debug = kwargs.get("debug")
         self.dryrun = kwargs.get("dryrun")
         self.config = kwargs.get("config")
-        if not getattr(self.config, "enable_sync_to_nautobot", True):
+        if not getattr(self.config, "enable_sync_to_nautobot", False):
             self.logger.error("Can't run sync to Nautobot, provided config doesn't have it enabled...")
             raise ValueError("Config not enabled for sync to Nautobot.")
         self.memory_profiling = kwargs.get("memory_profiling")
@@ -161,13 +161,12 @@ class InfobloxDataTarget(DataTarget):  # pylint: disable=too-many-instance-attri
         self.logger.info("Loading data from Infoblox...")
         self.target_adapter.load()
 
-    def run(self, *args, **kwargs):
+    def run(self, *args, **kwargs):  # pylint: disable=arguments-differ
         """Perform data synchronization."""
         self.debug = kwargs.get("debug")
         self.dryrun = kwargs.get("dryrun")
         self.config = kwargs.get("config")
-        # Additional guard against launching sync to Infoblox with config that doesn't allow it
-        if not self.config.enable_sync_to_infoblox:
+        if not getattr(self.config, "enable_sync_to_infoblox", False):
             self.logger.error("Can't run sync to Infoblox, provided config doesn't have it enabled...")
             raise ValueError("Config not enabled for sync to Infoblox.")
         self.memory_profiling = kwargs.get("memory_profiling")
