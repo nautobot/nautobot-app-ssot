@@ -580,7 +580,7 @@ class Interface(DiffSyncExtras):
         if device:
             return_super = True
             try:
-                interface = device.interfaces.prefetch_related("ip_addresses").get(name=self.name)
+                interface = device.interfaces.prefetch_related("ip_addresses__interfaces").get(name=self.name)
             except NautobotInterface.MultipleObjectsReturned:
                 self.adapter.job.logger.error(
                     f"Multiple Interfaces found with the name {self.name}, on Device named {self.device_name} "
