@@ -345,8 +345,8 @@ def get_or_create_tag_object(  # pylint: disable=too-many-arguments
     """Verify Tag object exists in Nautobot. If not, creates specified Tag. Defaults to dcim | device.
 
     Args:
-        tag_name: Status name.
-        tag_color: Status color.
+        tag_name: Tag name.
+        tag_color: Tag color.
         description: Description
         app_label: App Label ("DCIM")
         model: Django Model ("DEVICE")
