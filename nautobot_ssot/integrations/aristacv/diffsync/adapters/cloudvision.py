@@ -75,7 +75,7 @@ class CloudvisionAdapter(Adapter):
             if config.import_active and dev_status != "Active":
                 continue
             if self.job.debug:
-                self.job.logger.info(f"Loading {index}° device")
+                self.job.logger.info(f"Loading {index + 1}° device")
             if dev["hostname"] != "":
                 new_device = self.device(
                     name=dev["hostname"],
