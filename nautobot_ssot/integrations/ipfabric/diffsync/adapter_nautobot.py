@@ -152,8 +152,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 "status",
                 "platform",
                 "virtual_chassis",
+                "virtual_chassis__master"
             )
-            .prefetch_related("interfaces__ip_addresses", "interfaces__tags")
+            .prefetch_related("interfaces__ip_addresses")
             .iterator(1000)
         )
         for device_record in optimized_query:
