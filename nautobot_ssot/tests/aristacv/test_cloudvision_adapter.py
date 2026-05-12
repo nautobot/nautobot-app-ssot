@@ -128,7 +128,7 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
                 self.cloudvision.get_interface_vrf,
             ),
         ):
-            self.cvp.load_ip_addresses(dev=mock_device, primary_ip="192.0.2.1/24")
+            self.cvp.load_ip_addresses(dev=mock_device, primary_ip="192.0.2.1")
         self.assertEqual(
             {
                 f"{ipaddr['address']}__{ipaddress.ip_interface(ipaddr['address']).network.with_prefixlen}__Global"
