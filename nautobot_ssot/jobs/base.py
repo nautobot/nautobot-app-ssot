@@ -283,7 +283,11 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
             # Use the custom grouping from the log record's extra dict if present,
             # falling back to adapter_type ("source"/"target") when not set.
-            grouping = record.__dict__.get("grouping", adapter_type)
+            custom_grouping = record.__dict__.get("grouping")
+            if custom_grouping:
+                grouping = f"{custom_grouping} ({adapter_type})"
+            else:
+                grouping = adapter_type
 
             # Note: JobLogEntry fields may vary by Nautobot version, using common fields
             JobLogEntry.objects.create(
