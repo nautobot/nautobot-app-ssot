@@ -7,7 +7,6 @@ from nautobot.core.settings_funcs import is_truthy
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.dcim.models import Platform as OrmPlatform
-from nautobot.dcim.models import SoftwareVersion
 from nautobot.extras.models import Status as OrmStatus
 from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import IPAddressToInterface
@@ -76,6 +75,9 @@ class NautobotDevice(Device):
             platform = OrmPlatform.objects.get(name=ARISTA_PLATFORM)
 
         device_type_object = nautobot.verify_device_type_object(attrs["device_model"])
+        software_version_object = (
+            nautobot.verify_software_version_object(attrs["version"], platform) if attrs.get("version") else None
+        )
 
         new_device = OrmDevice(
             status=OrmStatus.objects.get(name=attrs["status"]),
@@ -85,6 +87,7 @@ class NautobotDevice(Device):
             location=site,
             name=ids["name"],
             serial=attrs["serial"] if attrs.get("serial") else "",
+            software_version=software_version_object,
         )
 
         if config.apply_import_tag:
@@ -109,11 +112,11 @@ class NautobotDevice(Device):
             dev.device_type = nautobot.verify_device_type_object(attrs["device_model"])
         if "serial" in attrs:
             dev.serial = attrs["serial"]
-        if "version" in attrs:
-            dev.software_version = SoftwareVersion.objects.get_or_create(
-                version=attrs["version"],
-                platform=dev.platform,
-            )[0]
+        if attrs.get("version"):
+            dev.software_version = nautobot.verify_software_version_object(attrs["version"], dev.platform)
+        # If version is in attrs, but didn't trigger the condition directly above, it must be changing to None
+        elif "version" in attrs and dev.software_version:
+            dev.software_version = None
         try:
             dev.validated_save()
             return super().update(attrs)
