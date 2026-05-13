@@ -405,14 +405,15 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         log_entries = JobLogEntry.objects.filter(job_result=self.job.job_result)
 
         # Custom groupings should be preserved, not collapsed to "source"/"target"
-        sn_data_logs = log_entries.filter(grouping="Loading ServiceNow Data")
-        self.assertGreater(sn_data_logs.count(), 0, "Custom grouping 'Loading ServiceNow Data' should be preserved")
 
-        dq_logs = log_entries.filter(grouping="Data Quality Issues")
-        self.assertGreater(dq_logs.count(), 0, "Custom grouping 'Data Quality Issues' should be preserved")
+        sn_data_logs = log_entries.filter(grouping="Loading ServiceNow Data (source)")
+        self.assertGreater(sn_data_logs.count(), 0, "Custom grouping 'Loading ServiceNow Data (source)' should be preserved")
 
-        nb_data_logs = log_entries.filter(grouping="Loading Nautobot Data")
-        self.assertGreater(nb_data_logs.count(), 0, "Custom grouping 'Loading Nautobot Data' should be preserved")
+        dq_logs = log_entries.filter(grouping="Data Quality Issues (source)")
+        self.assertGreater(dq_logs.count(), 0, "Custom grouping 'Data Quality Issues (source)' should be preserved")
+
+        nb_data_logs = log_entries.filter(grouping="Loading Nautobot Data (target)")
+        self.assertGreater(nb_data_logs.count(), 0, "Custom grouping 'Loading Nautobot Data (target)' should be preserved")
 
         # Verify the actual messages landed under the correct groupings
         sn_messages = [e.message for e in sn_data_logs]
