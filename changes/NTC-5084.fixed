@@ -1,1 +1,0 @@
-Fixed dnac latitude and longitude in nautobot adapter to match the model default and get diff to work.
