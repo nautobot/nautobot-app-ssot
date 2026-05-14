@@ -8,7 +8,7 @@ from nautobot_ssot.contrib.types import (
 from diffsync.exceptions import ObjectCrudException
 import re
 from abc import ABC, abstractmethod
-from nautobot.core.models import PrimaryModel
+from nautobot.core.models import BaseModel
 from dataclasses import dataclass, field
 from diffsync import DiffSyncModel, Adapter
 from typing import Any, Callable
@@ -22,61 +22,69 @@ from nautobot_ssot.utils.orm import (
     orm_attribute_lookup,
 )
 from nautobot_ssot.utils.typing import get_inner_type
+from nautobot_ssot.contrib.base import BaseNautobotAdapter
 
+from nautobot_ssot.contrib.enums import AttributeType
 
-@dataclass
-class BaseDiffSyncLoader(ABC):
-    """"""
+class BaseAdapterInterface(ABC):
+    
+    def __init__(self, model_class: DiffSyncModel):
+        self.model_class = model_class
 
-    model_class: DiffSyncModel
+    def __hash__(self):
+        return hash(self.__class__)
 
     @abstractmethod
-    def load_model(self, input: Any) -> DiffSyncModel:
-        """"""
-
-@dataclass
-class NautobotORMInterface(BaseDiffSyncLoader):
-    """"""
-
-    def load_model(self, input: PrimaryModel, adapter: Adapter) -> DiffSyncModel:
-        """Load a single `DiffsyncModel` class from Nautobot ORM data."""
-        parameters = {
-            attr_name: self.load_attribute_method(attr_name)(input, attr_name)
-            for attr_name in self.model_class.get_synced_parameters()
-        }
-        parameters["pk"] = input.pk
-        try:
-            return self.model_class(**parameters)
-        except pydantic.ValidationError as err:
-            raise pydantic.ValidationError(f"Parameters: {parameters}") from err
+    def get_dict(self, data_obj: Any, attributes: list[str]) -> dict:
+        """Convert input data based on designated attributes into dictionary format used by DiffSync models."""
 
     @lru_cache
-    def load_attribute_method(self, attr_name: str) -> Callable:
-        if hasattr(self.model_class, f"load_attr_{attr_name}"):
-            return getattr(self.model_class, f"load_attr_{attr_name}")
+    def get_attribute_enum(self, attr_name: str):
         annotation = self.model_class.get_attr_annotation(attr_name)
         if isinstance(annotation, CustomFieldAnnotation):
-            return self.load_attribute_custom_field
+            return AttributeType.CUSTOM_FIELD
         if "__" in attr_name:
             if annotation:
-                return self.load_attribute_custom_foreign_key
-            return self.load_attribute_foreign_key
+                return AttributeType.CUSTOM_FOREIGN_KEY
+            return AttributeType.FOREIGN_KEY
         if annotation:
-            return self.load_attribute_custom_n_to_many
-        database_field = self.model_class._model._meta.get_field(attr_name)
-        if database_field.many_to_many or database_field.one_to_many:
-            return self.load_attribute_n_to_many
-        return self.load_attribute_standard
+            return AttributeType.CUSTOM_N_TO_MANY
+        db_field = self.model_class._model._meta.get_field(attr_name)
+        if db_field.many_to_many or db_field.one_to_many:
+            return AttributeType.N_TO_MANY
+        return AttributeType.STANDARD
 
-    def load_attribute_standard(self, input: PrimaryModel, attr_name: str, parameters: dict = {}) -> dict:
+
+class NautobotORMInterface(BaseAdapterInterface):
+
+    def __init__(self, model_class: BaseNautobotAdapter):
+        super().__init__(model_class)
+        self.attribute_mapper = {
+            AttributeType.STANDARD: self.load_attribute_standard,
+            AttributeType.FOREIGN_KEY: self.load_attribute_foreign_key,
+            AttributeType.N_TO_MANY: self.load_attribute_n_to_many,
+            AttributeType.CUSTOM_FIELD: self.load_attribute_custom_field,
+            AttributeType.CUSTOM_FOREIGN_KEY: self.load_attribute_custom_foreign_key,
+            AttributeType.CUSTOM_N_TO_MANY: self.load_attribute_custom_n_to_many,
+        }
+
+    def get_dict(self, data_obj: BaseModel, attributes: list[str]) -> dict:
+        """Load a single `DiffsyncModel` class from Nautobot ORM data."""
+        attributes_dict = {}
+        for attribute in attributes:
+            self.attribute_mapper[self.get_attribute_enum(attribute)](data_obj, attribute, attributes_dict)
+        attributes_dict["pk"] = data_obj.pk
+        return attributes_dict
+
+    def load_attribute_standard(self, input: BaseModel, attr_name: str, parameters: dict = {}) -> dict:
         parameters[attr_name] = getattr(input, attr_name)
         return parameters
                                         
-    def load_attribute_foreign_key(self, input: PrimaryModel, attr_name: str, parameters: dict) -> dict:
+    def load_attribute_foreign_key(self, input: BaseModel, attr_name: str, parameters: dict) -> dict:
         parameters[attr_name] = orm_attribute_lookup(input, attr_name)
         return parameters
 
-    def load_attribute_n_to_many(self, input: PrimaryModel, attr_name: str, parameters: dict) -> dict:
+    def load_attribute_n_to_many(self, input: BaseModel, attr_name: str, parameters: dict) -> dict:
         related_objects = []
         for related_object in getattr(input, attr_name).all():
             dict_rep = load_typed_dict(
@@ -85,17 +93,17 @@ class NautobotORMInterface(BaseDiffSyncLoader):
             )
             if any(dict_rep.values()):
                 related_objects.append(dict_rep)
-        parameters[attr_name] = related_object
+        parameters[attr_name] = related_objects
         return parameters
 
-    def load_attribute_custom_field(self, input: PrimaryModel, attr_name: str, parameters: dict) -> dict:
+    def load_attribute_custom_field(self, input: BaseModel, attr_name: str, parameters: dict) -> dict:
         annotation = self.model_class.get_attr_annotation(attr_name)
         field_key = annotation.key or annotation.name
         if field_key in input.cf:
             parameters[attr_name] = input.cf[field_key]
         return parameters
 
-    def load_attribute_custom_foreign_key(self, input: PrimaryModel, attr_name: str, parameters: dict) -> dict:
+    def load_attribute_custom_foreign_key(self, input: BaseModel, attr_name: str, parameters: dict) -> dict:
         """"""
         annotation = self.model_class.get_attr_annotation(attr_name)
         relationship_associations, association_count = get_custom_relationship_associations(
@@ -122,8 +130,7 @@ class NautobotORMInterface(BaseDiffSyncLoader):
         )
         return parameters
 
-
-    def load_attribute_custom_n_to_many(self, input: PrimaryModel, attr_name: str, parameters: dict) -> dict:
+    def load_attribute_custom_n_to_many(self, input: BaseModel, attr_name: str, parameters: dict) -> dict:
         """"""
         annotation = self.model_class.get_attr_annotation(attr_name)
 
