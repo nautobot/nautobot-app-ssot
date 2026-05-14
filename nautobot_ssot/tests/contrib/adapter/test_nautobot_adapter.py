@@ -43,10 +43,11 @@ class NautobotLocationType(NautobotModel):
     _model = LocationType
     _modelname = "location_type"
 
-    _identifiers = ("name", "locations",)
+    _identifiers = ("name", "locations", "ranking",)
 
     name: str
     locations: list[LocationTypedDict] = []
+    ranking: Annotated[str, CustomFieldAnnotation("ranking")]
 
 class NautobotLocation(NautobotModel):
 
@@ -98,9 +99,17 @@ class TestNautobotAdapterLoadSingleObject(TestCase):
         self.assertEqual(result.location_type__name, self.location_type_1.name)
 
     def test_get_n_to_many(self):
-        """"""
         result = self.adapter.load_single_object(
             NautobotLocationType,
             self.location_type_1,
         )
         self.assertEqual(len(result.locations), 2)
+
+    def test_get_custom_field(self):
+        """"""
+
+    def test_get_custom_foreign_key(self):
+        """"""
+
+    def test_get_custom_n_to_many(self):
+        """"""
