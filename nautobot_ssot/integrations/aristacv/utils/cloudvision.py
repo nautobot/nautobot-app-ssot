@@ -712,9 +712,8 @@ def get_ip_interfaces(client: CloudvisionApi, dId: str):
 def get_cvp_version(config: CloudVisionAppConfig):
     """Returns CloudVision portal version.
 
-    Deprecated:
-        Use ``CloudvisionApi(config).get_version()`` instead. Will be removed
-        in a future release.
+    Use ``CloudvisionApi(config).get_version()`` instead.
+    Will be removed in a future release.
 
     Returns:
         str: CloudVision version from API or blank string if unable to find.
