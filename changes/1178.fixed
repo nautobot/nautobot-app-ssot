@@ -1,0 +1,1 @@
+Fixed Arista CloudVision SSoT `NautobotDevice.update()` to include the `status` attribute.

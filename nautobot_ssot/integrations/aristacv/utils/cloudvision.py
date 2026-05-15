@@ -2,6 +2,7 @@
 """Utility functions for CloudVision Resource API."""
 
 import ssl
+import warnings
 from datetime import datetime
 from typing import Any, Iterable, List, Optional, Tuple, Union
 from urllib.parse import urlparse
@@ -82,6 +83,7 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
         self.__search_client = rtr_client.SearchStub(self.comm_channel)
         self.encoder = codec.Encoder()
         self.decoder = codec.Decoder()
+        self.cvpclient = self._connect_rest_client(config)
 
     def __enter__(self):
         """Magic method to enable use of class with `with` statement."""
@@ -239,6 +241,42 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
         )
         res = self.__search_client.Search(req)
         return (self.decode_batch(nb) for nb in res)
+
+    def _connect_rest_client(self, config: CloudVisionAppConfig) -> CvpClient:
+        """Build and connect a cvprac REST client using the shared CloudVision app config."""
+        client = CvpClient()
+        parsed_url = urlparse(config.url)
+        if not parsed_url.hostname:
+            raise ValueError(f"Invalid URL provided for CloudVision. {config.url}")
+        try:
+            if config.token and not config.is_on_premise:
+                client.connect(
+                    nodes=[parsed_url.hostname],
+                    username="",
+                    password="",
+                    is_cvaas=True,
+                    api_token=config.token,
+                )
+            else:
+                client.connect(
+                    nodes=[parsed_url.hostname],
+                    username=config.cvp_user,
+                    password=config.cvp_password,
+                    is_cvaas=False,
+                )
+        except CvpLoginError as err:
+            raise AuthFailure(
+                error_code="Failed Login", message=f"Unable to login to CloudVision Portal. {err}"
+            ) from err
+        return client
+
+    def get_version(self):
+        """Return CloudVision portal version, or '' if absent."""
+        return self.cvpclient.api.get_cvp_info().get("version", "")
+
+    def get_inventory(self):
+        """Return CloudVision device inventory."""
+        return self.cvpclient.api.get_inventory()
 
 
 def get_devices(client, logger, import_active: bool):
@@ -696,32 +734,15 @@ def get_ip_interfaces(client: CloudvisionApi, dId: str):
 def get_cvp_version(config: CloudVisionAppConfig):
     """Returns CloudVision portal version.
 
+    Use ``CloudvisionApi(config).get_version()`` instead.
+    Will be removed in a future release.
+
     Returns:
         str: CloudVision version from API or blank string if unable to find.
     """
-    client = CvpClient()
-    try:
-        parsed_url = urlparse(config.url)
-        if not parsed_url.hostname:
-            raise ValueError(f"Invalid URL provided for CloudVision. {config.url}")
-        if config.token and not config.is_on_premise:
-            client.connect(
-                nodes=[parsed_url.hostname],
-                username="",
-                password="",
-                is_cvaas=True,
-                api_token=config.token,
-            )
-        else:
-            client.connect(
-                nodes=[parsed_url.hostname],
-                username=config.cvp_user,
-                password=config.cvp_password,
-                is_cvaas=False,
-            )
-    except CvpLoginError as err:
-        raise AuthFailure(error_code="Failed Login", message=f"Unable to login to CloudVision Portal. {err}") from err
-    version = client.api.get_cvp_info()
-    if "version" in version:
-        return version["version"]
-    return ""
+    warnings.warn(
+        "get_cvp_version() is deprecated, use CloudvisionApi(config).get_version() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return CloudvisionApi(config).get_version()
