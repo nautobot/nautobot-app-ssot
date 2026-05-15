@@ -517,9 +517,7 @@ def get_interfaces_chassis(client: CloudvisionApi, dId):
     for lc in queryLC:
         pathElts = ["Sysdb", "interface", "status", "eth", "phy", "slice", lc, "intfStatus", Wildcard()]
 
-        query = [create_query([(pathElts, [])], dataset)]
-
-        for batch in client.get(query):
+        for batch in clean_query_results(pathElts, client, dataset):
             for notif in batch["notifications"]:
                 results = notif["updates"]
                 if not results.get("intfId"):
@@ -547,11 +545,9 @@ def get_interfaces_fixed(client: CloudvisionApi, dId: str):
         dId (str): Device ID to determine type for.
     """
     pathElts = ["Sysdb", "interface", "status", "eth", "phy", "slice", "1", "intfStatus", Wildcard()]
-    query = [create_query([(pathElts, [])], dId)]
-    query = unfreeze_frozen_dict(query)
 
     intfStatusFixed = []
-    for batch in client.get(query):
+    for batch in clean_query_results(pathElts, client, dId):
         for notif in batch["notifications"]:
             results = notif["updates"]
             if not results.get("intfId"):
@@ -669,10 +665,8 @@ def get_interface_transceiver(client: CloudvisionApi, dId: str, interface: str):
         interface (str): Name of interface to get transceiver information for.
     """
     pathElts = ["Sysdb", "hardware", "archer", "xcvr", "status", "all", interface]
-    query = [create_query([(pathElts, [])], dId)]
-    query = unfreeze_frozen_dict(query)
 
-    for batch in client.get(query):
+    for batch in clean_query_results(pathElts, client, dId):
         for notif in batch["notifications"]:
             if notif["updates"].get("actualIdEepromContents") and notif["updates"]["actualIdEepromContents"].get(
                 "mediaType"
@@ -685,6 +679,34 @@ def get_interface_transceiver(client: CloudvisionApi, dId: str, interface: str):
     return "Unknown"
 
 
+def get_all_interface_transceivers(client: CloudvisionApi, dId: str) -> dict:
+    """Fetch transceiver information for every interface on a device in a single query.
+
+    Args:
+        client (CloudvisionApi): CloudVision connection.
+        dId (str): Device ID to retrieve transceivers for.
+
+    Returns:
+        dict[str, str]: Mapping of interface name to transceiver media type. Interfaces
+        with no transceiver data are omitted; callers should fall back to "Unknown".
+    """
+    pathElts = ["Sysdb", "hardware", "archer", "xcvr", "status", "all", Wildcard()]
+
+    transceivers = {}
+    for batch in clean_query_results(pathElts, client, dId):
+        for notif in batch["notifications"]:
+            updates = notif["updates"]
+            intf = notif["path_elements"][-1]
+            eeprom = updates.get("actualIdEepromContents")
+            if isinstance(eeprom, dict) and eeprom.get("mediaType"):
+                transceivers[intf] = eeprom["mediaType"]
+            elif updates.get("mediaType"):
+                transceivers[intf] = updates["mediaType"]["Name"]
+            elif updates.get("localMediaType"):
+                transceivers[intf] = updates["localMediaType"]["Name"]
+    return transceivers
+
+
 def get_interface_mode(client: CloudvisionApi, dId: str, interface: str):
     """Gets interface mode, ie access/trunked.
 
@@ -694,14 +716,37 @@ def get_interface_mode(client: CloudvisionApi, dId: str, interface: str):
         interface (str): Name of interface to get mode information for.
     """
     pathElts = ["Sysdb", "bridging", "switchIntfConfig", "switchIntfConfig", interface]
-    query = [create_query([(pathElts, [])], dId)]
-    query = unfreeze_frozen_dict(query)
 
-    for batch in client.get(query):
+    for batch in clean_query_results(pathElts, client, dId):
         for notif in batch["notifications"]:
             if notif["updates"].get("switchportMode"):
                 return notif["updates"]["switchportMode"]["Name"]
     return "Unknown"
+
+
+def get_all_interface_modes(client: CloudvisionApi, dId: str) -> dict:
+    """Fetch switchport modes for every interface on a device in a single query.
+
+    Args:
+        client (CloudvisionApi): CloudVision connection.
+        dId (str): Device ID to retrieve modes for.
+
+    Returns:
+        dict[str, str]: Mapping of interface name to switchport mode (e.g. "trunk",
+        "access"). Interfaces with no mode data are omitted; callers should fall back
+        to "Unknown".
+    """
+    pathElts = ["Sysdb", "bridging", "switchIntfConfig", "switchIntfConfig", Wildcard()]
+
+    modes = {}
+    for batch in clean_query_results(pathElts, client, dId):
+        for notif in batch["notifications"]:
+            mode = notif["updates"].get("switchportMode")
+            if not mode:
+                continue
+            intf = notif["path_elements"][-1]
+            modes[intf] = mode["Name"]
+    return modes
 
 
 def get_port_type(port_info: dict, transceiver: str) -> str:
@@ -762,14 +807,47 @@ def get_interface_description(client: CloudvisionApi, dId: str, interface: str):
         pathElts = ["Sysdb", "interface", "config", "eth", "lag", "intfConfig", interface]
     else:
         pathElts = ["Sysdb", "interface", "config", "eth", "phy", "slice", "1", "intfConfig", interface]
-    query = [create_query([(pathElts, [])], dId)]
-    query = unfreeze_frozen_dict(query)
 
-    for batch in client.get(query):
+    for batch in clean_query_results(pathElts, client, dId):
         for notif in batch["notifications"]:
             if notif["updates"].get("description") and notif["updates"]["description"] is not None:
                 return notif["updates"]["description"]
     return ""
+
+
+def get_all_interface_descriptions(client: CloudvisionApi, dId: str) -> dict:
+    """Fetch descriptions for every interface on a device.
+
+    CloudVision stores interface descriptions under two different path shapes:
+    physical Ethernet at config/eth/phy/slice/<slice>/intfConfig/<intf>, and
+    everything else (Port-Channel, L3, Vlan, Loopback, ...) at config/<x>/<y>/intfConfig/<intf>.
+    Each Wildcard() matches exactly one segment, so two queries are required.
+
+    Args:
+        client (CloudvisionApi): CloudVision connection.
+        dId (str): Device ID to retrieve descriptions for.
+
+    Returns:
+        dict[str, str]: Mapping of interface name to description. Interfaces with no
+        description are omitted; callers should fall back to "".
+    """
+    paths = [
+        # Physical Ethernet: eth/phy/slice/<slice>/intfConfig/<intf>
+        ["Sysdb", "interface", "config", "eth", "phy", "slice", Wildcard(), "intfConfig", Wildcard()],
+        # Non-physical (Port-Channel, L3, Vlan, Loopback, ...): <x>/<y>/intfConfig/<intf>
+        ["Sysdb", "interface", "config", Wildcard(), Wildcard(), "intfConfig", Wildcard()],
+    ]
+
+    descriptions = {}
+    for pathElts in paths:
+        for batch in clean_query_results(pathElts, client, dId):
+            for notif in batch["notifications"]:
+                updates = notif["updates"]
+                intf = updates.get("intfId")
+                description = updates.get("description")
+                if intf and description:
+                    descriptions[intf] = description
+    return descriptions
 
 
 def get_routed_interface_description(client: CloudvisionApi, dId: str, interface: str) -> str:
@@ -784,9 +862,8 @@ def get_routed_interface_description(client: CloudvisionApi, dId: str, interface
         interface (str): Name of interface to get description for.
     """
     pathElts = ["Sysdb", "interface", "config", Wildcard(), Wildcard(), "intfConfig", Wildcard()]
-    query = [create_query([(pathElts, [])], dId)]
 
-    for batch in client.get(query):
+    for batch in clean_query_results(pathElts, client, dId):
         for notif in batch["notifications"]:
             updates = notif["updates"]
             if updates.get("intfId") == interface:
@@ -803,10 +880,8 @@ def get_interface_vrf(client: CloudvisionApi, dId: str, interface: str) -> str:
         interface (str): Name of interface to get mode information for.
     """
     pathElts = ["Sysdb", "l3", "intf", "config", "intfConfig", interface]
-    query = [create_query([(pathElts, [])], dId)]
-    query = unfreeze_frozen_dict(query)
 
-    for batch in client.get(query):
+    for batch in clean_query_results(pathElts, client, dId):
         for notif in batch["notifications"]:
             if notif["updates"].get("vrf"):
                 return notif["updates"]["vrf"]["value"]
@@ -821,28 +896,27 @@ def get_ip_interfaces(client: CloudvisionApi, dId: str):
         dId (str): Device ID to retrieve IP Addresses and associated interfaces for.
     """
     pathElts = ["Sysdb", "ip", "config", "ipIntfConfig", Wildcard()]
-    query = [create_query([(pathElts, [])], dId)]
-    query = unfreeze_frozen_dict(query)
 
     ip_intfs = []
-    for batch in client.get(query):
-        new_intf = {}
-        addr_with_mask = None
-        virtual_addr_with_mask = None
+    for batch in clean_query_results(pathElts, client, dId):
+        # Group notifications by the wildcarded interface name from the path. gRPC can coalesce
+        # multiple interfaces into one batch, so per-batch accumulators would silently overwrite
+        # earlier interfaces' state.
+        per_intf = {}
         for notif in batch["notifications"]:
-            results = notif["updates"]
-            if results.get("intfId"):
-                new_intf["interface"] = results["intfId"]
-            if results.get("addrWithMask") and results["addrWithMask"] != "0.0.0.0/0":
-                addr_with_mask = results["addrWithMask"]
-            if results.get("virtualAddrWithMask") and results["virtualAddrWithMask"] != "0.0.0.0/0":
-                virtual_addr_with_mask = results["virtualAddrWithMask"]
-        if addr_with_mask:
-            new_intf["address"] = addr_with_mask
-        elif virtual_addr_with_mask:
-            new_intf["address"] = virtual_addr_with_mask
-        if new_intf.get("interface") and new_intf.get("address"):
-            ip_intfs.append(new_intf)
+            intf_name = notif["path_elements"][-1]
+            entry = per_intf.setdefault(intf_name, {})
+            updates = notif["updates"]
+            if updates.get("intfId"):
+                entry["interface"] = updates["intfId"]
+            if updates.get("addrWithMask") and updates["addrWithMask"] != "0.0.0.0/0":
+                entry["addr"] = updates["addrWithMask"]
+            if updates.get("virtualAddrWithMask") and updates["virtualAddrWithMask"] != "0.0.0.0/0":
+                entry["virtual_addr"] = updates["virtualAddrWithMask"]
+        for entry in per_intf.values():
+            address = entry.get("addr") or entry.get("virtual_addr")
+            if entry.get("interface") and address:
+                ip_intfs.append({"interface": entry["interface"], "address": address})
     return ip_intfs
 
 

@@ -122,6 +122,9 @@ class CloudvisionAdapter(Adapter):
         port_info = port_channels + port_info
 
         member_map = cloudvision.get_port_channel_members(client=self.conn, dId=device.serial)
+        mode_map = cloudvision.get_all_interface_modes(client=self.conn, dId=device.serial)
+        transceiver_map = cloudvision.get_all_interface_transceivers(client=self.conn, dId=device.serial)
+        description_map = cloudvision.get_all_interface_descriptions(client=self.conn, dId=device.serial)
 
         if self.job.debug:
             self.job.logger.debug(f"Device being loaded: {device.name}. Port: {port_info}.")
@@ -130,20 +133,14 @@ class CloudvisionAdapter(Adapter):
             if self.job.debug:
                 self.job.logger.debug(f"Port {port['interface']} being loaded for {device.name}.")
 
-            port_mode = cloudvision.get_interface_mode(client=self.conn, dId=device.serial, interface=port["interface"])
-            transceiver = cloudvision.get_interface_transceiver(
-                client=self.conn, dId=device.serial, interface=port["interface"]
-            )
+            port_mode = mode_map.get(port["interface"], "Unknown")
+            transceiver = transceiver_map.get(port["interface"], "Unknown")
 
             if transceiver == "Unknown":
                 # Breakout transceivers, ie 40G -> 4x10G, shows up as 4 interfaces and requires looking at base interface to find transceiver, ie Ethernet1 if Ethernet1/1
                 base_port_name = re.sub(r"/\d", "", port["interface"])
-                transceiver = cloudvision.get_interface_transceiver(
-                    client=self.conn, dId=device.serial, interface=base_port_name
-                )
-            port_description = cloudvision.get_interface_description(
-                client=self.conn, dId=device.serial, interface=port["interface"]
-            )
+                transceiver = transceiver_map.get(base_port_name, "Unknown")
+            port_description = description_map.get(port["interface"], "")
             port_status = cloudvision.get_interface_status(port_info=port)
             port_type = cloudvision.get_port_type(port_info=port, transceiver=transceiver)
             if port["interface"] != "":

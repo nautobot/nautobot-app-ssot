@@ -306,22 +306,9 @@ class TestCloudvisionUtils(TestCase):
 
     def test_get_interfaces_chassis(self):
         """Test get_interfaces_chassis method."""
-        mock_query = MagicMock()
-        mock_query.dataset.type = "device"
-        mock_query.dataset.name = "JPE12345678"
-        mock_query.paths.path_elements = [
-            "\304\005Sysdb",
-            "\304\tinterface",
-            "\304\006status",
-            "\304\003eth",
-            "\304\003phy",
-            "\304\005slice",
-        ]
+        mock_get_query = MagicMock(return_value={"Linecard1": None})
 
-        mock_lc = MagicMock()
-        mock_lc.return_value = {"Linecard1": None}
-
-        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.unfreeze_frozen_dict", mock_lc):
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.get_query", mock_get_query):
             self.client.get = MagicMock()
             self.client.get.return_value = fixtures.CHASSIS_INTF_QUERY
             results = cloudvision.get_interfaces_chassis(client=self.client, dId="JPE12345678")
@@ -627,3 +614,178 @@ class TestCloudvisionUtils(TestCase):
             results = cloudvision.get_ip_interfaces(client=self.client, dId="JPE12345678")
         expected = fixtures.IP_INTF_SPLIT_NOTIF_FIXTURE
         self.assertEqual(results, expected)
+
+    def test_get_all_interface_modes_bulk(self):
+        """Test get_all_interface_modes returns a dict keyed by interface name."""
+        batches = [
+            {
+                "notifications": [
+                    {
+                        "path_elements": [
+                            "Sysdb",
+                            "bridging",
+                            "switchIntfConfig",
+                            "switchIntfConfig",
+                            "Ethernet1",
+                        ],
+                        "updates": {"switchportMode": {"Name": "trunk"}},
+                    },
+                    {
+                        "path_elements": [
+                            "Sysdb",
+                            "bridging",
+                            "switchIntfConfig",
+                            "switchIntfConfig",
+                            "Ethernet2",
+                        ],
+                        "updates": {"switchportMode": {"Name": "access"}},
+                    },
+                    {
+                        "path_elements": [
+                            "Sysdb",
+                            "bridging",
+                            "switchIntfConfig",
+                            "switchIntfConfig",
+                            "Ethernet3",
+                        ],
+                        "updates": {},
+                    },
+                ]
+            }
+        ]
+        with patch("cloudvision.Connector.grpc_client.grpcClient.create_query", MagicMock()):
+            self.client.get = MagicMock(return_value=batches)
+            results = cloudvision.get_all_interface_modes(client=self.client, dId="JPE12345678")
+        self.assertEqual(results, {"Ethernet1": "trunk", "Ethernet2": "access"})
+
+    def test_get_all_interface_transceivers_bulk(self):
+        """Test get_all_interface_transceivers returns a dict keyed by interface name."""
+        batches = [
+            {
+                "notifications": [
+                    {
+                        "path_elements": ["Sysdb", "hardware", "archer", "xcvr", "status", "all", "Ethernet1"],
+                        "updates": {"actualIdEepromContents": {"mediaType": "40GBASE-PLR4"}},
+                    },
+                    {
+                        "path_elements": ["Sysdb", "hardware", "archer", "xcvr", "status", "all", "Ethernet2"],
+                        "updates": {"mediaType": {"Name": "xcvr10GBaseSR"}},
+                    },
+                    {
+                        "path_elements": ["Sysdb", "hardware", "archer", "xcvr", "status", "all", "Ethernet3"],
+                        "updates": {"localMediaType": {"Name": "xcvr1000BaseT"}},
+                    },
+                    {
+                        "path_elements": ["Sysdb", "hardware", "archer", "xcvr", "status", "all", "Ethernet4"],
+                        "updates": {},
+                    },
+                ]
+            }
+        ]
+        with patch("cloudvision.Connector.grpc_client.grpcClient.create_query", MagicMock()):
+            self.client.get = MagicMock(return_value=batches)
+            results = cloudvision.get_all_interface_transceivers(client=self.client, dId="JPE12345678")
+        self.assertEqual(
+            results,
+            {
+                "Ethernet1": "40GBASE-PLR4",
+                "Ethernet2": "xcvr10GBaseSR",
+                "Ethernet3": "xcvr1000BaseT",
+            },
+        )
+
+    def test_get_all_interface_descriptions_bulk(self):
+        """Test get_all_interface_descriptions returns a dict keyed by intfId.
+
+        Two queries are issued (physical eth/phy/slice path and non-physical wildcard path);
+        each Wildcard() matches exactly one path segment, so a single wildcard query cannot
+        cover both shapes. The mock returns physical descriptions on the first call and
+        non-physical descriptions on the second.
+        """
+        physical_batch = [
+            {
+                "notifications": [
+                    {
+                        "path_elements": [
+                            "Sysdb",
+                            "interface",
+                            "config",
+                            "eth",
+                            "phy",
+                            "slice",
+                            "1",
+                            "intfConfig",
+                            "Ethernet1",
+                        ],
+                        "updates": {"intfId": "Ethernet1", "description": "uplink to spine"},
+                    },
+                    {
+                        "path_elements": [
+                            "Sysdb",
+                            "interface",
+                            "config",
+                            "eth",
+                            "phy",
+                            "slice",
+                            "1",
+                            "intfConfig",
+                            "Ethernet2",
+                        ],
+                        "updates": {"intfId": "Ethernet2", "description": ""},
+                    },
+                ]
+            }
+        ]
+        non_physical_batch = [
+            {
+                "notifications": [
+                    {
+                        "path_elements": [
+                            "Sysdb",
+                            "interface",
+                            "config",
+                            "eth",
+                            "lag",
+                            "intfConfig",
+                            "Port-Channel1",
+                        ],
+                        "updates": {"intfId": "Port-Channel1", "description": "bonded uplink"},
+                    },
+                    {
+                        "path_elements": [
+                            "Sysdb",
+                            "interface",
+                            "config",
+                            "l3",
+                            "intf",
+                            "intfConfig",
+                            "Loopback0",
+                        ],
+                        "updates": {"intfId": "Loopback0", "description": "router id"},
+                    },
+                ]
+            }
+        ]
+        with patch("cloudvision.Connector.grpc_client.grpcClient.create_query", MagicMock()):
+            self.client.get = MagicMock(side_effect=[physical_batch, non_physical_batch])
+            results = cloudvision.get_all_interface_descriptions(client=self.client, dId="JPE12345678")
+        self.assertEqual(
+            results,
+            {
+                "Ethernet1": "uplink to spine",
+                "Port-Channel1": "bonded uplink",
+                "Loopback0": "router id",
+            },
+        )
+
+    def test_get_ip_interfaces_coalesced_batch(self):
+        """Test get_ip_interfaces when CloudVision coalesces multiple interfaces into one batch.
+
+        Regression: gRPC can pack notifications for several interfaces into a single batch when
+        the query uses Wildcard(). Per-batch accumulators would silently merge or overwrite
+        interfaces. Group by notif["path_elements"][-1] (interface name) instead.
+        """
+        with patch("cloudvision.Connector.grpc_client.grpcClient.create_query", MagicMock()):
+            self.client.get = MagicMock(return_value=fixtures.IP_INTF_COALESCED_BATCH_QUERY)
+            results = cloudvision.get_ip_interfaces(client=self.client, dId="JPE12345678")
+        self.assertEqual(results, fixtures.IP_INTF_COALESCED_BATCH_FIXTURE)

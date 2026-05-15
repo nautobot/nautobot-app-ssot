@@ -1,0 +1,10 @@
+[
+    {
+        "interface": "Ethernet1",
+        "address": "10.0.0.1/30"
+    },
+    {
+        "interface": "Ethernet2",
+        "address": "10.0.0.5/30"
+    }
+]
