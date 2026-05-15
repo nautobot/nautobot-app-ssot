@@ -90,10 +90,8 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         """Test the load_interfaces() adapter method."""
         mock_device = MagicMock()
         mock_device.name = "mock_device"
-        mock_device.serial = MagicMock()
-        mock_device.serial.return_value = "JPE12345678"
-        mock_device.device_model = MagicMock()
-        mock_device.device_model.return_value = "DCS-7280CR2-60"
+        mock_device.serial = "JPE12345678"
+        mock_device.device_model = "DCS-7280CR2-60"
 
         with patch(
             "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_device_type",
@@ -202,8 +200,7 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         """Test the load_ip_addresses() adapter method."""
         mock_device = MagicMock()
         mock_device.name = "mock_device"
-        mock_device.serial = MagicMock()
-        mock_device.serial.return_value = "JPE12345678"
+        mock_device.serial = "JPE12345678"
 
         with (
             patch(
