@@ -434,3 +434,17 @@ class TestNautobotIPAddressOnInterface(TransactionTestCase):
         new_map = self.adapter.objects_to_create["mappings"][0]
         self.assertEqual(new_map.ip_address.host, ids["host"])
         self.assertEqual(new_map.interface.name, ids["port"])
+
+class TestVirtualChassis(TransactionTestCase):
+    """Test VirtualChassis create, update and delete."""
+
+    def setUp(self):
+        super().setUp()
+
+        self.status_active = Status.objects.get(name="Active")
+        self.site_lt = LocationType.objects.get_or_create(name="Site")[0]
+
+        self.adapter = Adapter()
+        self.adapter.job = MagicMock()
+        self.adapter.objects_to_create = {"mappings": [], "primary_ip4": []}  # pylint: disable=no-member
+        self.ga_tenant = Tenant.objects.create(name="G&A")

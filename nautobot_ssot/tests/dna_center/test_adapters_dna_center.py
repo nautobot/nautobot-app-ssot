@@ -34,6 +34,8 @@ from nautobot_ssot.tests.dna_center.fixtures import (
     LOCATION_FIXTURE,
     MULTI_LEVEL_LOCATION_FIXTURE,
     PORT_FIXTURE,
+    DEVICE_STACK_FIXTURE,
+    DEVICE_STACK_DETAILS_FIXTURE
 )
 
 
@@ -355,3 +357,13 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.dna_center.dnac_location_map = {}
         self.dna_center.build_dnac_location_map(locations=MULTI_LEVEL_LOCATION_FIXTURE)
         self.assertEqual(self.dna_center.dnac_location_map, EXPECTED_DNAC_LOCATION_MAP_W_MULTI_LEVEL_LOCATIONS)
+
+    def test_load_virtual_chassis(self):
+        """Test Nautobot adapter load_virtual_chassis() functions."""
+        self.dna_center.load_ports = MagicMock()
+        self.dna_center.load_devices()
+        self.assertEqual(
+            {f"{dev['hostname']}" for dev in DEVICE_FIXTURE if dev.get("hostname")},
+            {dev.get_unique_id() for dev in self.dna_center.get_all("device")},
+        )
+        self.dna_center.load_ports.assert_called()

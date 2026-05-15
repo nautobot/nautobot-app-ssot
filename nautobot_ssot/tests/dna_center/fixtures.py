@@ -9,6 +9,7 @@ def load_json(path):
         return json.loads(file.read())
 
 
+ROOT_DIR = "./nautobot_ssot/tests/dna_center/fixtures"
 LOCATION_FIXTURE = load_json(path="./nautobot_ssot/tests/dna_center/fixtures/get_locations.json")
 LOCATION_WO_GLOBAL_FIXTURE = load_json(path="./nautobot_ssot/tests/dna_center/fixtures/get_locations_wo_global.json")
 EXPECTED_BUILDING_MAP = load_json(path="./nautobot_ssot/tests/dna_center/fixtures/expected_building_map.json")
@@ -38,3 +39,5 @@ EXPECTED_DNAC_LOCATION_MAP_W_MULTI_LEVEL_LOCATIONS = load_json(
 DEVICE_DETAIL_MULTI_LEVEL_FIXTURE = load_json(
     path="./nautobot_ssot/tests/dna_center/fixtures/get_device_detail_multi_level.json"
 )
+DEVICE_STACK_FIXTURE = load_json(path=f"{ROOT_DIR}/get_stack_network_device.json")
+DEVICE_STACK_DETAILS_FIXTURE = load_json(path=f"{ROOT_DIR}/get_stack_network_device_detail.json")

@@ -1,0 +1,221 @@
+{
+  "response": {
+    "deviceId": "9f1e9ab8-3f07-4997-98a8-75e4dbb6120c",
+    "stackSwitchInfo": [
+      {
+        "hwPriority": 0,
+        "macAddress": "c0:f8:7f:7c:0d:80",
+        "numNextReload": 1,
+        "role": "ACTIVE",
+        "softwareImage": "17.15.03",
+        "stackMemberNumber": 1,
+        "state": "READY",
+        "switchPriority": 15,
+        "entPhysicalIndex": "1000",
+        "serialNumber": "FJC26161T39",
+        "platformId": "C9300-48UXM"
+      },
+      {
+        "hwPriority": 0,
+        "macAddress": "c0:f8:7f:7c:40:80",
+        "numNextReload": 2,
+        "role": "STANDBY",
+        "softwareImage": "17.15.03",
+        "stackMemberNumber": 2,
+        "state": "READY",
+        "switchPriority": 14,
+        "entPhysicalIndex": "2000",
+        "serialNumber": "FJC261718MR",
+        "platformId": "C9300-48UXM"
+      },
+      {
+        "hwPriority": 0,
+        "macAddress": "dc:0b:09:47:91:00",
+        "numNextReload": 3,
+        "role": "MEMBER",
+        "softwareImage": "17.15.03",
+        "stackMemberNumber": 3,
+        "state": "READY",
+        "switchPriority": 13,
+        "entPhysicalIndex": "3000",
+        "serialNumber": "FOC2634Y7RL",
+        "platformId": "C9300-48UXM"
+      },
+      {
+        "hwPriority": 0,
+        "macAddress": "dc:0b:09:47:d0:80",
+        "numNextReload": 4,
+        "role": "MEMBER",
+        "softwareImage": "17.15.03",
+        "stackMemberNumber": 4,
+        "state": "READY",
+        "switchPriority": 12,
+        "entPhysicalIndex": "4000",
+        "serialNumber": "FOC2634Y7RX",
+        "platformId": "C9300-48UXM"
+      },
+      {
+        "hwPriority": 0,
+        "macAddress": "dc:0b:09:5a:ea:80",
+        "numNextReload": 5,
+        "role": "MEMBER",
+        "softwareImage": "17.15.03",
+        "stackMemberNumber": 5,
+        "state": "READY",
+        "switchPriority": 11,
+        "entPhysicalIndex": "5000",
+        "serialNumber": "FOC2634Y752",
+        "platformId": "C9300-48UXM"
+      },
+      {
+        "hwPriority": 0,
+        "macAddress": "04:bd:97:df:4b:00",
+        "numNextReload": 6,
+        "role": "MEMBER",
+        "softwareImage": "17.15.03",
+        "stackMemberNumber": 6,
+        "state": "READY",
+        "switchPriority": 10,
+        "entPhysicalIndex": "6000",
+        "serialNumber": "FJC26161SUV",
+        "platformId": "C9300-48UXM"
+      }
+    ],
+    "stackPortInfo": [
+      {
+        "isSynchOk": "Yes",
+        "name": "StackSub-St1-1",
+        "switchPort": "1/1",
+        "neighborPort": "6/2",
+        "nrLinkOkChanges": 1,
+        "stackCableLengthInfo": "_50_CM",
+        "stackPortOperStatusInfo": "OK",
+        "linkActive": true,
+        "linkOk": true
+      },
+      {
+        "isSynchOk": "Yes",
+        "name": "StackSub-St5-2",
+        "switchPort": "5/2",
+        "neighborPort": "6/1",
+        "nrLinkOkChanges": 1,
+        "stackCableLengthInfo": "_50_CM",
+        "stackPortOperStatusInfo": "OK",
+        "linkActive": true,
+        "linkOk": true
+      },
+      {
+        "isSynchOk": "Yes",
+        "name": "StackSub-St6-2",
+        "switchPort": "6/2",
+        "neighborPort": "1/1",
+        "nrLinkOkChanges": 1,
+        "stackCableLengthInfo": "_50_CM",
+        "stackPortOperStatusInfo": "OK",
+        "linkActive": true,
+        "linkOk": true
+      },
+      {
+        "isSynchOk": "Yes",
+        "name": "StackSub-St5-1",
+        "switchPort": "5/1",
+        "neighborPort": "4/2",
+        "nrLinkOkChanges": 1,
+        "stackCableLengthInfo": "_50_CM",
+        "stackPortOperStatusInfo": "OK",
+        "linkActive": true,
+        "linkOk": true
+      },
+      {
+        "isSynchOk": "Yes",
+        "name": "StackSub-St1-2",
+        "switchPort": "1/2",
+        "neighborPort": "2/1",
+        "nrLinkOkChanges": 1,
+        "stackCableLengthInfo": "_50_CM",
+        "stackPortOperStatusInfo": "OK",
+        "linkActive": true,
+        "linkOk": true
+      },
+      {
+        "isSynchOk": "Yes",
+        "name": "StackSub-St3-1",
+        "switchPort": "3/1",
+        "neighborPort": "2/2",
+        "nrLinkOkChanges": 1,
+        "stackCableLengthInfo": "_50_CM",
+        "stackPortOperStatusInfo": "OK",
+        "linkActive": true,
+        "linkOk": true
+      },
+      {
+        "isSynchOk": "Yes",
+        "name": "StackSub-St4-1",
+        "switchPort": "4/1",
+        "neighborPort": "3/2",
+        "nrLinkOkChanges": 1,
+        "stackCableLengthInfo": "_50_CM",
+        "stackPortOperStatusInfo": "OK",
+        "linkActive": true,
+        "linkOk": true
+      },
+      {
+        "isSynchOk": "Yes",
+        "name": "StackSub-St2-2",
+        "switchPort": "2/2",
+        "neighborPort": "3/1",
+        "nrLinkOkChanges": 1,
+        "stackCableLengthInfo": "_50_CM",
+        "stackPortOperStatusInfo": "OK",
+        "linkActive": true,
+        "linkOk": true
+      },
+      {
+        "isSynchOk": "Yes",
+        "name": "StackSub-St2-1",
+        "switchPort": "2/1",
+        "neighborPort": "1/2",
+        "nrLinkOkChanges": 1,
+        "stackCableLengthInfo": "_50_CM",
+        "stackPortOperStatusInfo": "OK",
+        "linkActive": true,
+        "linkOk": true
+      },
+      {
+        "isSynchOk": "Yes",
+        "name": "StackSub-St4-2",
+        "switchPort": "4/2",
+        "neighborPort": "5/1",
+        "nrLinkOkChanges": 1,
+        "stackCableLengthInfo": "_50_CM",
+        "stackPortOperStatusInfo": "OK",
+        "linkActive": true,
+        "linkOk": true
+      },
+      {
+        "isSynchOk": "Yes",
+        "name": "StackSub-St6-1",
+        "switchPort": "6/1",
+        "neighborPort": "5/2",
+        "nrLinkOkChanges": 1,
+        "stackCableLengthInfo": "_50_CM",
+        "stackPortOperStatusInfo": "OK",
+        "linkActive": true,
+        "linkOk": true
+      },
+      {
+        "isSynchOk": "Yes",
+        "name": "StackSub-St3-2",
+        "switchPort": "3/2",
+        "neighborPort": "4/1",
+        "nrLinkOkChanges": 1,
+        "stackCableLengthInfo": "_50_CM",
+        "stackPortOperStatusInfo": "OK",
+        "linkActive": true,
+        "linkOk": true
+      }
+    ],
+    "svlSwitchInfo": null
+  },
+  "version": "1.0"
+}

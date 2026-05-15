@@ -343,6 +343,9 @@ class DnaCenterAdapter(Adapter):
             self.job.logger.warning(
                 f"Unable to find {self.job.building_loctype.name} {bldg_name} for {self.job.floor_loctype.name} {floor_name}. {err}"
             )
+    
+    def load_virtual_chassis(self, *args):
+        """Load VirtualChassis device from DNA Center."""
 
     def load_devices(self):
         """Load Device data from DNA Center info DiffSync models."""
@@ -408,6 +411,10 @@ class DnaCenterAdapter(Adapter):
                 self.failed_import_devices.append(dev)
                 continue
             self.load_device_location_tree(dev_details, loc_data)
+            # "FJC26161T39, FJC261718MR, FOC2634Y7RL, FOC2634Y7RX, FOC2634Y752, FJC26161SUV"
+            if dev.get("serial").split(",") > 1:
+                self.load_virtual_chassis()
+                continue
             try:
                 if self.job.debug:
                     self.job.logger.info(
