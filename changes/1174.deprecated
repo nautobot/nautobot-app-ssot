@@ -1,0 +1,1 @@
+Deprecated `nautobot_ssot.integrations.aristacv.utils.cloudvision.get_cvp_version` in favor of `CloudvisionApi(config).get_version()`.

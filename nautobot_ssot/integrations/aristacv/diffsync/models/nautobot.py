@@ -117,6 +117,8 @@ class NautobotDevice(Device):
         # If version is in attrs, but didn't trigger the condition directly above, it must be changing to None
         elif "version" in attrs and dev.software_version:
             dev.software_version = None
+        if "status" in attrs:
+            dev.status = OrmStatus.objects.get(name=attrs["status"])
         try:
             dev.validated_save()
             return super().update(attrs)
