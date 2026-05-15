@@ -11,8 +11,8 @@ To install the App, please follow the instructions detailed in the [Installation
 By default this Nautobot app provides an example Data Source Job and example Data Target Job. You can run this example job to get a feel for the capabilities of the Nautobot app.
 
 ---
-![Example Jobs](../images/example_jobs.png)
-
+![Example Jobs](../images/example_jobs_light.png#only-light){ .on-glb }
+![Example Jobs](../images/example_jobs_dark.png#only-dark){ .on-glb }
 
 However, to get the most out of this Nautobot app you will want to find other existing Jobs and/or [create your own Jobs](../dev/jobs.md). Such Jobs can be installed like any other Nautobot Job:
 
@@ -20,12 +20,12 @@ However, to get the most out of this Nautobot app you will want to find other ex
 * by [inclusion in a Git repository](https://nautobot.readthedocs.io/en/stable/models/extras/gitrepository/#jobs) which can be configured in Nautobot and refreshed on demand
 * by [manual installation of individual Job source files](https://nautobot.readthedocs.io/en/stable/additional-features/jobs/#writing-jobs) to Nautobot's `JOBS_ROOT` directory
 
-
 Example screenshots of possible Data Sources and Data Targets are shown below.
 
 ---
 
-![Example data source - Arista CloudVision](../images/example_cloudvision.png)
+![Example data source - DNA Center to Nautobot](../images/example_dna_center_light.png#only-light){ .on-glb }
+![Example data source - DNA Center to Nautobot](../images/example_dna_center_dark.png#only-dark){ .on-glb }
 
 ---
 
