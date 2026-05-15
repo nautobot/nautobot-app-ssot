@@ -49,7 +49,7 @@ class CloudvisionAdapter(Adapter):
                 "Configuration found for aristacv_hostname_patterns but no aristacv_site_mappings or aristacv_role_mappings. Please ensure your mappings are defined."
             )
         if config.create_controller:
-            cvp_version = cloudvision.get_cvp_version(config)
+            cvp_version = self.conn.get_version()
             cvp_ver_cf = self.cf(name="arista_eos", value=cvp_version, device_name="CloudVision")
             try:
                 self.add(cvp_ver_cf)
@@ -70,32 +70,31 @@ class CloudvisionAdapter(Adapter):
             except ObjectAlreadyExists as err:
                 self.job.logger.warning(f"Error attempting to add CloudVision device. {err}")
 
-        for index, dev in enumerate(
-            cloudvision.get_devices(
-                client=self.conn.comm_channel, logger=self.job.logger, import_active=config.import_active
-            ),
-            start=1,
-        ):
+        for index, dev in enumerate(self.conn.get_inventory()):
+            dev_status = "Active" if dev["streamingStatus"] == "active" else "Offline"
+            if config.import_active and dev_status != "Active":
+                continue
             if self.job.debug:
-                self.job.logger.info(f"Loading {index}° device")
+                self.job.logger.info(f"Loading {index + 1}° device")
             if dev["hostname"] != "":
                 new_device = self.device(
                     name=dev["hostname"],
-                    serial=dev["device_id"],
-                    status=dev["status"],
-                    device_model=dev["model"],
-                    version=dev["sw_ver"],
+                    serial=dev["serialNumber"],
+                    status=dev_status,
+                    device_model=dev["modelName"],
+                    version=dev["version"],
                     uuid=None,
                 )
                 try:
                     self.add(new_device)
                 except ObjectAlreadyExists as err:
                     self.job.logger.warning(
-                        f"Duplicate device {dev['hostname']} {dev['device_id']} found and ignored. {err}"
+                        f"Duplicate device {dev['hostname']} {dev['serialNumber']} found and ignored. {err}"
                     )
                     continue
                 self.load_interfaces(device=new_device)
-                self.load_ip_addresses(dev=new_device)
+                primary_ip = dev["ipAddress"]
+                self.load_ip_addresses(dev=new_device, primary_ip=primary_ip)
                 self.load_device_tags(device=new_device)
             else:
                 self.job.logger.warning(f"Device {dev} is missing hostname so won't be imported.")
@@ -165,7 +164,7 @@ class CloudvisionAdapter(Adapter):
                         f"Duplicate port {port['interface']} found for {device.name} and ignored. {err}"
                     )
 
-    def load_ip_addresses(self, dev: device):
+    def load_ip_addresses(self, dev: device, primary_ip: str):
         """Load IP addresses from CloudVision."""
         dev_ip_intfs = cloudvision.get_ip_interfaces(client=self.conn, dId=dev.serial)
         for intf in dev_ip_intfs:
@@ -230,7 +229,7 @@ class CloudvisionAdapter(Adapter):
                         "device": dev.name,
                         "interface": intf["interface"],
                     },
-                    attrs={"primary": bool("Management" in intf["interface"])},
+                    attrs={"primary": str(ipaddress.ip_interface(intf["address"]).ip) == primary_ip},
                 )
 
     def load_device_tags(self, device):

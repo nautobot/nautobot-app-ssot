@@ -1,0 +1,1 @@
+Fixed Arista CloudVision integration to set the device's primary IP based on the IP CloudVision reports for the device, rather than only on Management interfaces.
