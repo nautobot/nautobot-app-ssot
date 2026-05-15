@@ -662,11 +662,11 @@ def get_ip_interfaces(client: CloudvisionApi, dId: str):
             results = notif["updates"]
             if results.get("intfId"):
                 new_intf["interface"] = results["intfId"]
-            if results.get("addrWithMask"):
+            if results.get("addrWithMask") and results["addrWithMask"] != "0.0.0.0/0":
                 addr_with_mask = results["addrWithMask"]
-            if results.get("virtualAddrWithMask"):
+            if results.get("virtualAddrWithMask") and results["virtualAddrWithMask"] != "0.0.0.0/0":
                 virtual_addr_with_mask = results["virtualAddrWithMask"]
-        if addr_with_mask and addr_with_mask != "0.0.0.0/0":
+        if addr_with_mask:
             new_intf["address"] = addr_with_mask
         elif virtual_addr_with_mask:
             new_intf["address"] = virtual_addr_with_mask
