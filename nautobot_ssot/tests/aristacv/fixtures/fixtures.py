@@ -42,6 +42,9 @@ PORTCHANNEL_DESCRIPTION_QUERY = load_json(
 INTF_DESCRIPTION_QUERY = load_json(
     "./nautobot_ssot/tests/aristacv/fixtures/get_interface_description_client_query.json"
 )
+ROUTED_INTF_DESCRIPTION_QUERY = load_json(
+    "./nautobot_ssot/tests/aristacv/fixtures/get_routed_interface_description_client_query.json"
+)
 TRUNK_INTF_MODE_QUERY = load_json("./nautobot_ssot/tests/aristacv/fixtures/get_interface_mode_client_query_trunk.json")
 ACCESS_INTF_MODE_QUERY = load_json(
     "./nautobot_ssot/tests/aristacv/fixtures/get_interface_mode_client_query_access.json"
