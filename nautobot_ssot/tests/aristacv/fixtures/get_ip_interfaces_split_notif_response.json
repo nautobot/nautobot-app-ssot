@@ -1,0 +1,10 @@
+[
+    {
+        "interface": "Ethernet1",
+        "address": "10.0.0.1/30"
+    },
+    {
+        "interface": "Vlan100",
+        "address": "192.168.1.1/24"
+    }
+]

@@ -826,19 +826,23 @@ def get_ip_interfaces(client: CloudvisionApi, dId: str):
 
     ip_intfs = []
     for batch in client.get(query):
+        new_intf = {}
+        addr_with_mask = None
+        virtual_addr_with_mask = None
         for notif in batch["notifications"]:
             results = notif["updates"]
-            if results.get("intfId") and results.get("addrWithMask"):
-                ip_intfs.append(
-                    {
-                        "interface": results["intfId"],
-                        "address": (
-                            results["addrWithMask"]
-                            if results["addrWithMask"] != "0.0.0.0/0"
-                            else results.get("virtualAddrWithMask")
-                        ),
-                    }
-                )
+            if results.get("intfId"):
+                new_intf["interface"] = results["intfId"]
+            if results.get("addrWithMask") and results["addrWithMask"] != "0.0.0.0/0":
+                addr_with_mask = results["addrWithMask"]
+            if results.get("virtualAddrWithMask") and results["virtualAddrWithMask"] != "0.0.0.0/0":
+                virtual_addr_with_mask = results["virtualAddrWithMask"]
+        if addr_with_mask:
+            new_intf["address"] = addr_with_mask
+        elif virtual_addr_with_mask:
+            new_intf["address"] = virtual_addr_with_mask
+        if new_intf.get("interface") and new_intf.get("address"):
+            ip_intfs.append(new_intf)
     return ip_intfs
 
 
