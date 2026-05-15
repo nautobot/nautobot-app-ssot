@@ -18,7 +18,7 @@ from arista.tag.v2 import models as tag_models
 from arista.tag.v2 import services as tag_services
 from cloudvision.Connector import codec
 from cloudvision.Connector.codec import Wildcard
-from cloudvision.Connector.codec.custom_types import FrozenDict
+from cloudvision.Connector.codec.custom_types import FrozenDict, Path
 from cloudvision.Connector.grpc_client.grpcClient import create_query, to_pbts
 from cvprac.cvp_client import CvpClient, CvpLoginError
 from google.protobuf.wrappers_pb2 import StringValue  # pylint: disable=no-name-in-module
@@ -457,6 +457,26 @@ def unfreeze_frozen_dict(frozen_dict):
     return frozen_dict
 
 
+def unpath(data):
+    """Recursively replace CloudVision ``Path`` objects with plain lists of their elements.
+
+    Args:
+        data: Any nested structure that may contain ``Path`` values.
+
+    Returns:
+        The same structure with each ``Path`` replaced by ``list(path._keys)``.
+    """
+    if isinstance(data, Path):
+        return list(data._keys)  # pylint: disable=protected-access
+    if isinstance(data, (dict, FrozenDict)):
+        return {k: unpath(v) for k, v in data.items()}
+    if isinstance(data, str):
+        return data
+    if isinstance(data, (list, tuple)):
+        return [unpath(item) for item in data]
+    return data
+
+
 def get_device_type(client: CloudvisionApi, dId: str):
     """Returns the type of the device: modular/fixed.
 
@@ -499,12 +519,12 @@ def get_interfaces_chassis(client: CloudvisionApi, dId):
 
         query = [create_query([(pathElts, [])], dataset)]
 
-        for interface in client.get(query):
-            new_intf = {}
-            for notif in interface["notifications"]:
+        for batch in client.get(query):
+            for notif in batch["notifications"]:
                 results = notif["updates"]
-                if results.get("intfId"):
-                    new_intf["interface"] = results["intfId"]
+                if not results.get("intfId"):
+                    continue
+                new_intf = {"interface": results["intfId"]}
                 if results.get("linkStatus"):
                     new_intf["link_status"] = "up" if results["linkStatus"]["Name"] == "linkUp" else "down"
                 if results.get("operStatus"):
@@ -515,7 +535,7 @@ def get_interfaces_chassis(client: CloudvisionApi, dId):
                     new_intf["mac_addr"] = results["burnedInAddr"]
                 if results.get("mtu"):
                     new_intf["mtu"] = results["mtu"]
-            intfStatusChassis.append(new_intf)
+                intfStatusChassis.append(new_intf)
     return intfStatusChassis
 
 
@@ -531,12 +551,12 @@ def get_interfaces_fixed(client: CloudvisionApi, dId: str):
     query = unfreeze_frozen_dict(query)
 
     intfStatusFixed = []
-    for interface in client.get(query):
-        new_intf = {}
-        for notif in interface["notifications"]:
+    for batch in client.get(query):
+        for notif in batch["notifications"]:
             results = notif["updates"]
-            if results.get("intfId"):
-                new_intf["interface"] = results["intfId"]
+            if not results.get("intfId"):
+                continue
+            new_intf = {"interface": results["intfId"]}
             if results.get("enabledState"):
                 new_intf["enabled"] = bool(results["enabledState"]["Name"] == "enabled")
             if results.get("burnedInAddr"):
@@ -547,8 +567,97 @@ def get_interfaces_fixed(client: CloudvisionApi, dId: str):
                 new_intf["oper_status"] = "up" if results["operStatus"]["Name"] == "intfOperUp" else "down"
             if results.get("linkStatus"):
                 new_intf["link_status"] = "up" if results["linkStatus"]["Name"] == "linkUp" else "down"
-        intfStatusFixed.append(new_intf)
+            intfStatusFixed.append(new_intf)
     return intfStatusFixed
+
+
+def clean_query_results(path_elements: List[str], client: CloudvisionApi, dataset: str):
+    """Retrieve and clean up a query to make it easier to use."""
+    query = [create_query([(path_elements, [])], dataset)]
+    query = list(client.get(query))
+    query = unfreeze_frozen_dict(query)
+    query = unpath(query)
+    return query
+
+
+# pylint: disable=too-many-branches
+def get_interfaces_port_channel(client: CloudvisionApi, dId: str):
+    """Gets information about Port-Channel (LAG) interfaces for a device.
+
+    Args:
+        client (CloudvisionApi): CloudVision connection.
+        dId (str): Device ID to retrieve port-channel interfaces for.
+
+    Returns:
+        list[dict]: One entry per Port-Channel with keys ``interface``, ``link_status``,
+        ``oper_status``, ``enabled``, ``mac_addr``, ``mtu``. Empty list when none exist.
+    """
+    status_path = ["Sysdb", "lag", "input", "interface", "lag", "intfStatus", Wildcard()]
+
+    pc_interfaces = {}
+    for batch in clean_query_results(status_path, client, dId):
+        for notif in batch["notifications"]:
+            results = notif["updates"]
+            intf_id = results.get("intfId")
+            if not intf_id:
+                continue
+            entry = pc_interfaces.setdefault(intf_id, {"interface": intf_id})
+            if results.get("linkStatus"):
+                entry["link_status"] = "up" if results["linkStatus"]["Name"] == "linkUp" else "down"
+            if results.get("operStatus"):
+                entry["oper_status"] = "up" if results["operStatus"]["Name"] == "intfOperUp" else "down"
+            if results.get("addr"):
+                entry["mac_addr"] = results["addr"]
+            if results.get("mtu"):
+                entry["mtu"] = results["mtu"]
+            if "active" in results and "enabled" not in entry:
+                entry["enabled"] = bool(results["active"])
+
+    config_path = ["Sysdb", "interface", "config", "eth", "lag", "intfConfig", Wildcard()]
+
+    for batch in clean_query_results(config_path, client, dId):
+        for notif in batch["notifications"]:
+            results = notif["updates"]
+            name = results.get("name")
+            if not name:
+                continue
+            entry = pc_interfaces.setdefault(name, {"interface": name})
+            if results.get("mtu") and not entry.get("mtu"):
+                entry["mtu"] = results["mtu"]
+            if results.get("addr") and not entry.get("mac_addr"):
+                entry["mac_addr"] = results["addr"]
+            if "enabled" not in entry:
+                state_local = results.get("enabledStateLocal")
+                if isinstance(state_local, dict) and state_local.get("Name"):
+                    entry["enabled"] = state_local["Name"] == "enabled"
+                elif "enabledDefault" in results:
+                    entry["enabled"] = bool(results["enabledDefault"])
+
+    return list(pc_interfaces.values())
+
+
+def get_port_channel_members(client: CloudvisionApi, dId: str) -> dict:
+    """Map physical Ethernet interfaces to the Port-Channel they are bundled into.
+
+    Args:
+        client (CloudvisionApi): CloudVision connection.
+        dId (str): Device ID to retrieve member relationships for.
+
+    Returns:
+        dict[str, str]: Mapping of physical interface name to its Port-Channel name.
+        Empty dict when the device has no LAG members.
+    """
+    pathElts = ["Sysdb", "lag", "input", "config", "cli", "phyIntf", Wildcard()]
+
+    members = {}
+    for batch in clean_query_results(pathElts, client, dId):
+        for notif in batch["notifications"]:
+            results = notif["updates"]
+            intf_id = results.get("intfId")
+            lag_path = results.get("lag")
+            if intf_id and isinstance(lag_path, list) and lag_path:
+                members[intf_id] = lag_path[-1]
+    return members
 
 
 def get_interface_transceiver(client: CloudvisionApi, dId: str, interface: str):
@@ -630,16 +739,15 @@ def get_interface_status(port_info: dict) -> str:
     Returns:
         str: The status of a port: active|decommissioned|maintenance|planned.
     """
-    status = "Decommissioning"
-    if port_info["oper_status"] == "up" and port_info["link_status"] == "up":
-        status = "Active"
-
-    if port_info["oper_status"] == "up" and port_info["link_status"] == "down":
-        status = "Planned"
-
-    if port_info["oper_status"] == "down" and port_info["link_status"] == "down":
-        status = "Maintenance"
-    return status
+    oper = port_info.get("oper_status")
+    link = port_info.get("link_status")
+    if oper == "up" and link == "up":
+        return "Active"
+    if oper == "up" and link == "down":
+        return "Planned"
+    if oper == "down" and link == "down":
+        return "Maintenance"
+    return "Decommissioning"
 
 
 def get_interface_description(client: CloudvisionApi, dId: str, interface: str):
@@ -650,7 +758,10 @@ def get_interface_description(client: CloudvisionApi, dId: str, interface: str):
         dId (str): Device ID to get description for.
         interface (str): Name of interface to get description for.
     """
-    pathElts = ["Sysdb", "interface", "config", "eth", "phy", "slice", "1", "intfConfig", interface]
+    if interface.startswith("Port-Channel"):
+        pathElts = ["Sysdb", "interface", "config", "eth", "lag", "intfConfig", interface]
+    else:
+        pathElts = ["Sysdb", "interface", "config", "eth", "phy", "slice", "1", "intfConfig", interface]
     query = [create_query([(pathElts, [])], dId)]
     query = unfreeze_frozen_dict(query)
 

@@ -83,7 +83,7 @@ class NautobotAdapter(Adapter):
 
     def load_interfaces(self):
         """Add Nautobot Interface objects as DiffSync Port models."""
-        for intf in OrmInterface.objects.filter(device__device_type__manufacturer__name="Arista"):
+        for intf in OrmInterface.objects.filter(device__device_type__manufacturer__name="Arista").select_related("lag"):
             new_port = self.port(
                 name=intf.name,
                 device=intf.device.name,
@@ -94,6 +94,7 @@ class NautobotAdapter(Adapter):
                 mtu=intf.mtu,
                 port_type=intf.type,
                 status=intf.status.name,
+                lag=intf.lag.name if intf.lag else None,
                 uuid=intf.id,
             )
             self.add(new_port)

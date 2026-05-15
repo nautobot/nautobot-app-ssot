@@ -1,0 +1,112 @@
+[
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": "seconds: 1777925084, nanos: 276468061",
+                "deletes": [],
+                "updates": {
+                    "mtu": 1500,
+                    "addr": "00:00:00:00:00:00",
+                    "mode": {
+                        "Name": "lagModeLacp",
+                        "Value": 2
+                    },
+                    "name": "Port-Channel1000",
+                    "l2Mru": 0,
+                    "l2Mtu": 0,
+                    "intfId": "Port-Channel1000",
+                    "fallback": {
+                        "Name": "fallbackNone",
+                        "Value": 0
+                    },
+                    "maxLinks": null,
+                    "minLinks": 0,
+                    "minSpeed": {
+                        "speedUnit": {
+                            "Name": "speedUnitGbps",
+                            "Value": 1
+                        },
+                        "speedValue": {
+                            "value": 0
+                        }
+                    },
+                    "requestor": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "lag",
+                        "intfConfig",
+                        "Port-Channel1000",
+                        "requestor"
+                    ],
+                    "lagFeature": {
+                        "Name": "lagFeatureLag",
+                        "Value": 1
+                    },
+                    "mixedSpeed": false,
+                    "description": "Uplink to spine1",
+                    "loadInterval": {
+                        "val": 300.0,
+                        "useDefault": true
+                    },
+                    "defaultConfig": [],
+                    "recircFeature": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "lag",
+                        "intfConfig",
+                        "Port-Channel1000",
+                        "recircFeature"
+                    ],
+                    "timestampMode": {
+                        "Name": "timestampModeDisabled",
+                        "Value": 0
+                    },
+                    "enabledDefault": true,
+                    "lacpLoopEnable": false,
+                    "fallbackTimeout": {
+                        "value": 90.0
+                    },
+                    "l3MtuConfigured": false,
+                    "priorityEnforced": false,
+                    "enabledStateLocal": {
+                        "Name": "enabled",
+                        "Value": 1
+                    },
+                    "linkStatusLogging": {
+                        "Name": "useGlobal",
+                        "Value": 2
+                    },
+                    "enabledStateReason": "",
+                    "routerMacConfigured": false,
+                    "adminShutdownDelayed": false,
+                    "linkUpDebouncePeriod": 0,
+                    "adminEnabledStateLocal": {
+                        "Name": "enabled",
+                        "Value": 1
+                    },
+                    "adminShutdownDelayable": false,
+                    "linkDownDebouncePeriod": 0,
+                    "poStatusMaxLinksDelayTime": 6.0
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "config",
+                    "eth",
+                    "lag",
+                    "intfConfig",
+                    "Port-Channel1000"
+                ]
+            }
+        ]
+    }
+]

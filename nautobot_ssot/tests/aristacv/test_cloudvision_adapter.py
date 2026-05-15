@@ -34,10 +34,16 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         self.cloudvision.get_device_type.return_value = "fixedSystem"
         self.cloudvision.get_interfaces_fixed = MagicMock()
         self.cloudvision.get_interfaces_fixed.return_value = fixtures.FIXED_INTERFACE_FIXTURE
+        self.cloudvision.get_interfaces_port_channel = MagicMock()
+        self.cloudvision.get_interfaces_port_channel.return_value = fixtures.PORT_CHANNEL_INTERFACE_FIXTURE
+        self.cloudvision.get_port_channel_members = MagicMock()
+        self.cloudvision.get_port_channel_members.return_value = fixtures.PORT_CHANNEL_MEMBERS_FIXTURE
         self.cloudvision.get_interface_mode = MagicMock()
         self.cloudvision.get_interface_mode.return_value = "access"
         self.cloudvision.get_interface_transceiver = MagicMock()
-        self.cloudvision.get_interface_transceiver.return_value = "1000BASE-T"
+        self.cloudvision.get_interface_transceiver.side_effect = lambda client, dId, interface: (
+            "Unknown" if interface.startswith("Port-Channel") else "1000BASE-T"
+        )
         self.cloudvision.get_interface_description = MagicMock()
         self.cloudvision.get_interface_description.return_value = "Uplink to DC1"
         self.cloudvision.get_ip_interfaces = MagicMock()
@@ -64,6 +70,14 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
                 "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interfaces_fixed",
                 self.cloudvision.get_interfaces_fixed,
             ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interfaces_port_channel",
+                self.cloudvision.get_interfaces_port_channel,
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_port_channel_members",
+                self.cloudvision.get_port_channel_members,
+            ),
         ):
             self.cvp.load_devices()
         expected_hostnames = {dev["hostname"] for dev in fixtures.INVENTORY_FIXTURE if dev["hostname"]}
@@ -76,10 +90,8 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         """Test the load_interfaces() adapter method."""
         mock_device = MagicMock()
         mock_device.name = "mock_device"
-        mock_device.serial = MagicMock()
-        mock_device.serial.return_value = "JPE12345678"
-        mock_device.device_model = MagicMock()
-        mock_device.device_model.return_value = "DCS-7280CR2-60"
+        mock_device.serial = "JPE12345678"
+        mock_device.device_model = "DCS-7280CR2-60"
 
         with patch(
             "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_device_type",
@@ -90,29 +102,105 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
                 self.cloudvision.get_interfaces_fixed,
             ):
                 with patch(
-                    "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_mode",
-                    self.cloudvision.get_interface_mode,
+                    "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interfaces_port_channel",
+                    self.cloudvision.get_interfaces_port_channel,
                 ):
                     with patch(
-                        "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_transceiver",
-                        self.cloudvision.get_interface_transceiver,
+                        "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_port_channel_members",
+                        self.cloudvision.get_port_channel_members,
                     ):
                         with patch(
-                            "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_description",
-                            self.cloudvision.get_interface_description,
+                            "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_mode",
+                            self.cloudvision.get_interface_mode,
                         ):
-                            self.cvp.load_interfaces(mock_device)
-        self.assertEqual(
-            {f"{port['interface']}__mock_device" for port in fixtures.FIXED_INTERFACE_FIXTURE},
-            {port.get_unique_id() for port in self.cvp.get_all("port")},
+                            with patch(
+                                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_transceiver",
+                                self.cloudvision.get_interface_transceiver,
+                            ):
+                                with patch(
+                                    "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_description",
+                                    self.cloudvision.get_interface_description,
+                                ):
+                                    self.cvp.load_interfaces(mock_device)
+        expected_ports = {
+            f"{port['interface']}__mock_device"
+            for port in (*fixtures.PORT_CHANNEL_INTERFACE_FIXTURE, *fixtures.FIXED_INTERFACE_FIXTURE)
+        }
+        self.assertEqual(expected_ports, {port.get_unique_id() for port in self.cvp.get_all("port")})
+
+        port_channel = self.cvp.get(self.cvp.port, {"name": "Port-Channel100", "device": "mock_device"})
+        self.assertEqual(port_channel.port_type, "lag")
+        self.assertIsNone(port_channel.lag)
+
+        member = self.cvp.get(self.cvp.port, {"name": "Ethernet1/1", "device": "mock_device"})
+        self.assertEqual(member.lag, "Port-Channel100")
+
+    def test_load_interfaces_orders_port_channels_before_members(self):
+        """Regression: source store must list every Port-Channel before its members.
+
+        NautobotPort.create relies on diffsync's insertion-order iteration to ensure
+        the lag parent already exists when a member's create runs (it now calls
+        OrmInterface.objects.get with no DoesNotExist fallback). If a future refactor
+        appends physical interfaces before the LAGs they belong to, this assertion
+        fires before any actual sync attempt and surfaces the regression.
+        """
+        fake_device = self.cvp.device(
+            name="mock_device",
+            serial="JPE12345678",
+            status="Active",
+            device_model="DCS-7280CR2-60",
+            version="",
+            uuid=None,
         )
+        self.cvp.add(fake_device)
+
+        with (
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_device_type",
+                self.cloudvision.get_device_type,
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interfaces_fixed",
+                self.cloudvision.get_interfaces_fixed,
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interfaces_port_channel",
+                self.cloudvision.get_interfaces_port_channel,
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_port_channel_members",
+                self.cloudvision.get_port_channel_members,
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_mode",
+                self.cloudvision.get_interface_mode,
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_transceiver",
+                self.cloudvision.get_interface_transceiver,
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_description",
+                self.cloudvision.get_interface_description,
+            ),
+        ):
+            self.cvp.load_interfaces(fake_device)
+
+        # `device.ports` holds child port unique_ids in the order they were added.
+        for member_name, pc_name in fixtures.PORT_CHANNEL_MEMBERS_FIXTURE.items():
+            pc_uid = f"{pc_name}__mock_device"
+            member_uid = f"{member_name}__mock_device"
+            self.assertLess(
+                fake_device.ports.index(pc_uid),
+                fake_device.ports.index(member_uid),
+                f"Port-Channel {pc_name} must precede member {member_name} in the source store",
+            )
 
     def test_load_ip_addresses(self):
         """Test the load_ip_addresses() adapter method."""
         mock_device = MagicMock()
         mock_device.name = "mock_device"
-        mock_device.serial = MagicMock()
-        mock_device.serial.return_value = "JPE12345678"
+        mock_device.serial = "JPE12345678"
 
         with (
             patch(

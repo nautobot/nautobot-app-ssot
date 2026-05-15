@@ -116,6 +116,13 @@ class CloudvisionAdapter(Adapter):
             )
             return None
 
+        # Port-Channels are prepended so they exist in the DiffSync store before their
+        # members, which lets the Nautobot side resolve the lag FK on first sync.
+        port_channels = cloudvision.get_interfaces_port_channel(client=self.conn, dId=device.serial)
+        port_info = port_channels + port_info
+
+        member_map = cloudvision.get_port_channel_members(client=self.conn, dId=device.serial)
+
         if self.job.debug:
             self.job.logger.debug(f"Device being loaded: {device.name}. Port: {port_info}.")
 
@@ -147,9 +154,10 @@ class CloudvisionAdapter(Adapter):
                     mac_addr=port["mac_addr"] if port.get("mac_addr") else "",
                     mode="tagged" if port_mode == "trunk" else "access",
                     mtu=port["mtu"] if port.get("mtu") else 1500,
-                    enabled=port["enabled"],
+                    enabled=port.get("enabled", False),
                     status=port_status,
                     port_type=port_type,
+                    lag=member_map.get(port["interface"]),
                     uuid=None,
                 )
                 try:

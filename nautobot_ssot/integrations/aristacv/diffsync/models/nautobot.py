@@ -155,6 +155,8 @@ class NautobotPort(Port):
             status=OrmStatus.objects.get(name=attrs["status"]),
             type=attrs["port_type"],
         )
+        if attrs.get("lag"):
+            new_port.lag = OrmInterface.objects.get(name=attrs["lag"], device=device)
         try:
             new_port.validated_save()
             return super().create(ids=ids, adapter=adapter, attrs=attrs)
@@ -182,6 +184,11 @@ class NautobotPort(Port):
             _port.status = OrmStatus.objects.get(name=attrs["status"])
         if "port_type" in attrs:
             _port.type = attrs["port_type"]
+        if "lag" in attrs:
+            if attrs["lag"]:
+                _port.lag = OrmInterface.objects.get(name=attrs["lag"], device=_port.device)
+            else:
+                _port.lag = None
         try:
             _port.validated_save()
             return super().update(attrs)
