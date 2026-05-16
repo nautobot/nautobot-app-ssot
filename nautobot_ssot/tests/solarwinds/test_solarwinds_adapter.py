@@ -31,12 +31,13 @@ class TestSolarWindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too
 
         self.containers = "HQ"
 
-        self.location_type = LocationType.objects.get_or_create(name="Site")[0]
+        region_type, _ = LocationType.objects.get_or_create(name="Region")
+        self.location_type, _ = LocationType.objects.update_or_create(name="Site", defaults={"parent": region_type})
         self.location_type.content_types.add(ContentType.objects.get_for_model(Device))
 
-        self.parent = Location.objects.get_or_create(
-            name="USA", location_type=LocationType.objects.get_or_create(name="Region")[0], status=self.status_active
-        )[0]
+        self.parent, _ = Location.objects.get_or_create(
+            name="USA", location_type=region_type, status=self.status_active
+        )
 
         self.job = SolarWindsDataSource()
         self.job.debug = True

@@ -49,7 +49,7 @@ class SolarWindsDataSourceTestCase(TransactionTestCase):
     def test_validate_location_configuration_missing_parent(self):
         """Validate handling of validate_location_configuration() when parent Location isn't specified but required."""
         reg_lt = LocationType.objects.create(name="Region")
-        site_lt = LocationType.objects.create(name="Site", parent=reg_lt)
+        site_lt, _ = LocationType.objects.update_or_create(name="Site", defaults={"parent": reg_lt})
         self.job.location_type = site_lt
         self.job.parent = None
         with self.assertRaises(JobConfigError):
@@ -59,7 +59,7 @@ class SolarWindsDataSourceTestCase(TransactionTestCase):
     def test_validate_location_configuration_extra_parent(self):
         """Validate handling of validate_location_configuration() when parent Location is specified, but not required."""
         reg_lt = LocationType.objects.create(name="Region")
-        site_lt = LocationType.objects.create(name="Site")
+        site_lt = LocationType.objects.get(name="Site")
         self.job.location_type = site_lt
         self.job.parent = reg_lt
         with self.assertRaises(JobConfigError):
@@ -80,7 +80,10 @@ class SolarWindsDataSourceTestCase(TransactionTestCase):
 
     def test_validate_location_configuration_missing_device_contenttype(self):
         """Validate handling of validate_location_configuration() when Device ContentType on the specified LocationType."""
-        site_lt = LocationType.objects.create(name="Site")
+        site_lt = LocationType.objects.get(name="Site")
+        dev_ct = site_lt.content_types.filter(app_label="dcim", model="device").first()
+        if dev_ct:
+            site_lt.content_types.remove(dev_ct)
         self.job.location_type = site_lt
         self.job.parent = None
         with self.assertRaises(JobConfigError):
