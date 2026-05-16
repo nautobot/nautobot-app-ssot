@@ -100,10 +100,6 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
         """String representation of a Sync instance."""
         return f"{self.source} → {self.target}, {date_format(self.start_time, format=settings.SHORT_DATETIME_FORMAT)}"
 
-    def get_absolute_url(self, api=False):
-        """Get the detail-view URL for this instance."""
-        return reverse("plugins:nautobot_ssot:sync", kwargs={"pk": self.pk})
-
     @classmethod
     def annotated_queryset(cls):
         """Construct an efficient queryset for this model and related data."""
