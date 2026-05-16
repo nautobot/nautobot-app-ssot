@@ -59,7 +59,7 @@ class SolarWindsDataSourceTestCase(TransactionTestCase):
     def test_validate_location_configuration_extra_parent(self):
         """Validate handling of validate_location_configuration() when parent Location is specified, but not required."""
         reg_lt = LocationType.objects.create(name="Region")
-        site_lt = LocationType.objects.get(name="Site")
+        site_lt, _ = LocationType.objects.get_or_create(name="Site")
         self.job.location_type = site_lt
         self.job.parent = reg_lt
         with self.assertRaises(JobConfigError):
