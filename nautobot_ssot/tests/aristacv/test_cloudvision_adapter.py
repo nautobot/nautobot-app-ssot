@@ -38,14 +38,19 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         self.cloudvision.get_interfaces_port_channel.return_value = fixtures.PORT_CHANNEL_INTERFACE_FIXTURE
         self.cloudvision.get_port_channel_members = MagicMock()
         self.cloudvision.get_port_channel_members.return_value = fixtures.PORT_CHANNEL_MEMBERS_FIXTURE
-        self.cloudvision.get_interface_mode = MagicMock()
-        self.cloudvision.get_interface_mode.return_value = "access"
-        self.cloudvision.get_interface_transceiver = MagicMock()
-        self.cloudvision.get_interface_transceiver.side_effect = lambda client, dId, interface: (
-            "Unknown" if interface.startswith("Port-Channel") else "1000BASE-T"
-        )
-        self.cloudvision.get_interface_description = MagicMock()
-        self.cloudvision.get_interface_description.return_value = "Uplink to DC1"
+        all_intf_names = [
+            port["interface"] for port in (*fixtures.PORT_CHANNEL_INTERFACE_FIXTURE, *fixtures.FIXED_INTERFACE_FIXTURE)
+        ]
+        self.cloudvision.get_all_interface_modes = MagicMock()
+        self.cloudvision.get_all_interface_modes.return_value = {name: "access" for name in all_intf_names}
+        self.cloudvision.get_all_interface_transceivers = MagicMock()
+        self.cloudvision.get_all_interface_transceivers.return_value = {
+            name: "1000BASE-T" for name in all_intf_names if not name.startswith("Port-Channel")
+        }
+        self.cloudvision.get_all_interface_descriptions = MagicMock()
+        self.cloudvision.get_all_interface_descriptions.return_value = {
+            name: "Uplink to DC1" for name in all_intf_names
+        }
         self.cloudvision.get_routed_interface_description = MagicMock()
         self.cloudvision.get_routed_interface_description.return_value = "hello!"
         self.cloudvision.get_ip_interfaces = MagicMock()
@@ -95,35 +100,37 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
         mock_device.serial = "JPE12345678"
         mock_device.device_model = "DCS-7280CR2-60"
 
-        with patch(
-            "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_device_type",
-            self.cloudvision.get_device_type,
-        ):
-            with patch(
+        with (
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_device_type",
+                self.cloudvision.get_device_type,
+            ),
+            patch(
                 "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interfaces_fixed",
                 self.cloudvision.get_interfaces_fixed,
-            ):
-                with patch(
-                    "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interfaces_port_channel",
-                    self.cloudvision.get_interfaces_port_channel,
-                ):
-                    with patch(
-                        "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_port_channel_members",
-                        self.cloudvision.get_port_channel_members,
-                    ):
-                        with patch(
-                            "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_mode",
-                            self.cloudvision.get_interface_mode,
-                        ):
-                            with patch(
-                                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_transceiver",
-                                self.cloudvision.get_interface_transceiver,
-                            ):
-                                with patch(
-                                    "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_description",
-                                    self.cloudvision.get_interface_description,
-                                ):
-                                    self.cvp.load_interfaces(mock_device)
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interfaces_port_channel",
+                self.cloudvision.get_interfaces_port_channel,
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_port_channel_members",
+                self.cloudvision.get_port_channel_members,
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_all_interface_modes",
+                self.cloudvision.get_all_interface_modes,
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_all_interface_transceivers",
+                self.cloudvision.get_all_interface_transceivers,
+            ),
+            patch(
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_all_interface_descriptions",
+                self.cloudvision.get_all_interface_descriptions,
+            ),
+        ):
+            self.cvp.load_interfaces(mock_device)
         expected_ports = {
             f"{port['interface']}__mock_device"
             for port in (*fixtures.PORT_CHANNEL_INTERFACE_FIXTURE, *fixtures.FIXED_INTERFACE_FIXTURE)
@@ -174,16 +181,16 @@ class CloudvisionAdapterTestCase(TransactionTestCase):
                 self.cloudvision.get_port_channel_members,
             ),
             patch(
-                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_mode",
-                self.cloudvision.get_interface_mode,
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_all_interface_modes",
+                self.cloudvision.get_all_interface_modes,
             ),
             patch(
-                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_transceiver",
-                self.cloudvision.get_interface_transceiver,
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_all_interface_transceivers",
+                self.cloudvision.get_all_interface_transceivers,
             ),
             patch(
-                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_interface_description",
-                self.cloudvision.get_interface_description,
+                "nautobot_ssot.integrations.aristacv.utils.cloudvision.get_all_interface_descriptions",
+                self.cloudvision.get_all_interface_descriptions,
             ),
         ):
             self.cvp.load_interfaces(fake_device)
