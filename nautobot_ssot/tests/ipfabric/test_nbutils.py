@@ -1313,6 +1313,43 @@ class TestNautobotUtils(TestCase):
             assign_device_to_virtual_chassis(device, vc, position=1, master=True)
             save_mock.assert_not_called()
 
+    def test_assign_device_to_virtual_chassis_priority_update(self):
+        """Calling again with a new priority updates priority and persists."""
+        vc = VirtualChassis.objects.create(name="Stack-PriUpdate")
+        device = self._make_vc_test_device("VC-PriUpdate")
+        assign_device_to_virtual_chassis(device, vc, position=1, priority=10)
+        device.refresh_from_db()
+        self.assertEqual(device.vc_priority, 10)
+
+        assign_device_to_virtual_chassis(device, vc, position=1, priority=20)
+        device.refresh_from_db()
+        self.assertEqual(device.vc_priority, 20)
+
+    def test_assign_device_to_virtual_chassis_position_change(self):
+        """Calling again with a different position updates position and persists."""
+        vc = VirtualChassis.objects.create(name="Stack-PosChange")
+        device = self._make_vc_test_device("VC-PosChange")
+        assign_device_to_virtual_chassis(device, vc, position=1)
+        device.refresh_from_db()
+        self.assertEqual(device.vc_position, 1)
+
+        assign_device_to_virtual_chassis(device, vc, position=3)
+        device.refresh_from_db()
+        self.assertEqual(device.vc_position, 3)
+
+    def test_assign_device_to_virtual_chassis_master_swap(self):
+        """Setting master=True for a different device flips the VC master."""
+        vc = VirtualChassis.objects.create(name="Stack-MasterSwap")
+        first = self._make_vc_test_device("VC-MasterSwap-1")
+        second = self._make_vc_test_device("VC-MasterSwap-2")
+        assign_device_to_virtual_chassis(first, vc, position=1, master=True)
+        vc.refresh_from_db()
+        self.assertEqual(vc.master_id, first.id)
+
+        assign_device_to_virtual_chassis(second, vc, position=2, master=True)
+        vc.refresh_from_db()
+        self.assertEqual(vc.master_id, second.id)
+
     # ===== get_tagged_device =====
 
     def test_get_tagged_device_match(self):

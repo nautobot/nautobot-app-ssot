@@ -177,7 +177,7 @@ class TestNautobotAdapter(TestCase):
         with AssertNoRepeatedQueries(self, threshold=1):
             locations = self.nb_adapter.get_initial_location(None)
             for location in locations:
-                _ = location.status.name  # forces the lazy access path
+                _ = location.status.name
             self.assertEqual(len(locations), 3, "Should get 3 Locations with no SSoT tag filter.")
 
     @unittest.skipIf(AssertNoRepeatedQueries is None, "Requires Nautobot 3.1+ (AssertNoRepeatedQueries)")
@@ -187,7 +187,7 @@ class TestNautobotAdapter(TestCase):
             self.nb_adapter.sync_ipfabric_tagged_only = True
             locations = self.nb_adapter.get_initial_location(self.ssot_tag)
             for location in locations:
-                _ = location.status.name  # forces the lazy access path
+                _ = location.status.name
             self.assertEqual(len(locations), 1, "Should get 1 Locations with SSoT tag filter.")
 
     @unittest.skipIf(AssertNoRepeatedQueries is None, "Requires Nautobot 3.1+ (AssertNoRepeatedQueries)")
@@ -196,3 +196,30 @@ class TestNautobotAdapter(TestCase):
         """Device loading with N stack members should not issue per-member or per-interface queries."""
         with AssertNoRepeatedQueries(self, threshold=1):
             self.nb_adapter.load_device(Device.objects.filter(location=self.stack_site), mock_location)
+
+    def test_get_initial_location_filter_only(self):
+        """`location_filter` without tagged_only returns the named location."""
+        self.nb_adapter.location_filter = self.site1
+        locations = list(self.nb_adapter.get_initial_location(self.ssot_tag))
+        self.assertEqual(len(locations), 1)
+        self.assertEqual(locations[0].id, self.site1.id)
+
+    def test_get_initial_location_tagged_and_filter_match(self):
+        """`location_filter` with `sync_ipfabric_tagged_only` returns the tagged location."""
+        self.nb_adapter.sync_ipfabric_tagged_only = True
+        self.nb_adapter.location_filter = self.stack_site
+        locations = list(self.nb_adapter.get_initial_location(self.ssot_tag))
+        self.assertEqual(len(locations), 1)
+        self.assertEqual(locations[0].id, self.stack_site.id)
+
+    def test_get_initial_location_tagged_and_filter_no_match_warns(self):
+        """Untagged `location_filter` with `sync_ipfabric_tagged_only` returns empty + warning."""
+        self.nb_adapter.sync_ipfabric_tagged_only = True
+        self.nb_adapter.location_filter = self.site1
+        with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as captured:
+            locations = list(self.nb_adapter.get_initial_location(self.ssot_tag))
+        self.assertEqual(len(locations), 0)
+        self.assertTrue(
+            any("is not tagged" in line for line in captured.output),
+            f"Expected 'is not tagged' warning, got: {captured.output}",
+        )
