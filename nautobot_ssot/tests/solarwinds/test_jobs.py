@@ -80,7 +80,7 @@ class SolarWindsDataSourceTestCase(TransactionTestCase):
 
     def test_validate_location_configuration_missing_device_contenttype(self):
         """Validate handling of validate_location_configuration() when Device ContentType on the specified LocationType."""
-        site_lt = LocationType.objects.get(name="Site")
+        site_lt, _ = LocationType.objects.get_or_create(name="Site")
         dev_ct = site_lt.content_types.filter(app_label="dcim", model="device").first()
         if dev_ct:
             site_lt.content_types.remove(dev_ct)
