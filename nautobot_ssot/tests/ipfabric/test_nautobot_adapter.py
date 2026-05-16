@@ -3,10 +3,12 @@
 import unittest
 
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
+from nautobot.core.choices import ColorChoices
+from nautobot.core.testing import TestCase
 from nautobot.dcim.models import (
     Device,
     DeviceType,
+    Interface,
     Location,
     LocationType,
     Manufacturer,
@@ -15,6 +17,12 @@ from nautobot.dcim.models import (
 )
 from nautobot.extras.models import Role, Status
 
+try:
+    from nautobot.core.testing.utils import AssertNoRepeatedQueries
+except ImportError:
+    AssertNoRepeatedQueries = None
+
+import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_utils
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 
 
@@ -22,6 +30,13 @@ class TestNautobotAdapter(TestCase):
     """Test cases for InfoBlox Nautobot adapter."""
 
     def setUp(self):
+        self.ssot_tag = tonb_utils.get_or_create_tag_object(
+            tag_name="SSoT Synced from IPFabric",
+            tag_color=ColorChoices.COLOR_LIGHT_GREEN,
+            description="Object synced at some point from IPFabric to Nautobot",
+            app_label="dcim",
+            model="device",
+        )
         device_ct = ContentType.objects.get_for_model(Device)
         active_status = Status.objects.get(name="Active")
         role = Role.objects.create(name="test")
@@ -31,6 +46,7 @@ class TestNautobotAdapter(TestCase):
         self.site1 = Location.objects.create(name="site1", location_type=site_lt, status=active_status)
         site2 = Location.objects.create(name="site2", location_type=site_lt, status=active_status)
         self.stack_site = Location.objects.create(name="stack", location_type=site_lt, status=active_status)
+        self.stack_site.tags.add(self.ssot_tag)
         man1 = Manufacturer.objects.create(name="man1")
         man2 = Manufacturer.objects.create(name="man2")
         dev_type1 = DeviceType.objects.create(model="dev_type1", manufacturer=man1)
@@ -76,6 +92,8 @@ class TestNautobotAdapter(TestCase):
         )
         self.stack.master = stack_master
         self.stack.validated_save()
+        for i in range(0, 9):
+            Interface.objects.create(name=f"eth{i}", device=stack_master, type="virtual", status=active_status)
         Device.objects.create(
             name="stack2",
             serial="st456",
@@ -146,3 +164,35 @@ class TestNautobotAdapter(TestCase):
             self.assertEqual(device.status, "Active")
             self.assertEqual(device.vc_priority, int(device.name[-1]))
             self.assertEqual(device.vc_position, int(device.name[-1]))
+
+    @unittest.skipIf(AssertNoRepeatedQueries is None, "Requires Nautobot 3.1+ (AssertNoRepeatedQueries)")
+    def test_load_data_no_n_plus_one(self):
+        """Full `load_data()` must not produce repeated queries over the number of devices."""
+        with AssertNoRepeatedQueries(self, threshold=3):
+            self.nb_adapter.load_data()
+
+    @unittest.skipIf(AssertNoRepeatedQueries is None, "Requires Nautobot 3.1+ (AssertNoRepeatedQueries)")
+    def test_get_initial_location_no_n_plus_one_status(self):
+        """Iterating locations to read `.status.name` must use select_related, not lazy load."""
+        with AssertNoRepeatedQueries(self, threshold=1):
+            locations = self.nb_adapter.get_initial_location(None)
+            for location in locations:
+                _ = location.status.name  # forces the lazy access path
+            self.assertEqual(len(locations), 3, "Should get 3 Locations with no SSoT tag filter.")
+
+    @unittest.skipIf(AssertNoRepeatedQueries is None, "Requires Nautobot 3.1+ (AssertNoRepeatedQueries)")
+    def test_get_initial_location_tagged_no_n_plus_one_status(self):
+        """Iterating locations to read `.status.name` must use select_related, not lazy load."""
+        with AssertNoRepeatedQueries(self, threshold=1):
+            self.nb_adapter.sync_ipfabric_tagged_only = True
+            locations = self.nb_adapter.get_initial_location(self.ssot_tag)
+            for location in locations:
+                _ = location.status.name  # forces the lazy access path
+            self.assertEqual(len(locations), 1, "Should get 1 Locations with SSoT tag filter.")
+
+    @unittest.skipIf(AssertNoRepeatedQueries is None, "Requires Nautobot 3.1+ (AssertNoRepeatedQueries)")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models.Location", autospec=True)
+    def test_load_device_no_n_plus_one(self, mock_location):
+        """Device loading with N stack members should not issue per-member or per-interface queries."""
+        with AssertNoRepeatedQueries(self, threshold=1):
+            self.nb_adapter.load_device(Device.objects.filter(location=self.stack_site), mock_location)
