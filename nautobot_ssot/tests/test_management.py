@@ -187,3 +187,18 @@ class TestElongateInterfaceNames(TestCase):
             stdout=out,
         )
         self.assertEqual(out.getvalue().strip(), "Updating ssot_test_1.ge2 >> GigabitEthernet2")
+
+
+class TestDumpdataNautobotSSOT(TestCase):
+    """Regression tests for dumpdata against the nautobot_ssot app."""
+
+    def test_dumpdata_does_not_query_ssotconfig_table(self):
+        # SSOTConfig is an unmanaged model with no underlying table; it exists
+        # solely to register the `view_ssotconfig` permission. Before #1045 was
+        # fixed, `dumpdata nautobot_ssot` crashed with ProgrammingError when
+        # Django tried to SELECT from the non-existent relation.
+        out = StringIO()
+        call_command("dumpdata", "nautobot_ssot", format="json", stdout=out)
+        payload = out.getvalue()
+        self.assertTrue(payload.lstrip().startswith("["))
+        self.assertNotIn("nautobot_ssot.ssotconfig", payload)

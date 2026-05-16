@@ -1,0 +1,1 @@
+Fixed `nautobot-server dumpdata nautobot_ssot` failing with `ProgrammingError: relation "nautobot_ssot_ssotconfig" does not exist` by giving the unmanaged `SSOTConfig` model a manager that returns an empty queryset.
