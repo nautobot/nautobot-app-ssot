@@ -79,7 +79,7 @@ class TestNautobotBuilding(TransactionTestCase):
         super().setUp()
 
         self.reg_loc = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
-        loc_type = LocationType.objects.get_or_create(name="Site", parent=self.reg_loc)[0]
+        loc_type, _ = LocationType.objects.update_or_create(name="Site", defaults={"parent": self.reg_loc})
         self.adapter = Adapter()
         self.adapter.job = MagicMock()
         self.adapter.job.debug = True

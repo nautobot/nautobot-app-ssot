@@ -28,7 +28,7 @@ class TestNautobotDatacenter(TransactionTestCase):
         self.test_dc = NautobotDatacenter(name="Test", region="", latitude=None, longitude=None, uuid=None)
         region_lt = LocationType.objects.get_or_create(name="Region")[0]
         self.global_region = Location.objects.create(name="Global", location_type=region_lt, status=self.status_active)
-        site_lt = LocationType.objects.get_or_create(name="Site", parent=region_lt)[0]
+        site_lt, _ = LocationType.objects.update_or_create(name="Site", defaults={"parent": region_lt})
         site_lt.content_types.add(ContentType.objects.get_for_model(Device))
         self.site_obj = Location.objects.create(
             name="HQ",
@@ -99,7 +99,7 @@ class TestNautobotAddress(TransactionTestCase):  # pylint: disable=too-many-inst
         self.status_active = Status.objects.get(name="Active")
         region_lt = LocationType.objects.get_or_create(name="Region")[0]
         self.global_region = Location.objects.create(name="Global", location_type=region_lt, status=self.status_active)
-        site_lt = LocationType.objects.get_or_create(name="Site", parent=region_lt)[0]
+        site_lt, _ = LocationType.objects.update_or_create(name="Site", defaults={"parent": region_lt})
         site_lt.content_types.add(ContentType.objects.get_for_model(Device))
         self.site_obj = Location.objects.create(
             name="HQ",

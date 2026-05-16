@@ -54,7 +54,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
         self.ny_region = Location.objects.create(name="NY", location_type=region_type, status=self.status_active)
         self.ny_region.validated_save()
 
-        site_type = LocationType.objects.get_or_create(name="Site", parent=region_type)[0]
+        site_type, _ = LocationType.objects.update_or_create(name="Site", defaults={"parent": region_type})
         site_type.content_types.add(ContentType.objects.get_for_model(Device))
         self.job.dc_loctype = site_type
         self.job.parent_location = self.ny_region
