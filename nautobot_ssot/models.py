@@ -274,9 +274,7 @@ class _SSOTConfigManager(models.Manager):
     """Manager that never queries the database; SSOTConfig has no table."""
 
     def get_queryset(self):
-        # SSOTConfig is unmanaged and intentionally has no underlying table.
-        # Returning .none() prevents management commands such as dumpdata
-        # from issuing a SELECT against the non-existent relation.
+        """Return an empty queryset; SSOTConfig is unmanaged and has no underlying table."""
         return super().get_queryset().none()
 
 
