@@ -202,6 +202,51 @@ class TestORMAttributeLookup(BaseTestCase):
         self.assertEqual(result, "")
 
 
+class TestORMAttributeLookupCustomFields(TestCase):
+    """Regression tests for issue #753 — accessing custom field values through FK chains."""
+
+    def setUp(self):
+        """Create a CustomField, attach it to LocationType, and populate it on two related Locations."""
+        status = Status.objects.get(name="Active")
+
+        from nautobot.extras.models import CustomField  # local import keeps top imports unchanged
+
+        self.cf_label = "netvs_gpk"
+        cf_content_type = ContentType.objects.get_for_model(Location)
+        self.custom_field = CustomField.objects.create(label=self.cf_label, key=self.cf_label, type="text")
+        self.custom_field.content_types.add(cf_content_type)
+
+        self.location_type = LocationType.objects.create(name="Loc Type 753")
+        self.parent_location = Location.objects.create(
+            name="Parent Location 753",
+            location_type=self.location_type,
+            status=status,
+            _custom_field_data={self.cf_label: "parent-value"},
+        )
+        self.child_location = Location.objects.create(
+            name="Child Location 753",
+            location_type=self.location_type,
+            parent=self.parent_location,
+            status=status,
+            _custom_field_data={self.cf_label: "child-value"},
+        )
+
+    def test_direct_custom_field_lookup(self):
+        """`_custom_field_data__<key>` on the root object resolves to the stored value."""
+        result = orm_attribute_lookup(self.child_location, f"_custom_field_data__{self.cf_label}")
+        self.assertEqual(result, "child-value")
+
+    def test_foreign_custom_field_lookup(self):
+        """`<fk>___custom_field_data__<key>` resolves the custom field on the related object (#753)."""
+        result = orm_attribute_lookup(self.child_location, f"parent___custom_field_data__{self.cf_label}")
+        self.assertEqual(result, "parent-value")
+
+    def test_foreign_custom_field_lookup_missing_key(self):
+        """Missing custom field key returns None rather than raising."""
+        result = orm_attribute_lookup(self.child_location, "parent___custom_field_data__does_not_exist")
+        self.assertIsNone(result)
+
+
 class TestLoadTypedDict(BaseTestCase):
     """Unittests for `load_typed_dict` function."""
 
