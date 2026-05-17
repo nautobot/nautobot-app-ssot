@@ -15,14 +15,13 @@ from nautobot.dcim.models import (
     Platform,
     VirtualChassis,
 )
-from nautobot.extras.models import Role, Status
+from nautobot.extras.models import Role, Status, Tag
 
 try:
     from nautobot.core.testing.utils import AssertNoRepeatedQueries
 except ImportError:
     AssertNoRepeatedQueries = None
 
-import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_utils
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 
 
@@ -30,15 +29,16 @@ class TestNautobotAdapter(TestCase):
     """Test cases for InfoBlox Nautobot adapter."""
 
     def setUp(self):
-        self.ssot_tag = tonb_utils.get_or_create_tag_object(
-            tag_name="SSoT Synced from IPFabric",
-            tag_color=ColorChoices.COLOR_LIGHT_GREEN,
-            description="Object synced at some point from IPFabric to Nautobot",
-            app_label="dcim",
-            model="device",
-        )
         device_ct = ContentType.objects.get_for_model(Device)
         active_status = Status.objects.get(name="Active")
+        self.ssot_tag, _ = Tag.objects.get_or_create(
+            name="SSoT Synced from IPFabric",
+            defaults={
+                "color": ColorChoices.COLOR_LIGHT_GREEN,
+                "description": "Object synced at some point from IPFabric to Nautobot",
+            },
+        )
+        self.ssot_tag.content_types.add(device_ct)
         role = Role.objects.create(name="test")
         role.content_types.add(device_ct)
         site_lt, _ = LocationType.objects.get_or_create(name="site")
