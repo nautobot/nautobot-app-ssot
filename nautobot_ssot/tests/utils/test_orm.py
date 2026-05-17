@@ -13,6 +13,7 @@ from typing_extensions import TypedDict
 from nautobot_ssot.contrib.types import RelationshipSideEnum
 from nautobot_ssot.utils.orm import (
     get_custom_relationship_association_parameters,
+    get_custom_relationship_associations,
     get_orm_attribute,
     load_typed_dict,
     orm_attribute_lookup,
@@ -363,3 +364,42 @@ class TestGetCustomRelationshipAssociationParameters(BaseTestCase):
         self.assertEqual(result["destination_type"], self.location_type)
         self.assertEqual(result["destination_id"], self.location_1.id)
         self.assertTrue("source_id" not in result.keys())
+
+    def test_invalid_relationship_side_value_raises_value_error(self):
+        """A side value outside the RelationshipSideEnum members triggers the explicit ValueError branch."""
+        with self.assertRaises(ValueError):
+            get_custom_relationship_association_parameters(
+                self.relationship_1,
+                self.provider_1.id,
+                "not-a-real-side",
+            )
+
+
+class TestGetCustomRelationshipAssociations(BaseTestCase):
+    """Tests for the three TypeError input guards on `get_custom_relationship_associations`."""
+
+    def setUp(self):
+        super().setUp()
+
+        self._fn = get_custom_relationship_associations
+        self.relationship = Relationship.objects.create(
+            label="Test Relationship Assoc",
+            type=RelationshipTypeChoices.TYPE_ONE_TO_ONE,
+            source_type=ContentType.objects.get_for_model(Provider),
+            destination_type=ContentType.objects.get_for_model(Location),
+        )
+
+    def test_invalid_relationship_arg_raises_type_error(self):
+        """Passing a non-Relationship object as `relationship` is rejected with TypeError."""
+        with self.assertRaises(TypeError):
+            self._fn("not-a-relationship", self.location_1, RelationshipSideEnum.SOURCE)
+
+    def test_invalid_db_obj_arg_raises_type_error(self):
+        """Passing a non-BaseModel object as `db_obj` is rejected with TypeError."""
+        with self.assertRaises(TypeError):
+            self._fn(self.relationship, "not-a-model", RelationshipSideEnum.SOURCE)
+
+    def test_invalid_relationship_side_arg_raises_type_error(self):
+        """Passing a value that is not a RelationshipSideEnum instance is rejected with TypeError."""
+        with self.assertRaises(TypeError):
+            self._fn(self.relationship, self.location_1, "SOURCE")
