@@ -7,7 +7,7 @@ from django.test import TestCase
 from nautobot.circuits.models import Provider
 from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.choices import RelationshipTypeChoices
-from nautobot.extras.models import Relationship, RelationshipAssociation, Status
+from nautobot.extras.models import CustomField, Relationship, RelationshipAssociation, Status
 from typing_extensions import TypedDict
 
 from nautobot_ssot.contrib.types import RelationshipSideEnum
@@ -208,8 +208,6 @@ class TestORMAttributeLookupCustomFields(TestCase):
     def setUp(self):
         """Create a CustomField, attach it to LocationType, and populate it on two related Locations."""
         status = Status.objects.get(name="Active")
-
-        from nautobot.extras.models import CustomField  # local import keeps top imports unchanged
 
         self.cf_label = "netvs_gpk"
         cf_content_type = ContentType.objects.get_for_model(Location)
