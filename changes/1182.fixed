@@ -1,1 +1,0 @@
-Fixed the Arista CV integration get ip interfaces not accounting for intfID and ip address being in separate query responses.

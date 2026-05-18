@@ -1,1 +1,0 @@
-Fixed Infoblox SSoT sync not updating prefixes with `container` network type.

@@ -1,1 +1,0 @@
-Fixed vSphere nautobot adapter sync_complete to handle missing VirtualMachine gracefully instead of raising DoesNotExist exception.

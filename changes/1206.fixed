@@ -1,1 +1,0 @@
-Fixed AristaCV `get_ip_interfaces` overwriting interface state when CloudVision coalesces notifications for multiple interfaces into a single gRPC batch.

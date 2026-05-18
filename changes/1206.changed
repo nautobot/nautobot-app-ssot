@@ -1,1 +1,0 @@
-Optimized AristaCV SSoT device loading by fetching interface modes, transceivers, and descriptions once per device.
