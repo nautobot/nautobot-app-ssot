@@ -3,17 +3,24 @@
 import unittest
 
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
+from nautobot.core.choices import ColorChoices
+from nautobot.core.testing import TestCase
 from nautobot.dcim.models import (
     Device,
     DeviceType,
+    Interface,
     Location,
     LocationType,
     Manufacturer,
     Platform,
     VirtualChassis,
 )
-from nautobot.extras.models import Role, Status
+from nautobot.extras.models import Role, Status, Tag
+
+try:
+    from nautobot.core.testing.utils import AssertNoRepeatedQueries
+except ImportError:
+    AssertNoRepeatedQueries = None
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 
@@ -24,6 +31,14 @@ class TestNautobotAdapter(TestCase):
     def setUp(self):
         device_ct = ContentType.objects.get_for_model(Device)
         active_status = Status.objects.get(name="Active")
+        self.ssot_tag, _ = Tag.objects.get_or_create(
+            name="SSoT Synced from IPFabric",
+            defaults={
+                "color": ColorChoices.COLOR_LIGHT_GREEN,
+                "description": "Object synced at some point from IPFabric to Nautobot",
+            },
+        )
+        self.ssot_tag.content_types.add(device_ct)
         role = Role.objects.create(name="test")
         role.content_types.add(device_ct)
         site_lt, _ = LocationType.objects.get_or_create(name="site")
@@ -31,6 +46,7 @@ class TestNautobotAdapter(TestCase):
         self.site1 = Location.objects.create(name="site1", location_type=site_lt, status=active_status)
         site2 = Location.objects.create(name="site2", location_type=site_lt, status=active_status)
         self.stack_site = Location.objects.create(name="stack", location_type=site_lt, status=active_status)
+        self.stack_site.tags.add(self.ssot_tag)
         man1 = Manufacturer.objects.create(name="man1")
         man2 = Manufacturer.objects.create(name="man2")
         dev_type1 = DeviceType.objects.create(model="dev_type1", manufacturer=man1)
@@ -76,6 +92,8 @@ class TestNautobotAdapter(TestCase):
         )
         self.stack.master = stack_master
         self.stack.validated_save()
+        for i in range(0, 9):
+            Interface.objects.create(name=f"eth{i}", device=stack_master, type="virtual", status=active_status)
         Device.objects.create(
             name="stack2",
             serial="st456",
@@ -146,3 +164,62 @@ class TestNautobotAdapter(TestCase):
             self.assertEqual(device.status, "Active")
             self.assertEqual(device.vc_priority, int(device.name[-1]))
             self.assertEqual(device.vc_position, int(device.name[-1]))
+
+    @unittest.skipIf(AssertNoRepeatedQueries is None, "Requires Nautobot 3.1+ (AssertNoRepeatedQueries)")
+    def test_load_data_no_n_plus_one(self):
+        """Full `load_data()` must not produce repeated queries over the number of devices."""
+        with AssertNoRepeatedQueries(self, threshold=3):
+            self.nb_adapter.load_data()
+
+    @unittest.skipIf(AssertNoRepeatedQueries is None, "Requires Nautobot 3.1+ (AssertNoRepeatedQueries)")
+    def test_get_initial_location_no_n_plus_one_status(self):
+        """Iterating locations to read `.status.name` must use select_related, not lazy load."""
+        with AssertNoRepeatedQueries(self, threshold=1):
+            locations = self.nb_adapter.get_initial_location(None)
+            for location in locations:
+                _ = location.status.name
+            self.assertEqual(len(locations), 3, "Should get 3 Locations with no SSoT tag filter.")
+
+    @unittest.skipIf(AssertNoRepeatedQueries is None, "Requires Nautobot 3.1+ (AssertNoRepeatedQueries)")
+    def test_get_initial_location_tagged_no_n_plus_one_status(self):
+        """Iterating locations to read `.status.name` must use select_related, not lazy load."""
+        with AssertNoRepeatedQueries(self, threshold=1):
+            self.nb_adapter.sync_ipfabric_tagged_only = True
+            locations = self.nb_adapter.get_initial_location(self.ssot_tag)
+            for location in locations:
+                _ = location.status.name
+            self.assertEqual(len(locations), 1, "Should get 1 Locations with SSoT tag filter.")
+
+    @unittest.skipIf(AssertNoRepeatedQueries is None, "Requires Nautobot 3.1+ (AssertNoRepeatedQueries)")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models.Location", autospec=True)
+    def test_load_device_no_n_plus_one(self, mock_location):
+        """Device loading with N stack members should not issue per-member or per-interface queries."""
+        with AssertNoRepeatedQueries(self, threshold=1):
+            self.nb_adapter.load_device(Device.objects.filter(location=self.stack_site), mock_location)
+
+    def test_get_initial_location_filter_only(self):
+        """`location_filter` without tagged_only returns the named location."""
+        self.nb_adapter.location_filter = self.site1
+        locations = list(self.nb_adapter.get_initial_location(self.ssot_tag))
+        self.assertEqual(len(locations), 1)
+        self.assertEqual(locations[0].id, self.site1.id)
+
+    def test_get_initial_location_tagged_and_filter_match(self):
+        """`location_filter` with `sync_ipfabric_tagged_only` returns the tagged location."""
+        self.nb_adapter.sync_ipfabric_tagged_only = True
+        self.nb_adapter.location_filter = self.stack_site
+        locations = list(self.nb_adapter.get_initial_location(self.ssot_tag))
+        self.assertEqual(len(locations), 1)
+        self.assertEqual(locations[0].id, self.stack_site.id)
+
+    def test_get_initial_location_tagged_and_filter_no_match_warns(self):
+        """Untagged `location_filter` with `sync_ipfabric_tagged_only` returns empty + warning."""
+        self.nb_adapter.sync_ipfabric_tagged_only = True
+        self.nb_adapter.location_filter = self.site1
+        with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as captured:
+            locations = list(self.nb_adapter.get_initial_location(self.ssot_tag))
+        self.assertEqual(len(locations), 0)
+        self.assertTrue(
+            any("is not tagged" in line for line in captured.output),
+            f"Expected 'is not tagged' warning, got: {captured.output}",
+        )

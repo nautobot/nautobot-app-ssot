@@ -1,30 +1,39 @@
+# pylint: disable=too-many-lines
 """Test Nautobot Utilities."""
 
 import ipaddress
 import unittest
+from unittest import mock
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
 from django.test import TestCase
 from nautobot.core.choices import ColorChoices
-from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer, Platform
+from nautobot.dcim.models import DeviceType, Interface, Location, LocationType, Manufacturer, Platform, VirtualChassis
 from nautobot.dcim.models.devices import Device
-from nautobot.extras.models import Role
+from nautobot.extras.models import Role, Tag
 from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
 
+from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
 from nautobot_ssot.integrations.ipfabric.utilities import (
-    create_device_type_object,
+    assign_device_to_virtual_chassis,
     create_interface,
     create_ip,
-    create_location,
-    create_manufacturer,
-    create_platform_object,
-    create_status,
     create_vlan,
     get_or_create_device_role_object,
+    get_or_create_device_type_object,
+    get_or_create_location_object,
+    get_or_create_manufacturer_object,
+    get_or_create_platform_object,
+    get_or_create_status_object,
+    get_or_create_tag_object,
+    get_or_create_virtual_chassis_object,
+    get_tagged_device,
 )
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import tag_object
+from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 
 # pylint: disable=too-many-instance-attributes,too-many-arguments,too-many-public-methods
@@ -33,8 +42,13 @@ class TestNautobotUtils(TestCase):
 
     def setUp(self):
         """Setup."""
+        job_scoped_cache.clear_all()
         site_location_type = LocationType.objects.update_or_create(name="Site")[0]
-        site_location_type.content_types.set([ContentType.objects.get_for_model(VLAN)])
+        locaiton_cts = [
+            ContentType.objects.get_for_model(VLAN),
+            ContentType.objects.get_for_model(Device),
+        ]
+        site_location_type.content_types.set(locaiton_cts)
         self.location = Location.objects.create(
             name="Test-Location",
             status=Status.objects.get(name="Active"),
@@ -91,25 +105,27 @@ class TestNautobotUtils(TestCase):
 
     def test_create_location_existing_location_no_location_id(self):
         """Test `create_location` Utility."""
-        test_location = create_location(location_name="Test-Location")
+        test_location = get_or_create_location_object(location_name="Test-Location")
         self.assertEqual(test_location.id, self.location.id)
 
     def test_create_location_existing_location_with_location_id(self):
         """Test `create_location` Utility."""
         self.assertFalse(self.location.cf.get("ipfabric_site_id"))
-        test_location = create_location(location_name="Test-Location", location_id="Test-Location")
+        test_location = get_or_create_location_object(location_name="Test-Location", location_id="Test-Location")
         self.assertEqual(test_location.id, self.location.id)
         self.assertEqual(test_location.cf["ipfabric_site_id"], "Test-Location")
 
     def test_create_location_no_location_id(self):
         """Test `create_location` Utility."""
-        test_location = create_location(location_name="Test-Location-new")
+        test_location = get_or_create_location_object(location_name="Test-Location-new")
         self.assertEqual(test_location.name, "Test-Location-new")
 
     def test_create_location_with_location_id(self):
         """Test `create_location` Utility."""
         self.assertFalse(Location.objects.filter(name="Test-Location-new"))
-        test_location = create_location(location_name="Test-Location-new", location_id="Test-Location-new")
+        test_location = get_or_create_location_object(
+            location_name="Test-Location-new", location_id="Test-Location-new"
+        )
         self.assertEqual(test_location.name, "Test-Location-new")
         self.assertEqual(test_location.cf["ipfabric_site_id"], "Test-Location-new")
 
@@ -122,7 +138,9 @@ class TestNautobotUtils(TestCase):
         """Test `create_location` Utility."""
         mock_location.side_effect = [Location.MultipleObjectsReturned]
         logger = mock_logger("nb_job")
-        test_location = create_location(location_name="Test-Location", location_id="Test-Location", logger=logger)
+        test_location = get_or_create_location_object(
+            location_name="Test-Location", location_id="Test-Location", logger=logger
+        )
         self.assertEqual(test_location, None)
         logger.error.assert_called_with("Multiple Locations returned with name Test-Location")
         mock_tag_object.assert_not_called()
@@ -136,7 +154,9 @@ class TestNautobotUtils(TestCase):
         """Test `create_location` Utility."""
         mock_location.side_effect = [DjangoBaseDBError]
         logger = mock_logger("nb_job")
-        test_location = create_location(location_name="Test-Location", location_id="Test-Location", logger=logger)
+        test_location = get_or_create_location_object(
+            location_name="Test-Location", location_id="Test-Location", logger=logger
+        )
         self.assertEqual(test_location, None)
         logger.error.assert_called_with("Unable to create a new Location named Test-Location with LocationType Site")
         mock_tag_object.assert_not_called()
@@ -150,7 +170,9 @@ class TestNautobotUtils(TestCase):
         """Test `create_location` Utility."""
         mock_location.side_effect = [ValidationError("failure")]
         logger = mock_logger("nb_job")
-        test_location = create_location(location_name="Test-Location", location_id="Test-Location", logger=logger)
+        test_location = get_or_create_location_object(
+            location_name="Test-Location", location_id="Test-Location", logger=logger
+        )
         self.assertEqual(test_location, None)
         logger.error.assert_called_with("Unable to create a new Location named Test-Location with LocationType Site")
         mock_tag_object.assert_not_called()
@@ -161,7 +183,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_location` Utility."""
         mock_tag_object.side_effect = [DjangoBaseDBError]
         logger = mock_logger("nb_job")
-        test_location = create_location(location_name="Test-Location-new", logger=logger)
+        test_location = get_or_create_location_object(location_name="Test-Location-new", logger=logger)
         self.assertEqual(test_location.name, "Test-Location-new")
         logger.warning.assert_called_with(
             f"Unable to perform a validated_save() on Location {test_location.name} with an ID of {test_location.id}"
@@ -173,32 +195,40 @@ class TestNautobotUtils(TestCase):
         """Test `create_location` Utility."""
         mock_tag_object.side_effect = [ValidationError("failure")]
         logger = mock_logger("nb_job")
-        test_location = create_location(location_name="Test-Location-new", logger=logger)
+        test_location = get_or_create_location_object(location_name="Test-Location-new", logger=logger)
         self.assertEqual(test_location.name, "Test-Location-new")
         logger.warning.assert_called_with(
             f"Unable to perform a validated_save() on Location {test_location.name} with an ID of {test_location.id}"
         )
 
-    def test_create_device_type_object(self):
+    def test_get_or_create_device_type_object(self):
         """Test `create_device_type_object` Utility."""
-        test_device_type = create_device_type_object(device_type="Test-DeviceType-New", vendor_name="Test-Manufacturer")
+        test_device_type = get_or_create_device_type_object(
+            device_type="Test-DeviceType-New", vendor_name="Test-Manufacturer"
+        )
         self.assertEqual(test_device_type.model, "Test-DeviceType-New")
 
     def test_create_device_type_object_existing_device_type(self):
         """Test `create_device_type_object` Utility."""
-        test_device_type = create_device_type_object(device_type="Test-DeviceType", vendor_name="Test-Manufacturer")
+        test_device_type = get_or_create_device_type_object(
+            device_type="Test-DeviceType", vendor_name="Test-Manufacturer"
+        )
         self.assertEqual(test_device_type.id, self.device_type.id)
 
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.create_manufacturer", autospec=True)
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.get_or_create_manufacturer_object", autospec=True
+    )
     @unittest.mock.patch(
         "nautobot_ssot.integrations.ipfabric.utilities.nbutils.DeviceType.objects.get_or_create", autospec=True
     )
     @unittest.mock.patch("logging.Logger", autospec=True)
-    def test_create_device_type_fail_to_get_manufacturer(self, mock_logger, mock_device_type, mock_create_manufacturer):
+    def test_create_device_type_fail_to_get_manufacturer(
+        self, mock_logger, mock_device_type, mock_get_or_create_manufacturer_object
+    ):
         """Test `create_device_type_object` Utility."""
-        mock_create_manufacturer.return_value = None
+        mock_get_or_create_manufacturer_object.return_value = None
         logger = mock_logger("nb_job")
-        test_device_type = create_device_type_object(
+        test_device_type = get_or_create_device_type_object(
             device_type="Test-DeviceType", vendor_name="Test-Manufacturer", logger=logger
         )
         mock_device_type.assert_not_called()
@@ -215,7 +245,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         mock_device_type.side_effect = [DeviceType.MultipleObjectsReturned]
         logger = mock_logger("nb_job")
-        test_device_type = create_device_type_object(
+        test_device_type = get_or_create_device_type_object(
             device_type="Test-DeviceType", vendor_name="Test-Manufacturer", logger=logger
         )
         logger.error.assert_called_with(
@@ -231,7 +261,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         mock_device_type.side_effect = [DjangoBaseDBError]
         logger = mock_logger("nb_job")
-        test_device_type = create_device_type_object(
+        test_device_type = get_or_create_device_type_object(
             device_type="Test-DeviceType", vendor_name="Test-Manufacturer", logger=logger
         )
         logger.error.assert_called_with(
@@ -247,7 +277,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         mock_device_type.side_effect = [ValidationError("failure")]
         logger = mock_logger("nb_job")
-        test_device_type = create_device_type_object(
+        test_device_type = get_or_create_device_type_object(
             device_type="Test-DeviceType", vendor_name="Test-Manufacturer", logger=logger
         )
         logger.error.assert_called_with(
@@ -261,7 +291,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         mock_tag_object.side_effect = [None, DjangoBaseDBError]
         logger = mock_logger("nb_job")
-        test_device_type = create_device_type_object(
+        test_device_type = get_or_create_device_type_object(
             device_type="Test-DeviceType-new", vendor_name="Test-Manufacturer", logger=logger
         )
         self.assertEqual(test_device_type.model, "Test-DeviceType-new")
@@ -275,7 +305,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         mock_tag_object.side_effect = [None, ValidationError("failure")]
         logger = mock_logger("nb_job")
-        test_device_type = create_device_type_object(
+        test_device_type = get_or_create_device_type_object(
             device_type="Test-DeviceType-new", vendor_name="Test-Manufacturer", logger=logger
         )
         self.assertEqual(test_device_type.model, "Test-DeviceType-new")
@@ -283,47 +313,47 @@ class TestNautobotUtils(TestCase):
             f"Unable to perform a validated_save() on DeviceType Test-DeviceType-new with an ID of {test_device_type.id}"
         )
 
-    def test_create_manufacturer(self):
-        """Test `create_manufacturer` Utility."""
-        test_manufacturer = create_manufacturer(vendor_name="Test-Manufacturer")
+    def test_get_or_create_manufacturer_object(self):
+        """Test `get_or_create_manufacturer_object` Utility."""
+        test_manufacturer = get_or_create_manufacturer_object(vendor_name="Test-Manufacturer")
         self.assertEqual(test_manufacturer.id, self.manufacturer.id)
 
-    def test_create_platform_object_platform_created_no_napalm_driver(self):
-        """Test `create_platform_object` Utility."""
+    def test_get_or_create_platform_object_platform_created_no_napalm_driver(self):
+        """Test `get_or_create_platform_object_object` Utility."""
         platform = "does_not_exist"
         self.assertEqual(Platform.objects.filter(name=platform).count(), 0)
-        platform_obj = create_platform_object(platform, self.manufacturer)
+        platform_obj = get_or_create_platform_object(platform, self.manufacturer)
         self.assertEqual(self.manufacturer.id, platform_obj.manufacturer.id)
         self.assertEqual(platform_obj.name, platform)
         expected_network_driver = f"{self.manufacturer.name.lower()}_{platform}"
         self.assertEqual(platform_obj.network_driver, expected_network_driver)
         self.assertEqual(platform_obj.napalm_driver, "")
 
-    def test_create_platform_object_platform_created_with_napalm_driver(self):
-        """Test `create_platform_object` Utility."""
+    def test_get_or_create_platform_object_platform_created_with_napalm_driver(self):
+        """Test `get_or_create_platform_object` Utility."""
         manufacturer_obj, _ = Manufacturer.objects.get_or_create(name="Cisco")
         platform = "ios"
         self.assertEqual(Platform.objects.filter(name=platform).count(), 0)
-        platform_obj = create_platform_object(platform, manufacturer_obj)
+        platform_obj = get_or_create_platform_object(platform, manufacturer_obj)
         self.assertEqual(manufacturer_obj.id, platform_obj.manufacturer.id)
         self.assertEqual(platform_obj.name, platform)
         self.assertEqual(platform_obj.network_driver, "cisco_ios")
         self.assertEqual(platform_obj.napalm_driver, "cisco_ios")
 
-    def test_create_platform_object_platform_created_iosxe(self):
+    def test_get_or_create_platform_object_platform_created_iosxe(self):
         """Test `create_platform_object` Utility."""
         platform = "ios-xe"
         self.assertEqual(Platform.objects.filter(name=platform).count(), 0)
-        platform_obj = create_platform_object(platform, self.manufacturer)
+        platform_obj = get_or_create_platform_object(platform, self.manufacturer)
         self.assertEqual(platform_obj.network_driver, "cisco_ios")
         self.assertEqual(platform_obj.napalm_driver, "cisco_ios")
 
-    def test_create_platform_object_existing_platform_returned(self):
-        """Test `create_platform_object` Utility."""
+    def test_get_or_create_platform_object_existing_platform_returned(self):
+        """Test `get_or_create_platform_object` Utility."""
         manufacturer_obj, _ = Manufacturer.objects.get_or_create(name="Cisco")
         platform = "ios"
         platform_obj = Platform.objects.create(name=platform, manufacturer=manufacturer_obj)
-        existing_platform_obj = create_platform_object(platform, manufacturer_obj)
+        existing_platform_obj = get_or_create_platform_object(platform, manufacturer_obj)
         self.assertEqual(platform_obj.id, existing_platform_obj.id)
         self.assertEqual(platform_obj.network_driver, "")
         self.assertEqual(platform_obj.napalm_driver, "")
@@ -333,14 +363,14 @@ class TestNautobotUtils(TestCase):
         test_device_role = get_or_create_device_role_object("Test-Role", role_color=ColorChoices.COLOR_RED)
         self.assertEqual(test_device_role.id, self.device_role.id)
 
-    def test_create_status(self):
-        """Test `create_status` Utility."""
-        test_status = create_status(status_name="Test-Status", status_color=ColorChoices.COLOR_AMBER)
+    def test_get_or_create_status_object(self):
+        """Test `get_or_create_status_object` Utility."""
+        test_status = get_or_create_status_object(status_name="Test-Status", status_color=ColorChoices.COLOR_AMBER)
         self.assertEqual(test_status.id, self.status.id)
 
-    def test_create_status_doesnt_exist(self):
-        """Test `create_status` Utility."""
-        test_status = create_status(status_name="Test-Status-100", status_color=ColorChoices.COLOR_AMBER)
+    def test_get_or_create_status_object_doesnt_exist(self):
+        """Test `get_or_create_status_object` Utility."""
+        test_status = get_or_create_status_object(status_name="Test-Status-100", status_color=ColorChoices.COLOR_AMBER)
         self.assertEqual(test_status.id, Status.objects.get(name="Test-Status-100").id)
 
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddressToInterface")
@@ -905,3 +935,655 @@ class TestNautobotUtils(TestCase):
         test_interface = create_interface(self.device, interface_details)
         self.assertEqual(test_interface.id, self.device.interfaces.get(name="Test-Interface-New").id)
         self.assertEqual(test_interface.mtu, 1500)
+
+    # ===== get_or_create_manufacturer_object error/tag paths =====
+
+    def test_get_or_create_manufacturer_object_new(self):
+        """Test creating a new Manufacturer."""
+        self.assertFalse(Manufacturer.objects.filter(name="New-Manufacturer").exists())
+        result = get_or_create_manufacturer_object(vendor_name="New-Manufacturer")
+        self.assertEqual(result.name, "New-Manufacturer")
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Manufacturer.objects.get_or_create", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_manufacturer_object_multiple_returned(self, mock_logger, mock_mfg):
+        """Test `get_or_create_manufacturer_object` MultipleObjectsReturned path."""
+        mock_mfg.side_effect = [Manufacturer.MultipleObjectsReturned]
+        logger = mock_logger("nb_job")
+        result = get_or_create_manufacturer_object(vendor_name="X-Mfg", logger=logger)
+        self.assertIsNone(result)
+        logger.error.assert_called_with("Multiple Manufacturers returned with name X-Mfg")
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Manufacturer.objects.get_or_create", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_manufacturer_object_db_error(self, mock_logger, mock_mfg):
+        """Test `get_or_create_manufacturer_object` DjangoBaseDBError path."""
+        mock_mfg.side_effect = [DjangoBaseDBError]
+        logger = mock_logger("nb_job")
+        result = get_or_create_manufacturer_object(vendor_name="X-Mfg", logger=logger)
+        self.assertIsNone(result)
+        logger.error.assert_called_with("Unable to create a new Manufacturer named X-Mfg")
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Manufacturer.objects.get_or_create", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_manufacturer_object_validation_error(self, mock_logger, mock_mfg):
+        """Test `get_or_create_manufacturer_object` ValidationError path."""
+        mock_mfg.side_effect = [ValidationError("failure")]
+        logger = mock_logger("nb_job")
+        result = get_or_create_manufacturer_object(vendor_name="X-Mfg", logger=logger)
+        self.assertIsNone(result)
+        logger.error.assert_called_with("Unable to create a new Manufacturer named X-Mfg")
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_manufacturer_object_tag_db_error(self, mock_logger, mock_tag):
+        """Test `get_or_create_manufacturer_object` tag_object DjangoBaseDBError path."""
+        mock_tag.side_effect = [DjangoBaseDBError]
+        logger = mock_logger("nb_job")
+        result = get_or_create_manufacturer_object(vendor_name="Tag-DB-Mfg", logger=logger)
+        self.assertEqual(result.name, "Tag-DB-Mfg")
+        logger.warning.assert_called_with(
+            f"Unable to perform a validated_save() on Manufacturer Tag-DB-Mfg with an ID of {result.id}"
+        )
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_manufacturer_object_tag_validation_error(self, mock_logger, mock_tag):
+        """Test `get_or_create_manufacturer_object` tag_object ValidationError path."""
+        mock_tag.side_effect = [ValidationError("failure")]
+        logger = mock_logger("nb_job")
+        result = get_or_create_manufacturer_object(vendor_name="Tag-V-Mfg", logger=logger)
+        self.assertEqual(result.name, "Tag-V-Mfg")
+        logger.warning.assert_called_with(
+            f"Unable to perform a validated_save() on Manufacturer Tag-V-Mfg with an ID of {result.id}"
+        )
+
+    # ===== get_or_create_device_role_object error/tag paths =====
+
+    def test_get_or_create_device_role_object_new(self):
+        """Test creating a new Role with cf and content_type."""
+        self.assertFalse(Role.objects.filter(name="New-Role").exists())
+        result = get_or_create_device_role_object(role_name="New-Role", role_color=ColorChoices.COLOR_BLUE)
+        self.assertEqual(result.name, "New-Role")
+        self.assertEqual(result.cf.get("ipfabric_type"), "New-Role")
+        self.assertIn(self.content_type, result.content_types.all())
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Role.objects.create", autospec=True)
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_device_role_object_db_error_on_create(self, mock_logger, mock_create):
+        """Test `get_or_create_device_role_object` DjangoBaseDBError on create path."""
+        mock_create.side_effect = [DjangoBaseDBError]
+        logger = mock_logger("nb_job")
+        result = get_or_create_device_role_object(role_name="DB-Role", logger=logger)
+        self.assertIsNone(result)
+        logger.error.assert_called_with("Unable to create a new Role named DB-Role")
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Role.objects.create", autospec=True)
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_device_role_object_validation_error_on_create(self, mock_logger, mock_create):
+        """Test `get_or_create_device_role_object` ValidationError on create path."""
+        mock_create.side_effect = [ValidationError("failure")]
+        logger = mock_logger("nb_job")
+        result = get_or_create_device_role_object(role_name="V-Role", logger=logger)
+        self.assertIsNone(result)
+        logger.error.assert_called_with("Unable to create a new Role named V-Role")
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Role.objects.get", autospec=True)
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_device_role_object_multiple_returned(self, mock_logger, mock_get):
+        """Test `get_or_create_device_role_object` MultipleObjectsReturned path."""
+        mock_get.side_effect = [Role.MultipleObjectsReturned]
+        logger = mock_logger("nb_job")
+        result = get_or_create_device_role_object(role_name="Multi-Role", logger=logger)
+        self.assertIsNone(result)
+        logger.error.assert_called_with("Multiple Roles returned with the name Multi-Role")
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_device_role_object_tag_db_error(self, mock_logger, mock_tag):
+        """Test `get_or_create_device_role_object` tag_object DjangoBaseDBError path."""
+        mock_tag.side_effect = [DjangoBaseDBError]
+        logger = mock_logger("nb_job")
+        result = get_or_create_device_role_object(role_name="TagDB-Role", logger=logger)
+        self.assertEqual(result.name, "TagDB-Role")
+        logger.warning.assert_called_with(
+            f"Unable to perform validated_save() on Role TagDB-Role with an ID of {result.id}"
+        )
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_device_role_object_tag_validation_error(self, mock_logger, mock_tag):
+        """Test `get_or_create_device_role_object` tag_object ValidationError path."""
+        mock_tag.side_effect = [ValidationError("failure")]
+        logger = mock_logger("nb_job")
+        result = get_or_create_device_role_object(role_name="TagV-Role", logger=logger)
+        self.assertEqual(result.name, "TagV-Role")
+        logger.warning.assert_called_with(
+            f"Unable to perform validated_save() on Role TagV-Role with an ID of {result.id}"
+        )
+
+    # ===== get_or_create_status_object error paths =====
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.create", autospec=True)
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_status_object_db_error_on_create(self, mock_logger, mock_create):
+        """Test `get_or_create_status_object` DjangoBaseDBError on create path."""
+        mock_create.side_effect = [DjangoBaseDBError]
+        logger = mock_logger("nb_job")
+        result = get_or_create_status_object(
+            status_name="DB-Status", status_color=ColorChoices.COLOR_AMBER, logger=logger
+        )
+        self.assertIsNone(result)
+        logger.error.assert_called_with("Unable to create a new Status named DB-Status")
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.create", autospec=True)
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_status_object_validation_error_on_create(self, mock_logger, mock_create):
+        """Test `get_or_create_status_object` ValidationError on create path."""
+        mock_create.side_effect = [ValidationError("failure")]
+        logger = mock_logger("nb_job")
+        result = get_or_create_status_object(
+            status_name="V-Status", status_color=ColorChoices.COLOR_AMBER, logger=logger
+        )
+        self.assertIsNone(result)
+        logger.error.assert_called_with("Unable to create a new Status named V-Status")
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get", autospec=True)
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_status_object_multiple_returned(self, mock_logger, mock_get):
+        """Test `get_or_create_status_object` MultipleObjectsReturned path."""
+        mock_get.side_effect = [Status.MultipleObjectsReturned]
+        logger = mock_logger("nb_job")
+        result = get_or_create_status_object(
+            status_name="Multi-Status", status_color=ColorChoices.COLOR_AMBER, logger=logger
+        )
+        self.assertIsNone(result)
+        logger.error.assert_called_with("Multiple Statuses returned with the name Multi-Status")
+
+    # ===== get_or_create_platform_object error paths =====
+
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_platform_object_no_manufacturer(self, mock_logger):
+        """Test `get_or_create_platform_object` returns None when manufacturer is None."""
+        logger = mock_logger("nb_job")
+        result = get_or_create_platform_object(platform="ios", manufacturer_obj=None, logger=logger)
+        self.assertIsNone(result)
+        logger.error.assert_called_with("Unable to create Platform ios because Manufacturer is None")
+
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_platform_object_manufacturer_mismatch(self, mock_logger):
+        """Test `get_or_create_platform_object` returns None when Platform belongs to a different Manufacturer."""
+        other_mfg = Manufacturer.objects.create(name="Other-Mfg")
+        Platform.objects.create(name="shared-platform", manufacturer=self.manufacturer)
+        logger = mock_logger("nb_job")
+        result = get_or_create_platform_object(platform="shared-platform", manufacturer_obj=other_mfg, logger=logger)
+        self.assertIsNone(result)
+        logger.warning.assert_called_with(
+            f"Platform shared-platform already exists but belongs to Manufacturer {self.manufacturer}, "
+            f"not {other_mfg}. Skipping assignment to avoid validation errors."
+        )
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Platform.objects.create", autospec=True)
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_platform_object_db_error_on_create(self, mock_logger, mock_create):
+        """Test `get_or_create_platform_object` DjangoBaseDBError on create path."""
+        mock_create.side_effect = [DjangoBaseDBError("err")]
+        logger = mock_logger("nb_job")
+        result = get_or_create_platform_object(platform="db-fail", manufacturer_obj=self.manufacturer, logger=logger)
+        self.assertIsNone(result)
+        self.assertTrue(logger.error.called)
+        self.assertIn("Unable to create a new Platform named db-fail", logger.error.call_args[0][0])
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Platform.objects.create", autospec=True)
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_platform_object_validation_error_on_create(self, mock_logger, mock_create):
+        """Test `get_or_create_platform_object` ValidationError on create path."""
+        mock_create.side_effect = [ValidationError("failure")]
+        logger = mock_logger("nb_job")
+        result = get_or_create_platform_object(platform="v-fail", manufacturer_obj=self.manufacturer, logger=logger)
+        self.assertIsNone(result)
+        self.assertTrue(logger.error.called)
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Platform.objects.get", autospec=True)
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_platform_object_multiple_returned(self, mock_logger, mock_get):
+        """Test `get_or_create_platform_object` MultipleObjectsReturned path."""
+        mock_get.side_effect = [Platform.MultipleObjectsReturned]
+        logger = mock_logger("nb_job")
+        result = get_or_create_platform_object(platform="multi", manufacturer_obj=self.manufacturer, logger=logger)
+        self.assertIsNone(result)
+        logger.error.assert_called_with("Multiple Platforms returned with the name multi")
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Platform.objects.get", autospec=True)
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_platform_object_db_error_on_get(self, mock_logger, mock_get):
+        """Test `get_or_create_platform_object` DjangoBaseDBError on get path."""
+        mock_get.side_effect = [DjangoBaseDBError]
+        logger = mock_logger("nb_job")
+        result = get_or_create_platform_object(
+            platform="get-db-fail", manufacturer_obj=self.manufacturer, logger=logger
+        )
+        self.assertIsNone(result)
+        logger.error.assert_called_with("Unable to retrieve Platform named get-db-fail")
+
+    # ===== get_or_create_tag_object =====
+
+    def test_get_or_create_tag_object_existing(self):
+        """Test `get_or_create_tag_object` returns existing Tag."""
+        existing, _ = Tag.objects.get_or_create(name="Existing-Tag", defaults={"color": ColorChoices.COLOR_GREY})
+        result = get_or_create_tag_object(tag_name="Existing-Tag")
+        self.assertEqual(result.id, existing.id)
+
+    def test_get_or_create_tag_object_new(self):
+        """Test `get_or_create_tag_object` creates new Tag and adds default content_type."""
+        self.assertFalse(Tag.objects.filter(name="New-Tag").exists())
+        result = get_or_create_tag_object(tag_name="New-Tag", tag_color=ColorChoices.COLOR_BLUE)
+        self.assertEqual(result.name, "New-Tag")
+        self.assertIn(self.content_type, result.content_types.all())
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Tag.objects.get_or_create", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_tag_object_db_error(self, mock_logger, mock_tag):
+        """Test `get_or_create_tag_object` DjangoBaseDBError path."""
+        mock_tag.side_effect = [DjangoBaseDBError]
+        logger = mock_logger("nb_job")
+        result = get_or_create_tag_object(tag_name="DB-Tag", logger=logger)
+        self.assertIsNone(result)
+        self.assertTrue(logger.error.called)
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Tag.objects.get_or_create", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_tag_object_validation_error(self, mock_logger, mock_tag):
+        """Test `get_or_create_tag_object` ValidationError path."""
+        mock_tag.side_effect = [ValidationError("failure")]
+        logger = mock_logger("nb_job")
+        result = get_or_create_tag_object(tag_name="V-Tag", logger=logger)
+        self.assertIsNone(result)
+        self.assertTrue(logger.error.called)
+
+    # ===== get_or_create_virtual_chassis_object =====
+
+    def test_get_or_create_virtual_chassis_object_existing(self):
+        """Test `get_or_create_virtual_chassis_object` returns existing VC."""
+        existing = VirtualChassis.objects.create(name="Stack-1")
+        result = get_or_create_virtual_chassis_object(name="Stack-1")
+        self.assertEqual(result.id, existing.id)
+
+    def test_get_or_create_virtual_chassis_object_new(self):
+        """Test `get_or_create_virtual_chassis_object` creates new VC."""
+        self.assertFalse(VirtualChassis.objects.filter(name="Stack-New").exists())
+        result = get_or_create_virtual_chassis_object(name="Stack-New")
+        self.assertEqual(result.name, "Stack-New")
+        self.assertTrue(VirtualChassis.objects.filter(name="Stack-New").exists())
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.VirtualChassis.objects.get_or_create", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_virtual_chassis_object_db_error(self, mock_logger, mock_vc):
+        """Test `get_or_create_virtual_chassis_object` DjangoBaseDBError path."""
+        mock_vc.side_effect = [DjangoBaseDBError("err-msg")]
+        logger = mock_logger("nb_job")
+        result = get_or_create_virtual_chassis_object(name="Stack-Err", logger=logger)
+        self.assertIsNone(result)
+        self.assertTrue(logger.error.called)
+        self.assertIn(
+            "Unable to get or create VirtualChassis named Stack-Err",
+            logger.error.call_args[0][0],
+        )
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.VirtualChassis.objects.get_or_create", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_virtual_chassis_object_validation_error(self, mock_logger, mock_vc):
+        """Test `get_or_create_virtual_chassis_object` ValidationError path."""
+        mock_vc.side_effect = [ValidationError("failure")]
+        logger = mock_logger("nb_job")
+        result = get_or_create_virtual_chassis_object(name="Stack-VErr", logger=logger)
+        self.assertIsNone(result)
+        self.assertTrue(logger.error.called)
+
+    # ===== assign_device_to_virtual_chassis =====
+
+    def _make_vc_test_device(self, name):
+        """Create a fresh device for VirtualChassis tests."""
+        return Device.objects.create(
+            name=name,
+            location=self.location,
+            device_type=self.device_type,
+            role=self.device_role,
+            status=Status.objects.get(name="Active"),
+        )
+
+    def test_assign_device_to_virtual_chassis_initial(self):
+        """Test initial assignment with VC, position, and priority."""
+        vc = VirtualChassis.objects.create(name="Stack-Init")
+        device = self._make_vc_test_device("VC-Initial")
+        result = assign_device_to_virtual_chassis(device, vc, position=1, priority=10)
+        device.refresh_from_db()
+        self.assertEqual(result.id, vc.id)
+        self.assertEqual(device.virtual_chassis_id, vc.id)
+        self.assertEqual(device.vc_position, 1)
+        self.assertEqual(device.vc_priority, 10)
+
+    def test_assign_device_to_virtual_chassis_idempotent(self):
+        """Test that calling twice with same args is a no-op on the second call."""
+        vc = VirtualChassis.objects.create(name="Stack-Idem")
+        device = self._make_vc_test_device("VC-Idem")
+        assign_device_to_virtual_chassis(device, vc, position=1, priority=10)
+        device.refresh_from_db()
+        with mock.patch.object(Device, "validated_save") as save_mock:
+            assign_device_to_virtual_chassis(device, vc, position=1, priority=10)
+            save_mock.assert_not_called()
+
+    def test_assign_device_to_virtual_chassis_position_only(self):
+        """Test setting position without priority."""
+        vc = VirtualChassis.objects.create(name="Stack-Pos")
+        device = self._make_vc_test_device("VC-Pos")
+        assign_device_to_virtual_chassis(device, vc, position=2)
+        device.refresh_from_db()
+        self.assertEqual(device.vc_position, 2)
+        self.assertIsNone(device.vc_priority)
+
+    def test_assign_device_to_virtual_chassis_master_set(self):
+        """Test setting master saves VC with the new master."""
+        vc = VirtualChassis.objects.create(name="Stack-Master")
+        device = self._make_vc_test_device("VC-Master")
+        assign_device_to_virtual_chassis(device, vc, position=1, master=True)
+        vc.refresh_from_db()
+        self.assertEqual(vc.master_id, device.id)
+
+    def test_assign_device_to_virtual_chassis_master_idempotent(self):
+        """Test that re-assigning the same master is a no-op on the VC save."""
+        vc = VirtualChassis.objects.create(name="Stack-MasterIdem")
+        device = self._make_vc_test_device("VC-MasterIdem")
+        assign_device_to_virtual_chassis(device, vc, position=1, master=True)
+        with mock.patch.object(VirtualChassis, "validated_save") as save_mock:
+            assign_device_to_virtual_chassis(device, vc, position=1, master=True)
+            save_mock.assert_not_called()
+
+    def test_assign_device_to_virtual_chassis_priority_update(self):
+        """Calling again with a new priority updates priority and persists."""
+        vc = VirtualChassis.objects.create(name="Stack-PriUpdate")
+        device = self._make_vc_test_device("VC-PriUpdate")
+        assign_device_to_virtual_chassis(device, vc, position=1, priority=10)
+        device.refresh_from_db()
+        self.assertEqual(device.vc_priority, 10)
+
+        assign_device_to_virtual_chassis(device, vc, position=1, priority=20)
+        device.refresh_from_db()
+        self.assertEqual(device.vc_priority, 20)
+
+    def test_assign_device_to_virtual_chassis_position_change(self):
+        """Calling again with a different position updates position and persists."""
+        vc = VirtualChassis.objects.create(name="Stack-PosChange")
+        device = self._make_vc_test_device("VC-PosChange")
+        assign_device_to_virtual_chassis(device, vc, position=1)
+        device.refresh_from_db()
+        self.assertEqual(device.vc_position, 1)
+
+        assign_device_to_virtual_chassis(device, vc, position=3)
+        device.refresh_from_db()
+        self.assertEqual(device.vc_position, 3)
+
+    def test_assign_device_to_virtual_chassis_master_swap(self):
+        """Setting master=True for a different device flips the VC master."""
+        vc = VirtualChassis.objects.create(name="Stack-MasterSwap")
+        first = self._make_vc_test_device("VC-MasterSwap-1")
+        second = self._make_vc_test_device("VC-MasterSwap-2")
+        assign_device_to_virtual_chassis(first, vc, position=1, master=True)
+        vc.refresh_from_db()
+        self.assertEqual(vc.master_id, first.id)
+
+        assign_device_to_virtual_chassis(second, vc, position=2, master=True)
+        vc.refresh_from_db()
+        self.assertEqual(vc.master_id, second.id)
+
+    # ===== get_tagged_device =====
+
+    def test_get_tagged_device_match(self):
+        """Test returns the device when name and SSoT tag match."""
+        ssot_tag, _ = Tag.objects.get_or_create(
+            name="SSoT Synced from IPFabric", defaults={"color": ColorChoices.COLOR_LIGHT_GREEN}
+        )
+        ssot_tag.content_types.add(self.content_type)
+        self.device.tags.add(ssot_tag)
+        result = get_tagged_device(self.device.name)
+        self.assertEqual(result.id, self.device.id)
+
+    def test_get_tagged_device_no_match(self):
+        """Test returns None when device has no SSoT tag."""
+        result = get_tagged_device("Test-Device")
+        self.assertIsNone(result)
+
+    def test_get_tagged_device_cache_reuse(self):
+        """Test second call hits the cache and skips DB."""
+        ssot_tag, _ = Tag.objects.get_or_create(
+            name="SSoT Synced from IPFabric", defaults={"color": ColorChoices.COLOR_LIGHT_GREEN}
+        )
+        ssot_tag.content_types.add(self.content_type)
+        self.device.tags.add(ssot_tag)
+        first = get_tagged_device(self.device.name)
+        with mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Device.objects.filter") as mock_filter:
+            second = get_tagged_device(self.device.name)
+            mock_filter.assert_not_called()
+        self.assertIs(first, second)
+
+    # ===== tag_object (direct) =====
+
+    def test_tag_object_adds_tag_and_cf(self):
+        """Test `tag_object` adds tag and writes cf values."""
+        tag_object(nautobot_object=self.device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.cf.get("system_of_record"), "IPFabric")
+        self.assertIn("SSoT Synced from IPFabric", [t.name for t in self.device.tags.all()])
+
+    def test_tag_object_alternate_tag_name(self):
+        """Test `tag_object` with an alternate tag_name."""
+        Tag.objects.get_or_create(name="Custom-Tag", defaults={"color": ColorChoices.COLOR_GREY})
+        tag_object(
+            nautobot_object=self.device,
+            custom_field=LAST_SYNCHRONIZED_CF_NAME,
+            tag_name="Custom-Tag",
+        )
+        self.device.refresh_from_db()
+        self.assertIn("Custom-Tag", [t.name for t in self.device.tags.all()])
+
+    # ===== create_vlan error/tag paths =====
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.VLAN.objects.get_or_create", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_vlan_multiple_returned(self, mock_logger, mock_vlan):
+        """Test `create_vlan` MultipleObjectsReturned path."""
+        mock_vlan.side_effect = [VLAN.MultipleObjectsReturned]
+        logger = mock_logger("nb_job")
+        result = create_vlan(
+            vlan_name="Multi-VLAN",
+            vlan_id=200,
+            vlan_status="Active",
+            location_obj=self.location,
+            description="t",
+            logger=logger,
+        )
+        self.assertIsNone(result)
+        logger.error.assert_called_with("Multiple VLANs returned with name Multi-VLAN and ID 200")
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.VLAN.objects.get_or_create", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_vlan_db_error(self, mock_logger, mock_vlan):
+        """Test `create_vlan` DjangoBaseDBError path."""
+        mock_vlan.side_effect = [DjangoBaseDBError("oops")]
+        logger = mock_logger("nb_job")
+        result = create_vlan(
+            vlan_name="DB-VLAN",
+            vlan_id=201,
+            vlan_status="Active",
+            location_obj=self.location,
+            description="t",
+            logger=logger,
+        )
+        self.assertIsNone(result)
+        self.assertTrue(logger.error.called)
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.VLAN.objects.get_or_create", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_vlan_validation_error(self, mock_logger, mock_vlan):
+        """Test `create_vlan` ValidationError path."""
+        mock_vlan.side_effect = [ValidationError("failure")]
+        logger = mock_logger("nb_job")
+        result = create_vlan(
+            vlan_name="V-VLAN",
+            vlan_id=202,
+            vlan_status="Active",
+            location_obj=self.location,
+            description="t",
+            logger=logger,
+        )
+        self.assertIsNone(result)
+        self.assertTrue(logger.error.called)
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_vlan_tag_db_error(self, mock_logger, mock_tag):
+        """Test `create_vlan` tag_object DjangoBaseDBError path."""
+        mock_tag.side_effect = [DjangoBaseDBError]
+        logger = mock_logger("nb_job")
+        result = create_vlan(
+            vlan_name="TagDB-VLAN",
+            vlan_id=203,
+            vlan_status="Active",
+            location_obj=self.location,
+            description="t",
+            logger=logger,
+        )
+        self.assertEqual(result.name, "TagDB-VLAN")
+        self.assertTrue(logger.warning.called)
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_vlan_tag_validation_error(self, mock_logger, mock_tag):
+        """Test `create_vlan` tag_object ValidationError path."""
+        mock_tag.side_effect = [ValidationError("failure")]
+        logger = mock_logger("nb_job")
+        result = create_vlan(
+            vlan_name="TagV-VLAN",
+            vlan_id=204,
+            vlan_status="Active",
+            location_obj=self.location,
+            description="t",
+            logger=logger,
+        )
+        self.assertEqual(result.name, "TagV-VLAN")
+        self.assertTrue(logger.warning.called)
+
+    # ===== create_interface error/tag/status paths =====
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_interface_status_multiple_returned(self, mock_logger, mock_status):
+        """Test `create_interface` Status.MultipleObjectsReturned path."""
+        mock_status.return_value.get.side_effect = [Status.MultipleObjectsReturned]
+        logger = mock_logger("nb_job")
+        result = create_interface(self.device, {"name": "StatMulti-Iface"}, logger=logger)
+        self.assertIsNone(result)
+        self.assertTrue(logger.error.called)
+        self.assertIn("Multiple Statuses returned with name Active", logger.error.call_args[0][0])
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_interface_status_does_not_exist(self, mock_logger, mock_status):
+        """Test `create_interface` Status.DoesNotExist path."""
+        mock_status.return_value.get.side_effect = [Status.DoesNotExist]
+        logger = mock_logger("nb_job")
+        result = create_interface(self.device, {"name": "StatDNE-Iface"}, logger=logger)
+        self.assertIsNone(result)
+        self.assertTrue(logger.error.called)
+        self.assertIn("Unable to find a Status with the name Active", logger.error.call_args[0][0])
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_interface_multiple_returned(self, mock_logger, mock_status):
+        """Test `create_interface` Interface.MultipleObjectsReturned path."""
+        mock_status.return_value.get.return_value = "mock_status"
+        logger = mock_logger("nb_job")
+        mock_device = mock.MagicMock()
+        mock_device.name = "Mock-Device"
+        mock_device.interfaces.get_or_create.side_effect = Interface.MultipleObjectsReturned
+        result = create_interface(mock_device, {"name": "Multi-Iface"}, logger=logger)
+        self.assertIsNone(result)
+        logger.error.assert_called_with(
+            "Multiple Interfaces returned with name Multi-Iface on Device named Mock-Device"
+        )
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_interface_db_error(self, mock_logger, mock_status):
+        """Test `create_interface` DjangoBaseDBError on get_or_create path."""
+        mock_status.return_value.get.return_value = "mock_status"
+        logger = mock_logger("nb_job")
+        mock_device = mock.MagicMock()
+        mock_device.name = "Mock-Device"
+        mock_device.interfaces.get_or_create.side_effect = DjangoBaseDBError
+        result = create_interface(mock_device, {"name": "DB-Iface"}, logger=logger)
+        self.assertIsNone(result)
+        logger.error.assert_called_with("Unable to create a new Interface named DB-Iface on Device named Mock-Device")
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_interface_validation_error(self, mock_logger, mock_status):
+        """Test `create_interface` ValidationError on get_or_create path."""
+        mock_status.return_value.get.return_value = "mock_status"
+        logger = mock_logger("nb_job")
+        mock_device = mock.MagicMock()
+        mock_device.name = "Mock-Device"
+        mock_device.interfaces.get_or_create.side_effect = ValidationError("failure")
+        result = create_interface(mock_device, {"name": "V-Iface"}, logger=logger)
+        self.assertIsNone(result)
+        logger.error.assert_called_with("Unable to create a new Interface named V-Iface on Device named Mock-Device")
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_interface_tag_db_error(self, mock_logger, mock_tag):
+        """Test `create_interface` tag_object DjangoBaseDBError path."""
+        mock_tag.side_effect = [DjangoBaseDBError]
+        logger = mock_logger("nb_job")
+        result = create_interface(self.device, {"name": "TagDB-Iface"}, logger=logger)
+        self.assertEqual(result.name, "TagDB-Iface")
+        self.assertTrue(logger.warning.called)
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_interface_tag_validation_error(self, mock_logger, mock_tag):
+        """Test `create_interface` tag_object ValidationError path."""
+        mock_tag.side_effect = [ValidationError("failure")]
+        logger = mock_logger("nb_job")
+        result = create_interface(self.device, {"name": "TagV-Iface"}, logger=logger)
+        self.assertEqual(result.name, "TagV-Iface")
+        self.assertTrue(logger.warning.called)

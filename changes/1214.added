@@ -1,0 +1,1 @@
+Added thread safe caching for Nautobot objects an prefetching to reduce query overhead

@@ -108,7 +108,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         managed_ipv4 = defaultdict(dict)
         stacks, interfaces = defaultdict(list), defaultdict(list)
 
-        vlans = self.client.fetch_all("tables/vlan/site-summary")
+        vlans_by_location = defaultdict(list)
+        for vlan in self.client.fetch_all("tables/vlan/site-summary"):
+            vlans_by_location[vlan["siteName"]].append(vlan)
 
         ip_columns = ["sn", "intName", "net", "ip", "type"]
         ip_filter = {"type": ["eq", "primary"]}
@@ -125,33 +127,36 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             columns=["master", "member", "memberSn", "pn", "sn"]
         ):
             stacks[stack["sn"]].append(stack)
-        return managed_ipv4, vlans, stacks, interfaces
+        return managed_ipv4, vlans_by_location, stacks, interfaces
 
     def load(self):  # pylint: disable=too-many-locals,too-many-statements
         """Load data from IP Fabric."""
         self.load_sites()
-        managed_ipv4, vlans, stacks, interfaces = self.load_data()
+        managed_ipv4, vlans_by_location, stacks, interfaces = self.load_data()
 
         for location in self.get_all(self.location):
             if location.name is None:
                 continue
-            location_vlans = [vlan for vlan in vlans if vlan["siteName"] == location.name]
-            for vlan in location_vlans:
-                if not vlan["vlanId"] or (vlan["vlanId"] < 1 or vlan["vlanId"] > 4094):
-                    logger.warning(
-                        f"Not syncing VLAN, NAME: {vlan.get('vlanName')} due to invalid VLAN ID: {vlan.get('vlanId')}."
-                    )
+            location_vlans = vlans_by_location.get(location.name, [])
+            for vlan_record in location_vlans:
+                vlan_name = vlan_record.get("vlanName")
+                vlan_id = vlan_record["vlanId"]
+                vlan_desc = vlan_record.get("dscr")
+                if not vlan_id or not 1 <= vlan_id <= 4094:
+                    logger.warning(f"Not syncing VLAN, NAME: {vlan_name} due to invalid VLAN ID: {vlan_id}.")
                     continue
-                description = vlan.get("dscr") if vlan.get("dscr") else f"VLAN ID: {vlan['vlanId']}"
-                vlan_name = vlan.get("vlanName") if vlan.get("vlanName") else f"{vlan['siteName']}:{vlan['vlanId']}"
-                if len(vlan_name) > name_max_length:
-                    logger.warning(f"Not syncing VLAN, {vlan_name} due to character limit exceeding {name_max_length}.")
+                description = vlan_desc if vlan_desc else f"VLAN ID: {vlan_id}"
+                vlan_label = vlan_name if vlan_name else f"{vlan_record['siteName']}:{vlan_id}"
+                if len(vlan_label) > name_max_length:
+                    logger.warning(
+                        f"Not syncing VLAN, {vlan_label} due to character limit exceeding {name_max_length}."
+                    )
                     continue
                 try:
                     vlan = self.vlan(
-                        name=vlan_name,
-                        location=vlan["siteName"],
-                        vid=vlan["vlanId"],
+                        name=vlan_label,
+                        location=vlan_record["siteName"],
+                        vid=vlan_id,
                         status="Active",
                         description=description,
                     )
@@ -187,8 +192,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         # using `or` syntax in case memberSn is defined as None
                         member_sn = member.get("memberSn") or ""
                         args = base_args.copy()
-                        if _ := member.get("pn"):
-                            args["model"] = _
+                        if pn := member.get("pn"):
+                            args["model"] = pn
                         args.update(
                             {
                                 "serial_number": member_sn if len(member_sn) < device_serial_max_length else "",
