@@ -8,7 +8,7 @@ import tracemalloc
 from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Iterable, Optional
 
 import structlog
@@ -23,11 +23,12 @@ from django.db.utils import OperationalError
 from django.templatetags.static import static
 from django.utils import timezone
 from django.utils.functional import classproperty
-from nautobot.extras.jobs import BooleanVar, DryRunVar, Job
+from nautobot.extras.jobs import DryRunVar, Job, MultiChoiceVar
 from nautobot.extras.models import JobLogEntry, JobResult
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
 from nautobot_ssot.contrib.adapter import NautobotAdapter
+from nautobot_ssot.flags import DEFAULT_FLAGS, SINGLE_BIT_NAMES, SSoTFlags
 from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry
 
 DataMapping = namedtuple("DataMapping", ["source_name", "source_url", "target_name", "target_url"])
@@ -117,10 +118,19 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         description="Perform a dry-run, making no actual changes to Nautobot data.",
         default=True,
     )
-    memory_profiling = BooleanVar(description="Perform a memory profiling analysis.", default=False)
-    parallel_loading = BooleanVar(
-        description="Load source and target adapters in parallel for improved performance.",
-        default=False,
+    flags = MultiChoiceVar(
+        choices=tuple((name, name.replace("_", " ").title()) for name in SINGLE_BIT_NAMES),
+        required=False,
+        description=(
+            "Bitwise flags controlling pipeline shape and validation. Defaults are the "
+            "slow / safe / KISS path (per-object validated_save, full changelog, no "
+            "streaming). Reach for flags only when you have measured a problem that "
+            "justifies a different trade-off. See "
+            "docs/dev/performance_validation_menu.md for what each flag does. The four "
+            "low-bit flags (CONTINUE_ON_FAILURE, SKIP_UNMATCHED_*, LOG_UNCHANGED_RECORDS) "
+            "match diffsync.enum.DiffSyncFlags exactly and are passed through to the "
+            "underlying diff_to() / sync_to() calls."
+        ),
     )
 
     def load_source_adapter(self):
@@ -464,27 +474,103 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         if adapter_load_end_time is None:
             adapter_load_end_time = datetime.now()
 
-        self.logger.info("Calculating diffs...")
-        self.calculate_diff()
-        calculate_diff_time = datetime.now()
-        self.sync.diff_time = calculate_diff_time - adapter_load_end_time
+        if self.streaming_sync:
+            self._run_streaming_sync_pipeline(
+                adapter_load_end_time=adapter_load_end_time,
+                memory_profiling=memory_profiling,
+                record_memory_trace=record_memory_trace,
+            )
+        else:
+            self.logger.info("Calculating diffs...")
+            self.calculate_diff()
+            calculate_diff_time = datetime.now()
+            self.sync.diff_time = calculate_diff_time - adapter_load_end_time
+            self.sync.save()
+            self.logger.info("Diff Calculation Time: %s", self.sync.diff_time)
+            if memory_profiling:
+                record_memory_trace("diff")
+
+            if self.sync.dry_run:
+                self.logger.info("As `dryrun` is set, skipping the actual data sync.")
+            else:
+                self.logger.info("Syncing from %s to %s...", self.source_adapter, self.target_adapter)
+                self.execute_sync()
+                execute_sync_time = datetime.now()
+                self.sync.sync_time = execute_sync_time - calculate_diff_time
+                self.sync.save()
+                self.logger.info("Sync complete")
+                self.logger.info("Sync Time: %s", self.sync.sync_time)
+                if memory_profiling:
+                    record_memory_trace("sync")
+
+    def _run_streaming_sync_pipeline(self, adapter_load_end_time, memory_profiling, record_memory_trace):
+        """Run the SQLite-streaming diff + sync pipeline.
+
+        Replaces calculate_diff() + execute_sync() when SSoTFlags.STREAMING is set.
+        Stores only the diff summary on `self.sync.diff` to avoid the 1GB
+        JSONField limit; the full diff lives in the SQLite store, which is
+        torn down at the end of the pipeline.
+
+        SSoTFlags.BULK_WRITES selects Tier 2 (requires the target adapter to
+        expose `flush_all()` — typically by mixing in `BulkOperationsMixin`).
+        """
+        # Local import: keeps base.py importable in environments where the
+        # streaming utils' transitive deps haven't been wired yet.
+        from nautobot_ssot.utils.streaming_pipeline import run_streaming_sync
+
+        tier = "tier2" if (self.flags & SSoTFlags.BULK_WRITES) else "tier1"
+        self.logger.info(
+            "Streaming pipeline: tier=%s flags=%s",
+            tier, self.flags,
+        )
+
+        # Skip the sync_to/diff_to path entirely; both adapters are already
+        # loaded so set skip_load=True. The pipeline dumps to SQLite, runs
+        # the SQL diff, and replays through the target adapter's models.
+        result = run_streaming_sync(
+            self.source_adapter,
+            self.target_adapter,
+            flags=self.flags,
+            sqlite_path=":memory:",
+            skip_load=True,
+            dryrun=self.sync.dry_run,
+        )
+
+        # Map streaming timings into existing Sync fields so the UI keeps
+        # working without schema changes. Diff time covers dump + SQL diff;
+        # sync time covers the BulkSyncer replay.
+        self.sync.diff_time = timedelta(
+            seconds=result.t_diff + result.t_src_dump + result.t_dst_dump
+        )
+        self.sync.sync_time = timedelta(seconds=result.t_sync)
+        self.sync.summary = dict(result.diff_stats)
+
+        # Write only the small summary to Sync.diff — never the full blob.
+        # Plan Step 5 will make `Sync.diff` nullable and add a `diff_store_path`
+        # field; until then we keep the field non-empty with a compact dict.
+        self.sync.diff = {
+            "_streaming": True,
+            "tier": tier,
+            "stats": dict(result.diff_stats),
+            "store_counts": dict(result.store_counts),
+            "store": "sqlite::memory:",
+        }
         self.sync.save()
-        self.logger.info("Diff Calculation Time: %s", self.sync.diff_time)
+        self.logger.info("Streaming diff stats: %s", result.diff_stats)
+        self.logger.info(
+            "Streaming timings (s): diff=%.3f sync=%.3f total=%.3f",
+            result.t_diff, result.t_sync, result.total,
+        )
         if memory_profiling:
             record_memory_trace("diff")
 
         if self.sync.dry_run:
             self.logger.info("As `dryrun` is set, skipping the actual data sync.")
-        else:
-            self.logger.info("Syncing from %s to %s...", self.source_adapter, self.target_adapter)
-            self.execute_sync()
-            execute_sync_time = datetime.now()
-            self.sync.sync_time = execute_sync_time - calculate_diff_time
-            self.sync.save()
-            self.logger.info("Sync complete")
-            self.logger.info("Sync Time: %s", self.sync.sync_time)
-            if memory_profiling:
-                record_memory_trace("sync")
+            return
+
+        self.logger.info("Streaming sync stats: %s", result.sync_stats)
+        if memory_profiling:
+            record_memory_trace("sync")
 
     def lookup_object(  # pylint: disable=unused-argument
         self,
@@ -571,11 +657,8 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         if hasattr(cls, "dryrun"):
             got_vars["dryrun"] = cls.dryrun
 
-        if hasattr(cls, "memory_profiling"):
-            got_vars["memory_profiling"] = cls.memory_profiling
-
-        if hasattr(cls, "parallel_loading"):
-            got_vars["parallel_loading"] = cls.parallel_loading
+        if hasattr(cls, "flags"):
+            got_vars["flags"] = cls.flags
         return got_vars
 
     def __init__(self):
@@ -585,8 +668,27 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         self.diff = None
         self.source_adapter = None
         self.target_adapter = None
-        # Default diffsync flags. You can overwrite them at any time.
-        self.diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE | DiffSyncFlags.LOG_UNCHANGED_RECORDS
+        # Default flags — slow / safe / KISS. Subclasses or callers can OR in
+        # additional bits before sync_data() runs.
+        self.flags = DEFAULT_FLAGS
+
+    @property
+    def diffsync_flags(self):
+        """Diffsync's view of the flag word.
+
+        Bits 0..3 of `SSoTFlags` mirror `DiffSyncFlags` exactly; diffsync
+        ignores higher bits, so passing the entire `self.flags` value through
+        is safe. Materialized as a `DiffSyncFlags` for diffsync's type checks.
+        """
+        return DiffSyncFlags(int(self.flags) & 0b1111)
+
+    @diffsync_flags.setter
+    def diffsync_flags(self, value):
+        """Allow legacy code that sets `self.diffsync_flags = ...` to keep working.
+
+        Replaces the low 4 bits of `self.flags` with the provided value.
+        """
+        self.flags = SSoTFlags((int(self.flags) & ~0b1111) | (int(value) & 0b1111))
 
     @classmethod
     def as_form(cls, data=None, files=None, initial=None, approval_view=False):
@@ -624,8 +726,24 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         variables (e.g., dryrun, memory_profiling, parallel_loading) are introduced.
         """
         self.dryrun = kwargs.get("dryrun", True)
-        self.memory_profiling = kwargs.get("memory_profiling", False)
-        self.parallel_loading = kwargs.get("parallel_loading", False)
+
+        # Compose user-selected single-bit flag names into self.flags, OR'd
+        # on top of the conservative defaults set in __init__. Subclasses
+        # that want to force certain bits can do so by setting `self.flags |= ...`
+        # in their override of `run()` after calling `super().run(*args, **kwargs)`.
+        for name in (kwargs.get("flags") or []):
+            try:
+                self.flags |= SSoTFlags[name]
+            except KeyError:
+                self.logger.warning("Unknown SSoT flag %r — ignoring", name)
+
+        # Convenience attrs preserved for backward compat with subclass code
+        # that reads e.g. `self.parallel_loading`. Read once from `self.flags`.
+        self.memory_profiling = bool(self.flags & SSoTFlags.MEMORY_PROFILING)
+        self.parallel_loading = bool(self.flags & SSoTFlags.PARALLEL_LOADING)
+        self.streaming_sync = bool(self.flags & SSoTFlags.STREAMING)
+        self.bulk_sync_mode = bool(self.flags & SSoTFlags.BULK_WRITES)
+
         self.sync = Sync.objects.create(
             source=self.data_source,
             target=self.data_target,

@@ -1,5 +1,5 @@
 ---
-dev_addr: "127.0.0.1:8001"
+dev_addr: "127.0.0.1:8002"
 edit_uri: "edit/main/docs"
 site_dir: "nautobot_ssot/static/nautobot_ssot/docs"
 site_name: "Single Source of Truth Documentation"
@@ -195,6 +195,8 @@ nav:
       - Development Environment: "dev/dev_environment.md"
       - Release Checklist: "dev/release_checklist.md"
       - Model Diagrams: "dev/diagrams.md"
+      - Performance & Validation Menu: "dev/performance_validation_menu.md"
+      - Performance & Validation Reference: "dev/performance_validation_reference.md"
       - Code Reference:
           - "dev/code_reference/index.md"
           - Package: "dev/code_reference/package.md"
