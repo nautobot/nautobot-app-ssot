@@ -4,8 +4,8 @@ This document describes all new features and changes in the release. The format 
 
 ## Release Overview
 
-- Major features or milestones
-- Changes to compatibility with Nautobot and/or other apps, libraries etc.
+- Added support for loading port-channels as part of the Arista CloudVision integration
+- Fixed bugs across multiple integrations (e.g., AristaCV, vSphere, Infoblox)
 
 <!-- towncrier release notes start -->
 
