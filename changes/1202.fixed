@@ -1,1 +1,0 @@
-Fixes TypeError when passing multiple values for keyword argument 'sync' to super().run() in InfobloxDataSource by passing *args **kwargs cleanly.

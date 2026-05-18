@@ -1,1 +1,0 @@
-Fixed Arista CloudVision interface enumeration silently dropping interfaces that CloudVision returns in a multi-notification batch (commonly affects breakout/sub-port interfaces).
