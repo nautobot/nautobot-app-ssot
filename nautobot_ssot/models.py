@@ -270,8 +270,18 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
         }.get(self.status)
 
 
+class _SSOTConfigManager(models.Manager):
+    """Manager that never queries the database; SSOTConfig has no table."""
+
+    def get_queryset(self):
+        """Return an empty queryset; SSOTConfig is unmanaged and has no underlying table."""
+        return super().get_queryset().none()
+
+
 class SSOTConfig(models.Model):  # pylint: disable=nb-incorrect-base-class
     """Non-db model providing user permission constraints."""
+
+    objects = _SSOTConfigManager()
 
     class Meta:
         managed = False
