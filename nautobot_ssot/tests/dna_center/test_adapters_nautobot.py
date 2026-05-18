@@ -39,7 +39,9 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
         super().setUp()
         self.status_active = Status.objects.get(name="Active")
         self.reg_loc_type = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
-        self.site_loc_type = LocationType.objects.get_or_create(name="Site", parent=self.reg_loc_type)[0]
+        self.site_loc_type, _ = LocationType.objects.update_or_create(
+            name="Site", defaults={"parent": self.reg_loc_type}
+        )
         self.site_loc_type.content_types.add(ContentType.objects.get_for_model(Device))
         self.floor_loc_type = LocationType.objects.get_or_create(name="Floor", parent=self.site_loc_type)[0]
         self.floor_loc_type.content_types.add(ContentType.objects.get_for_model(Device))

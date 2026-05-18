@@ -86,7 +86,7 @@ That's a **40% time savings** in this example! In practice, when both adapters i
 - The target adapter loads in another thread simultaneously
 - While one adapter waits for a network response, the other can keep working
 - All log messages from both adapters are collected and shown in chronological order
-- Each Job log shows whether it came from "source" or "target"
+- Log messages preserve any custom groupings set by integrations (e.g., "Loading Data", "Data Quality Issues"); messages without a custom grouping default to "source" or "target"
 - You'll see timing information for each adapter separately
 
 **When to disable parallel loading:**

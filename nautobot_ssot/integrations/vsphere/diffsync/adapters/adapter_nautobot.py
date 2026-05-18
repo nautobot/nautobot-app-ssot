@@ -47,7 +47,13 @@ class NBAdapter(NautobotAdapter):
     def sync_complete(self, source, diff, flags: DiffSyncFlags = DiffSyncFlags.NONE, logger=None):
         """Update devices with their primary IPs once the sync is complete."""
         for info in self._primary_ips:
-            vm = VirtualMachine.objects.get(**info["device"])
+            try:
+                vm = VirtualMachine.objects.get(**info["device"])
+            except VirtualMachine.DoesNotExist:
+                self.job.logger.warning(
+                    f"VirtualMachine not found for {info['device']}, skipping primary IP assignment."
+                )
+                continue
             for ip in ["primary_ip4", "primary_ip6"]:
                 if info[ip]:
                     setattr(vm, ip, IPAddress.objects.get(host=info[ip]))

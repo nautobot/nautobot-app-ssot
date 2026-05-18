@@ -100,10 +100,6 @@ class Sync(BaseModel):  # pylint: disable=nb-string-field-blank-null
         """String representation of a Sync instance."""
         return f"{self.source} → {self.target}, {date_format(self.start_time, format=settings.SHORT_DATETIME_FORMAT)}"
 
-    def get_absolute_url(self, api=False):
-        """Get the detail-view URL for this instance."""
-        return reverse("plugins:nautobot_ssot:sync", kwargs={"pk": self.pk})
-
     @classmethod
     def annotated_queryset(cls):
         """Construct an efficient queryset for this model and related data."""
@@ -274,8 +270,18 @@ class SyncLogEntry(BaseModel):  # pylint: disable=nb-string-field-blank-null
         }.get(self.status)
 
 
+class _SSOTConfigManager(models.Manager):
+    """Manager that never queries the database; SSOTConfig has no table."""
+
+    def get_queryset(self):
+        """Return an empty queryset; SSOTConfig is unmanaged and has no underlying table."""
+        return super().get_queryset().none()
+
+
 class SSOTConfig(models.Model):  # pylint: disable=nb-incorrect-base-class
     """Non-db model providing user permission constraints."""
+
+    objects = _SSOTConfigManager()
 
     class Meta:
         managed = False

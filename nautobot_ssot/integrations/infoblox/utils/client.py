@@ -279,7 +279,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.error(response.text)
             return response.text
         if results and len(results):
-            return results[0]
+            return results[0].get("_ref")
         return None
 
     def get_all_ipv4address_networks(self, prefixes):
