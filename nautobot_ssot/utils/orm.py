@@ -52,7 +52,10 @@ def orm_attribute_lookup(db_obj: Model, attr_name: str) -> Any:
     lookups = attr_name.split("__")
     if related_object := getattr(db_obj, lookups.pop(0)):
         for lookup in lookups:
-            related_object = get_orm_attribute(related_object, lookup)
+            if isinstance(related_object, dict):
+                related_object = related_object.get(lookup)
+            else:
+                related_object = get_orm_attribute(related_object, lookup)
             if not related_object:
                 break
     return related_object

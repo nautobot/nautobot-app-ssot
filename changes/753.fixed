@@ -1,0 +1,1 @@
+Fixed `AttributeError: 'dict' object has no attribute '<key>'` when a diffsync model attribute traverses a Nautobot JSON field such as `_custom_field_data`, including through a foreign key (for example `vlan___custom_field_data__my_key`).
