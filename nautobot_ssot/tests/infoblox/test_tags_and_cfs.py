@@ -59,7 +59,7 @@ class TestTagging(TestCase):
         self.config.dns_record_type = DNSRecordTypeChoices.A_RECORD
         self.config.fixed_address_type = FixedAddressTypeChoices.MAC_ADDRESS
         nautobot_adapter = NautobotAdapter(config=self.config)
-        nautobot_adapter.job = Mock()
+        nautobot_adapter.job = Mock(debug=True)
         nautobot_adapter.load()
 
         Namespace.objects.get_or_create(name="Global")
@@ -154,11 +154,11 @@ class TestTagging(TestCase):
         nb_vlan.validated_save()
 
         nautobot_adapter = NautobotAdapter(config=self.config)
-        nautobot_adapter.job = Mock()
+        nautobot_adapter.job = Mock(debug=True)
         nautobot_adapter.load()
 
         infoblox_adapter = InfobloxAdapter(conn=Mock(), config=self.config)
-        infoblox_adapter.job = Mock()
+        infoblox_adapter.job = Mock(debug=True)
         ds_namespace = infoblox_adapter.namespace(
             name="Global",
             ext_attrs={},
@@ -232,12 +232,12 @@ class TestCustomFields(TestCase):
         nb_vlan.validated_save()
 
         nautobot_adapter = NautobotAdapter(config=self.config)
-        nautobot_adapter.job = Mock()
+        nautobot_adapter.job = Mock(debug=True)
         nautobot_adapter.load()
 
         conn = Mock()
         infoblox_adapter = InfobloxAdapter(conn=conn, config=self.config)
-        infoblox_adapter.job = Mock()
+        infoblox_adapter.job = Mock(debug=True)
 
         ds_namespace = infoblox_adapter.namespace(
             name="Global",
