@@ -196,6 +196,49 @@ class TestModelInfobloxNetwork(TestCase):
             )
             mock_tag_involved_objects.assert_called_once()
 
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot.NautobotMixin.tag_involved_objects",
+        autospec=True,
+    )
+    def test_network_update_does_not_blank_comment_when_only_ext_attrs_change(self, mock_tag_involved_objects):
+        """Regression: when only ext_attrs differ, comment must not be blanked in Infoblox.
+
+        Reproduces the bug where `attrs.get("description", "")` in nautobot_ssot/integrations/infoblox/diffsync/models/infoblox.py
+        InfobloxNetwork.update() method returns an empty string when "description" is absent from `attrs`, clearing the Infoblox
+        comment on every sync that updates only extensible attributes or any other field other than `description`.
+        """
+        nb_network_atrs = {
+            "description": "SameDescription",
+            "ext_attrs": {"Site": "DC2"},
+        }
+        nb_ds_network = self.nb_adapter.prefix(**_get_network_dict(nb_network_atrs))
+        self.nb_adapter.add(nb_ds_network)
+        self.nb_adapter.load()
+        with unittest.mock.patch(
+            "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
+        ) as mock_client:
+            infoblox_adapter = InfobloxAdapter(conn=mock_client, config=self.config)
+            inf_ds_namespace = infoblox_adapter.namespace(
+                name="Global",
+                ext_attrs={},
+            )
+            infoblox_adapter.add(inf_ds_namespace)
+            inf_network_atrs = {
+                "description": "SameDescription",
+                "ext_attrs": {"Site": "DC1"},
+            }
+            inf_ds_network = infoblox_adapter.prefix(**_get_network_dict(inf_network_atrs))
+            infoblox_adapter.add(inf_ds_network)
+            infoblox_adapter.job = Mock()
+            self.nb_adapter.sync_to(infoblox_adapter)
+            for call in infoblox_adapter.conn.update_network.call_args_list:
+                self.assertNotEqual(
+                    call.kwargs.get("comment"),
+                    "",
+                    f"update_network was called with comment='' which would blank the Infoblox comment: {call}",
+                )
+            mock_tag_involved_objects.assert_called_once()
+
 
 class TestModelInfobloxIPAddress(TestCase):
     """Tests Fixed Address record operations."""
