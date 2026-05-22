@@ -112,7 +112,9 @@ class CitrixNitroClient:
             _result = _result.json()
             if _result.get("errorcode") == 0:
                 return _result
-            self.job.logger.warning(f"Failure with request: {_result['message']}")
+            self.job.logger.warning(f"Failure with request to {url}: {_result['message']}, data: {data}")
+        else:
+            self.job.logger.warning(f"HTTP {_result.status_code} from {url}: {_result.text[:300]}, data: {data}")
         return {}
 
     def get_sites(self):
@@ -197,7 +199,7 @@ def parse_version(version: str):
         version (str): Version string from device API query.
     """
     result = ""
-    match_pattern = r"NetScaler\s(?P<version>NS\d+\.\d+: Build\s\d+\.\d+\.\w+)"
+    match_pattern = r"(?:NetScaler\s)?(?P<version>(?:NS)?\d+\.\d+: Build\s\d+\.\d+(?:\.\w+)?)"
     match = re.match(pattern=match_pattern, string=version)
     if match:
         result = match.group("version")
