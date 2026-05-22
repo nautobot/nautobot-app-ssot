@@ -1,0 +1,1 @@
+Added `skip_component_autocreation` opt-in for SSoT jobs, suppressing Nautobot's automatic Device/Module component instantiation during sync.
