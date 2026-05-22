@@ -42,7 +42,7 @@ _skip_flag: contextvars.ContextVar[bool] = contextvars.ContextVar(
 )
 
 
-class skip_component_autocreation:  # noqa: N801 — intentional lowercase, matches stdlib (suppress, nullcontext)
+class skip_component_autocreation:  # noqa: N801 — intentional lowercase, matches stdlib (suppress, nullcontext)  # pylint: disable=C0103
     """Context manager that suppresses Device/Module component autocreation.
 
     Inside the ``with`` block, ``Device.create_components()`` and
@@ -122,8 +122,8 @@ def _build_wrapper(original):
     # Django checks ``alters_data`` on methods to refuse calling them from
     # templates. Preserve it on the wrapper so behaviour is unchanged.
     wrapper.alters_data = True
-    wrapper._ssot_wrapped = True
-    wrapper._ssot_original = original
+    wrapper._ssot_wrapped = True  # pylint: disable=protected-access
+    wrapper._ssot_original = original  # pylint: disable=protected-access
     return wrapper
 
 
@@ -142,7 +142,7 @@ def install_patches() -> None:
     try:
         # Import lazily so this module remains importable for doc generation
         # and unit tests that do not boot a full Nautobot environment.
-        from nautobot.dcim.models import Device, Module
+        from nautobot.dcim.models import Device, Module  # pylint: disable=import-outside-toplevel
     except ImportError:
         logger.exception(
             "Could not import nautobot.dcim.models.{Device,Module}; skip_component_autocreation will be unavailable."
@@ -168,7 +168,7 @@ def uninstall_patches() -> None:
     currently wrapped by this app, it is left alone.
     """
     try:
-        from nautobot.dcim.models import Device, Module
+        from nautobot.dcim.models import Device, Module  # pylint: disable=import-outside-toplevel
     except ImportError:
         return
 

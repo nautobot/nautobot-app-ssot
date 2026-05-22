@@ -8,6 +8,7 @@ from django.conf import settings
 from nautobot.core.settings_funcs import is_truthy
 from nautobot.extras.plugins import NautobotAppConfig
 
+from nautobot_ssot.contrib.component_autocreation import install_patches
 from nautobot_ssot.integrations.utils import each_enabled_integration_module
 
 logger = logging.getLogger("nautobot.ssot")
@@ -150,8 +151,6 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         # the PLUGINS_CONFIG setting of the same name). See
         # nautobot_ssot/contrib/component_autocreation.py for details.
         try:
-            from nautobot_ssot.contrib.component_autocreation import install_patches
-
             install_patches()
         except Exception:  # pylint: disable=broad-except
             # Failure to install the suppression patches must never block app startup.
