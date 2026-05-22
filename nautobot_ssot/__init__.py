@@ -122,6 +122,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "servicenow_password": "",
         "servicenow_username": "",
         "enable_global_search": True,
+        "skip_component_autocreation": False,
     }
     config_view_name = "plugins:nautobot_ssot:config"
     docs_view_name = "plugins:nautobot_ssot:docs"
@@ -142,6 +143,19 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
                 "Sync",
                 "SyncLogEntry",
             ]
+
+        # Install the opt-in Device/Module create_components() suppression patches.
+        # The patches are inert by default and only take effect inside a
+        # skip_component_autocreation() context (driven by the job class attribute or
+        # the PLUGINS_CONFIG setting of the same name). See
+        # nautobot_ssot/contrib/component_autocreation.py for details.
+        try:
+            from nautobot_ssot.contrib.component_autocreation import install_patches
+
+            install_patches()
+        except Exception:  # pylint: disable=broad-except
+            # Failure to install the suppression patches must never block app startup.
+            logger.exception("Failed to install Device/Module component_autocreation patches.")
 
 
 config = NautobotSSOTAppConfig  # pylint:disable=invalid-name
