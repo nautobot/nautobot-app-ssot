@@ -9,12 +9,12 @@ from typing import Dict, List, Type
 import pydantic
 from diffsync import Adapter, DiffSyncModel
 from diffsync.exceptions import ObjectCrudException
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship
 from nautobot.extras.models.metadata import MetadataType
-
 from nautobot_ssot.contrib.base import BaseNautobotAdapter, BaseNautobotModel
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
@@ -29,6 +29,9 @@ from nautobot_ssot.utils.orm import (
 )
 from nautobot_ssot.utils.typing import get_inner_type
 
+CONTRIB_CONFIG = getattr(settings, "PLUGINS_CONFIG", {}).get("nautobot_ssot", {}).get("contrib", {})
+PROGRESS_LOGGER_INTERVAL = CONTRIB_CONFIG.get("progress_logger_interval", 1000)
+ENABLE_PROGRESS_LOGGER = CONTRIB_CONFIG.get("enable_progress_logger", False)
 
 class NautobotAdapter(Adapter, BaseNautobotAdapter):
     """
@@ -46,6 +49,18 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         self.metadata_type = None
         self.metadata_scope_fields = {}
         self.validate_adapter()
+        self.objects_loaded = 0
+
+    def log_loaded_objects(self, increment: int=1):
+        """Log current progress of SSoT."""
+        if not ENABLE_PROGRESS_LOGGER:
+            return
+        self.objects_loaded += increment
+        if self.objects_loaded % PROGRESS_LOGGER_INTERVAL == 0:
+            try:
+                self.job.logger.info(f"SSoT Contrib Progress: Loaded {self.objects_loaded} objects from database.")
+            except ZeroDivisionError:
+                pass
 
     def validate_adapter(self):
         """Validate adapter is properly built."""
@@ -134,6 +149,7 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         except pydantic.ValidationError as error:
             raise ValueError(f"Parameters: {parameters}") from error
         self.add(diffsync_model_instance)
+        self.log_loaded_objects()
         self._handle_children(database_object, diffsync_model_instance)
         return diffsync_model_instance
 
