@@ -15,6 +15,7 @@ from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship
 from nautobot.extras.models.metadata import MetadataType
+
 from nautobot_ssot.contrib.base import BaseNautobotAdapter, BaseNautobotModel
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
@@ -32,6 +33,7 @@ from nautobot_ssot.utils.typing import get_inner_type
 CONTRIB_CONFIG = getattr(settings, "PLUGINS_CONFIG", {}).get("nautobot_ssot", {}).get("contrib", {})
 PROGRESS_LOGGER_INTERVAL = CONTRIB_CONFIG.get("progress_logger_interval", 1000)
 ENABLE_PROGRESS_LOGGER = CONTRIB_CONFIG.get("enable_progress_logger", False)
+
 
 class NautobotAdapter(Adapter, BaseNautobotAdapter):
     """
@@ -51,7 +53,7 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         self.validate_adapter()
         self.objects_loaded = 0
 
-    def log_loaded_objects(self, increment: int=1):
+    def log_loaded_objects(self, increment: int = 1):
         """Log current progress of SSoT."""
         if not ENABLE_PROGRESS_LOGGER:
             return
