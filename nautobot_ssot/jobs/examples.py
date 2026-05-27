@@ -25,7 +25,7 @@ from nautobot.extras.secrets.exceptions import SecretError
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
-from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
+from nautobot_ssot.contrib import NautobotAdapter, NautobotModel  # pylint: disable=no-name-in-module
 from nautobot_ssot.contrib.typeddicts import TagDict
 from nautobot_ssot.exceptions import MissingSecretsGroupException
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget

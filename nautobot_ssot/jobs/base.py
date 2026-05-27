@@ -1,6 +1,7 @@
 # pylint: disable=protected-access
 """Base Job classes for sync workers."""
 
+import functools
 import logging
 import threading
 import traceback
@@ -28,7 +29,38 @@ from nautobot.extras.models import JobLogEntry, JobResult
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
 from nautobot_ssot.contrib.adapter import NautobotAdapter
+from nautobot_ssot.contrib.component_autocreation import skip_component_autocreation
 from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry
+
+
+def _maybe_suppress_component_autocreation(func):
+    """Wrap a ``sync_data``-style method to honour the ``skip_component_autocreation`` opt-in.
+
+    The wrapped method runs inside a :class:`skip_component_autocreation` context when either:
+
+    * the instance's ``skip_component_autocreation`` class attribute is True, or
+    * ``PLUGINS_CONFIG["nautobot_ssot"]["skip_component_autocreation"]`` is True.
+
+    Either source set to True opts in (OR semantics). When neither is set the wrapped method
+    runs unchanged, preserving historical behaviour.
+    """
+
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        suppress = bool(getattr(self, "skip_component_autocreation", False)) or settings.PLUGINS_CONFIG.get(
+            "nautobot_ssot", {}
+        ).get("skip_component_autocreation", False)
+        if suppress:
+            self.logger.info(
+                "skip_component_autocreation=True: Nautobot Device/Module automatic component "
+                "instantiation will be suppressed for the duration of this sync."
+            )
+            with skip_component_autocreation():
+                return func(self, *args, **kwargs)
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
 
 DataMapping = namedtuple("DataMapping", ["source_name", "source_url", "target_name", "target_url"])
 """Entry in the list returned by a job's data_mappings() API.
@@ -111,7 +143,16 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
       - `dryrun_default` - defaults to True if unspecified
       - `data_source` and `data_target` as labels (by default, will use the `name` and/or "Nautobot" as appropriate)
       - `data_source_icon` and `data_target_icon`
+      - `skip_component_autocreation` - if True, Nautobot's automatic Device/Module component
+        instantiation is suppressed for the duration of `sync_data()`. Defaults to False. Can
+        also be enabled globally via `PLUGINS_CONFIG["nautobot_ssot"]["skip_component_autocreation"]`;
+        either source set to True opts in. See `nautobot_ssot.contrib.component_autocreation`.
     """
+
+    # Opt-in: suppress Nautobot's automatic Device/Module component instantiation during sync_data().
+    # Resolved together with the PLUGINS_CONFIG setting of the same name (OR semantics) by the
+    # _maybe_suppress_component_autocreation decorator applied to sync_data().
+    skip_component_autocreation: bool = False
 
     dryrun = DryRunVar(
         description="Perform a dry-run, making no actual changes to Nautobot data.",
@@ -335,6 +376,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
         return source_adapter, target_adapter, source_duration, target_duration
 
+    @_maybe_suppress_component_autocreation
     def sync_data(self, memory_profiling):  # pylint: disable=too-many-statements,too-many-locals,too-many-branches
         """Method to load data from adapters, calculate diffs and sync (if not dry-run).
 
