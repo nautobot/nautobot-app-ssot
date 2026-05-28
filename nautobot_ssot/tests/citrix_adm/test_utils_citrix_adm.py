@@ -229,6 +229,18 @@ class TestCitrixAdmClient(TestCase):
         actual = parse_version(version=version)
         self.assertEqual(actual, expected)
 
+    def test_parse_version_optional_segments(self):
+        """Validate parse_version handles optional NetScaler/NS prefixes and trailing build qualifier."""
+        cases = [
+            ("NetScaler NS13.1: Build 37.38, Date: Nov 23 2022, 04:42:36   (64-bit)", "NS13.1: Build 37.38"),
+            ("NetScaler 13.1: Build 37.38.nc, Date: Nov 23 2022, 04:42:36   (64-bit)", "13.1: Build 37.38.nc"),
+            ("NS13.1: Build 37.38.nc, Date: Nov 23 2022, 04:42:36   (64-bit)", "NS13.1: Build 37.38.nc"),
+            ("13.1: Build 37.38, Date: Nov 23 2022, 04:42:36   (64-bit)", "13.1: Build 37.38"),
+        ]
+        for version, expected in cases:
+            with self.subTest(version=version):
+                self.assertEqual(parse_version(version=version), expected)
+
     def test_parse_vlan_bindings(self):
         """Validate functionality of the parse_vlan_bindings function."""
         vlan_bindings = VLAN_FIXTURE_RECV[0]
