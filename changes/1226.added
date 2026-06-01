@@ -1,0 +1,1 @@
+Added `skip_auto_component_creation` opt-in for SSoT jobs, suppressing Nautobot's automatic Device/Module component instantiation during sync via Nautobot core's `nautobot.apps.dcim.SkipAutoComponentCreation` extension point (nautobot/nautobot#9026).
