@@ -33,7 +33,7 @@ from nautobot_ssot.utils.typing import get_inner_type
 CONTRIB_CONFIG = getattr(settings, "PLUGINS_CONFIG", {}).get("nautobot_ssot", {}).get("contrib", {})
 
 
-class NautobotAdapter(Adapter, BaseNautobotAdapter):
+class NautobotAdapter(Adapter, BaseNautobotAdapter):  # pylint: disable=too-many-instance-attributes
     """
     Adapter for loading data from Nautobot through the ORM.
 

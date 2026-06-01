@@ -13,11 +13,15 @@ from nautobot_ssot.jobs.examples import ExampleDataSource
 
 
 class LocationTypeModel(NautobotModel):
+    """Demo Lcoation Type Model."""
+
     _model = LocationType
     _modelname = "location_type"
 
 
 class DemoAdapter(NautobotAdapter):
+    """Demo Nautobot Adapter."""
+
     top_level = ["location_type"]
     location_type = LocationTypeModel
 
