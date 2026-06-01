@@ -126,6 +126,10 @@ nav:
           - Slurpit: "user/integrations/slurpit.md"
           - SolarWinds: "user/integrations/solarwinds.md"
           - vSphere: "user/integrations/vsphere.md"
+      - Contrib Module:
+          - "user/contrib/index.md"
+          - Models: "user/contrib/models.md"
+          - Adapters: "user/contrib/adapters.md"
       - Modeling: "user/modeling.md"
       - Performance: "user/performance.md"
       - Frequently Asked Questions: "user/faq.md"

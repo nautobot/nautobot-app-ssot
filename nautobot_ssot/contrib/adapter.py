@@ -31,8 +31,6 @@ from nautobot_ssot.utils.orm import (
 from nautobot_ssot.utils.typing import get_inner_type
 
 CONTRIB_CONFIG = getattr(settings, "PLUGINS_CONFIG", {}).get("nautobot_ssot", {}).get("contrib", {})
-PROGRESS_LOGGER_INTERVAL = CONTRIB_CONFIG.get("progress_logger_interval", 1000)
-ENABLE_PROGRESS_LOGGER = CONTRIB_CONFIG.get("enable_progress_logger", False)
 
 
 class NautobotAdapter(Adapter, BaseNautobotAdapter):
@@ -51,14 +49,18 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         self.metadata_type = None
         self.metadata_scope_fields = {}
         self.validate_adapter()
+
+        # Progress Logger
+        self.enable_progress_logger = CONTRIB_CONFIG.get("enable_progress_logger", False)
+        self.progress_logger_interval = CONTRIB_CONFIG.get("progress_logger_interval", 1000)
         self.objects_loaded = 0
 
     def log_loaded_objects(self, increment: int = 1):
         """Log current progress of SSoT."""
-        if not ENABLE_PROGRESS_LOGGER:
+        if not self.enable_progress_logger:
             return
         self.objects_loaded += increment
-        if self.objects_loaded % PROGRESS_LOGGER_INTERVAL == 0:
+        if self.objects_loaded % self.progress_logger_interval == 0:
             try:
                 self.job.logger.info(f"SSoT Contrib Progress: Loaded {self.objects_loaded} objects from database.")
             except ZeroDivisionError:
