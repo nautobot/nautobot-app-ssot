@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 try:
-    from nautobot.apps.dcim import SkipAutoComponentCreation, is_auto_component_creation_suppressed
+    from nautobot.apps.dcim import SkipAutoComponentCreation, is_auto_component_creation_suppressed  # pylint: disable=unused-import
 
     _UPSTREAM_AVAILABLE = True
 except ImportError:
