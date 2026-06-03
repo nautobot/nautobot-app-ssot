@@ -57,7 +57,7 @@ class TestLogLoadedObjects(TestCase):
 
     def test_disabled_logging(self):
         """Test that no log message is made with logging disabled."""
-        self.adapter.enable_progress_logger = False        
+        self.adapter.enable_progress_logger = False
         self.adapter.objects_loaded = 999
         with self.assertNoLogs(self.adapter.job.logger.name):
             self.adapter.log_loaded_objects()
