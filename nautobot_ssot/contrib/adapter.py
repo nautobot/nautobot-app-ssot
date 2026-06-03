@@ -57,14 +57,11 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):  # pylint: disable=too-many
 
     def log_loaded_objects(self, increment: int = 1):
         """Log current progress of SSoT."""
-        if not self.enable_progress_logger:
+        if not self.enable_progress_logger or self.progress_logger_interval == 0:
             return
         self.objects_loaded += increment
         if self.objects_loaded % self.progress_logger_interval == 0:
-            try:
-                self.job.logger.info(f"SSoT Contrib Progress: Loaded {self.objects_loaded} objects from database.")
-            except ZeroDivisionError:
-                pass
+            self.job.logger.info(f"SSoT Contrib Progress: Loaded {self.objects_loaded} objects from database.")
 
     def validate_adapter(self):
         """Validate adapter is properly built."""
