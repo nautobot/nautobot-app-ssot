@@ -1,8 +1,9 @@
 """Tests of CloudVision utility methods."""
 
 from django.test import override_settings
-from nautobot.core.testing import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer, Platform, SoftwareVersion
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Role, Status, Tag
 
 from nautobot_ssot.integrations.aristacv.constants import ARISTA_PLATFORM
@@ -14,10 +15,12 @@ class TestNautobotUtils(TestCase):
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Configure shared test vars."""
-        self.arista_manu = Manufacturer.objects.get_or_create(name="Arista")[0]
-        self.arista_platform = Platform.objects.get_or_create(name=ARISTA_PLATFORM, manufacturer=self.arista_manu)[0]
+        populate_status_choices()
+        cls.arista_manu = Manufacturer.objects.get_or_create(name="Arista")[0]
+        cls.arista_platform = Platform.objects.get_or_create(name=ARISTA_PLATFORM, manufacturer=cls.arista_manu)[0]
 
     def test_verify_site_success(self):
         """Test the verify_site method for existing Site."""

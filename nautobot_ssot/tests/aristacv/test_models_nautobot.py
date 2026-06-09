@@ -6,9 +6,10 @@ from unittest.mock import MagicMock, patch
 from diffsync import Adapter
 from django.contrib.contenttypes.models import ContentType
 from django.test import override_settings
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import DeviceType, Interface, Location, LocationType, Manufacturer, Platform, SoftwareVersion
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import Namespace as OrmNamespace
 from nautobot.ipam.models import Prefix as OrmPrefix
@@ -32,19 +33,20 @@ from nautobot_ssot.integrations.aristacv.utils.nautobot import get_config
         },
     },
 )
-class TestNautobotNamespaceDelete(TransactionTestCase):
+class TestNautobotNamespaceDelete(TestCase):
     """Test NautobotNamespace.delete() conditional on delete_namespaces_on_sync."""
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Set up adapter with job and app_config."""
-        super().setUp()
-        self.adapter = MagicMock()
-        self.adapter.objects_to_delete = defaultdict(list)
-        self.adapter.job = MagicMock()
-        self.adapter.job.debug = False
-        self.adapter.job.app_config = get_config()._replace(delete_namespaces_on_sync=False)
+        super().setUpTestData()
+        cls.adapter = MagicMock()
+        cls.adapter.objects_to_delete = defaultdict(list)
+        cls.adapter.job = MagicMock()
+        cls.adapter.job.debug = False
+        cls.adapter.job.app_config = get_config()._replace(delete_namespaces_on_sync=False)
 
     def test_namespace_delete_when_delete_on_sync_false(self):
         """When delete_namespaces_on_sync is False, delete() does not append to objects_to_delete."""
@@ -75,22 +77,24 @@ class TestNautobotNamespaceDelete(TransactionTestCase):
         },
     },
 )
-class TestNautobotPrefixDelete(TransactionTestCase):
+class TestNautobotPrefixDelete(TestCase):
     """Test NautobotPrefix.delete() conditional on delete_prefixes_on_sync."""
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Set up adapter with job and app_config."""
-        super().setUp()
-        self.adapter = MagicMock()
-        self.adapter.objects_to_delete = defaultdict(list)
-        self.adapter.job = MagicMock()
-        self.adapter.job.debug = False
-        self.adapter.job.app_config = get_config()._replace(delete_prefixes_on_sync=False)
-        self.ns = OrmNamespace.objects.create(name="PrefixTestNS")
-        self.status_active = Status.objects.get(name="Active")
-        self.prefix = OrmPrefix.objects.create(prefix="10.99.0.0/24", namespace=self.ns, status=self.status_active)
+        super().setUpTestData()
+        populate_status_choices()
+        cls.adapter = MagicMock()
+        cls.adapter.objects_to_delete = defaultdict(list)
+        cls.adapter.job = MagicMock()
+        cls.adapter.job.debug = False
+        cls.adapter.job.app_config = get_config()._replace(delete_prefixes_on_sync=False)
+        cls.ns = OrmNamespace.objects.create(name="PrefixTestNS")
+        cls.status_active = Status.objects.get(name="Active")
+        cls.prefix = OrmPrefix.objects.create(prefix="10.99.0.0/24", namespace=cls.ns, status=cls.status_active)
 
     def test_prefix_delete_when_delete_on_sync_false(self):
         """When delete_prefixes_on_sync is False, delete() does not append to objects_to_delete."""
@@ -121,7 +125,7 @@ class TestNautobotPrefixDelete(TransactionTestCase):
         },
     },
 )
-class TestNautobotDeviceVersion(TransactionTestCase):
+class TestNautobotDeviceVersion(TestCase):
     """Test that NautobotDevice.create() and update() correctly assign software_version."""
 
     databases = ("default", "job_logs")
@@ -134,27 +138,29 @@ class TestNautobotDeviceVersion(TransactionTestCase):
     }
     IDS = {"name": "switch-01"}
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Set up adapter with job and app_config plus baseline ORM objects."""
-        super().setUp()
+        super().setUpTestData()
+        populate_status_choices()
         # spec=Adapter so pydantic's is_instance_of check on DiffSyncModel.adapter passes.
-        self.adapter = MagicMock(spec=Adapter)
-        self.adapter.job = MagicMock()
-        self.adapter.job.debug = False
-        self.adapter.job.app_config = get_config()
-        self.status_active = Status.objects.get(name="Active")
+        cls.adapter = MagicMock(spec=Adapter)
+        cls.adapter.job = MagicMock()
+        cls.adapter.job.debug = False
+        cls.adapter.job.app_config = get_config()
+        cls.status_active = Status.objects.get(name="Active")
         arista_manu = Manufacturer.objects.get_or_create(name="Arista")[0]
-        self.arista_platform = Platform.objects.get_or_create(name=ARISTA_PLATFORM, manufacturer=arista_manu)[0]
-        self.device_type = DeviceType.objects.get_or_create(model="DCS-7150S-24", manufacturer=arista_manu)[0]
+        cls.arista_platform = Platform.objects.get_or_create(name=ARISTA_PLATFORM, manufacturer=arista_manu)[0]
+        cls.device_type = DeviceType.objects.get_or_create(model="DCS-7150S-24", manufacturer=arista_manu)[0]
         device_ct = ContentType.objects.get_for_model(OrmDevice)
-        self.role = Role.objects.get_or_create(name="Edge Router", color="ff0000")[0]
-        self.role.content_types.add(device_ct)
+        cls.role = Role.objects.get_or_create(name="Edge Router", color="ff0000")[0]
+        cls.role.content_types.add(device_ct)
         location_type = LocationType.objects.get_or_create(name="Site")[0]
         location_type.content_types.add(device_ct)
-        self.location = Location.objects.create(
+        cls.location = Location.objects.create(
             name="UpdateSite",
             location_type=location_type,
-            status=self.status_active,
+            status=cls.status_active,
         )
 
     def test_create_assigns_software_version(self):
@@ -225,37 +231,39 @@ class TestNautobotDeviceVersion(TransactionTestCase):
         self.assertIsNone(device.software_version)
 
 
-class TestNautobotPortCreate(TransactionTestCase):
+class TestNautobotPortCreate(TestCase):
     """Test NautobotPort.create() handles breakout interface names and lag references."""
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Create the minimal Nautobot scaffolding (status/site/devicetype/role/device)."""
-        super().setUp()
-        self.status_active, _ = Status.objects.get_or_create(name="Active")
+        super().setUpTestData()
+        populate_status_choices()
+        cls.status_active, _ = Status.objects.get_or_create(name="Active")
         arista_manu, _ = Manufacturer.objects.get_or_create(name="Arista")
 
         loc_type, _ = LocationType.objects.get_or_create(name="Site")
-        self.status_active.content_types.add(ContentType.objects.get_for_model(Location))
-        self.site, _ = Location.objects.get_or_create(name="HQ", status=self.status_active, location_type=loc_type)
+        cls.status_active.content_types.add(ContentType.objects.get_for_model(Location))
+        cls.site, _ = Location.objects.get_or_create(name="HQ", status=cls.status_active, location_type=loc_type)
 
-        self.device_type, _ = DeviceType.objects.get_or_create(model="DCS-7280CR2-60", manufacturer=arista_manu)
+        cls.device_type, _ = DeviceType.objects.get_or_create(model="DCS-7280CR2-60", manufacturer=arista_manu)
         role, _ = Role.objects.get_or_create(name="Switch")
 
-        self.device = OrmDevice.objects.create(
+        cls.device = OrmDevice.objects.create(
             name="ams01-switch-01",
-            device_type=self.device_type,
-            status=self.status_active,
+            device_type=cls.device_type,
+            status=cls.status_active,
             role=role,
-            location=self.site,
+            location=cls.site,
         )
 
-        self.warnings = []
+        cls.warnings = []
         mock_job = MagicMock()
         mock_job.debug = False
-        mock_job.logger.warning = lambda msg: self.warnings.append(str(msg))
-        self.adapter = NautobotAdapter(job=mock_job)
+        mock_job.logger.warning = lambda msg: cls.warnings.append(str(msg))
+        cls.adapter = NautobotAdapter(job=mock_job)
 
     def _attrs(self, **overrides):
         attrs = {
@@ -304,50 +312,52 @@ class TestNautobotPortCreate(TransactionTestCase):
         },
     },
 )
-class TestNautobotDeviceUpdate(TransactionTestCase):  # pylint: disable=too-many-instance-attributes
+class TestNautobotDeviceUpdate(TestCase):  # pylint: disable=too-many-instance-attributes
     """Test NautobotDevice.update() persists supported attribute changes."""
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Build a Device with Active status and a configured adapter."""
-        super().setUp()
-        self.adapter = MagicMock()
-        self.adapter.job = MagicMock()
-        self.adapter.job.app_config = get_config()
+        super().setUpTestData()
+        populate_status_choices()
+        cls.adapter = MagicMock()
+        cls.adapter.job = MagicMock()
+        cls.adapter.job.app_config = get_config()
 
         device_ct = ContentType.objects.get_for_model(OrmDevice)
         location_ct = ContentType.objects.get_for_model(Location)
 
-        self.status_active = Status.objects.get(name="Active")
-        self.status_offline, _ = Status.objects.get_or_create(name="Offline")
-        for status in (self.status_active, self.status_offline):
+        cls.status_active = Status.objects.get(name="Active")
+        cls.status_offline, _ = Status.objects.get_or_create(name="Offline")
+        for status in (cls.status_active, cls.status_offline):
             status.content_types.add(device_ct)
             status.content_types.add(location_ct)
 
-        self.role, _ = Role.objects.get_or_create(name="aristacv-test-switch")
-        self.role.content_types.add(device_ct)
-        self.manufacturer, _ = Manufacturer.objects.get_or_create(name="Arista")
-        self.device_type, _ = DeviceType.objects.get_or_create(
+        cls.role, _ = Role.objects.get_or_create(name="aristacv-test-switch")
+        cls.role.content_types.add(device_ct)
+        cls.manufacturer, _ = Manufacturer.objects.get_or_create(name="Arista")
+        cls.device_type, _ = DeviceType.objects.get_or_create(
             model="aristacv-test-dt",
-            manufacturer=self.manufacturer,
+            manufacturer=cls.manufacturer,
         )
-        self.location_type, _ = LocationType.objects.get_or_create(name="Site")
-        self.location_type.content_types.add(device_ct)
-        self.location = Location.objects.create(
+        cls.location_type, _ = LocationType.objects.get_or_create(name="Site")
+        cls.location_type.content_types.add(device_ct)
+        cls.location = Location.objects.create(
             name="DeviceUpdateSite",
-            location_type=self.location_type,
-            status=self.status_active,
+            location_type=cls.location_type,
+            status=cls.status_active,
         )
-        self.device = OrmDevice(
+        cls.device = OrmDevice(
             name="sw-update-test",
-            status=self.status_active,
-            role=self.role,
-            device_type=self.device_type,
-            location=self.location,
+            status=cls.status_active,
+            role=cls.role,
+            device_type=cls.device_type,
+            location=cls.location,
         )
-        self.device.validated_save()
-        self.platform, _ = Platform.objects.get_or_create(name="arista.eos.eos")
+        cls.device.validated_save()
+        cls.platform, _ = Platform.objects.get_or_create(name="arista.eos.eos")
 
     def test_update_persists_status_change(self):
         """update() with a status attribute writes the new status to the database."""

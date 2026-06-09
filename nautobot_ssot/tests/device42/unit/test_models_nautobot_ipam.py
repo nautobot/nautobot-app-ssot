@@ -5,25 +5,27 @@ from unittest.mock import MagicMock, patch
 from diffsync import Adapter
 from django.contrib.contenttypes.models import ContentType
 from django.forms import ValidationError
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import VLAN, VRF, IPAddress, IPAddressToInterface, Namespace, Prefix
 
 from nautobot_ssot.integrations.device42.diffsync.models.nautobot import ipam
 
 
-class TestNautobotVRFGroup(TransactionTestCase):
+class TestNautobotVRFGroup(TestCase):
     """Test the NautobotVRFGroup class."""
 
-    def setUp(self):
-        self.adapter = Adapter()
-        self.adapter.namespace_map = {}
-        self.adapter.vrf_map = {}
-        self.adapter.job = MagicMock()
-        self.adapter.job.logger.info = MagicMock()
-        self.vrf = VRF.objects.create(name="Test")
-        self.vrf.validated_save()
+    @classmethod
+    def setUpTestData(cls):
+        cls.adapter = Adapter()
+        cls.adapter.namespace_map = {}
+        cls.adapter.vrf_map = {}
+        cls.adapter.job = MagicMock()
+        cls.adapter.job.logger.info = MagicMock()
+        cls.vrf = VRF.objects.create(name="Test")
+        cls.vrf.validated_save()
 
     def test_create(self):
         """Validate the NautobotVRFGroup create() method creates a VRF."""
@@ -96,22 +98,24 @@ class TestNautobotVRFGroup(TransactionTestCase):
         self.assertEqual(self.adapter.objects_to_delete["vrf"][0].id, self.vrf.id)
 
 
-class TestNautobotSubnet(TransactionTestCase):
+class TestNautobotSubnet(TestCase):
     """Test the NautobotSubnet class."""
 
-    def setUp(self):
-        super().setUp()
-        self.status_active = Status.objects.get(name="Active")
-        self.test_ns = Namespace.objects.get_or_create(name="Test")[0]
-        self.test_vrf = VRF.objects.get_or_create(name="Test", namespace=self.test_ns)[0]
-        self.prefix = Prefix.objects.create(prefix="10.0.0.0/24", namespace=self.test_ns, status=self.status_active)
-        self.adapter = Adapter()
-        self.adapter.namespace_map = {"Test": self.test_ns.id}
-        self.adapter.vrf_map = {"Test": self.test_vrf.id}
-        self.adapter.status_map = {"Active": self.status_active.id}
-        self.adapter.prefix_map = {}
-        self.adapter.job = MagicMock()
-        self.adapter.job.logger.info = MagicMock()
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        populate_status_choices()
+        cls.status_active = Status.objects.get(name="Active")
+        cls.test_ns = Namespace.objects.get_or_create(name="Test")[0]
+        cls.test_vrf = VRF.objects.get_or_create(name="Test", namespace=cls.test_ns)[0]
+        cls.prefix = Prefix.objects.create(prefix="10.0.0.0/24", namespace=cls.test_ns, status=cls.status_active)
+        cls.adapter = Adapter()
+        cls.adapter.namespace_map = {"Test": cls.test_ns.id}
+        cls.adapter.vrf_map = {"Test": cls.test_vrf.id}
+        cls.adapter.status_map = {"Active": cls.status_active.id}
+        cls.adapter.prefix_map = {}
+        cls.adapter.job = MagicMock()
+        cls.adapter.job.logger.info = MagicMock()
 
     def test_create(self):
         """Validate the NautobotSubnet create() method creates a Prefix."""
@@ -188,7 +192,7 @@ class TestNautobotSubnet(TransactionTestCase):
         self.assertEqual(self.adapter.objects_to_delete["subnet"][0].id, self.prefix.id)
 
 
-class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-instance-attributes
+class TestNautobotIPAddress(TestCase):  # pylint: disable=too-many-instance-attributes
     """Test the NautobotIPAddress class."""
 
     def __init__(self, *args, **kwargs):
@@ -196,53 +200,55 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         super().__init__(*args, **kwargs)
         self.addr = None
 
-    def setUp(self):
-        super().setUp()
-        self.status_active = Status.objects.get(name="Active")
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        populate_status_choices()
+        cls.status_active = Status.objects.get(name="Active")
         status_reserved = Status.objects.get(name="Reserved")
         loc_type = LocationType.objects.get_or_create(name="Site")[0]
         loc_type.content_types.add(ContentType.objects.get_for_model(Device))
         loc_type.content_types.add(ContentType.objects.get_for_model(Prefix))
-        loc = Location.objects.get_or_create(name="Test Site", location_type=loc_type, status=self.status_active)[0]
+        loc = Location.objects.get_or_create(name="Test Site", location_type=loc_type, status=cls.status_active)[0]
         cisco_manu = Manufacturer.objects.get_or_create(name="Cisco")[0]
         csr1000v = DeviceType.objects.get_or_create(model="CSR1000v", manufacturer=cisco_manu)[0]
         ios_platform = Platform.objects.create(name="Cisco IOS", manufacturer=cisco_manu)
         router_role = Role.objects.create(name="Router")
         router_role.content_types.add(ContentType.objects.get_for_model(Device))
-        self.test_dev = Device.objects.create(
+        cls.test_dev = Device.objects.create(
             name="Test Device",
             device_type=csr1000v,
             location=loc,
             platform=ios_platform,
             role=router_role,
-            status=self.status_active,
+            status=cls.status_active,
         )
-        self.test_dev2 = Device.objects.create(
+        cls.test_dev2 = Device.objects.create(
             name="Device2",
             device_type=csr1000v,
             location=loc,
             platform=ios_platform,
             role=router_role,
-            status=self.status_active,
+            status=cls.status_active,
         )
-        self.dev_eth0 = Interface.objects.create(
-            name="eth0", type="virtual", device=self.test_dev, status=self.status_active, mgmt_only=True
+        cls.dev_eth0 = Interface.objects.create(
+            name="eth0", type="virtual", device=cls.test_dev, status=cls.status_active, mgmt_only=True
         )
-        self.dev2_eth0 = Interface.objects.create(
-            name="eth0", type="virtual", device=self.test_dev2, status=self.status_active, mgmt_only=True
+        cls.dev2_eth0 = Interface.objects.create(
+            name="eth0", type="virtual", device=cls.test_dev2, status=cls.status_active, mgmt_only=True
         )
-        self.dev2_mgmt = Interface.objects.create(
-            name="mgmt0", type="virtual", device=self.test_dev2, status=self.status_active, mgmt_only=True
+        cls.dev2_mgmt = Interface.objects.create(
+            name="mgmt0", type="virtual", device=cls.test_dev2, status=cls.status_active, mgmt_only=True
         )
-        self.test_ns = Namespace.objects.get_or_create(name="Test")[0]
-        self.prefix = Prefix.objects.create(
+        cls.test_ns = Namespace.objects.get_or_create(name="Test")[0]
+        cls.prefix = Prefix.objects.create(
             prefix="10.0.0.0/24",
             location=loc,
-            namespace=self.test_ns,
-            status=self.status_active,
+            namespace=cls.test_ns,
+            status=cls.status_active,
         )
-        self.ids = {"address": "10.0.0.1/24", "subnet": "10.0.0.0/24"}
-        self.attrs = {
+        cls.ids = {"address": "10.0.0.1/24", "subnet": "10.0.0.0/24"}
+        cls.attrs = {
             "namespace": "Test",
             "available": False,
             "label": "Test",
@@ -253,21 +259,21 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
             "custom_fields": {},
         }
 
-        self.adapter = Adapter()
-        self.adapter.objects_to_create = {"ports": []}
-        self.adapter.namespace_map = {"Test": self.test_ns.id}
-        self.adapter.status_map = {"Active": self.status_active.id, "Reserved": status_reserved.id}
-        self.adapter.prefix_map = {"10.0.0.0/24": self.prefix.id}
-        self.adapter.device_map = {"Test Device": self.test_dev.id}
-        self.adapter.port_map = {
-            "Test Device": {"eth0": self.dev_eth0.id},
-            "Device2": {"mgmt0": self.dev2_mgmt.id, "eth0": self.dev2_eth0.id},
+        cls.adapter = Adapter()
+        cls.adapter.objects_to_create = {"ports": []}
+        cls.adapter.namespace_map = {"Test": cls.test_ns.id}
+        cls.adapter.status_map = {"Active": cls.status_active.id, "Reserved": status_reserved.id}
+        cls.adapter.prefix_map = {"10.0.0.0/24": cls.prefix.id}
+        cls.adapter.device_map = {"Test Device": cls.test_dev.id}
+        cls.adapter.port_map = {
+            "Test Device": {"eth0": cls.dev_eth0.id},
+            "Device2": {"mgmt0": cls.dev2_mgmt.id, "eth0": cls.dev2_eth0.id},
         }
-        self.adapter.ipaddr_map = {}
-        self.adapter.job = MagicMock()
-        self.adapter.job.logger.info = MagicMock()
-        self.mock_addr = ipam.NautobotIPAddress(**self.ids, **self.attrs)
-        self.mock_addr.adapter = self.adapter
+        cls.adapter.ipaddr_map = {}
+        cls.adapter.job = MagicMock()
+        cls.adapter.job.logger.info = MagicMock()
+        cls.mock_addr = ipam.NautobotIPAddress(**cls.ids, **cls.attrs)
+        cls.mock_addr.adapter = cls.adapter
 
     def test_create_with_existing_interface(self):
         """Validate the NautobotIPAddress.create() functionality with existing Interface."""
@@ -411,7 +417,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         )
 
 
-class TestNautobotVLAN(TransactionTestCase):
+class TestNautobotVLAN(TestCase):
     """Test the NautobotVLAN class."""
 
     def __init__(self, *args, **kwargs):
@@ -419,33 +425,35 @@ class TestNautobotVLAN(TransactionTestCase):
         super().__init__(*args, **kwargs)
         self.vlan = None
 
-    def setUp(self):
-        super().setUp()
-        self.status_active = Status.objects.get(name="Active")
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        populate_status_choices()
+        cls.status_active = Status.objects.get(name="Active")
 
         site_type = LocationType.objects.get_or_create(name="Site")[0]
         site_type.content_types.add(ContentType.objects.get_for_model(Device))
         site_type.content_types.add(ContentType.objects.get_for_model(VLAN))
 
-        self.test_site = Location.objects.create(name="HQ", location_type=site_type, status=self.status_active)
-        self.adapter = Adapter()
-        self.adapter.job = MagicMock()
-        self.adapter.job.logger.info = MagicMock()
-        self.adapter.status_map = {"Active": self.status_active.id}
-        self.adapter.site_map = {"HQ": self.test_site.id}
-        self.adapter.vlan_map = {"HQ": {}}
-        self.ids = {
+        cls.test_site = Location.objects.create(name="HQ", location_type=site_type, status=cls.status_active)
+        cls.adapter = Adapter()
+        cls.adapter.job = MagicMock()
+        cls.adapter.job.logger.info = MagicMock()
+        cls.adapter.status_map = {"Active": cls.status_active.id}
+        cls.adapter.site_map = {"HQ": cls.test_site.id}
+        cls.adapter.vlan_map = {"HQ": {}}
+        cls.ids = {
             "vlan_id": 1,
             "building": None,
         }
-        self.attrs = {
+        cls.attrs = {
             "name": "Test",
             "description": "Test VLAN",
             "tags": [],
             "custom_fields": {},
         }
-        self.mock_vlan = ipam.NautobotVLAN(**self.ids, **self.attrs)
-        self.mock_vlan.adapter = self.adapter
+        cls.mock_vlan = ipam.NautobotVLAN(**cls.ids, **cls.attrs)
+        cls.mock_vlan.adapter = cls.adapter
 
     def test_create_with_undefined_building(self):
         """Validate the NautobotVLAN.create() functionality with an undefined building."""

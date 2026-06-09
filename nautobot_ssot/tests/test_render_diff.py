@@ -2,7 +2,7 @@
 
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory
-from nautobot.core.testing import TestCase
+from nautobot.apps.testing import TestCase
 
 from nautobot_ssot.templatetags.render_diff import (
     _flatten_diff,

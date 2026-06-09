@@ -6,7 +6,7 @@ from copy import deepcopy
 from unittest import mock
 
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import ExternalIntegration, Secret, SecretsGroup, SecretsGroupAssociation, Status
 

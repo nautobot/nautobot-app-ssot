@@ -8,10 +8,11 @@ from unittest import mock
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import DeviceType, Interface, Location, LocationType, Manufacturer, Platform, VirtualChassis
 from nautobot.dcim.models.devices import Device
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Role, Tag
 from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
@@ -42,6 +43,7 @@ class TestNautobotUtils(TestCase):
 
     def setUp(self):
         """Setup."""
+        populate_status_choices()
         job_scoped_cache.clear_all()
         site_location_type = LocationType.objects.update_or_create(name="Site")[0]
         locaiton_cts = [

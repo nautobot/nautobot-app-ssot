@@ -1,6 +1,6 @@
 """Unittests for caching classes."""
 
-from nautobot.core.testing import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.models import Status
 

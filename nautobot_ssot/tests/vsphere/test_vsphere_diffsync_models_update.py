@@ -4,7 +4,8 @@
 from unittest.mock import MagicMock
 
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models.statuses import Status
 from nautobot.extras.models.tags import Tag
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
@@ -33,6 +34,7 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
 
     def setUp(self):
         """Test class SetUp."""
+        populate_status_choices()
         self.config = create_default_vsphere_config()
         self.vsphere_adapter = VsphereDiffSync(
             client=MagicMock(),

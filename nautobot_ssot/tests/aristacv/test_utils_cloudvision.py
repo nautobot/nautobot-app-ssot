@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from cloudvision.Connector.codec.custom_types import FrozenDict, Path
 from cvprac.cvp_client import CvpLoginError
 from django.test import override_settings
-from nautobot.core.testing import TestCase
+from nautobot.apps.testing import TestCase
 from parameterized import parameterized
 
 from nautobot_ssot.integrations.aristacv.utils import cloudvision

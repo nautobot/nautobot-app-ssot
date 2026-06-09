@@ -45,7 +45,7 @@ class NautobotAdapterOneToOneRelationTests(TestCaseWithDeviceData):
             device = NautobotDevice
 
         device = dcim_models.Device.objects.first()
-        interface = dcim_models.Interface.objects.get(name="Loopback 1", device=device)
+        interface = dcim_models.Interface.objects.get(name="Ethernet1", device=device)
         interface.ip_addresses.add(self.ip_address_1)
         device.primary_ip4 = self.ip_address_1
         device.validated_save()
@@ -63,8 +63,8 @@ class NautobotAdapterGenericRelationTests(TestCaseWithDeviceData):
 
     def setUp(self):
         dcim_models.Cable.objects.create(
-            termination_a=dcim_models.Interface.objects.all().filter(name="Loopback 1").first(),
-            termination_b=dcim_models.Interface.objects.all().filter(name="Loopback 1").last(),
+            termination_a=dcim_models.Interface.objects.all().filter(name="Ethernet1").first(),
+            termination_b=dcim_models.Interface.objects.all().filter(name="Ethernet1").last(),
             status=extras_models.Status.objects.get(name="Active"),
         )
         super().setUp()
@@ -88,11 +88,11 @@ class NautobotAdapterGenericRelationTests(TestCaseWithDeviceData):
         expected = {
             "termination_a__app_label": "dcim",
             "termination_a__model": "interface",
-            "termination_a__name": "Loopback 1",
+            "termination_a__name": "Ethernet1",
             "termination_a__device__name": "sw01",
             "termination_b__app_label": "dcim",
             "termination_b__model": "interface",
-            "termination_b__name": "Loopback 1",
+            "termination_b__name": "Ethernet1",
             "termination_b__device__name": "sw02",
         }
         for key, value in expected.items():

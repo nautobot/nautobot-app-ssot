@@ -4,7 +4,7 @@ import json
 from unittest.mock import patch
 
 import responses
-from nautobot.core.testing import TestCase
+from nautobot.apps.testing import TestCase
 from parameterized import parameterized
 
 from nautobot_ssot.exceptions import MissingConfigSetting

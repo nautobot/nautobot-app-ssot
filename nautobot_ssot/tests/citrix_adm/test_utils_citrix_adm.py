@@ -4,7 +4,7 @@ import logging
 from unittest.mock import MagicMock, patch
 
 import requests
-from nautobot.core.testing import TestCase
+from nautobot.apps.testing import TestCase
 from requests.exceptions import HTTPError
 
 from nautobot_ssot.integrations.citrix_adm.utils.citrix_adm import (

@@ -6,7 +6,7 @@
 from datetime import datetime, timezone
 
 from deepdiff import DeepDiff
-from django.test import TransactionTestCase
+from nautobot.apps.testing import TransactionTestCase
 
 from .test_bootstrap_setup import (
     GLOBAL_JSON_SETTINGS,

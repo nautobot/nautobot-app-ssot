@@ -3,7 +3,7 @@
 import os
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
 from parameterized import parameterized
 
 from nautobot_ssot.integrations.librenms.utils import (

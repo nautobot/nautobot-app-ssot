@@ -4,7 +4,7 @@
 import unittest
 from unittest.mock import Mock
 
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
 
 from nautobot_ssot.integrations.infoblox.choices import (
     DNSRecordTypeChoices,

@@ -4,7 +4,7 @@ from typing import Annotated, List, Optional
 from unittest import skip
 from unittest.mock import MagicMock
 
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.extras.models import Tag
 from nautobot.tenancy.models import Tenant
 from typing_extensions import TypedDict, get_type_hints

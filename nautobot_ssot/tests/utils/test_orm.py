@@ -3,7 +3,7 @@
 from typing import Optional
 
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.circuits.models import Provider
 from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.choices import RelationshipTypeChoices

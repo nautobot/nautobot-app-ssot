@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.servicenow.diffsync.adapter_servicenow import ServiceNowDiffSync
@@ -575,7 +575,7 @@ class MockServiceNowClient:
             yield from []
 
 
-class ServiceNowDiffSyncTestCase(TransactionTestCase):
+class ServiceNowDiffSyncTestCase(TestCase):
     """Test the ServiceNowDiffSync adapter class."""
 
     job_class = ServiceNowDataTarget

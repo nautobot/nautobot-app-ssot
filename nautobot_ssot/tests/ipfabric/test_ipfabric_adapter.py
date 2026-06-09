@@ -4,7 +4,7 @@ import json
 from collections import defaultdict
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
 from ipfabric.models.device import Device
 from nautobot.extras.models import JobResult
 

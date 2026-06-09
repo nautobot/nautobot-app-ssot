@@ -4,7 +4,7 @@ import datetime
 from unittest.mock import Mock
 
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Status, Tag
 from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup

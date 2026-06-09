@@ -3,7 +3,8 @@
 import unittest
 import unittest.mock
 
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Status
 from nautobot.ipam.models import VLAN, VLANGroup
 
@@ -175,30 +176,32 @@ class TestUtils(unittest.TestCase):
 class TestNautobotUtils(TestCase):
     """Test infoblox.utils.nautobot.py."""
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Setup Test Cases."""
+        populate_status_choices()
         active_status = Status.objects.get(name="Active")
-        self.vlan_group_1 = VLANGroup.objects.create(name="one")
-        self.vlan_group_2 = VLANGroup.objects.create(name="two")
-        self.vlan_10 = VLAN.objects.create(
+        cls.vlan_group_1 = VLANGroup.objects.create(name="one")
+        cls.vlan_group_2 = VLANGroup.objects.create(name="two")
+        cls.vlan_10 = VLAN.objects.create(
             vid=10,
             name="ten",
             status=active_status,
-            vlan_group=self.vlan_group_1,
+            vlan_group=cls.vlan_group_1,
         )
-        self.vlan_20 = VLAN.objects.create(
+        cls.vlan_20 = VLAN.objects.create(
             vid=20,
             name="twenty",
             status=active_status,
-            vlan_group=self.vlan_group_1,
+            vlan_group=cls.vlan_group_1,
         )
-        self.vlan_30 = VLAN.objects.create(
+        cls.vlan_30 = VLAN.objects.create(
             vid=30,
             name="thirty",
             status=active_status,
-            vlan_group=self.vlan_group_2,
+            vlan_group=cls.vlan_group_2,
         )
-        self.vlan_40 = VLAN.objects.create(
+        cls.vlan_40 = VLAN.objects.create(
             vid=40,
             name="forty",
             status=active_status,
