@@ -37,6 +37,7 @@ from nautobot.dcim.models import (
 from nautobot.extras.models import JobResult, Role, Status
 
 from nautobot_ssot.contrib import SkipAutoComponentCreation, is_auto_component_creation_suppressed
+from nautobot_ssot.contrib import component_creation as component_creation_module
 from nautobot_ssot.contrib.component_creation import upstream_available
 from nautobot_ssot.tests.jobs import DataSyncBaseJob
 
@@ -65,8 +66,6 @@ def _forced_fallback_module():
     ``nautobot.apps.dcim.SkipAutoComponentCreation``. The module is reloaded normally
     on exit so other tests see the genuine (environment-dependent) symbols.
     """
-    from nautobot_ssot.contrib import component_creation
-
     real_import = builtins.__import__
 
     def _fake_import(name, *args, **kwargs):
@@ -76,10 +75,10 @@ def _forced_fallback_module():
 
     builtins.__import__ = _fake_import
     try:
-        yield importlib.reload(component_creation)
+        yield importlib.reload(component_creation_module)
     finally:
         builtins.__import__ = real_import
-        importlib.reload(component_creation)
+        importlib.reload(component_creation_module)
 
 
 class ContextManagerFeatureDetectionTestCase(TestCase):
@@ -258,11 +257,11 @@ class SkipAutoComponentCreationJobTestCase(TransactionTestCase):
         entries = {"count": 0}
 
         class _SpyContext:
-            def __enter__(self_inner):
+            def __enter__(self):
                 entries["count"] += 1
-                return self_inner
+                return self
 
-            def __exit__(self_inner, *exc_info):
+            def __exit__(self, *exc_info):
                 return False
 
         with patch("nautobot_ssot.jobs.base.SkipAutoComponentCreation", _SpyContext):
