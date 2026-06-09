@@ -56,9 +56,7 @@ class TestMerakiAdapterTestCase(TestCase):
         cls.job.location_map = {}
         cls.job.device_status = None
         cls.job.location = None
-        cls.job.job_result = JobResult.objects.create(
-            name=cls.job.class_path, task_name="fake task", worker="default"
-        )
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
         cls.meraki = MerakiAdapter(job=cls.job, sync=None, client=cls.meraki_client)
 
     def test_data_loading(self):

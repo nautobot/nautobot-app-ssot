@@ -3,8 +3,8 @@
 import unittest
 
 from django.contrib.contenttypes.models import ContentType
-from nautobot.core.choices import ColorChoices
 from nautobot.apps.testing import TestCase
+from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import (
     Device,
     DeviceType,

@@ -29,9 +29,7 @@ class TestNautobotPrefix(TestCase):  # pylint: disable=too-many-instance-attribu
         cls.status_active = Status.objects.get(name="Active")
         site_lt = LocationType.objects.get_or_create(name="Site")[0]
         site_lt.content_types.add(ContentType.objects.get_for_model(Prefix))
-        cls.test_site = Location.objects.get_or_create(name="Test", location_type=site_lt, status=cls.status_active)[
-            0
-        ]
+        cls.test_site = Location.objects.get_or_create(name="Test", location_type=site_lt, status=cls.status_active)[0]
         cls.update_site = Location.objects.get_or_create(
             name="Update", location_type=site_lt, status=cls.status_active
         )[0]
@@ -108,9 +106,7 @@ class TestNautobotIPAddress(TestCase):  # pylint: disable=too-many-instance-attr
         cls.status_active = Status.objects.get(name="Active")
         site_lt = LocationType.objects.get_or_create(name="Site")[0]
         site_lt.content_types.add(ContentType.objects.get_for_model(Prefix))
-        cls.test_site = Location.objects.get_or_create(name="Test", location_type=site_lt, status=cls.status_active)[
-            0
-        ]
+        cls.test_site = Location.objects.get_or_create(name="Test", location_type=site_lt, status=cls.status_active)[0]
         cls.update_site = Location.objects.get_or_create(
             name="Update", location_type=site_lt, status=cls.status_active
         )[0]

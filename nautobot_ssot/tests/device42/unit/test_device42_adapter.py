@@ -82,9 +82,7 @@ class Device42AdapterTestCase(TestCase):  # pylint: disable=too-many-public-meth
         cls.job.logger.info = MagicMock()
         cls.job.logger.warning = MagicMock()
         cls.job.debug = True
-        cls.job.job_result = JobResult.objects.create(
-            name=cls.job.class_path, task_name="fake task", worker="default"
-        )
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
         cls.device42 = Device42Adapter(job=cls.job, sync=None, client=cls.d42_client)
         cls.mock_device = MagicMock()
         cls.mock_device.name = "cluster1 - Switch 1"

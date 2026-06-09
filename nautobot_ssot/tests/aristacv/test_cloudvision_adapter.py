@@ -49,9 +49,7 @@ class CloudvisionAdapterTestCase(TestCase):
             name: "1000BASE-T" for name in all_intf_names if not name.startswith("Port-Channel")
         }
         cls.cloudvision.get_all_interface_descriptions = MagicMock()
-        cls.cloudvision.get_all_interface_descriptions.return_value = {
-            name: "Uplink to DC1" for name in all_intf_names
-        }
+        cls.cloudvision.get_all_interface_descriptions.return_value = {name: "Uplink to DC1" for name in all_intf_names}
         cls.cloudvision.get_routed_interface_description = MagicMock()
         cls.cloudvision.get_routed_interface_description.return_value = "hello!"
         cls.cloudvision.get_ip_interfaces = MagicMock()
@@ -60,9 +58,7 @@ class CloudvisionAdapterTestCase(TestCase):
         cls.cloudvision.get_interface_vrf.return_value = "Global"
 
         cls.job = cls.job_class()
-        cls.job.job_result = JobResult.objects.create(
-            name=cls.job.class_path, task_name="fake task", worker="default"
-        )
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
         cls.cvp = CloudvisionAdapter(job=cls.job, conn=cls.client)
 
     def test_load_devices(self):

@@ -36,9 +36,7 @@ class TestSolarWindsAdapterTestCase(TestCase):  # pylint: disable=too-many-publi
         cls.location_type, _ = LocationType.objects.update_or_create(name="Site", defaults={"parent": region_type})
         cls.location_type.content_types.add(ContentType.objects.get_for_model(Device))
 
-        cls.parent, _ = Location.objects.get_or_create(
-            name="USA", location_type=region_type, status=cls.status_active
-        )
+        cls.parent, _ = Location.objects.get_or_create(name="USA", location_type=region_type, status=cls.status_active)
 
         cls.job = SolarWindsDataSource()
         cls.job.debug = True

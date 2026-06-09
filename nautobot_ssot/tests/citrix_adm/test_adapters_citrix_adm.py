@@ -54,9 +54,7 @@ class TestCitrixAdmAdapterTestCase(TestCase):  # pylint: disable=too-many-instan
         cls.job.logger.warning = MagicMock()
         cls.job.logger.info = MagicMock()
         cls.job.logger.debug = MagicMock()
-        cls.job.job_result = JobResult.objects.create(
-            name=cls.job.class_path, task_name="fake task", worker="default"
-        )
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
         cls.citrix_adm = CitrixAdmAdapter(job=cls.job, sync=None, instances=[cls.instance])
         cls.citrix_adm.conn = cls.citrix_adm_client
 

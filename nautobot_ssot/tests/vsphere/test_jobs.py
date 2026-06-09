@@ -3,8 +3,8 @@
 from copy import deepcopy
 
 from django.conf import settings
-from nautobot.apps.testing import TestCase
 from django.urls import reverse
+from nautobot.apps.testing import TestCase
 
 from nautobot_ssot.integrations.vsphere import jobs
 

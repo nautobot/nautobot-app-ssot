@@ -75,9 +75,7 @@ class TestNautobotAdapterTestCase(TestCase):
         cls.job = LibrenmsDataSource()
         cls.job.logger.warning = MagicMock()
         cls.job.sync_locations = True
-        cls.job.job_result = JobResult.objects.create(
-            name=cls.job.class_path, task_name="fake task", worker="default"
-        )
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
 
         cls.nautobot_adapter = NautobotAdapter(job=cls.job, sync=None)
 

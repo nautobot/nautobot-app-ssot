@@ -49,9 +49,7 @@ class TestNautobotUtils(TestCase):  # pylint: disable=too-many-instance-attribut
         _dr.validated_save()
         cls.dev = Device(name="Test", role=_dr, device_type=_dt, location=cls.site, status=cls.status_active)
         cls.dev.validated_save()
-        cls.intf = Interface(
-            name="Management", type="virtual", mode="access", device=cls.dev, status=cls.status_active
-        )
+        cls.intf = Interface(name="Management", type="virtual", mode="access", device=cls.dev, status=cls.status_active)
         cls.intf.validated_save()
         cls.mock_dev = NautobotDevice(
             name="Test",

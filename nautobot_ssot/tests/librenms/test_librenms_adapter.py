@@ -52,9 +52,7 @@ class TestLibreNMSAdapterTestCase(TestCase):
         cls.job.tenant = None  # No tenant for test
         cls.job.logger.warning = MagicMock()
         cls.job.sync_locations = True
-        cls.job.job_result = JobResult.objects.create(
-            name=cls.job.class_path, task_name="fake task", worker="default"
-        )
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
         cls.librenms_adapter = LibrenmsAdapter(job=cls.job, sync=None, librenms_api=cls.librenms_client)
 
     @patch("nautobot_ssot.integrations.librenms.diffsync.adapters.librenms.has_required_values")

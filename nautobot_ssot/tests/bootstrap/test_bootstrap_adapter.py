@@ -123,9 +123,7 @@ class TestBootstrapAdapterTestCase(TestCase):
     def setUpTestData(cls):
         """Initialize test case."""
         cls.job = BootstrapDataSource()
-        cls.job.job_result = JobResult.objects.create(
-            name=cls.job.class_path, task_name="fake task", worker="default"
-        )
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
 
         cls.bootstrap_client = MagicMock()
         cls.bootstrap_client.get_global_settings.return_value = GLOBAL_YAML_SETTINGS

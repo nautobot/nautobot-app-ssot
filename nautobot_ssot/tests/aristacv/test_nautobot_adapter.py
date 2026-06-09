@@ -49,9 +49,7 @@ class NautobotAdapterTestCase(TestCase):
         )
 
         cls.job = cls.job_class()
-        cls.job.job_result = JobResult.objects.create(
-            name=cls.job.class_path, task_name="fake task", worker="default"
-        )
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
         cls.nb_adapter = NautobotAdapter(job=cls.job)
 
     def test_load_devices(self):

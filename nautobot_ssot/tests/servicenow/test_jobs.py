@@ -4,8 +4,8 @@ import os
 from unittest import mock
 
 from django.test import override_settings
-from nautobot.apps.testing import TestCase
 from django.urls import reverse
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
 from nautobot.extras.choices import SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices
 from nautobot.extras.models import Role, Secret, SecretsGroup, SecretsGroupAssociation, Status
