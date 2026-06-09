@@ -449,6 +449,29 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         )
 
     @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"meraki_allow_dhcp_mgmt_ips": True}})
+    @patch("nautobot_ssot.integrations.meraki.diffsync.adapters.meraki.get_mgmt_port_from_uplinks")
+    def test_load_firewall_ports_skips_empty_dhcp_uplinks(self, mock_get_mgmt_port_from_uplinks):
+        """Validate load_firewall_ports() skips DHCP uplink lookup when no uplink ports are returned."""
+        mock_device = MagicMock()
+        mock_device.name = "HQ MX"
+
+        self.meraki_client.get_management_ports.return_value = {"wan1": {}}
+        self.meraki_client.get_uplink_settings.return_value = {}
+        self.meraki_client.get_appliance_switchports.return_value = []
+        self.meraki_client.get_org_uplink_addresses_by_device.return_value = []
+
+        self.meraki.load_firewall_ports(
+            device=mock_device,
+            serial="V4GD-ABDP-YVCK",
+            network_id="L_165471703274884707",
+            lan_ip="146.171.212.44",
+        )
+
+        mock_get_mgmt_port_from_uplinks.assert_not_called()
+        self.assertEqual({"wan1__HQ MX"}, {port.get_unique_id() for port in self.meraki.get_all("port")})
+        self.assertEqual(set(), {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")})
+
+    @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"meraki_allow_dhcp_mgmt_ips": True}})
     def test_default_location(self):
         """Test default location job input var."""
         self.job.location = MagicMock()

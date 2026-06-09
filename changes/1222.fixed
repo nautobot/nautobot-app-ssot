@@ -1,0 +1,1 @@
+Fix Meraki firewall port loading when devices have no uplink IP configured.
