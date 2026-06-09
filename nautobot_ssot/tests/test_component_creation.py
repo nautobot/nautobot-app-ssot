@@ -11,6 +11,9 @@ Nautobot version does not yet ship ``nautobot.apps.dcim.SkipAutoComponentCreatio
 (see https://github.com/nautobot/nautobot/issues/9026).
 """
 
+import builtins
+import contextlib
+import importlib
 import os.path
 import unittest
 from unittest.mock import patch
@@ -53,6 +56,32 @@ def _status_for(model):
     return status
 
 
+@contextlib.contextmanager
+def _forced_fallback_module():
+    """Reload ``component_creation`` with the upstream import forced to fail.
+
+    Yields the freshly reloaded module so the no-op fallback branch can be exercised
+    deterministically, regardless of whether the running Nautobot actually ships
+    ``nautobot.apps.dcim.SkipAutoComponentCreation``. The module is reloaded normally
+    on exit so other tests see the genuine (environment-dependent) symbols.
+    """
+    from nautobot_ssot.contrib import component_creation
+
+    real_import = builtins.__import__
+
+    def _fake_import(name, *args, **kwargs):
+        if name == "nautobot.apps.dcim":
+            raise ImportError("forced unavailable for test")
+        return real_import(name, *args, **kwargs)
+
+    builtins.__import__ = _fake_import
+    try:
+        yield importlib.reload(component_creation)
+    finally:
+        builtins.__import__ = real_import
+        importlib.reload(component_creation)
+
+
 class ContextManagerFeatureDetectionTestCase(TestCase):
     """Tests for the feature-detection wrapper itself."""
 
@@ -68,6 +97,40 @@ class ContextManagerFeatureDetectionTestCase(TestCase):
     def test_upstream_available_returns_bool(self):
         """``upstream_available()`` returns a bool reflecting whether the upstream symbol was importable."""
         self.assertIsInstance(upstream_available(), bool)
+
+
+class FallbackContextManagerTestCase(TestCase):
+    """Tests for the no-op fallback used when the upstream extension point is unavailable.
+
+    These force the ``ImportError`` branch via ``_forced_fallback_module`` so the fallback
+    is covered deterministically even on a Nautobot that *does* ship the upstream symbol.
+    """
+
+    def test_fallback_reports_unavailable_and_is_noop(self):
+        """The fallback reports upstream unavailable, never suppresses, and is a no-op context."""
+        with _forced_fallback_module() as component_creation:
+            self.assertFalse(component_creation.upstream_available())
+            self.assertFalse(component_creation.is_auto_component_creation_suppressed())
+            with component_creation.SkipAutoComponentCreation() as ctx:
+                self.assertIsInstance(ctx, component_creation.SkipAutoComponentCreation)
+
+    def test_fallback_warns_only_once(self):
+        """The fallback emits its warning the first time it is entered and not on later entries."""
+        with _forced_fallback_module() as component_creation:
+            with self.assertLogs(component_creation.logger, level="WARNING") as captured:
+                with component_creation.SkipAutoComponentCreation():
+                    pass
+                with component_creation.SkipAutoComponentCreation():
+                    pass
+        self.assertEqual(len(captured.records), 1)
+        self.assertIn("SkipAutoComponentCreation is not available", captured.records[0].getMessage())
+
+    def test_fallback_does_not_suppress_exceptions(self):
+        """An exception raised inside the fallback context propagates out unchanged."""
+        with _forced_fallback_module() as component_creation:
+            with self.assertRaises(ValueError):
+                with component_creation.SkipAutoComponentCreation():
+                    raise ValueError("boom")
 
 
 @unittest.skipUnless(upstream_available(), _UPSTREAM_REQUIRED)
@@ -183,6 +246,51 @@ class SkipAutoComponentCreationJobTestCase(TransactionTestCase):
         for key, value in attrs.items():
             setattr(_RecordingJob, key, value)
         return _RecordingJob
+
+    def _context_entries(self, job_class):
+        """Run ``job_class`` with the suppression context replaced by a counting spy.
+
+        Returns how many times ``SkipAutoComponentCreation`` was entered during the run.
+        This isolates the decorator's flag-resolution decision from whether the upstream
+        extension point is actually available, so the OR-semantics matrix is covered in
+        every environment (the suppression-effect tests above still skip without upstream).
+        """
+        entries = {"count": 0}
+
+        class _SpyContext:
+            def __enter__(self_inner):
+                entries["count"] += 1
+                return self_inner
+
+            def __exit__(self_inner, *exc_info):
+                return False
+
+        with patch("nautobot_ssot.jobs.base.SkipAutoComponentCreation", _SpyContext):
+            self._run_recording_job(job_class)
+        return entries["count"]
+
+    # The four rows below are the full attribute-x-setting truth table for the decorator's
+    # suppress decision. Each pins the PLUGINS_CONFIG value explicitly so the result does not
+    # depend on the ambient configuration, and runs regardless of upstream availability.
+    def test_decorator_skips_context_when_neither_opts_in(self):
+        """Attribute False and setting False: sync_data() does not enter the suppression context."""
+        with patch.dict(settings.PLUGINS_CONFIG["nautobot_ssot"], {"skip_auto_component_creation": False}):
+            self.assertEqual(self._context_entries(self._make_recording_job(skip_auto_component_creation=False)), 0)
+
+    def test_decorator_enters_context_for_class_attribute_only(self):
+        """Attribute True with the setting False still enters the context (OR semantics)."""
+        with patch.dict(settings.PLUGINS_CONFIG["nautobot_ssot"], {"skip_auto_component_creation": False}):
+            self.assertEqual(self._context_entries(self._make_recording_job(skip_auto_component_creation=True)), 1)
+
+    def test_decorator_enters_context_for_setting_only(self):
+        """Setting True with the class attribute False still enters the context (OR semantics)."""
+        with patch.dict(settings.PLUGINS_CONFIG["nautobot_ssot"], {"skip_auto_component_creation": True}):
+            self.assertEqual(self._context_entries(self._make_recording_job(skip_auto_component_creation=False)), 1)
+
+    def test_decorator_enters_context_when_both_opt_in(self):
+        """Attribute True and setting True enters the context exactly once."""
+        with patch.dict(settings.PLUGINS_CONFIG["nautobot_ssot"], {"skip_auto_component_creation": True}):
+            self.assertEqual(self._context_entries(self._make_recording_job(skip_auto_component_creation=True)), 1)
 
     def test_default_no_suppression(self):
         """A job without opting in does not suppress autocreation during sync."""
