@@ -1,6 +1,6 @@
 # Default owner(s) of all files in this repository
 * @nautobot/plugin-ssot
-/nautobot_ssot/integrations/aci/ @chadell @nautobot/plugin-ssot
+/nautobot_ssot/integrations/aci/ @nautobot/plugin-ssot
 /nautobot_ssot/integrations/aristacv/ @qduk @jdrew82 @nautobot/plugin-ssot
 /nautobot_ssot/integrations/bootstrap/ @bile0026 @nautobot/plugin-ssot
 /nautobot_ssot/integrations/citrix_adm/ @jdrew82 @nautobot/plugin-ssot
@@ -12,6 +12,5 @@
 /nautobot_ssot/integrations/librenms/ @bile0026 @nautobot/plugin-ssot
 /nautobot_ssot/integrations/meraki/ @jdrew82 @nautobot/plugin-ssot
 /nautobot_ssot/integrations/servicenow/ @glennmatthews @qduk @garymccann @nautobot/plugin-ssot
-/nautobot_ssot/integrations/slurpit/ @lpconsulting321 @pietos @nautobot/plugin-ssot
+/nautobot_ssot/integrations/slurpit/ @nautobot/plugin-ssot
 /nautobot_ssot/integrations/solarwinds/ @jdrew82 @nopg @garymccann @nautobot/plugin-ssot
-
