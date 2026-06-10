@@ -253,9 +253,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
             uplink_ports = self.conn.get_org_uplink_addresses_by_device(serial=serial)
             if uplink_ports:  # Find the mgmt interface from the uplink interfaces
                 mgmt_ip, mgmt_port_name = get_mgmt_port_from_uplinks(mgmt_ip=lan_ip, uplink_ports=uplink_ports)
-                mgmt_ip_mask_length = (
-                    32  # In this case the subnet mask will be set to 32 since we can't get it from the device configuration
-                )
+                mgmt_ip_mask_length = 32  # In this case the subnet mask will be set to 32 since we can't get it from the device configuration
                 net_prefix = ipaddress_interface(ip=mgmt_ip, attr="network.with_prefixlen")
                 try:
                     self.get(self.port, {"name": mgmt_port_name, "device": device.name})
