@@ -13,26 +13,26 @@ class ContentTypeDict(TypedDict):
     """TypedDict for Django Content Types."""
 
     app_label: str
-    model: Annotated[str, SortKey]
+    model: str
 
 
 class TagDict(TypedDict):
     """TypedDict for Nautobot Tags."""
 
-    name: Annotated[str, SortKey]
+    name: str
 
 
 class LocationDict(TypedDict):
     """TypedDict for DCIM Locations."""
 
-    name: Annotated[str, SortKey]
+    name: str
     parent__name: str
 
 
 class DeviceDict(TypedDict):
     """TypedDict for DCIM Devices."""
 
-    name: Annotated[str, SortKey]
+    name: str
     location__name: str
     tenant__name: str
     rack__name: str
@@ -46,14 +46,14 @@ class DeviceDict(TypedDict):
 class InterfaceDict(TypedDict):
     """TypedDict for DCIM INterfaces."""
 
-    name: Annotated[str, SortKey]
+    name: str
     device__name: str
 
 
 class PrefixDict(TypedDict):
     """TypedDict for IPAM Prefixes."""
 
-    network: Annotated[str, SortKey]
+    network: str
     prefix_length: int
     namespace__name: str
 
@@ -61,20 +61,32 @@ class PrefixDict(TypedDict):
 class VLANDict(TypedDict):
     """TypedDict for IPAM VLANs."""
 
-    vid: Annotated[int, SortKey]
+    vid: int
     vlan_group__name: str
 
 
 class IPAddressDict(TypedDict):
     """TypedDict for IPAM IP Address."""
 
-    host: Annotated[str, SortKey]
+    host: str
     mask_length: int
 
 
 class VirtualMachineDict(TypedDict):
     """TypedDict for IPAM ."""
 
-    name: Annotated[str, SortKey]
+    name: str
     cluster__name: str
     tenant__name: str
+
+    
+class TenantDict(TypedDict):
+    """Many-to-many relationship typed dict explaining which fields are interesting."""
+
+    name: str
+
+
+class CustomRelationshipDict(TypedDict):
+    """Typed dictionary for custom relationships."""
+
+    name: str
