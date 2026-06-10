@@ -112,9 +112,7 @@ class CitrixNitroClient:
             _result = _result.json()
             if _result.get("errorcode") == 0:
                 return _result
-            self.job.logger.warning(f"Failure with request to {url}: {_result['message']}, data: {data}")
-        else:
-            self.job.logger.warning(f"HTTP {_result.status_code} from {url}: {_result.text}, data: {data}")
+            self.job.logger.warning(f"Failure with request: {_result['message']}")
         return {}
 
     def get_sites(self):
