@@ -15,6 +15,7 @@ from nautobot_ssot.integrations.librenms.utils import (
     normalize_gps_coordinates,
     normalize_setting,
 )
+from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
 
 
 class TestNormalizeGPSCoordinates(TestCase):
@@ -419,3 +420,47 @@ class TestIsRunningTests(TestCase):
 
         result = is_running_tests()
         self.assertTrue(result)
+
+
+class TestGetLibreNMSIPInfoForDeviceIP(TestCase):
+    """Test getting IP info for a device IP."""
+
+    def setUp(self):
+        """Set up test case."""
+        self.api = LibreNMSApi(url="https://librenms.example.com", token="token")
+
+    @parameterized.expand(
+        [
+            (
+                "ipv4_skips_entry_missing_key",
+                "10.0.0.1",
+                [
+                    {"ipv6_address": "2001:db8::1", "ipv6_prefixlen": "64"},  # no ipv4_address key
+                    {"ipv4_address": "10.0.0.1", "ipv4_prefixlen": "24"},
+                ],
+                {"network": "10.0.0.0/24", "address": "10.0.0.1/24"},
+            ),
+            (
+                "ipv6_skips_entry_missing_key",
+                "2001:db8::1",
+                [
+                    {"ipv4_address": "10.0.0.1", "ipv4_prefixlen": "24"},  # no ipv6_address key
+                    {"ipv6_address": "2001:db8::1", "ipv6_prefixlen": "64"},
+                ],
+                {"network": "2001:db8::/64", "address": "2001:db8::1/64"},
+            ),
+            (
+                "no_match_returns_none",
+                "10.0.0.1",
+                [{"ipv6_address": "2001:db8::1", "ipv6_prefixlen": "64"}],  # no ipv4_address key
+                None,
+            ),
+        ]
+    )
+    @patch.object(LibreNMSApi, "get_librenms_ips_for_device")
+    def test_get_librenms_ipinfo_for_device_ip(self, _test_name, ip_address, addresses, expected_result, mock_get_ips):
+        """Test that an address entry missing the IP key is skipped instead of raising KeyError."""
+        mock_get_ips.return_value = {"status": "ok", "count": len(addresses), "addresses": addresses}
+
+        result = self.api.get_librenms_ipinfo_for_device_ip(1, ip_address)
+        self.assertEqual(result, expected_result)
