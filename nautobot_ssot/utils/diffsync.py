@@ -4,7 +4,7 @@ from functools import lru_cache
 from typing import Annotated, ClassVar, Union, get_args, get_origin, get_type_hints
 
 from nautobot_ssot.contrib.types import CustomAnnotation
-
+from nautobot_ssot.utils.typing import get_inner_type
 
 class DiffSyncModelUtilityMixin:
     """A `DiffSyncModel` utility mixin providing extended functionality to more easily get the data you need.
@@ -62,7 +62,11 @@ class DiffSyncModelUtilityMixin:
             Any: Custom annotation instance or None.
         """
         # Looping through args vs. returning static index ensures getting the annotation in the instance it's not in the [1] position.
-        for metadata in cls.get_attr_args(attr_name):
+        attr_args = cls.get_attr_args(attr_name)
+        if attr_args and attr_args[0].__name__ in ["Annotated", "Optional"]:
+            # When nested, we combine the metadata between the first and second levels to search for annotations.
+            attr_args = list(attr_args) + list(get_args(attr_args[0]))
+        for metadata in attr_args:
             if isinstance(metadata, CustomAnnotation):
                 return metadata
         return None
@@ -85,14 +89,18 @@ class DiffSyncModelUtilityMixin:
     def get_attr_type(cls, attr_name: str) -> type:
         """Get class type of specified attribute.
 
-        NOTE: If attribute is `Annotated`, returns the inner type, not `Annotated`.
-
+        Returns inner type if attribute is `Optional` and/or `Annotated`.
+        
         Args:
             attr_name (str): Attribute name.
 
         Returns:
             type: The class type of the attribute.
         """
-        if cls.is_attr_annotated(attr_name):
-            return cls.get_attr_args(attr_name)[0]
-        return cls.get_type_hints()[attr_name]
+        attr_hints = cls.get_attr_args(attr_name)
+        if not attr_hints:
+            # Empty args means there are no annotations to decipher
+            return cls.get_type_hints()[attr_name]
+        while attr_hints[0].__name__ in ["Optional", "Annotated"]:
+            attr_hints = get_args(attr_hints[0])
+        return attr_hints[0]

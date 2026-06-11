@@ -3,10 +3,12 @@
 # pylint: disable=protected-access
 
 import unittest
-from typing import Annotated, ClassVar
+from typing import Annotated, ClassVar, Optional
 
 from nautobot_ssot.contrib.types import CustomAnnotation
 from nautobot_ssot.utils.diffsync import DiffSyncModelUtilityMixin
+from nautobot.core.testing import TestCase
+from nautobot_ssot.tests.contrib.fixtures.models import NautobotDevice
 
 
 class DummyAnnotation(CustomAnnotation):
@@ -24,6 +26,11 @@ class DummyModel(DiffSyncModelUtilityMixin):
     id1: str
     attr1: Annotated[str, DummyAnnotation("foo")]
     attr2: Annotated[int, DummyAnnotation("bar")]
+    attr3: Annotated[int, "unordered_annotation", DummyAnnotation("attr3_annotation")]
+    attr4: Annotated[str, "no_annotation", 42]
+    attr5: Optional[Annotated[int, DummyAnnotation("attr5_annotation")]]
+    attr6: Annotated[Optional[int], DummyAnnotation("attr6_annotation")]
+    attr7: Optional[int]
     plain: float
     no_type = None
 
@@ -43,14 +50,49 @@ class TestDiffSyncModelUtilityMixin(unittest.TestCase):
         self.assertEqual(DummyModel.get_synced_attributes(), ["id1", "attr1", "attr2", "plain", "no_type"])
         self.assertEqual(EmptyModel.get_synced_attributes(), [])
 
+    def test_class_vars_unchanged(self):
+        """Test that get_synced_attributes does not modify the original class variables."""
+        DummyModel.get_synced_attributes()
+        self.assertEqual(DummyModel._identifiers, ("id1",))
+        self.assertEqual(DummyModel._attributes, ("attr1", "attr2", "plain", "no_type"))
+
+
+
+class BaseTestCase(TestCase):
+    """"""
+
+    # def setUp(self):
+    #     """"""
+
+
+class TestMethodGetTypeHints(BaseTestCase):
+    """"""
+
     def test_get_type_hints(self):
-        """Test type hints for all annotated and plain fields."""
-        hints = DummyModel.get_type_hints()
-        self.assertIn("id1", hints)
-        self.assertIn("attr1", hints)
-        self.assertIn("attr2", hints)
-        self.assertIn("plain", hints)
-        self.assertIs(hints["plain"], float)
+        """"""
+        result = NautobotDevice.get_type_hints()
+        self.assertIsInstance(result, dict)
+
+    def test_get_from_cache(self):
+        """"""
+        NautobotDevice.get_type_hints.cache_clear()
+        NautobotDevice.get_type_hints()
+        self.assertEqual(NautobotDevice.get_type_hints.cache_info().hits, 0)
+        self.assertEqual(NautobotDevice.get_type_hints.cache_info().misses, 1)
+        NautobotDevice.get_type_hints()
+        self.assertEqual(NautobotDevice.get_type_hints.cache_info().hits, 1)
+        self.assertEqual(NautobotDevice.get_type_hints.cache_info().misses, 1)
+
+    def test_get_type_hint_basic_value(self):
+        self.assertEqual(NautobotDevice.get_type_hints()["name"].__name__, str.__name__)
+
+
+class TestMethodGetAttrArgs(TestCase):
+    """"""
+    def test_get_attr_args_plain(self):
+        """Test get_attr_args returns empty tuple for plain fields."""
+        args = DummyModel.get_attr_args("plain")
+        self.assertEqual(args, ())
 
     def test_get_attr_args_annotated(self):
         """Test get_attr_args returns correct tuple for annotated fields."""
@@ -61,19 +103,9 @@ class TestDiffSyncModelUtilityMixin(unittest.TestCase):
         self.assertEqual(args2[0], int)
         self.assertIsInstance(args2[1], DummyAnnotation)
 
-    def test_get_attr_args_plain(self):
-        """Test get_attr_args returns empty tuple for plain fields."""
-        args = DummyModel.get_attr_args("plain")
-        self.assertEqual(args, ())
 
-    def test_get_attr_annotation(self):
-        """Test get_attr_annotation returns correct annotation for annotated fields."""
-        ann1 = DummyModel.get_attr_annotation("attr1")
-        self.assertIsInstance(ann1, DummyAnnotation)
-        self.assertEqual(ann1.value, "foo")
-        ann2 = DummyModel.get_attr_annotation("attr2")
-        self.assertIsInstance(ann2, DummyAnnotation)
-        self.assertEqual(ann2.value, "bar")
+class TestMethodGetAttrAnnotation(TestCase):
+    """"""
 
     def test_get_attr_annotation_none(self):
         """Test get_attr_annotation returns None for plain or missing fields."""
@@ -85,6 +117,36 @@ class TestDiffSyncModelUtilityMixin(unittest.TestCase):
         with self.assertRaises(KeyError):
             DummyModel.get_attr_annotation("not_a_field")
 
+    def test_get_attr_annotation(self):
+        """Test get_attr_annotation returns correct annotation for annotated fields."""
+        ann1 = DummyModel.get_attr_annotation("attr1")
+        self.assertIsInstance(ann1, DummyAnnotation)
+        self.assertEqual(ann1.value, "foo")
+        ann2 = DummyModel.get_attr_annotation("attr2")
+        self.assertIsInstance(ann2, DummyAnnotation)
+        self.assertEqual(ann2.value, "bar")
+
+    def test_get_attr_annotation_unordered(self):
+        """Test getting annotation from annotated attribute with annotation not in second position."""
+        result = DummyModel.get_attr_annotation("attr3")
+        self.assertEqual(result.value, "attr3_annotation")
+
+    def test_get_nested_annotation(self):
+        """Test getting annotation from `Annotated` nested inside `Optional`."""
+        self.assertEqual(DummyModel.get_attr_annotation("attr5").value, "attr5_annotation")
+
+    def test_get_reverse_nested_annotation(self):
+        """Test getting annotation from `Optional` nested inside `Annotated`."""
+        self.assertEqual(DummyModel.get_attr_annotation("attr6").value, "attr6_annotation")
+
+    def test_no_annotations(self):
+        """Test getting annotation from annotated attribute with annotation not in second position."""
+        self.assertIsNone(DummyModel.get_attr_annotation("attr4"))
+
+
+class TestMethodIsAttrAnnotated(TestCase):
+    """"""
+
     def test_is_attr_annotated(self):
         """Test is_attr_annotated returns True for annotated fields, False otherwise."""
         self.assertTrue(DummyModel.is_attr_annotated("attr1"))
@@ -94,22 +156,35 @@ class TestDiffSyncModelUtilityMixin(unittest.TestCase):
         with self.assertRaises(KeyError):
             DummyModel.is_attr_annotated("no_type")
 
+
+class TestMethodGetAttrType(TestCase):
+
+    def test_get_standard_attr_type(self):
+        self.assertIs(DummyModel.get_attr_type("id1"), str)
+
+    def test_get_annotated_type(self):
+        self.assertIs(DummyModel.get_attr_type("attr1"), str)
+
+    def test_get_optional_type(self):
+        self.assertIs(DummyModel.get_attr_type("attr7"), int)
+
+    def test_get_optional_inside_annotated_type(self):
+        self.assertIs(DummyModel.get_attr_type("attr6"), int)
+
+    def test_get_annotated_inside_optional_type(self):
+        self.assertIs(DummyModel.get_attr_type("attr5"), int)
+
     def test_get_attr_type(self):
         """Test get_attr_type returns correct type for annotated and plain fields."""
-        self.assertIs(DummyModel.get_attr_type("attr1"), str)
         self.assertIs(DummyModel.get_attr_type("attr2"), int)
         self.assertIs(DummyModel.get_attr_type("plain"), float)
         self.assertIs(DummyModel.get_attr_type("id1"), str)
 
-    def test_get_attr_type_none(self):
+    def test_get_attr_type_missing_type_hint(self):
         """Test get_attr_type returns None for missing or untyped fields."""
         with self.assertRaises(KeyError):
             DummyModel.get_attr_type("no_type")
+    
+    def test_get_attr_type_missing_attribute(self):
         with self.assertRaises(KeyError):
             DummyModel.get_attr_type("not_a_field")
-
-    def test_class_vars_unchanged(self):
-        """Test that get_synced_attributes does not modify the original class variables."""
-        DummyModel.get_synced_attributes()
-        self.assertEqual(DummyModel._identifiers, ("id1",))
-        self.assertEqual(DummyModel._attributes, ("attr1", "attr2", "plain", "no_type"))
