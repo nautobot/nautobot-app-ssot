@@ -228,6 +228,7 @@ PLUGINS_CONFIG = {
         "enable_aci": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ACI")),
         "enable_aristacv": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ARISTACV")),
         "enable_bootstrap": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_BOOTSTRAP", "false")),
+        "enable_cisco_sdwan": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_CISCO_SDWAN", "false")),
         "enable_citrix_adm": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_CITRIX_ADM")),
         "enable_device42": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DEVICE42")),
         "enable_dna_center": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DNA_CENTER")),

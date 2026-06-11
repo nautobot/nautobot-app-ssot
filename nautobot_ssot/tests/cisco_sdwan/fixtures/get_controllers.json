@@ -1,0 +1,21 @@
+{
+    "data": [
+        {
+            "deviceType": "vmanage",
+            "host-name": "vmanage-01",
+            "deviceModel": "vmanage",
+            "uuid": "f1e2d3c4-b5a6-9788-0099-DDDD4444EEEE",
+            "version": "20.6.3",
+            "system-ip": "10.255.0.1",
+            "deviceIP": "10.255.0.1",
+            "reachability": "reachable",
+            "site-id": "100"
+        },
+        {
+            "deviceType": "vsmart",
+            "deviceModel": "vsmart",
+            "uuid": "a0b1c2d3-e4f5-0617-2839-FFFF5555AAAA",
+            "version": "20.6.3"
+        }
+    ]
+}

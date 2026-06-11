@@ -15,6 +15,7 @@ __version__ = metadata.version(__name__)
 
 
 _CONFLICTING_APP_NAMES = [
+    "nautobot_sdwan_ssot",
     "nautobot_ssot_aci",
     "nautobot_ssot_aristacv",
     "nautobot_ssot_bootstrap",
@@ -81,6 +82,17 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "aristacv_role_mappings": {},
         "aristacv_site_mappings": {},
         "aristacv_verify": True,
+        "cisco_sdwan_default_interface_status": "Active",
+        "cisco_sdwan_default_interface_type": "other",
+        "cisco_sdwan_default_ipaddress_status": "Active",
+        "cisco_sdwan_device_retired_status": "Retired",
+        "cisco_sdwan_excluded_interfaces": ["Loopback65528", "Loopback65529"],
+        "cisco_sdwan_excluded_prefixes": ["169.254.0.0/16"],
+        "cisco_sdwan_if_up_states": ["if-state-up", "up"],
+        "cisco_sdwan_null_ip_addresses": ["-", "0.0.0.0"],
+        "cisco_sdwan_null_mtu_values": ["0"],
+        "cisco_sdwan_primary_ip_interfaces": ["system"],
+        "cisco_sdwan_software_version_platform_name": "cisco_xe",
         "citrix_adm_update_sites": True,
         "device42_host": "",
         "device42_username": "",
@@ -100,6 +112,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "enable_aci": False,
         "enable_aristacv": False,
         "enable_bootstrap": False,
+        "enable_cisco_sdwan": False,
         "enable_device42": False,
         "enable_dna_center": False,
         "enable_citrix_adm": False,
