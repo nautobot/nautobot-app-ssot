@@ -52,3 +52,13 @@ class TestAdapter(NautobotAdapter):
     top_level = ("tenant_group",)
     tenant_group = NautobotTenantGroup
     tenant = NautobotTenant
+
+
+class TestNautobotAdapter(NautobotAdapter):
+    """"""
+
+    top_level = []
+
+    
+
+

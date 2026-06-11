@@ -1,8 +1,30 @@
 """Tests for contrib.NautobotModel."""
 
 from nautobot.core.testing import TestCase
-
 from nautobot_ssot.contrib.model import NautobotModel
+from typing import Annotated, Optional
+
+
+from nautobot.dcim import models as dcim_models
+
+
+
+class NautobotDevice(NautobotModel):
+    """Device test model."""
+
+    _model = dcim_models.Device
+    _modelname = "device"
+    _identifiers = ("name",)
+    _attributes = (
+        "primary_ip4__host",
+        "primary_ip4__mask_length",
+        "role__name",
+    )
+
+    name: str
+    role__name: str
+    primary_ip4__host: Optional[str] = None
+    primary_ip4__mask_length: Optional[int] = None
 
 
 class TestMethodGetSyncedParameters(TestCase):
@@ -81,3 +103,5 @@ class TestMethodGetSyncedParameters(TestCase):
         result = LocalModel.get_synced_attributes()
         self.assertEqual(len(result), 0)
         self.assertEqual(LocalModel.get_synced_attributes(), [])
+
+

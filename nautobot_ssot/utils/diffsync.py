@@ -73,19 +73,6 @@ class DiffSyncModelUtilityMixin:
 
     @classmethod
     @lru_cache
-    def is_attr_annotated(cls, attr_name: str) -> bool:
-        """Check if attribute is annotated with typing.Annotated.
-
-        Args:
-            attr_name (str): Attribute name.
-
-        Returns:
-            bool: True if annotated, False otherwise.
-        """
-        return get_origin(cls.get_type_hints()[attr_name]) in [Annotated]
-
-    @classmethod
-    @lru_cache
     def get_attr_type(cls, attr_name: str) -> type:
         """Get class type of specified attribute.
 

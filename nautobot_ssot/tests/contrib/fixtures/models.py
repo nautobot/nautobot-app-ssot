@@ -9,7 +9,6 @@ import nautobot.dcim.models as dcim_models
 import nautobot.extras.models as extras_models
 import nautobot.ipam.models as ipam_models
 import nautobot.tenancy.models as tenancy_models
-from diffsync.exceptions import ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
 from django.contrib.contenttypes.models import ContentType
 from nautobot.core.testing import TestCase
 from nautobot.dcim.choices import InterfaceTypeChoices
@@ -18,7 +17,6 @@ from typing_extensions import TypedDict
 from nautobot_ssot.contrib import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
-    NautobotAdapter,
     NautobotModel,
     RelationshipSideEnum,
 )
@@ -30,6 +28,36 @@ from nautobot_ssot.contrib.typeddicts import (
     CustomRelationshipDict,
 )
 
+
+class NautobotLocationType(NautobotModel):
+    """"""
+
+    _model = dcim_models.LocationType
+    _modelname = "location_type"
+
+class NautobotLocation(NautobotModel):
+    """"""
+
+    _model = dcim_models.Location
+    _modelname = "location"
+
+
+class NautobotDevice(NautobotModel):
+    """Device test model."""
+
+    _model = dcim_models.Device
+    _modelname = "device"
+    _identifiers = ("name",)
+    _attributes = (
+        "primary_ip4__host",
+        "primary_ip4__mask_length",
+        "role__name",
+    )
+
+    name: str
+    role__name: str
+    primary_ip4__host: Optional[str] = None
+    primary_ip4__mask_length: Optional[int] = None
 
 
 
@@ -45,7 +73,6 @@ class NautobotTenant(NautobotModel):
     description: Optional[str] = None
     tenant_group__name: Optional[str] = None
     tags: List[TagDict] = []
-
 
 
 class NautobotTenantGroup(NautobotModel):
@@ -111,23 +138,6 @@ class NautobotInterface(NautobotModel):
     device__name: str
     ip_addresses: List[IPAddressDict] = []
 
-
-class NautobotDevice(NautobotModel):
-    """Device test model."""
-
-    _model = dcim_models.Device
-    _modelname = "device"
-    _identifiers = ("name",)
-    _attributes = (
-        "primary_ip4__host",
-        "primary_ip4__mask_length",
-        "role__name",
-    )
-
-    name: str
-    role__name: str
-    primary_ip4__host: Optional[str] = None
-    primary_ip4__mask_length: Optional[int] = None
 
 
 class NautobotCable(NautobotModel):

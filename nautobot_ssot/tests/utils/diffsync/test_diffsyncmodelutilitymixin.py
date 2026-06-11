@@ -23,6 +23,7 @@ class DummyModel(DiffSyncModelUtilityMixin):
 
     _identifiers: ClassVar[tuple] = ("id1",)
     _attributes: ClassVar[tuple] = ("attr1", "attr2", "plain", "no_type")
+
     id1: str
     attr1: Annotated[str, DummyAnnotation("foo")]
     attr2: Annotated[int, DummyAnnotation("bar")]
@@ -57,7 +58,6 @@ class TestDiffSyncModelUtilityMixin(unittest.TestCase):
         self.assertEqual(DummyModel._attributes, ("attr1", "attr2", "plain", "no_type"))
 
 
-
 class BaseTestCase(TestCase):
     """"""
 
@@ -88,7 +88,7 @@ class TestMethodGetTypeHints(BaseTestCase):
 
 
 class TestMethodGetAttrArgs(TestCase):
-    """"""
+
     def test_get_attr_args_plain(self):
         """Test get_attr_args returns empty tuple for plain fields."""
         args = DummyModel.get_attr_args("plain")
@@ -105,7 +105,6 @@ class TestMethodGetAttrArgs(TestCase):
 
 
 class TestMethodGetAttrAnnotation(TestCase):
-    """"""
 
     def test_get_attr_annotation_none(self):
         """Test get_attr_annotation returns None for plain or missing fields."""
@@ -142,19 +141,6 @@ class TestMethodGetAttrAnnotation(TestCase):
     def test_no_annotations(self):
         """Test getting annotation from annotated attribute with annotation not in second position."""
         self.assertIsNone(DummyModel.get_attr_annotation("attr4"))
-
-
-class TestMethodIsAttrAnnotated(TestCase):
-    """"""
-
-    def test_is_attr_annotated(self):
-        """Test is_attr_annotated returns True for annotated fields, False otherwise."""
-        self.assertTrue(DummyModel.is_attr_annotated("attr1"))
-        self.assertTrue(DummyModel.is_attr_annotated("attr2"))
-        self.assertFalse(DummyModel.is_attr_annotated("plain"))
-        self.assertFalse(DummyModel.is_attr_annotated("id1"))
-        with self.assertRaises(KeyError):
-            DummyModel.is_attr_annotated("no_type")
 
 
 class TestMethodGetAttrType(TestCase):
