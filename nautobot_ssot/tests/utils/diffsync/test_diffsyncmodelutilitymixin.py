@@ -58,14 +58,7 @@ class TestDiffSyncModelUtilityMixin(unittest.TestCase):
         self.assertEqual(DummyModel._attributes, ("attr1", "attr2", "plain", "no_type"))
 
 
-class BaseTestCase(TestCase):
-    """Base test case for mixin method tests that require Nautobot model fixtures."""
-
-    # def setUp(self):
-    #     """"""
-
-
-class TestMethodGetTypeHints(BaseTestCase):
+class TestMethodGetTypeHints(TestCase):
     """Unit tests for the `get_type_hints` method."""
 
     def test_get_type_hints(self):
