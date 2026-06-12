@@ -1,7 +1,6 @@
 """Tests for contrib.NautobotModel."""
 
-from typing import List, Optional
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from django.contrib.contenttypes.models import ContentType
 from nautobot.circuits import models as circuits_models
@@ -10,14 +9,12 @@ from nautobot.dcim import models as dcim_models
 from nautobot.dcim.choices import InterfaceTypeChoices
 from nautobot.extras import models as extras_models
 from nautobot.extras.choices import RelationshipTypeChoices
-from nautobot.ipam import models as ipam_models
 from nautobot.tenancy import models as tenancy_models
 
 from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
 from nautobot_ssot.tests.contrib_base_classes import (
     NautobotTenant,
     ProviderModelCustomRelationship,
-    TagDict,
     TagModel,
     TenantModelCustomRelationship,
     TestCaseWithDeviceData,
@@ -254,4 +251,3 @@ class BaseModelManyToManyTest(TestCase):
             "Removing objects to a many-to-many relationship based on more than one parameter through 'NautobotModel'"
             "does not work.",
         )
-

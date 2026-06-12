@@ -1,30 +1,13 @@
 """Tests for contrib.NautobotModel."""
 
 from typing import List, Optional
-from unittest.mock import MagicMock, patch
 
-from django.contrib.contenttypes.models import ContentType
-from nautobot.circuits import models as circuits_models
 from nautobot.core.testing import TestCase
-from nautobot.dcim import models as dcim_models
-from nautobot.dcim.choices import InterfaceTypeChoices
-from nautobot.extras import models as extras_models
-from nautobot.extras.choices import RelationshipTypeChoices
-from nautobot.ipam import models as ipam_models
 from nautobot.tenancy import models as tenancy_models
 
 from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
 from nautobot_ssot.tests.contrib_base_classes import (
-    NautobotTenant,
-    ProviderModelCustomRelationship,
     TagDict,
-    TagModel,
-    TenantModelCustomRelationship,
-    TestCaseWithDeviceData,
-)
-from nautobot_ssot.tests.test_contrib_adapter import (
-    CustomRelationShipTestAdapterDestination,
-    CustomRelationShipTestAdapterSource,
 )
 
 

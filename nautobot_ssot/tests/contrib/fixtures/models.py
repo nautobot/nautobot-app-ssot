@@ -1,31 +1,23 @@
 """Base classes for contrib testing."""
 
 from typing import Annotated, List, Optional
-from unittest import skip
-from unittest.mock import MagicMock
 
 import nautobot.circuits.models as circuits_models
 import nautobot.dcim.models as dcim_models
 import nautobot.extras.models as extras_models
 import nautobot.ipam.models as ipam_models
 import nautobot.tenancy.models as tenancy_models
-from django.contrib.contenttypes.models import ContentType
-from nautobot.core.testing import TestCase
-from nautobot.dcim.choices import InterfaceTypeChoices
-from typing_extensions import TypedDict
 
 from nautobot_ssot.contrib import (
-    CustomFieldAnnotation,
     CustomRelationshipAnnotation,
     NautobotModel,
     RelationshipSideEnum,
 )
 from nautobot_ssot.contrib.typeddicts import (
     ContentTypeDict,
-    TagDict,
     IPAddressDict,
+    TagDict,
     TenantDict,
-    CustomRelationshipDict,
 )
 
 
@@ -34,6 +26,7 @@ class NautobotLocationType(NautobotModel):
 
     _model = dcim_models.LocationType
     _modelname = "location_type"
+
 
 class NautobotLocation(NautobotModel):
     """"""
@@ -58,7 +51,6 @@ class NautobotDevice(NautobotModel):
     role__name: str
     primary_ip4__host: Optional[str] = None
     primary_ip4__mask_length: Optional[int] = None
-
 
 
 class NautobotTenant(NautobotModel):
@@ -100,7 +92,6 @@ class TagModel(NautobotModel):
     content_types: List[ContentTypeDict] = []
 
 
-
 class NautobotIPAddress(NautobotModel):
     """IP Address test model."""
 
@@ -139,7 +130,6 @@ class NautobotInterface(NautobotModel):
     ip_addresses: List[IPAddressDict] = []
 
 
-
 class NautobotCable(NautobotModel):
     """Model for cables between device interfaces.
 
@@ -171,7 +161,6 @@ class NautobotCable(NautobotModel):
     termination_b__model: str
     termination_b__name: str
     termination_b__device__name: str
-
 
 
 class TenantModelCustomRelationship(NautobotModel):
@@ -212,5 +201,3 @@ class TenantModelCustomManyTomanyRelationship(NautobotModel):
 
     name: str
     tenants: List[TenantDict] = []
-
-

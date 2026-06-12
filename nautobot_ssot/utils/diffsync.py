@@ -1,10 +1,10 @@
 """Utility functions and classes for use with the DiffSync library."""
 
 from functools import lru_cache
-from typing import Annotated, ClassVar, Union, get_args, get_origin, get_type_hints
+from typing import ClassVar, Union, get_args, get_type_hints
 
 from nautobot_ssot.contrib.types import CustomAnnotation
-from nautobot_ssot.utils.typing import get_inner_type
+
 
 class DiffSyncModelUtilityMixin:
     """A `DiffSyncModel` utility mixin providing extended functionality to more easily get the data you need.
@@ -77,7 +77,7 @@ class DiffSyncModelUtilityMixin:
         """Get class type of specified attribute.
 
         Returns inner type if attribute is `Optional` and/or `Annotated`.
-        
+
         Args:
             attr_name (str): Attribute name.
 

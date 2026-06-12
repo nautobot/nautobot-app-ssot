@@ -5,10 +5,11 @@
 import unittest
 from typing import Annotated, ClassVar, Optional
 
-from nautobot_ssot.contrib.types import CustomAnnotation
-from nautobot_ssot.utils.diffsync import DiffSyncModelUtilityMixin
 from nautobot.core.testing import TestCase
+
+from nautobot_ssot.contrib.types import CustomAnnotation
 from nautobot_ssot.tests.contrib.fixtures.models import NautobotDevice
+from nautobot_ssot.utils.diffsync import DiffSyncModelUtilityMixin
 
 
 class DummyAnnotation(CustomAnnotation):
@@ -172,7 +173,7 @@ class TestMethodGetAttrType(TestCase):
         """Test get_attr_type returns None for missing or untyped fields."""
         with self.assertRaises(KeyError):
             DummyModel.get_attr_type("no_type")
-    
+
     def test_get_attr_type_missing_attribute(self):
         """Test get_attr_type raises KeyError for an attribute that does not exist."""
         with self.assertRaises(KeyError):

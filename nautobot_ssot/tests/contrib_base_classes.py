@@ -1,6 +1,6 @@
 """Base classes for contrib testing."""
 
-from typing import Annotated, List, Optional
+from typing import Annotated
 from unittest import skip
 from unittest.mock import MagicMock
 
@@ -13,35 +13,16 @@ from diffsync.exceptions import ObjectNotCreated, ObjectNotDeleted, ObjectNotUpd
 from django.contrib.contenttypes.models import ContentType
 from nautobot.core.testing import TestCase
 from nautobot.dcim.choices import InterfaceTypeChoices
-from typing_extensions import TypedDict
 
 from nautobot_ssot.contrib import (
     CustomFieldAnnotation,
-    CustomRelationshipAnnotation,
     NautobotAdapter,
     NautobotModel,
-    RelationshipSideEnum,
-)
-from nautobot_ssot.contrib.typeddicts import (
-    ContentTypeDict,
-    TagDict,
-    IPAddressDict,
-    TenantDict,
-    CustomRelationshipDict,
 )
 from nautobot_ssot.tests.contrib.fixtures.models import (
     NautobotTenant,
-    NautobotTenantGroup,
-    TagModel,
-    NautobotIPAddress,
-    NautobotInterface,
-    NautobotDevice,
-    NautobotCable,
-    TenantModelCustomManyTomanyRelationship,
-    ProviderModelCustomRelationship,
-    TenantModelCustomRelationship,
 )
-from nautobot_ssot.tests.contrib.fixtures.adapters import TestAdapter
+
 
 class TestCaseWithDeviceData(TestCase):
     """Creates device data."""

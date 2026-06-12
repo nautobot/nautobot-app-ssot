@@ -1,6 +1,5 @@
 """Common TypedDict definitions used in Many-to-Many relationships."""
 
-from typing import Annotated
 
 from typing_extensions import TypedDict
 
@@ -79,7 +78,7 @@ class VirtualMachineDict(TypedDict):
     cluster__name: str
     tenant__name: str
 
-    
+
 class TenantDict(TypedDict):
     """Many-to-many relationship typed dict explaining which fields are interesting."""
 
