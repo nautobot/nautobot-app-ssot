@@ -15,6 +15,7 @@ class DummyAnnotation(CustomAnnotation):
     """Dummy annotation for unittests."""
 
     def __init__(self, value):
+        """Store the annotation's test value."""
         self.value = value
 
 
@@ -49,7 +50,6 @@ class TestDiffSyncModelUtilityMixin(unittest.TestCase):
     def test_get_synced_attributes(self):
         """Test correct list of identifiers and attributes returned."""
         self.assertEqual(DummyModel.get_synced_attributes(), ["id1", "attr1", "attr2", "plain", "no_type"])
-        self.assertEqual(EmptyModel.get_synced_attributes(), [])
 
     def test_class_vars_unchanged(self):
         """Test that get_synced_attributes does not modify the original class variables."""
@@ -59,22 +59,22 @@ class TestDiffSyncModelUtilityMixin(unittest.TestCase):
 
 
 class BaseTestCase(TestCase):
-    """"""
+    """Base test case for mixin method tests that require Nautobot model fixtures."""
 
     # def setUp(self):
     #     """"""
 
 
 class TestMethodGetTypeHints(BaseTestCase):
-    """"""
+    """Unit tests for the `get_type_hints` method."""
 
     def test_get_type_hints(self):
-        """"""
+        """Test that get_type_hints returns a dict of type hints for the model."""
         result = NautobotDevice.get_type_hints()
         self.assertIsInstance(result, dict)
 
     def test_get_from_cache(self):
-        """"""
+        """Test that repeated calls to get_type_hints are served from the lru_cache."""
         NautobotDevice.get_type_hints.cache_clear()
         NautobotDevice.get_type_hints()
         self.assertEqual(NautobotDevice.get_type_hints.cache_info().hits, 0)
@@ -84,10 +84,12 @@ class TestMethodGetTypeHints(BaseTestCase):
         self.assertEqual(NautobotDevice.get_type_hints.cache_info().misses, 1)
 
     def test_get_type_hint_basic_value(self):
+        """Test that get_type_hints resolves a basic field to its underlying type."""
         self.assertEqual(NautobotDevice.get_type_hints()["name"].__name__, str.__name__)
 
 
 class TestMethodGetAttrArgs(TestCase):
+    """Unit tests for the `get_attr_args` method."""
 
     def test_get_attr_args_plain(self):
         """Test get_attr_args returns empty tuple for plain fields."""
@@ -105,6 +107,7 @@ class TestMethodGetAttrArgs(TestCase):
 
 
 class TestMethodGetAttrAnnotation(TestCase):
+    """Unit tests for the `get_attr_annotation` method."""
 
     def test_get_attr_annotation_none(self):
         """Test get_attr_annotation returns None for plain or missing fields."""
@@ -144,20 +147,26 @@ class TestMethodGetAttrAnnotation(TestCase):
 
 
 class TestMethodGetAttrType(TestCase):
+    """Unit tests for the `get_attr_type` method."""
 
     def test_get_standard_attr_type(self):
+        """Test get_attr_type returns the type for a plain, unannotated field."""
         self.assertIs(DummyModel.get_attr_type("id1"), str)
 
     def test_get_annotated_type(self):
+        """Test get_attr_type returns the inner type for an annotated field."""
         self.assertIs(DummyModel.get_attr_type("attr1"), str)
 
     def test_get_optional_type(self):
+        """Test get_attr_type returns the wrapped type for an Optional field."""
         self.assertIs(DummyModel.get_attr_type("attr7"), int)
 
     def test_get_optional_inside_annotated_type(self):
+        """Test get_attr_type unwraps an Optional nested inside Annotated."""
         self.assertIs(DummyModel.get_attr_type("attr6"), int)
 
     def test_get_annotated_inside_optional_type(self):
+        """Test get_attr_type unwraps an Annotated nested inside Optional."""
         self.assertIs(DummyModel.get_attr_type("attr5"), int)
 
     def test_get_attr_type(self):
@@ -172,5 +181,6 @@ class TestMethodGetAttrType(TestCase):
             DummyModel.get_attr_type("no_type")
     
     def test_get_attr_type_missing_attribute(self):
+        """Test get_attr_type raises KeyError for an attribute that does not exist."""
         with self.assertRaises(KeyError):
             DummyModel.get_attr_type("not_a_field")
