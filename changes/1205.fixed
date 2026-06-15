@@ -1,0 +1,1 @@
+Fixed Meraki SSoT assigning the management/primary IP from a Not-Active uplink: an inactive static uplink no longer sets `mgmt_ip`, so it cannot shadow an Active uplink or suppress the DHCP management-IP fallback.

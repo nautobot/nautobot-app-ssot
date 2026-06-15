@@ -230,12 +230,12 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                             location=self.resolve_location_name(network_id),
                         )
                         if port_uplink_settings["pppoe"]["enabled"]:
-                            mgmt_ip = port_svis["address"]
                             host_addr = port_svis["address"]
                             mask_length = "32"
                         else:
+                            host_addr, mask_length = port_svis["address"].split("/")
+                        if uplink_status == "Active":
                             mgmt_ip = port_svis["address"]
-                            host_addr, mask_length = mgmt_ip.split("/")
                         self.load_ipaddress(
                             host_addr=host_addr,
                             mask_length=mask_length,
