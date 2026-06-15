@@ -13,6 +13,7 @@ from nautobot_ssot.integrations.meraki.jobs import MerakiDataSource
 from nautobot_ssot.tests.meraki.fixtures import fixtures as fix
 
 
+# pylint: disable=too-many-public-methods
 class TestMerakiAdapterTestCase(TransactionTestCase):
     """Test NautobotSsotMerakiAdapter class."""
 
