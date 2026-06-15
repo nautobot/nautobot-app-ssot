@@ -26,11 +26,10 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
 
     cisco_manu = Manufacturer.objects.get_or_create(name="Cisco Meraki")[0]
     plat_dict = {
-        "name": "Cisco Meraki",
         "manufacturer": cisco_manu,
         "network_driver": "cisco_meraki",
     }
-    Platform.objects.update_or_create(name__icontains="Meraki", defaults=plat_dict)
+    Platform.objects.update_or_create(name="Cisco Meraki", defaults=plat_dict)
 
     sysrecord_cf_dict = {
         "type": CustomFieldTypeChoices.TYPE_TEXT,

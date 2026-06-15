@@ -1,0 +1,1 @@
+Fixed Meraki SSoT crashing Nautobot startup with `MultipleObjectsReturned` when more than one Platform name contains "Meraki", by looking up the canonical `Cisco Meraki` Platform by exact name instead of `name__icontains`.
