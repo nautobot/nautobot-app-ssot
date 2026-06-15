@@ -457,7 +457,14 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
         mock_device.name = "HQ MX"
 
         self.meraki_client.get_management_ports.return_value = {"wan1": {}}
-        self.meraki_client.get_uplink_settings.return_value = {}
+        self.meraki_client.get_uplink_settings.return_value = {
+            "wan1": {
+                "enabled": True,
+                "vlanTagging": {"enabled": False},
+                "svis": {"ipv4": {"assignmentMode": "dynamic"}},
+                "pppoe": {"enabled": False},
+            }
+        }
         self.meraki_client.get_appliance_switchports.return_value = []
         self.meraki_client.get_org_uplink_addresses_by_device.return_value = []
 
