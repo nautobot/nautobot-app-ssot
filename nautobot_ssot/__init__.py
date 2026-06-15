@@ -89,7 +89,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "cisco_sdwan_excluded_interfaces": ["Loopback65528", "Loopback65529"],
         "cisco_sdwan_excluded_prefixes": ["169.254.0.0/16"],
         "cisco_sdwan_if_up_states": ["if-state-up", "up"],
-        "cisco_sdwan_null_ip_addresses": ["-", "0.0.0.0"],
+        "cisco_sdwan_null_ip_addresses": ["-", "0.0.0.0"],  # noqa: S104
         "cisco_sdwan_null_mtu_values": ["0"],
         "cisco_sdwan_primary_ip_interfaces": ["system"],
         "cisco_sdwan_software_version_platform_name": "cisco_xe",
