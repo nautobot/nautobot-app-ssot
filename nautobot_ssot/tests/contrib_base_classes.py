@@ -116,6 +116,31 @@ class NautobotTenantGroup(NautobotModel):
     tenants: List[NautobotTenant] = []
 
 
+class NautobotDeviceBay(NautobotModel):
+    """A Device may model for testing the `NautobotModel` base class."""
+
+    _model = dcim_models.DeviceBay
+    _modelname = "device_bay"
+    _identifiers = ("name", "device__name")
+    _attributes = ("installed_device__name",)
+
+    name: str
+    device__name: str
+    installed_device__name: str
+
+
+class NautobotDeviceWithChildBay(NautobotModel):
+    """A Device model with child OneToOne for testing the `NautobotModel` base class."""
+
+    _model = dcim_models.Device
+    _modelname = "device"
+    _identifiers = ("name",)
+    _children = {"device_bay": "parent_bay"}
+
+    name: str
+    parent_bay: List[NautobotDeviceBay] = []
+
+
 class ContentTypeDict(TypedDict):
     """Many-to-many relationship typed dict explaining which fields are interesting."""
 

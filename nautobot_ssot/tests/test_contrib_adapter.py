@@ -22,6 +22,8 @@ from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotAdapter, Nautob
 from nautobot_ssot.tests.contrib_base_classes import (
     NautobotCable,
     NautobotDevice,
+    NautobotDeviceBay,
+    NautobotDeviceWithChildBay,
     NautobotTenant,
     NautobotTenantGroup,
     ProviderModelCustomRelationship,
@@ -56,6 +58,25 @@ class NautobotAdapterOneToOneRelationTests(TestCaseWithDeviceData):
 
         self.assertEqual(self.ip_address_1.host, diffsync_device.primary_ip4__host)
         self.assertEqual(self.ip_address_1.mask_length, diffsync_device.primary_ip4__mask_length)
+
+    def test_one_to_one_relationship_children(self):
+        """Test that loading a one-to-one relationship works in children."""
+
+        class Adapter(NautobotAdapter):
+            """Adapter for loading one-to-one relationship fields on a device children."""
+
+            top_level = ("device",)
+            device = NautobotDeviceWithChildBay
+            device_bay = NautobotDeviceBay
+
+        device = dcim_models.Device.objects.first()
+        parent_device = dcim_models.Device.objects.last()
+        dcim_models.DeviceBay.objects.create(name="Slot0", device=parent_device, installed_device=device)
+
+        adapter = Adapter(job=MagicMock())
+        adapter.load()
+        diffsync_device = adapter.get(NautobotDeviceWithChildBay, {"name": device.name})
+        self.assertTrue(device.parent_bay.name in diffsync_device.parent_bay[0])
 
 
 class NautobotAdapterGenericRelationTests(TestCaseWithDeviceData):
