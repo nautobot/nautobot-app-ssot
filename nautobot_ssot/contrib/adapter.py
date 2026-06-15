@@ -157,7 +157,10 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):  # pylint: disable=too-many
     def _handle_children(self, database_object, diffsync_model: BaseNautobotModel):
         """Recurse through all the children for this model."""
         for children_parameter, children_field in diffsync_model._children.items():
-            children = getattr(database_object, children_field).all()
+            if not hasattr(database_object, children_field):  # covers OneToOneField
+                continue
+            _children = getattr(database_object, children_field)
+            children = _children.all() if hasattr(_children, "all") else [_children]
             diffsync_model_child: BaseNautobotModel = self._get_diffsync_class(model_name=children_parameter)
             for child in children:
                 parameter_names = diffsync_model_child.get_synced_attributes()

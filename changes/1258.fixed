@@ -1,0 +1,1 @@
+Fixed handling children when child attribute is OneToOneField.
