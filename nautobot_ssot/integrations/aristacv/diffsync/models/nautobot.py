@@ -266,14 +266,13 @@ class NautobotIPAddress(IPAddress):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create IPAddress in Nautobot."""
-        new_ip = OrmIPAddress(
+        OrmIPAddress.objects.get_or_create(
             address=ids["address"],
             parent=OrmPrefix.objects.get(
                 prefix=ids["prefix"], namespace=OrmNamespace.objects.get(name=ids["namespace"])
             ),
-            status=OrmStatus.objects.get(name="Active"),
+            defaults={"status": OrmStatus.objects.get(name="Active")},
         )
-        new_ip.validated_save()
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def delete(self):

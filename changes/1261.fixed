@@ -1,0 +1,1 @@
+Fixed Arista CloudVision SSoT sync aborting when CloudVision reports an `IPAddress` that already exists in Nautobot, by making `NautobotIPAddress.create()` idempotent with `get_or_create`.
