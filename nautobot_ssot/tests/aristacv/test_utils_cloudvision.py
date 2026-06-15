@@ -48,6 +48,51 @@ class TestCloudvisionApi(TestCase):
         self.assertEqual(config.url, "https://www.arista.io:443")
         self.assertEqual(config.token, "1234567890abcdef")
 
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvp_host": "localhost",
+                "aristacv_cvp_token": "1234567890abcdef",
+                "aristacv_verify": True,
+            },
+        },
+    )
+    def test_auth_on_premise_with_token(self):
+        """Test that on-premise authentication with a token passes the token to the REST client."""
+        config = get_config()
+        self.assertTrue(config.is_on_premise)
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.CvpClient") as mock_cvp:
+            cloudvision.CloudvisionApi(config)
+            _, kwargs = mock_cvp.return_value.connect.call_args
+            self.assertEqual(kwargs["api_token"], "1234567890abcdef")
+            self.assertFalse(kwargs["is_cvaas"])
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvp_host": "localhost",
+                "aristacv_cvp_user": "admin",
+                "aristacv_cvp_password": "password",  # noqa: S106
+                "aristacv_verify": True,
+            },
+        },
+    )
+    def test_auth_on_premise_with_user_password(self):
+        """Test that on-premise authentication with user/password passes credentials to the REST client."""
+        config = get_config()
+        self.assertTrue(config.is_on_premise)
+        with (
+            patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.CvpClient") as mock_cvp,
+            patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.requests.post") as mock_post,
+        ):
+            mock_post.return_value.json.return_value = {"sessionId": "session-token"}
+            cloudvision.CloudvisionApi(config)
+            _, kwargs = mock_cvp.return_value.connect.call_args
+            self.assertEqual(kwargs["username"], "admin")
+            self.assertEqual(kwargs["password"], "password")
+            self.assertFalse(kwargs["is_cvaas"])
+            self.assertNotIn("api_token", kwargs)
+
     @override_settings(PLUGINS_CONFIG=CVAAS_PLUGIN_CONFIG)
     def test_get_version_returns_version_from_response(self):
         """get_version returns the value of the 'version' key from get_cvp_info()."""
