@@ -56,7 +56,10 @@ class NBAdapter(NautobotAdapter):
                 continue
             for ip in ["primary_ip4", "primary_ip6"]:
                 if info[ip]:
-                    setattr(vm, ip, IPAddress.objects.get(host=info[ip]))
+                    try:
+                        setattr(vm, ip, IPAddress.objects.get(host=info[ip]))
+                    except IPAddress.DoesNotExist:
+                        self.job.logger.warning(f"IPAddress {info[ip]} not found for {vm}, skipping {ip} assignment.")
             try:
                 vm.validated_save()
             except ValidationError as err:

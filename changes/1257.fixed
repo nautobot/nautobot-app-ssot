@@ -1,0 +1,1 @@
+Moved any non-testing imports of nautobot_ssot.tests.contrib_base_classes.py over to nautobot_ssot.contrib to avoid test dependency loading in a non-dev environment.

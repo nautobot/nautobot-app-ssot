@@ -4,7 +4,7 @@ import json
 from unittest.mock import MagicMock
 
 from django.contrib.contenttypes.models import ContentType
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device as ORMDevice
 from nautobot.dcim.models import DeviceType, LocationType, Manufacturer, Platform
 from nautobot.dcim.models import Location as ORMLocation
@@ -30,26 +30,27 @@ DEVICE_FIXTURE = load_json("./nautobot_ssot/tests/librenms/fixtures/get_librenms
 LOCATION_FIXTURE = load_json("./nautobot_ssot/tests/librenms/fixtures/get_librenms_locations.json")["locations"]
 
 
-class TestNautobotAdapterTestCase(TransactionTestCase):
+class TestNautobotAdapterTestCase(TestCase):
     """Test NautobotAdapter class for loading devices from the ORM."""
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Initialize test case and populate the database."""
-        self.active_status, _ = Status.objects.get_or_create(name="Active")
-        self.active_status.content_types.add(ContentType.objects.get_for_model(ORMDevice))
+        cls.active_status, _ = Status.objects.get_or_create(name="Active")
+        cls.active_status.content_types.add(ContentType.objects.get_for_model(ORMDevice))
 
-        self.site_type, _ = LocationType.objects.get_or_create(name="Site")
-        self.site_type.content_types.add(ContentType.objects.get_for_model(ORMDevice))
+        cls.site_type, _ = LocationType.objects.get_or_create(name="Site")
+        cls.site_type.content_types.add(ContentType.objects.get_for_model(ORMDevice))
 
         for location in LOCATION_FIXTURE:
             ORMLocation.objects.create(
                 name=location["location"],
-                location_type=self.site_type,
+                location_type=cls.site_type,
                 latitude=location.get("lat"),
                 longitude=location.get("lng"),
-                status=self.active_status,
+                status=cls.active_status,
             )
 
         for device in DEVICE_FIXTURE[:1]:
@@ -71,14 +72,12 @@ class TestNautobotAdapterTestCase(TransactionTestCase):
                 platform=_platform,
             )
 
-        self.job = LibrenmsDataSource()
-        self.job.logger.warning = MagicMock()
-        self.job.sync_locations = True
-        self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, task_name="fake task", worker="default"
-        )
+        cls.job = LibrenmsDataSource()
+        cls.job.logger.warning = MagicMock()
+        cls.job.sync_locations = True
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
 
-        self.nautobot_adapter = NautobotAdapter(job=self.job, sync=None)
+        cls.nautobot_adapter = NautobotAdapter(job=cls.job, sync=None)
 
     def test_load_devices(self):
         """Test that devices are correctly loaded from the Nautobot ORM."""

@@ -4,8 +4,8 @@ from typing import List, Optional
 from unittest.mock import MagicMock, patch
 
 from django.contrib.contenttypes.models import ContentType
+from nautobot.apps.testing import TestCase
 from nautobot.circuits import models as circuits_models
-from nautobot.core.testing import TestCase
 from nautobot.dcim import models as dcim_models
 from nautobot.dcim.choices import InterfaceTypeChoices
 from nautobot.extras import models as extras_models
@@ -229,7 +229,7 @@ class BaseModelManyToManyTest(TestCase):
         tag_diffsync.update(attrs={"content_types": content_types})
 
         tag.refresh_from_db()
-        self.assertEqual(
+        self.assertCountEqual(
             list(tag.content_types.values("app_label", "model")),
             content_types,
             "Adding objects to a many-to-many relationship based on more than one parameter through 'NautobotModel'"

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from diffsync import Adapter
 from django.test import override_settings
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import (
     Controller,
     ControllerManagedDeviceGroup,
@@ -16,6 +16,7 @@ from nautobot.dcim.models import (
     Manufacturer,
     Platform,
 )
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import IPAddress, Prefix
 from nautobot.tenancy.models import Tenant
@@ -30,19 +31,21 @@ from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
 
 
 @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_import_global": True}})
-class TestNautobotArea(TransactionTestCase):
+class TestNautobotArea(TestCase):
     """Test the NautobotArea class."""
 
-    def setUp(self):
-        super().setUp()
-        self.region_type = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
-        self.adapter = Adapter()
-        self.adapter.job = MagicMock()
-        self.adapter.job.area_loctype = self.region_type
-        self.adapter.job.logger.info = MagicMock()
-        self.adapter.region_map = {}
-        self.adapter.locationtype_map = {"Region": self.region_type.id}
-        self.adapter.status_map = {"Active": Status.objects.get(name="Active").id}
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        populate_status_choices()
+        cls.region_type = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
+        cls.adapter = Adapter()
+        cls.adapter.job = MagicMock()
+        cls.adapter.job.area_loctype = cls.region_type
+        cls.adapter.job.logger.info = MagicMock()
+        cls.adapter.region_map = {}
+        cls.adapter.locationtype_map = {"Region": cls.region_type.id}
+        cls.adapter.status_map = {"Active": Status.objects.get(name="Active").id}
 
     def test_create(self):
         """Validate the NautobotArea create() method creates a Region."""
@@ -70,35 +73,37 @@ class TestNautobotArea(TransactionTestCase):
 @override_settings(
     PLUGINS_CONFIG={"nautobot_ssot": {"dna_center_delete_locations": True, "dna_center_update_locations": True}}
 )
-class TestNautobotBuilding(TransactionTestCase):
+class TestNautobotBuilding(TestCase):
     """Test the NautobotBuilding class."""
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        populate_status_choices()
 
-        self.reg_loc = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
-        loc_type, _ = LocationType.objects.update_or_create(name="Site", defaults={"parent": self.reg_loc})
-        self.adapter = Adapter()
-        self.adapter.job = MagicMock()
-        self.adapter.job.debug = True
-        self.adapter.job.area_loctype = self.reg_loc
-        self.adapter.job.building_loctype = loc_type
-        self.adapter.job.logger.info = MagicMock()
-        self.adapter.status_map = {"Active": Status.objects.get(name="Active").id}
+        cls.reg_loc = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
+        loc_type, _ = LocationType.objects.update_or_create(name="Site", defaults={"parent": cls.reg_loc})
+        cls.adapter = Adapter()
+        cls.adapter.job = MagicMock()
+        cls.adapter.job.debug = True
+        cls.adapter.job.area_loctype = cls.reg_loc
+        cls.adapter.job.building_loctype = loc_type
+        cls.adapter.job.logger.info = MagicMock()
+        cls.adapter.status_map = {"Active": Status.objects.get(name="Active").id}
         ga_tenant = Tenant.objects.create(name="G&A")
-        self.adapter.tenant_map = {"G&A": ga_tenant.id}
+        cls.adapter.tenant_map = {"G&A": ga_tenant.id}
         ny_region = Location.objects.create(
-            name="NY", location_type=self.reg_loc, status=Status.objects.get(name="Active")
+            name="NY", location_type=cls.reg_loc, status=Status.objects.get(name="Active")
         )
-        self.adapter.locationtype_map = {"Region": self.reg_loc.id, "Site": loc_type.id}
-        self.sec_site = Location.objects.create(
+        cls.adapter.locationtype_map = {"Region": cls.reg_loc.id, "Site": loc_type.id}
+        cls.sec_site = Location.objects.create(
             name="Site 2", parent=ny_region, status=Status.objects.get(name="Active"), location_type=loc_type
         )
-        self.sec_site.validated_save()
-        self.adapter.site_map = {None: {"NY": ny_region.id}, "NY": {"Site 2": self.sec_site.id}}
-        self.test_bldg = NautobotBuilding(
+        cls.sec_site.validated_save()
+        cls.adapter.site_map = {None: {"NY": ny_region.id}, "NY": {"Site 2": cls.sec_site.id}}
+        cls.test_bldg = NautobotBuilding(
             name="Site 2",
             address="",
             area="NY",
@@ -106,9 +111,9 @@ class TestNautobotBuilding(TransactionTestCase):
             latitude=0,
             longitude=0,
             tenant="G&A",
-            uuid=self.sec_site.id,
+            uuid=cls.sec_site.id,
         )
-        self.test_bldg.adapter = self.adapter
+        cls.test_bldg.adapter = cls.adapter
 
     def test_create(self):
         """Validate the NautobotBuilding create() method creates a Site."""
@@ -182,32 +187,34 @@ class TestNautobotBuilding(TransactionTestCase):
         self.assertEqual(ds_mock_site, result)
 
 
-class TestNautobotFloor(TransactionTestCase):
+class TestNautobotFloor(TestCase):
     """Test the NautobotFloor class."""
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        populate_status_choices()
 
         site_loc_type = LocationType.objects.get_or_create(name="Site")[0]
-        self.floor_loc_type = LocationType.objects.get_or_create(name="Floor", parent=site_loc_type)[0]
-        self.adapter = Adapter()
-        self.adapter.job = MagicMock()
-        self.adapter.job.building_loctype = site_loc_type
-        self.adapter.job.floor_loctype = self.floor_loc_type
-        self.adapter.job.logger.info = MagicMock()
+        cls.floor_loc_type = LocationType.objects.get_or_create(name="Floor", parent=site_loc_type)[0]
+        cls.adapter = Adapter()
+        cls.adapter.job = MagicMock()
+        cls.adapter.job.building_loctype = site_loc_type
+        cls.adapter.job.floor_loctype = cls.floor_loc_type
+        cls.adapter.job.logger.info = MagicMock()
         ga_tenant = Tenant.objects.create(name="G&A")
-        self.adapter.tenant_map = {"G&A": ga_tenant.id}
+        cls.adapter.tenant_map = {"G&A": ga_tenant.id}
 
-        self.adapter.locationtype_map = {"Site": site_loc_type.id, "Floor": self.floor_loc_type.id}
-        self.hq_site, _ = Location.objects.get_or_create(
+        cls.adapter.locationtype_map = {"Site": site_loc_type.id, "Floor": cls.floor_loc_type.id}
+        cls.hq_site, _ = Location.objects.get_or_create(
             name="HQ", location_type=site_loc_type, status=Status.objects.get(name="Active")
         )
-        self.adapter.site_map = {"NY": {"HQ": self.hq_site.id}}
-        self.adapter.floor_map = {}
-        self.adapter.status_map = {"Active": Status.objects.get(name="Active").id}
-        self.adapter.objects_to_delete = {"floors": []}
+        cls.adapter.site_map = {"NY": {"HQ": cls.hq_site.id}}
+        cls.adapter.floor_map = {}
+        cls.adapter.status_map = {"Active": Status.objects.get(name="Active").id}
+        cls.adapter.objects_to_delete = {"floors": []}
 
     def test_create(self):
         """Test the NautobotFloor create() method creates a LocationType: Floor."""
@@ -279,42 +286,44 @@ class TestNautobotFloor(TransactionTestCase):
         self.assertEqual(ds_mock_floor, result)
 
 
-class TestNautobotDevice(TransactionTestCase):
+class TestNautobotDevice(TestCase):
     """Test NautobotDevice class."""
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        populate_status_choices()
 
-        self.status_active = Status.objects.get(name="Active")
-        self.site_lt = LocationType.objects.get_or_create(name="Site")[0]
+        cls.status_active = Status.objects.get(name="Active")
+        cls.site_lt = LocationType.objects.get_or_create(name="Site")[0]
 
-        self.adapter = Adapter()
-        self.adapter.job = MagicMock()
-        self.adapter.job.logger.info = MagicMock()
-        self.ga_tenant = Tenant.objects.create(name="G&A")
-        self.adapter.device_map = {}
-        self.adapter.floor_map = {}
-        self.adapter.site_map = {}
+        cls.adapter = Adapter()
+        cls.adapter.job = MagicMock()
+        cls.adapter.job.logger.info = MagicMock()
+        cls.ga_tenant = Tenant.objects.create(name="G&A")
+        cls.adapter.device_map = {}
+        cls.adapter.floor_map = {}
+        cls.adapter.site_map = {}
         ios_platform = Platform.objects.get_or_create(name="IOS", network_driver="cisco_ios")[0]
-        self.adapter.platform_map = {"cisco_ios": ios_platform.id}
-        self.adapter.status_map = {"Active": self.status_active.id}
-        self.adapter.tenant_map = {"G&A": self.ga_tenant.id}
+        cls.adapter.platform_map = {"cisco_ios": ios_platform.id}
+        cls.adapter.status_map = {"Active": cls.status_active.id}
+        cls.adapter.tenant_map = {"G&A": cls.ga_tenant.id}
 
-        self.hq_site = Location.objects.create(name="HQ", status=self.status_active, location_type=self.site_lt)
+        cls.hq_site = Location.objects.create(name="HQ", status=cls.status_active, location_type=cls.site_lt)
 
         dnac_controller = Controller.objects.get_or_create(
-            name="DNA Center", status=self.status_active, location=self.hq_site
+            name="DNA Center", status=cls.status_active, location=cls.hq_site
         )[0]
         dnac_group = ControllerManagedDeviceGroup.objects.create(
             name="DNA Center Managed Devices", controller=dnac_controller
         )
-        self.adapter.job.controller_group = dnac_group
-        self.adapter.job.dnac = dnac_controller
+        cls.adapter.job.controller_group = dnac_group
+        cls.adapter.job.dnac = dnac_controller
 
-        self.ids = {
+        cls.ids = {
             "name": "core-router.testexample.com",
         }
-        self.attrs = {
+        cls.attrs = {
             "controller_group": "DNA Center Managed Devices",
             "floor": "HQ - Floor 1",
             "management_addr": "10.10.0.1",
@@ -329,7 +338,7 @@ class TestNautobotDevice(TransactionTestCase):
             "vendor": "Cisco",
             "version": "16.12.3",
         }
-        self.adapter.objects_to_create = {"devices": [], "metadata": []}  # pylint: disable=no-member
+        cls.adapter.objects_to_create = {"devices": [], "metadata": []}  # pylint: disable=no-member
 
     def test_create(self):
         """Test the NautobotDevice create() method creates a Device."""
@@ -356,67 +365,69 @@ class TestNautobotDevice(TransactionTestCase):
         self.assertTrue(new_dev.software_version.version, self.attrs["version"])
 
 
-class TestNautobotIPAddressOnInterface(TransactionTestCase):
+class TestNautobotIPAddressOnInterface(TestCase):
     """Test NautobotIPAddressOnInterface class."""
 
-    def setUp(self):
-        super().setUp()
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        populate_status_choices()
 
-        self.status_active = Status.objects.get(name="Active")
-        self.site_lt = LocationType.objects.get_or_create(name="Site")[0]
+        cls.status_active = Status.objects.get(name="Active")
+        cls.site_lt = LocationType.objects.get_or_create(name="Site")[0]
 
-        self.adapter = Adapter()
-        self.adapter.job = MagicMock()
-        self.adapter.objects_to_create = {"mappings": [], "primary_ip4": []}  # pylint: disable=no-member
-        self.ga_tenant = Tenant.objects.create(name="G&A")
+        cls.adapter = Adapter()
+        cls.adapter.job = MagicMock()
+        cls.adapter.objects_to_create = {"mappings": [], "primary_ip4": []}  # pylint: disable=no-member
+        cls.ga_tenant = Tenant.objects.create(name="G&A")
         ios_platform = Platform.objects.get_or_create(name="IOS", network_driver="cisco_ios")[0]
 
-        self.hq_site = Location.objects.create(name="HQ", status=self.status_active, location_type=self.site_lt)
+        cls.hq_site = Location.objects.create(name="HQ", status=cls.status_active, location_type=cls.site_lt)
 
         dnac_controller = Controller.objects.get_or_create(
-            name="DNA Center", status=self.status_active, location=self.hq_site
+            name="DNA Center", status=cls.status_active, location=cls.hq_site
         )[0]
         dnac_group = ControllerManagedDeviceGroup.objects.create(
             name="DNA Center Managed Devices", controller=dnac_controller
         )
-        self.adapter.job.controller_group = dnac_group
-        self.adapter.job.dnac = dnac_controller
+        cls.adapter.job.controller_group = dnac_group
+        cls.adapter.job.dnac = dnac_controller
 
         test_device = Device.objects.create(
             name="core-router.testexample.com",
-            status=self.status_active,
-            location=self.hq_site,
+            status=cls.status_active,
+            location=cls.hq_site,
             device_type=DeviceType.objects.get_or_create(
                 model="Nexus 9300", manufacturer=Manufacturer.objects.get_or_create(name="Cisco")[0]
             )[0],
             platform=ios_platform,
             role=Role.objects.get_or_create(name="core")[0],
             serial="1234567890",
-            tenant=self.ga_tenant,
+            tenant=cls.ga_tenant,
             controller_managed_device_group=dnac_group,
         )
-        self.adapter.device_map = {"core-router.testexample.com": test_device.id}
+        cls.adapter.device_map = {"core-router.testexample.com": test_device.id}
         mgmt_intf = Interface.objects.create(
             name="mgmt0",
             device=test_device,
-            status=self.status_active,
+            status=cls.status_active,
             type="virtual",
             enabled=True,
             mac_address="00:11:22:33:44:55",
         )
-        self.adapter.port_map = {"core-router.testexample.com": {"mgmt0": mgmt_intf.id}}
+        cls.adapter.port_map = {"core-router.testexample.com": {"mgmt0": mgmt_intf.id}}
         parent_pf = Prefix.objects.create(
             prefix="10.1.1.0/24",
-            status=self.status_active,
+            status=cls.status_active,
         )
         mgmt_ip = IPAddress.objects.create(
             host="10.1.1.1",
             mask_length=24,
             parent=parent_pf,
-            status=self.status_active,
-            tenant=self.ga_tenant,
+            status=cls.status_active,
+            tenant=cls.ga_tenant,
         )
-        self.adapter.ipaddr_map = {"10.1.1.1": mgmt_ip.id}
+        cls.adapter.ipaddr_map = {"10.1.1.1": mgmt_ip.id}
 
     def test_create(self):
         """Test the NautobotIPAddressOnInterface create() method creates an IPAddress on an Interface."""

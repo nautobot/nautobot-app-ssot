@@ -7,7 +7,7 @@ from unittest.mock import Mock, call, patch
 
 from django.db.utils import IntegrityError, OperationalError
 from django.test import override_settings
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TransactionTestCase
 from nautobot.extras.models import JobLogEntry, JobResult
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices

@@ -4,8 +4,8 @@ import datetime
 import time
 import uuid
 
-from django.test import TestCase
 from django.utils.timezone import now
+from nautobot.apps.testing import TestCase
 from nautobot.extras.choices import JobResultStatusChoices
 from nautobot.extras.models import JobResult
 

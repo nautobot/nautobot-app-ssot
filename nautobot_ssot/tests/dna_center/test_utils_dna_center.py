@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, create_autospec, patch
 
 from dnacentersdk.exceptions import dnacentersdkException
-from nautobot.core.testing import TestCase
+from nautobot.apps.testing import TestCase
 from parameterized import parameterized
 from requests import Response
 

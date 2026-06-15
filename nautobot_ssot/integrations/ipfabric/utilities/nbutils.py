@@ -9,6 +9,7 @@ from typing import Any, Optional
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
+from django.db.models import Q
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import (
     Device,
@@ -18,6 +19,7 @@ from nautobot.dcim.models import (
     LocationType,
     Manufacturer,
     Platform,
+    VirtualChassis,
 )
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Role, Tag
@@ -28,11 +30,13 @@ from netutils.ip import netmask_to_cidr
 from netutils.lib_mapper import NAPALM_LIB_MAPPER
 
 from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
+from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 # pylint: disable=too-many-branches
 
 
-def create_location(
+@job_scoped_cache
+def get_or_create_location_object(
     location_name: str,
     location_id: Optional[str] = None,
     logger: Optional[logging.Logger] = None,
@@ -94,7 +98,10 @@ def create_location(
     return None
 
 
-def create_manufacturer(vendor_name: str, logger: Optional[logging.Logger] = None) -> Optional[Manufacturer]:
+@job_scoped_cache
+def get_or_create_manufacturer_object(
+    vendor_name: str, logger: Optional[logging.Logger] = None
+) -> Optional[Manufacturer]:
     """Create specified manufacturer in Nautobot.
 
     Args:
@@ -125,7 +132,8 @@ def create_manufacturer(vendor_name: str, logger: Optional[logging.Logger] = Non
     return None
 
 
-def create_device_type_object(
+@job_scoped_cache
+def get_or_create_device_type_object(
     device_type: str,
     vendor_name: str,
     logger: Optional[logging.Logger] = None,
@@ -141,7 +149,7 @@ def create_device_type_object(
         DeviceType: When a DeviceType Object is retrieved or created.
         None: When there is a failure in getting or creating a DeviceType.
     """
-    manufacturer_obj = create_manufacturer(vendor_name, logger=logger)
+    manufacturer_obj = get_or_create_manufacturer_object(vendor_name, logger=logger)
     if manufacturer_obj:
         try:
             device_type_obj, _ = DeviceType.objects.get_or_create(
@@ -174,7 +182,8 @@ def create_device_type_object(
     return None
 
 
-def create_platform_object(
+@job_scoped_cache
+def get_or_create_platform_object(
     platform: str,
     manufacturer_obj: Manufacturer,
     logger: Optional[logging.Logger] = None,
@@ -235,9 +244,10 @@ def create_platform_object(
     return None
 
 
+@job_scoped_cache
 def get_or_create_device_role_object(
     role_name: str,
-    role_color: str,
+    role_color: str = ColorChoices.COLOR_GREY,
     logger: Optional[logging.Logger] = None,
 ) -> Optional[Role]:
     """Create specified device role in Nautobot.
@@ -278,9 +288,10 @@ def get_or_create_device_role_object(
     return None
 
 
-def create_status(  # pylint: disable=too-many-arguments
+@job_scoped_cache
+def get_or_create_status_object(  # pylint: disable=too-many-arguments
     status_name: str,
-    status_color: str,
+    status_color: str = ColorChoices.COLOR_GREY,
     description: str = "",
     app_label: str = "dcim",
     model: str = "device",
@@ -320,6 +331,90 @@ def create_status(  # pylint: disable=too-many-arguments
         if logger:
             logger.error(f"Multiple Statuses returned with the name {status_name}")
     return None
+
+
+@job_scoped_cache
+def get_or_create_tag_object(  # pylint: disable=too-many-arguments
+    tag_name: str,
+    tag_color: str = ColorChoices.COLOR_GREY,
+    description: str = "",
+    app_label: str = "dcim",
+    model: str = "device",
+    logger: Optional[logging.Logger] = None,
+) -> Optional[Tag]:
+    """Verify Tag object exists in Nautobot. If not, creates specified Tag. Defaults to dcim | device.
+
+    Args:
+        tag_name: Tag name.
+        tag_color: Tag color.
+        description: Description
+        app_label: App Label ("DCIM")
+        model: Django Model ("DEVICE")
+        logger: Logger to use for messaging.
+
+    Returns:
+        Tag: When a Tag Object is retrieved or created.
+        None: When there is a failure in getting or creating a Tag.
+    """
+    content_type = ContentType.objects.get(app_label=app_label, model=model)
+    try:
+        tag_obj, _ = Tag.objects.get_or_create(
+            name__iexact=tag_name,
+            defaults={
+                "name": tag_name,
+                "color": tag_color,
+                "description": description,
+            },
+        )
+    except (DjangoBaseDBError, ValidationError):
+        if logger:
+            logger.error(f"Unable to create a new Tag named {tag_name}")
+        return None
+    except Tag.MultipleObjectsReturned:
+        if logger:
+            logger.error(f"Multiple Tags returned with the name {tag_name}")
+        return None
+    tag_obj.content_types.add(content_type)
+    return tag_obj
+
+
+@job_scoped_cache
+def get_or_create_virtual_chassis_object(name: str, logger=None) -> Optional[VirtualChassis]:
+    """Get or create a VirtualChassis by name."""
+    try:
+        vc, _ = VirtualChassis.objects.get_or_create(name=name)
+        return vc
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error(f"Unable to get or create VirtualChassis named {name}. Error: {err}")
+    return None
+
+
+def assign_device_to_virtual_chassis(device, virtual_chassis, position, master=False, priority=None):  # pylint: disable=too-many-arguments
+    """Assign an existing device to an existing VirtualChassis. Update attributes if required."""
+    updated = False
+    if device.virtual_chassis != virtual_chassis:
+        device.virtual_chassis = virtual_chassis
+        updated = True
+    if position and device.vc_position != position:
+        device.vc_position = position
+        updated = True
+    if priority and device.vc_priority != priority:
+        device.vc_priority = priority
+        updated = True
+    if updated:
+        device.validated_save()
+    if master and virtual_chassis.master != device:
+        virtual_chassis.master = device
+        virtual_chassis.validated_save()
+    return virtual_chassis
+
+
+@job_scoped_cache
+def get_tagged_device(device_name: str) -> Device:
+    """Cached lookup for Devices, used in interface operations."""
+    ssot_tag = get_or_create_tag_object(tag_name="SSoT Synced from IPFabric")
+    return Device.objects.filter(Q(name=device_name) & Q(tags=ssot_tag)).first()
 
 
 def create_ip(  # pylint: disable=too-many-statements
@@ -424,6 +519,7 @@ def create_ip(  # pylint: disable=too-many-statements
     return None
 
 
+# Not cached, as it is unhashable, but not useful to cache anyway
 def create_interface(
     device_obj: Device, interface_details: dict, logger: Optional[logging.Logger] = None
 ) -> Optional[Interface]:
@@ -440,56 +536,45 @@ def create_interface(
     """
     interface_name = interface_details.pop("name")
     status = interface_details.pop("status", "Active")
+    status_obj = get_or_create_status_object(status, app_label="dcim", model="interface", logger=logger)
+    if not status_obj:
+        if logger:
+            logger.error(
+                f"Unable to set Status of {status} for Interface named {interface_name} on Device named {device_obj.name}"
+            )
+        return None
+    interface_fields = (
+        "description",
+        "enabled",
+        "mac_address",
+        "mtu",
+        "type",
+        "mgmt_only",
+    )
+    defaults = {k: v for k, v in interface_details.items() if k in interface_fields and v}
     try:
-        status_obj = Status.objects.get_for_model(Interface).get(name=status)
-    except Status.MultipleObjectsReturned:
-        if logger:
-            logger.error(
-                f"Multiple Statuses returned with name {status}, "
-                f"and therefore cannot create an Interface named {interface_name}"
-            )
-    except Status.DoesNotExist:
-        if logger:
-            logger.error(
-                f"Unable to find a Status with the name {status}, "
-                f"and therefore cannot create an Interface named {interface_name}"
-            )
-    else:
-        interface_fields = (
-            "description",
-            "enabled",
-            "mac_address",
-            "mtu",
-            "type",
-            "mgmt_only",
+        interface_obj, _ = device_obj.interfaces.get_or_create(
+            name=interface_name, status=status_obj, defaults=defaults
         )
-        defaults = {k: v for k, v in interface_details.items() if k in interface_fields and v}
+    except Interface.MultipleObjectsReturned:
+        if logger:
+            logger.error(f"Multiple Interfaces returned with name {interface_name} on Device named {device_obj.name}")
+    except (DjangoBaseDBError, ValidationError):
+        if logger:
+            logger.error(f"Unable to create a new Interface named {interface_name} on Device named {device_obj.name}")
+    else:
         try:
-            interface_obj, _ = device_obj.interfaces.get_or_create(
-                name=interface_name, status=status_obj, defaults=defaults
-            )
-        except Interface.MultipleObjectsReturned:
-            if logger:
-                logger.error(
-                    f"Multiple Interfaces returned with name {interface_name} on Device named {device_obj.name}"
-                )
+            tag_object(nautobot_object=interface_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
         except (DjangoBaseDBError, ValidationError):
             if logger:
-                logger.error(
-                    f"Unable to create a new Interface named {interface_name} on Device named {device_obj.name}"
+                logger.warning(
+                    f"Unable to perform validated_save() on Interface named {interface_name} on Device named {device_obj.name}"
                 )
-        else:
-            try:
-                tag_object(nautobot_object=interface_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-            except (DjangoBaseDBError, ValidationError):
-                if logger:
-                    logger.warning(
-                        f"Unable to perform validated_save() on Interface named {interface_name} on Device named {device_obj.name}"
-                    )
-            return interface_obj
+        return interface_obj
     return None
 
 
+@job_scoped_cache
 def create_vlan(  # pylint: disable=too-many-arguments
     vlan_name: str,
     vlan_id: int,
@@ -552,16 +637,14 @@ def tag_object(nautobot_object: Any, custom_field: str, tag_name: Optional[str] 
         custom_field (str): Name of custom field to update
         tag_name (Optional[str], optional): Tag name. Defaults to "SSoT Synced From IPFabric".
     """
-    if tag_name == "SSoT Synced from IPFabric":
-        tag, _ = Tag.objects.get_or_create(
-            name="SSoT Synced from IPFabric",
-            defaults={
-                "description": "Object synced at some point from IPFabric to Nautobot",
-                "color": ColorChoices.COLOR_LIGHT_GREEN,
-            },
-        )
-    else:
-        tag, _ = Tag.objects.get_or_create(name=tag_name)
+    ct = ContentType.objects.get_for_model(nautobot_object)
+    tag = get_or_create_tag_object(
+        tag_name=tag_name,
+        tag_color=ColorChoices.COLOR_LIGHT_GREEN,
+        description="Object synced at some point from IPFabric to Nautobot",
+        app_label=ct.app_label,
+        model=ct.model,
+    )
 
     today = datetime.date.today().isoformat()
 

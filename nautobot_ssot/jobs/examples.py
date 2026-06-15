@@ -26,10 +26,9 @@ from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.contrib import NautobotAdapter, NautobotModel
-from nautobot_ssot.contrib.typeddicts import TagDict
+from nautobot_ssot.contrib.typeddicts import ContentTypeDict, TagDict
 from nautobot_ssot.exceptions import MissingSecretsGroupException
 from nautobot_ssot.jobs.base import DataMapping, DataSource, DataTarget
-from nautobot_ssot.tests.contrib_base_classes import ContentTypeDict
 
 # In a more complex Job, you would probably want to move the DiffSyncModel subclasses into a separate Python module(s).
 

@@ -1,0 +1,1 @@
+Fixed Infoblox SSoT sync bug - blanking out Infoblox `comment` field when any field of nautobot Prefix object gets updated

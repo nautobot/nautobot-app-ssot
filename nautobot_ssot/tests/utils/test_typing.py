@@ -1,6 +1,6 @@
 """Unittests for typing utility functions."""
 
-from nautobot.core.testing import TestCase
+from nautobot.apps.testing import TestCase
 
 from nautobot_ssot.utils.typing import get_inner_type
 

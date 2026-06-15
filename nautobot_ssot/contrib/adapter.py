@@ -9,6 +9,7 @@ from typing import Dict, List, Type
 import pydantic
 from diffsync import Adapter, DiffSyncModel
 from diffsync.exceptions import ObjectCrudException
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
@@ -29,8 +30,10 @@ from nautobot_ssot.utils.orm import (
 )
 from nautobot_ssot.utils.typing import get_inner_type
 
+CONTRIB_CONFIG = getattr(settings, "PLUGINS_CONFIG", {}).get("nautobot_ssot", {}).get("contrib", {})
 
-class NautobotAdapter(Adapter, BaseNautobotAdapter):
+
+class NautobotAdapter(Adapter, BaseNautobotAdapter):  # pylint: disable=too-many-instance-attributes
     """
     Adapter for loading data from Nautobot through the ORM.
 
@@ -46,6 +49,19 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         self.metadata_type = None
         self.metadata_scope_fields = {}
         self.validate_adapter()
+
+        # Progress Logger
+        self.enable_progress_logger = CONTRIB_CONFIG.get("enable_progress_logger", False)
+        self.progress_logger_interval = CONTRIB_CONFIG.get("progress_logger_interval", 1000)
+        self.objects_loaded = 0
+
+    def log_loaded_objects(self, increment: int = 1):
+        """Log current progress of SSoT."""
+        if not self.enable_progress_logger or self.progress_logger_interval == 0:
+            return
+        self.objects_loaded += increment
+        if self.objects_loaded % self.progress_logger_interval == 0:
+            self.job.logger.info(f"SSoT Contrib Progress: Loaded {self.objects_loaded} objects from database.")
 
     def validate_adapter(self):
         """Validate adapter is properly built."""
@@ -134,6 +150,7 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         except pydantic.ValidationError as error:
             raise ValueError(f"Parameters: {parameters}") from error
         self.add(diffsync_model_instance)
+        self.log_loaded_objects()
         self._handle_children(database_object, diffsync_model_instance)
         return diffsync_model_instance
 

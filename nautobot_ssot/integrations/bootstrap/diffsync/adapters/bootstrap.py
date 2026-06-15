@@ -934,7 +934,6 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load ScheduledJob objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap ScheduledJob {scheduled_job}")
-        print(f"\n\n\nHUHUHWHAT: {scheduled_job=}")
         scheduled_job = self.load_branch_values(item_type="scheduled_job", original_item=scheduled_job)
         try:
             self.get(self.scheduled_job, scheduled_job["name"])

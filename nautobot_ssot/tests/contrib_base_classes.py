@@ -11,8 +11,9 @@ import nautobot.ipam.models as ipam_models
 import nautobot.tenancy.models as tenancy_models
 from diffsync.exceptions import ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
 from django.contrib.contenttypes.models import ContentType
-from nautobot.core.testing import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.choices import InterfaceTypeChoices
+from nautobot.extras.management import populate_status_choices
 from typing_extensions import TypedDict
 
 from nautobot_ssot.contrib import (
@@ -29,14 +30,14 @@ class TestCaseWithDeviceData(TestCase):
 
     @classmethod
     def setUpTestData(cls):
+        populate_status_choices()
         cls.status_active = extras_models.Status.objects.get(name="Active")
         cls.device_role = extras_models.Role.objects.create(name="Switch")
         cls.device_role.content_types.set([ContentType.objects.get_for_model(dcim_models.Device)])
         cls.manufacturer = dcim_models.Manufacturer.objects.create(name="Generic Inc.")
         cls.device_type = dcim_models.DeviceType.objects.create(model="Generic Switch", manufacturer=cls.manufacturer)
-        cls.location_type, created = dcim_models.LocationType.objects.get_or_create(name="Site")
-        if created:
-            cls.location_type.content_types.add(ContentType.objects.get_for_model(dcim_models.Device))
+        cls.location_type, _ = dcim_models.LocationType.objects.get_or_create(name="Site")
+        cls.location_type.content_types.add(ContentType.objects.get_for_model(dcim_models.Device))
         cls.location = dcim_models.Location.objects.create(
             name="Bremen",
             location_type=cls.location_type,
@@ -54,6 +55,12 @@ class TestCaseWithDeviceData(TestCase):
                 device=device,
                 name="Loopback 1",
                 type=InterfaceTypeChoices.TYPE_VIRTUAL,
+                status=cls.status_active,
+            )
+            dcim_models.Interface.objects.create(
+                device=device,
+                name="Ethernet1",
+                type=InterfaceTypeChoices.TYPE_1GE_FIXED,
                 status=cls.status_active,
             )
         cls.namespace, _ = ipam_models.Namespace.objects.get_or_create(name="Global")

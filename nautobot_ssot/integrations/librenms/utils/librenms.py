@@ -172,7 +172,7 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
             ipaddress_ip_interface = ipaddress.ip_address(ip_address)
             if isinstance(ipaddress_ip_interface, ipaddress.IPv4Address):
                 for ipv4_address in device_ips["addresses"]:
-                    if ipv4_address["ipv4_address"] == ip_address:
+                    if ipv4_address.get("ipv4_address") == ip_address:
                         ip_network_info = ipaddress.ip_interface(f"{ip_address}/24")
                         ip_address_info = ipaddress.ip_interface(f"{ip_address}/{ipv4_address['ipv4_prefixlen']}")
                         return {
@@ -181,7 +181,7 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
                         }
             elif isinstance(ipaddress_ip_interface, ipaddress.IPv6Address):
                 for ipv6_address in device_ips["addresses"]:
-                    if ipv6_address["ipv6_address"] == ip_address:
+                    if ipv6_address.get("ipv6_address") == ip_address:
                         ip_network_info = ipaddress.ip_interface(f"{ip_address}/64")
                         ip_address_info = ipaddress.ip_interface(f"{ip_address}/{ipv6_address['ipv6_prefixlen']}")
                         return {

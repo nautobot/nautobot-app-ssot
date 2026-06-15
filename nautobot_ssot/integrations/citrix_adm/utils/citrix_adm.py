@@ -197,7 +197,7 @@ def parse_version(version: str):
         version (str): Version string from device API query.
     """
     result = ""
-    match_pattern = r"NetScaler\s(?P<version>NS\d+\.\d+: Build\s\d+\.\d+\.\w+)"
+    match_pattern = r"(?:NetScaler\s)?(?P<version>(?:NS)?\d+\.\d+: Build\s\d+\.\d+(?:\.\w+)?)"
     match = re.match(pattern=match_pattern, string=version)
     if match:
         result = match.group("version")

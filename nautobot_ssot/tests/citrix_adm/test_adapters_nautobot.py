@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 from diffsync.exceptions import ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import ProtectedError
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import (
     Device,
     DeviceType,
@@ -14,6 +14,7 @@ from nautobot.dcim.models import (
     LocationType,
     Manufacturer,
 )
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import JobResult, Role, Status
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
@@ -22,7 +23,7 @@ from nautobot_ssot.integrations.citrix_adm.diffsync.adapters.nautobot import Nau
 from nautobot_ssot.integrations.citrix_adm.jobs import CitrixAdmDataSource
 
 
-class NautobotDiffSyncTestCase(TransactionTestCase):
+class NautobotDiffSyncTestCase(TestCase):
     """Test the NautobotAdapter class."""
 
     databases = ("default", "job_logs")
@@ -33,35 +34,40 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
         self.hq_site = None
         self.ny_region = None
 
-    def setUp(self):  # pylint: disable=too-many-locals
+    def setUp(self):
+        self.job.logger.info.reset_mock()
+        self.job.logger.warning.reset_mock()
+
+    @classmethod
+    def setUpTestData(cls):  # pylint: disable=too-many-locals
         """Per-test-case data setup."""
-        super().setUp()
-        self.status_active = Status.objects.get(name="Active")
+        super().setUpTestData()
+        populate_status_choices()
+        cls.status_active = Status.objects.get(name="Active")
 
-        self.job = CitrixAdmDataSource()
-        self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, task_name="fake task", worker="default"
-        )
-        self.nb_adapter = NautobotAdapter(job=self.job, sync=None)
-        self.job.logger.info = MagicMock()
-        self.job.logger.warning = MagicMock()
-        self.build_nautobot_objects()
+        cls.job = CitrixAdmDataSource()
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
+        cls.nb_adapter = NautobotAdapter(job=cls.job, sync=None)
+        cls.job.logger.info = MagicMock()
+        cls.job.logger.warning = MagicMock()
+        cls.build_nautobot_objects()
 
-    def build_nautobot_objects(self):
+    @classmethod
+    def build_nautobot_objects(cls):
         """Build out Nautobot objects to test loading."""
         test_tenant = Tenant.objects.get_or_create(name="Test")[0]
         region_type = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
-        self.ny_region = Location.objects.create(name="NY", location_type=region_type, status=self.status_active)
-        self.ny_region.validated_save()
+        cls.ny_region = Location.objects.create(name="NY", location_type=region_type, status=cls.status_active)
+        cls.ny_region.validated_save()
 
         site_type, _ = LocationType.objects.update_or_create(name="Site", defaults={"parent": region_type})
         site_type.content_types.add(ContentType.objects.get_for_model(Device))
-        self.job.dc_loctype = site_type
-        self.job.parent_location = self.ny_region
-        self.hq_site = Location.objects.create(
-            parent=self.ny_region, name="HQ", location_type=site_type, status=self.status_active
+        cls.job.dc_loctype = site_type
+        cls.job.parent_location = cls.ny_region
+        cls.hq_site = Location.objects.create(
+            parent=cls.ny_region, name="HQ", location_type=site_type, status=cls.status_active
         )
-        self.hq_site.validated_save()
+        cls.hq_site.validated_save()
 
         citrix_manu, _ = Manufacturer.objects.get_or_create(name="Citrix")
         srx_devicetype, _ = DeviceType.objects.get_or_create(model="SDX", manufacturer=citrix_manu)
@@ -73,8 +79,8 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
             device_type=srx_devicetype,
             role=core_role,
             serial="FQ123456",
-            location=self.hq_site,
-            status=self.status_active,
+            location=cls.hq_site,
+            status=cls.status_active,
             tenant=test_tenant,
         )
         core_router._custom_field_data["system_of_record"] = "Citrix ADM"  # pylint: disable=protected-access
@@ -83,18 +89,18 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
             name="Management",
             type="virtual",
             device=core_router,
-            status=self.status_active,
+            status=cls.status_active,
         )
         mgmt_intf.validated_save()
 
         global_ns = Namespace.objects.get_or_create(name="Global")[0]
         mgmt4_pf = Prefix.objects.create(
-            prefix="10.1.1.0/24", namespace=global_ns, status=self.status_active, tenant=test_tenant
+            prefix="10.1.1.0/24", namespace=global_ns, status=cls.status_active, tenant=test_tenant
         )
         mgmt6_pf = Prefix.objects.create(
             prefix="2001:db8:3333:4444:5555:6666:7777:8888/128",
             namespace=global_ns,
-            status=self.status_active,
+            status=cls.status_active,
             tenant=test_tenant,
         )
         mgmt4_pf._custom_field_data["system_of_record"] = "Citrix ADM"  # pylint: disable=protected-access
@@ -106,7 +112,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
             address="10.1.1.1/24",
             namespace=global_ns,
             parent=mgmt4_pf,
-            status=self.status_active,
+            status=cls.status_active,
             tenant=test_tenant,
         )
         mgmt_addr._custom_field_data["system_of_record"] = "Citrix ADM"  # pylint: disable=protected-access
@@ -114,7 +120,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
         mgmt_addr6 = IPAddress.objects.create(
             address="2001:db8:3333:4444:5555:6666:7777:8888/128",
             parent=mgmt6_pf,
-            status=self.status_active,
+            status=cls.status_active,
             tenant=test_tenant,
         )
         mgmt_addr6._custom_field_data["system_of_record"] = "Citrix ADM"  # pylint: disable=protected-access

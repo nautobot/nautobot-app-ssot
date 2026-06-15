@@ -2,7 +2,7 @@
 
 from diffsync.enum import DiffSyncModelFlags
 from django.test import override_settings
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer
 from nautobot.extras.models import JobResult, Role, Status
 from nautobot.ipam.models import Namespace as OrmNamespace
@@ -12,7 +12,7 @@ from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import Nauto
 from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 
 
-class NautobotAdapterTestCase(TransactionTestCase):
+class NautobotAdapterTestCase(TestCase):
     """Test the NautobotAdapter class."""
 
     job_class = CloudVisionDataSource
@@ -21,7 +21,8 @@ class NautobotAdapterTestCase(TransactionTestCase):
         "job_logs",
     )
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Create Nautobot objects to test with."""
         status_active, _ = Status.objects.get_or_create(name="Active")
         arista_manu, _ = Manufacturer.objects.get_or_create(name="Arista")
@@ -47,11 +48,9 @@ class NautobotAdapterTestCase(TransactionTestCase):
             location=hq_site,
         )
 
-        self.job = self.job_class()
-        self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, task_name="fake task", worker="default"
-        )
-        self.nb_adapter = NautobotAdapter(job=self.job)
+        cls.job = cls.job_class()
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
+        cls.nb_adapter = NautobotAdapter(job=cls.job)
 
     def test_load_devices(self):
         """Test the load_devices() function."""
