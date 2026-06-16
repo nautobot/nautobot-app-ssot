@@ -282,6 +282,7 @@ class TestCloudvisionUtils(TestCase):
 
         def make_notif(intf_id):
             return {
+                "path_elements": ["Sysdb", "interface", "status", "eth", "phy", "slice", "1", "intfStatus", intf_id],
                 "updates": {
                     "intfId": intf_id,
                     "linkStatus": {"Name": "linkUp"},
@@ -289,7 +290,7 @@ class TestCloudvisionUtils(TestCase):
                     "enabledState": {"Name": "enabled"},
                     "burnedInAddr": "ab:cd:ef:00:00:01",
                     "mtu": 1500,
-                }
+                },
             }
 
         batches = [
@@ -302,6 +303,118 @@ class TestCloudvisionUtils(TestCase):
         self.assertEqual(
             [r["interface"] for r in results],
             ["Ethernet1", "Ethernet53/1", "Ethernet53/2", "Ethernet54/1"],
+        )
+
+    def test_get_interfaces_fixed_split_notifications(self):
+        """Test get_interfaces_fixed merges frames when state arrives without intfId.
+
+        Regression: CloudVision streams an interface's attributes across multiple frames. The
+        identity frame carries intfId while a later frame carries state (enabledState/operStatus/
+        linkStatus) and omits intfId, identifying the interface only via path_elements. The previous
+        guard dropped that frame, leaving the interface without an ``enabled`` key.
+        """
+        path = ["Sysdb", "interface", "status", "eth", "phy", "slice", "1", "intfStatus", "Ethernet1"]
+        batches = [
+            {
+                "notifications": [
+                    {"path_elements": path, "updates": {"intfId": "Ethernet1", "burnedInAddr": "ab:cd:ef:00:00:01"}},
+                    {
+                        "path_elements": path,
+                        "updates": {
+                            "enabledState": {"Name": "enabled"},
+                            "operStatus": {"Name": "intfOperUp"},
+                            "linkStatus": {"Name": "linkUp"},
+                        },
+                    },
+                ]
+            }
+        ]
+        with patch("cloudvision.Connector.grpc_client.grpcClient.create_query", MagicMock()):
+            self.client.get = MagicMock(return_value=batches)
+            results = cloudvision.get_interfaces_fixed(client=self.client, dId="JPE12345678")
+        self.assertEqual(
+            results,
+            [
+                {
+                    "interface": "Ethernet1",
+                    "mac_addr": "ab:cd:ef:00:00:01",
+                    "enabled": True,
+                    "oper_status": "up",
+                    "link_status": "up",
+                }
+            ],
+        )
+
+    def test_get_interfaces_chassis_split_notifications(self):
+        """Test get_interfaces_chassis merges frames when state arrives without intfId."""
+        path = ["Sysdb", "interface", "status", "eth", "phy", "slice", "Linecard1", "intfStatus", "Ethernet1"]
+        batches = [
+            {
+                "notifications": [
+                    {"path_elements": path, "updates": {"intfId": "Ethernet1", "burnedInAddr": "ab:cd:ef:00:00:01"}},
+                    {
+                        "path_elements": path,
+                        "updates": {
+                            "enabledState": {"Name": "enabled"},
+                            "operStatus": {"Name": "intfOperUp"},
+                            "linkStatus": {"Name": "linkUp"},
+                        },
+                    },
+                ]
+            }
+        ]
+        mock_get_query = MagicMock(return_value={"Linecard1": None})
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.get_query", mock_get_query):
+            self.client.get = MagicMock(return_value=batches)
+            results = cloudvision.get_interfaces_chassis(client=self.client, dId="JPE12345678")
+        self.assertEqual(
+            results,
+            [
+                {
+                    "interface": "Ethernet1",
+                    "mac_addr": "ab:cd:ef:00:00:01",
+                    "enabled": True,
+                    "oper_status": "up",
+                    "link_status": "up",
+                }
+            ],
+        )
+
+    def test_get_interfaces_port_channel_split_notifications(self):
+        """Test get_interfaces_port_channel attributes a frame missing intfId via path_elements."""
+        status_path = ["Sysdb", "lag", "input", "interface", "lag", "intfStatus", "Port-Channel1000"]
+        config_path = ["Sysdb", "interface", "config", "eth", "lag", "intfConfig", "Port-Channel1000"]
+        status_batches = [
+            {
+                "notifications": [
+                    # No intfId in updates; identity comes from path_elements only.
+                    {
+                        "path_elements": status_path,
+                        "updates": {
+                            "linkStatus": {"Name": "linkUp"},
+                            "operStatus": {"Name": "intfOperUp"},
+                            "addr": "fc:bd:67:0f:6f:04",
+                            "active": True,
+                        },
+                    }
+                ]
+            }
+        ]
+        config_batches = [{"notifications": [{"path_elements": config_path, "updates": {"mtu": 9214}}]}]
+        self.client.get = MagicMock(side_effect=[status_batches, config_batches])
+        results = cloudvision.get_interfaces_port_channel(client=self.client, dId="JPE12345678")
+        self.assertEqual(
+            results,
+            [
+                {
+                    "interface": "Port-Channel1000",
+                    "link_status": "up",
+                    "oper_status": "up",
+                    "mac_addr": "fc:bd:67:0f:6f:04",
+                    "enabled": True,
+                    "mtu": 9214,
+                }
+            ],
         )
 
     def test_get_interfaces_chassis(self):

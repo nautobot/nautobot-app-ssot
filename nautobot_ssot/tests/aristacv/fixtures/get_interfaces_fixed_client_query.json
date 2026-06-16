@@ -475,7 +475,18 @@
                         "modeHg53GbpsFull2Lane": false,
                         "modeHg106GbpsFull4Lane": false
                     }
-                }
+                },
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "status",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "1",
+                    "intfStatus",
+                    "Ethernet1/1"
+                ]
             }
         ]
     }

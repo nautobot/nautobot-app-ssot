@@ -1,0 +1,1 @@
+Fixed Arista CloudVision SSoT sync failing when attributes are streamed in multiple gRPC notification frames.
