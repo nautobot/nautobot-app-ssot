@@ -164,6 +164,9 @@ PLUGINS_CONFIG = {
         "aristacv_cvp_token": os.getenv("NAUTOBOT_ARISTACV_CVP_TOKEN", ""),
         "aristacv_cvp_user": os.getenv("NAUTOBOT_ARISTACV_CVP_USERNAME", ""),
         "aristacv_delete_devices_on_sync": is_truthy(os.getenv("NAUTOBOT_ARISTACV_DELETE_ON_SYNC", "false")),
+        "aristacv_delete_ipaddresses_on_sync": is_truthy(
+            os.getenv("NAUTOBOT_ARISTACV_DELETE_IPADDRESSES_ON_SYNC", "false")
+        ),
         "aristacv_delete_namespaces_on_sync": is_truthy(
             os.getenv("NAUTOBOT_ARISTACV_DELETE_NAMESPACES_ON_SYNC", "false")
         ),

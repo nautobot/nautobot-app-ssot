@@ -41,6 +41,7 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
             "User Name": config.cvp_user,
             "Verify SSL": str(config.verify_ssl),
             "Delete Devices On Sync": config.delete_devices_on_sync,
+            "Delete IP Addresses On Sync": config.delete_ipaddresses_on_sync,
             "Delete Namespaces On Sync": config.delete_namespaces_on_sync,
             "Delete Prefixes On Sync": config.delete_prefixes_on_sync,
             "New Device Default Site": config.from_cloudvision_default_site,
@@ -94,6 +95,10 @@ class CloudVisionDataSource(DataSource, Job):  # pylint: disable=abstract-method
             self.logger.warning(
                 "Devices not present in CloudVision but present in Nautobot%s will be deleted from Nautobot.",
                 "" if self.app_config.delete_devices_on_sync else " not",
+            )
+            self.logger.warning(
+                "IP Addresses not present in CloudVision but present in Nautobot%s will be deleted from Nautobot.",
+                "" if self.app_config.delete_ipaddresses_on_sync else " not",
             )
             self.logger.warning(
                 "Namespaces not present in CloudVision but present in Nautobot%s will be deleted from Nautobot.",
@@ -178,6 +183,10 @@ class CloudVisionDataTarget(DataTarget, Job):  # pylint: disable=abstract-method
             self.logger.warning(
                 "Devices not present in CloudVision but present in Nautobot%s will be deleted from Nautobot.",
                 "" if self.app_config.delete_devices_on_sync else " not",
+            )
+            self.logger.warning(
+                "IP Addresses not present in CloudVision but present in Nautobot%s will be deleted from Nautobot.",
+                "" if self.app_config.delete_ipaddresses_on_sync else " not",
             )
             self.logger.warning(
                 "Namespaces not present in CloudVision but present in Nautobot%s will be deleted from Nautobot.",

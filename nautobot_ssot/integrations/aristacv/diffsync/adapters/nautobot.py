@@ -131,37 +131,19 @@ class NautobotAdapter(Adapter):
 
     def load_ip_addresses(self):
         """Add Nautobot IPAddress objects as DiffSync IPAddress models."""
-        for ipaddr in OrmIPAddress.objects.filter(
-            interfaces__device__device_type__manufacturer__name__in=["Arista"]
-        ).distinct():
-            try:
-                self.get(self.namespace, ipaddr.parent.namespace.name)
-            except ObjectNotFound:
-                new_ns = self.namespace(
-                    name=ipaddr.parent.namespace.name,
-                    uuid=ipaddr.parent.namespace.id,
-                )
-                self.add(new_ns)
-            try:
-                self.get(self.prefix, {"prefix": str(ipaddr.parent.prefix), "namespace": ipaddr.parent.namespace.name})
-            except ObjectNotFound:
-                new_pf = self.prefix(
-                    prefix=str(ipaddr.parent.prefix),
-                    namespace=ipaddr.parent.namespace.name,
-                    uuid=ipaddr.parent.id,
-                )
-                self.add(new_pf)
+        for ipaddr in OrmIPAddress.objects.all():
             new_ip = self.ipaddr(
                 address=str(ipaddr.address),
                 prefix=str(ipaddr.parent.prefix),
                 namespace=ipaddr.parent.namespace.name,
                 uuid=ipaddr.id,
             )
-            try:
-                self.add(new_ip)
-            except ObjectAlreadyExists as err:
-                self.job.logger.warning(f"Unable to load {ipaddr.address}. IPAddress already in diffsync store. {err}")
-            ip_to_intfs = IPAddressToInterface.objects.filter(ip_address=ipaddr)
+            if not self.job.app_config.delete_ipaddresses_on_sync:
+                new_ip.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+            self.add(new_ip)
+            ip_to_intfs = IPAddressToInterface.objects.filter(
+                ip_address=ipaddr, interface__device__device_type__manufacturer__name="Arista"
+            )
             for mapping in ip_to_intfs:
                 new_map = self.ipassignment(
                     address=str(ipaddr.address),

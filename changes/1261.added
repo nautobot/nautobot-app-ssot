@@ -1,0 +1,1 @@
+Added the `aristacv_delete_ipaddresses_on_sync` setting to the Arista CloudVision integration to allow for the deletion of IP addresses that are present in Nautobot but not present in CloudVision (defaults to False).

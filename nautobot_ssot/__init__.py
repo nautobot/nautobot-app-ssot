@@ -70,6 +70,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "aristacv_cvp_token": "",
         "aristacv_cvp_user": "",
         "aristacv_delete_devices_on_sync": False,
+        "aristacv_delete_ipaddresses_on_sync": False,
         "aristacv_delete_namespaces_on_sync": False,
         "aristacv_delete_prefixes_on_sync": False,
         "aristacv_from_cloudvision_default_device_role": "",

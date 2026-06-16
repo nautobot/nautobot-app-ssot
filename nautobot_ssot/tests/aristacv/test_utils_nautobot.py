@@ -150,8 +150,9 @@ class TestNautobotUtils(TestCase):
         },
     )
     def test_get_config_delete_namespaces_prefixes_default(self):
-        """With no delete_namespaces/prefixes settings, get_config returns False for both."""
+        """With no delete_ipaddresses/namespaces/prefixes settings, get_config returns False for all."""
         config = nautobot.get_config()
+        self.assertFalse(config.delete_ipaddresses_on_sync)
         self.assertFalse(config.delete_namespaces_on_sync)
         self.assertFalse(config.delete_prefixes_on_sync)
 
@@ -160,13 +161,15 @@ class TestNautobotUtils(TestCase):
             "nautobot_ssot": {
                 "aristacv_cvaas_url": "https://www.arista.io",
                 "aristacv_cvp_user": "admin",
+                "aristacv_delete_ipaddresses_on_sync": True,
                 "aristacv_delete_namespaces_on_sync": True,
                 "aristacv_delete_prefixes_on_sync": True,
             },
         },
     )
     def test_get_config_delete_namespaces_prefixes_override(self):
-        """With delete_namespaces/prefixes set True, get_config returns True for both."""
+        """With delete_ipaddresses/namespaces/prefixes set True, get_config returns True for all."""
         config = nautobot.get_config()
+        self.assertTrue(config.delete_ipaddresses_on_sync)
         self.assertTrue(config.delete_namespaces_on_sync)
         self.assertTrue(config.delete_prefixes_on_sync)

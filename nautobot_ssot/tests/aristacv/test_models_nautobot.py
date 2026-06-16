@@ -11,6 +11,7 @@ from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import DeviceType, Interface, Location, LocationType, Manufacturer, Platform, SoftwareVersion
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Role, Status
+from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import Namespace as OrmNamespace
 from nautobot.ipam.models import Prefix as OrmPrefix
 
@@ -18,6 +19,7 @@ from nautobot_ssot.integrations.aristacv.constants import ARISTA_PLATFORM
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.aristacv.diffsync.models.nautobot import (
     NautobotDevice,
+    NautobotIPAddress,
     NautobotNamespace,
     NautobotPort,
     NautobotPrefix,
@@ -113,6 +115,57 @@ class TestNautobotPrefixDelete(TestCase):
         model.delete()
         self.assertEqual(len(self.adapter.objects_to_delete["prefixes"]), 1)
         self.assertEqual(self.adapter.objects_to_delete["prefixes"][0].id, self.prefix.id)
+
+
+@override_settings(
+    PLUGINS_CONFIG={
+        "nautobot_ssot": {
+            "aristacv_cvaas_url": "https://www.arista.io",
+            "aristacv_cvp_user": "admin",
+        },
+    },
+)
+class TestNautobotIPAddressDelete(TestCase):
+    """Test NautobotIPAddress.delete() conditional on delete_ipaddresses_on_sync."""
+
+    databases = ("default", "job_logs")
+
+    @classmethod
+    def setUpTestData(cls):
+        """Set up adapter with job and app_config."""
+        super().setUpTestData()
+        populate_status_choices()
+        cls.adapter = MagicMock()
+        cls.adapter.objects_to_delete = defaultdict(list)
+        cls.adapter.job = MagicMock()
+        cls.adapter.job.debug = False
+        cls.adapter.job.app_config = get_config()._replace(delete_ipaddresses_on_sync=False)
+        cls.ns = OrmNamespace.objects.create(name="IPTestNS")
+        cls.status_active = Status.objects.get(name="Active")
+        cls.prefix = OrmPrefix.objects.create(prefix="10.98.0.0/24", namespace=cls.ns, status=cls.status_active)
+        cls.ipaddr = OrmIPAddress.objects.create(address="10.98.0.1/24", namespace=cls.ns, status=cls.status_active)
+
+    def test_ipaddress_delete_when_delete_on_sync_false(self):
+        """When delete_ipaddresses_on_sync is False, delete() does not append to objects_to_delete."""
+        model = NautobotIPAddress(
+            address="10.98.0.1/24", prefix="10.98.0.0/24", namespace=self.ns.name, uuid=self.ipaddr.id
+        )
+        model.adapter = self.adapter
+        model.delete()
+        self.assertEqual(len(self.adapter.objects_to_delete["ipaddresses"]), 0)
+
+    @patch("nautobot_ssot.integrations.aristacv.diffsync.models.nautobot.OrmIPAddress.objects.get")
+    def test_ipaddress_delete_when_delete_on_sync_true(self, mock_ip_get):
+        """When delete_ipaddresses_on_sync is True, delete() appends IP address to objects_to_delete."""
+        mock_ip_get.return_value = self.ipaddr
+        self.adapter.job.app_config = get_config()._replace(delete_ipaddresses_on_sync=True)
+        model = NautobotIPAddress(
+            address="10.98.0.1/24", prefix="10.98.0.0/24", namespace=self.ns.name, uuid=self.ipaddr.id
+        )
+        model.adapter = self.adapter
+        model.delete()
+        self.assertEqual(len(self.adapter.objects_to_delete["ipaddresses"]), 1)
+        self.assertEqual(self.adapter.objects_to_delete["ipaddresses"][0].id, self.ipaddr.id)
 
 
 @override_settings(
