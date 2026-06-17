@@ -122,6 +122,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "servicenow_password": "",
         "servicenow_username": "",
         "enable_global_search": True,
+        "skip_auto_component_creation": False,
     }
     config_view_name = "plugins:nautobot_ssot:config"
     docs_view_name = "plugins:nautobot_ssot:docs"
