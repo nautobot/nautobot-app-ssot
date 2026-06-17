@@ -141,6 +141,18 @@ class NautobotDeviceWithChildBay(NautobotModel):
     parent_bay: List[NautobotDeviceBay] = []
 
 
+class NautobotDeviceInvalidChildAttr(NautobotModel):
+    """A Device model with invalid child attribute."""
+
+    _model = dcim_models.Device
+    _modelname = "device"
+    _identifiers = ("name",)
+    _children = {"device_bay": "invalid_attr"}
+
+    name: str
+    invalid_attr: List[NautobotDeviceBay] = []
+
+
 class ContentTypeDict(TypedDict):
     """Many-to-many relationship typed dict explaining which fields are interesting."""
 

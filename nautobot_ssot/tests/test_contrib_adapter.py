@@ -23,6 +23,7 @@ from nautobot_ssot.tests.contrib_base_classes import (
     NautobotCable,
     NautobotDevice,
     NautobotDeviceBay,
+    NautobotDeviceInvalidChildAttr,
     NautobotDeviceWithChildBay,
     NautobotTenant,
     NautobotTenantGroup,
@@ -77,6 +78,20 @@ class NautobotAdapterOneToOneRelationTests(TestCaseWithDeviceData):
         adapter.load()
         diffsync_device = adapter.get(NautobotDeviceWithChildBay, {"name": device.name})
         self.assertTrue(device.parent_bay.name in diffsync_device.parent_bay[0])
+
+    def test_invalid_children_attr_raises(self):
+        """Test that invalid attribute name in _children raises AttributeError."""
+
+        class Adapter(NautobotAdapter):
+            """Adapter with invalid children field."""
+
+            top_level = ("device",)
+            device = NautobotDeviceInvalidChildAttr
+            device_bay = NautobotDeviceBay
+
+        adapter = Adapter(job=MagicMock())
+        with self.assertRaises(AttributeError):
+            adapter.load()
 
 
 class NautobotAdapterGenericRelationTests(TestCaseWithDeviceData):
