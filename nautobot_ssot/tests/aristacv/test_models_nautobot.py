@@ -167,6 +167,22 @@ class TestNautobotIPAddressDelete(TestCase):
         self.assertEqual(len(self.adapter.objects_to_delete["ipaddresses"]), 1)
         self.assertEqual(self.adapter.objects_to_delete["ipaddresses"][0].id, self.ipaddr.id)
 
+    @patch("nautobot_ssot.integrations.aristacv.diffsync.models.nautobot.OrmIPAddress.objects.get")
+    def test_ipaddress_delete_logs_warning_when_debug(self, mock_ip_get):
+        """When delete_ipaddresses_on_sync and debug are True, delete() logs a warning."""
+        mock_ip_get.return_value = self.ipaddr
+        self.adapter.job.debug = True
+        self.adapter.job.app_config = get_config()._replace(delete_ipaddresses_on_sync=True)
+        model = NautobotIPAddress(
+            address="10.98.0.1/24", prefix="10.98.0.0/24", namespace=self.ns.name, uuid=self.ipaddr.id
+        )
+        model.adapter = self.adapter
+        model.delete()
+        self.adapter.job.logger.warning.assert_called_once_with(
+            "IPAddress 10.98.0.1/24 will be deleted per app settings."
+        )
+        self.assertEqual(len(self.adapter.objects_to_delete["ipaddresses"]), 1)
+
 
 @override_settings(
     PLUGINS_CONFIG={
