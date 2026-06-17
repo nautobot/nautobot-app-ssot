@@ -10,6 +10,12 @@ This document describes all new features and changes in the release. The format 
 <!-- towncrier release notes start -->
 
 
+## [v3.12.5 (2026-06-17)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.12.5)
+
+### Added
+
+- [#1259](https://github.com/nautobot/nautobot-app-ssot/issues/1259) - Added `skip_auto_component_creation` opt-in for SSoT jobs, suppressing Nautobot's automatic Device/Module component instantiation during sync via Nautobot core's `nautobot.apps.dcim.SkipAutoComponentCreation` extension point (nautobot/nautobot#9026).
+
 ## [v3.12.4 (2026-04-01)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.12.4)
 
 ### Fixed
