@@ -83,7 +83,9 @@ class NautobotDevice(Device):
         # SoftwareVersion is resolved by (version, platform) so both attributes must be present together.
         if ("software_version__version" in attrs) and ("software_version__platform__name" not in attrs):
             attrs["software_version__platform__name"] = (
-                obj.software_version.platform.name if obj.software_version else SOFTWARE_VERSION_PLATFORM_NAME
+                obj.software_version.platform.name
+                if obj.software_version
+                else (SOFTWARE_VERSION_PLATFORM_NAME or self.adapter.job.device_platform.name)
             )
         if ("software_version__platform__name" in attrs) and ("software_version__version" not in attrs):
             if obj.software_version:
@@ -204,7 +206,10 @@ class NautobotIPAddressToInterface(IPAddressToInterface):
             # fails if the address of a primary IP interface is changed.
             interface.refresh_from_db()
 
-        if interface.name in PRIMARY_IP_INTERFACES and ip_address_obj != interface.device.primary_ip4:
+        if (
+            interface.name.lower() in [primary_intf.lower() for primary_intf in PRIMARY_IP_INTERFACES]
+            and ip_address_obj != interface.device.primary_ip4
+        ):
             interface.device.primary_ip4 = ip_address_obj
             interface.device.validated_save()
 
@@ -249,7 +254,7 @@ class NautobotSoftwareVersion(SoftwareVersion):
     def get_queryset(cls, data):  # pylint: disable=arguments-differ
         """Get the queryset for the model."""
         queryset = (
-            cls._model.objects.filter(platform__name=SOFTWARE_VERSION_PLATFORM_NAME)
+            cls._model.objects.filter(platform__name=data.get("software_version_platform_name"))
             .filter(**OBJECT_METADATA_FILTER)
             .select_related("status", "platform")
             .distinct()

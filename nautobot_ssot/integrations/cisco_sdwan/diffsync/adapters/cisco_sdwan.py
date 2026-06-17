@@ -46,6 +46,14 @@ class CiscoSdwanRemoteAdapter(Adapter):
         "ip_address_to_interface",
     ]
 
+    @property
+    def software_version_platform_name(self):
+        """Return the effective platform name for SoftwareVersion objects.
+
+        Uses the configured override if set; otherwise falls back to the job's device platform.
+        """
+        return SOFTWARE_VERSION_PLATFORM_NAME or self.job.device_platform.name
+
     def __init__(self, *args, job=None, sync=None, **kwargs):
         """Initialize the Cisco SD-WAN adapter.
 
@@ -142,7 +150,7 @@ class CiscoSdwanRemoteAdapter(Adapter):
             software_version_obj = self.get_or_add(
                 self.software_version(
                     version=software_version,
-                    platform__name=SOFTWARE_VERSION_PLATFORM_NAME,
+                    platform__name=self.software_version_platform_name,
                     status__name="Active",
                 )
             )
@@ -167,7 +175,7 @@ class CiscoSdwanRemoteAdapter(Adapter):
                     secrets_group__name=self.job.device_secrets_group.name,
                     tenant__name=self.job.device_tenant.name if self.job.device_tenant else None,
                     software_version__version=software_version,
-                    software_version__platform__name=SOFTWARE_VERSION_PLATFORM_NAME if software_version else None,
+                    software_version__platform__name=self.software_version_platform_name if software_version else None,
                 )
             )
             if self.job.debug:

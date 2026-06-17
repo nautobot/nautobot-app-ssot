@@ -19,5 +19,5 @@ SDWAN_NULL_IP_ADDRESSES = APP_SETTINGS.get("cisco_sdwan_null_ip_addresses", ["-"
 NULL_MTU_VALUES = APP_SETTINGS.get("cisco_sdwan_null_mtu_values", ["0"])
 EXCLUDED_INTERFACES = APP_SETTINGS.get("cisco_sdwan_excluded_interfaces", ["Loopback65528", "Loopback65529"])
 EXCLUDED_PREFIXES = APP_SETTINGS.get("cisco_sdwan_excluded_prefixes", ["169.254.0.0/16"])
-SOFTWARE_VERSION_PLATFORM_NAME = APP_SETTINGS.get("cisco_sdwan_software_version_platform_name", "cisco_xe")
-PRIMARY_IP_INTERFACES = APP_SETTINGS.get("cisco_sdwan_primary_ip_interfaces", ["system"])
+SOFTWARE_VERSION_PLATFORM_NAME = APP_SETTINGS.get("cisco_sdwan_software_version_platform_name", None)
+PRIMARY_IP_INTERFACES = APP_SETTINGS.get("cisco_sdwan_primary_ip_interfaces", ["sdwan-system-intf"])

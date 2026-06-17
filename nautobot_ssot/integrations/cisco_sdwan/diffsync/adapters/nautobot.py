@@ -3,6 +3,7 @@
 from diffsync.exceptions import ObjectAlreadyExists
 
 from nautobot_ssot.contrib import NautobotAdapter
+from nautobot_ssot.integrations.cisco_sdwan.constants import SOFTWARE_VERSION_PLATFORM_NAME
 from nautobot_ssot.integrations.cisco_sdwan.diffsync.models.nautobot import (
     NautobotDevice,
     NautobotDeviceType,
@@ -29,6 +30,7 @@ class CiscoSdwanNautobotAdapter(NautobotAdapter):
         data = {
             "devices": self.job.devices,
             "managed_device_group": self.job.managed_device_group,
+            "software_version_platform_name": SOFTWARE_VERSION_PLATFORM_NAME or self.job.device_platform.name,
         }
         for database_object in diffsync_model.get_queryset(data=data):
             try:

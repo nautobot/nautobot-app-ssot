@@ -58,7 +58,7 @@ class TestCiscoSdwanRemoteAdapter(TestCase):
         self.assertEqual(device.secrets_group__name, "SDWAN Devices")
         self.assertIsNone(device.tenant__name)
         self.assertEqual(device.software_version__version, "17.06.03a")
-        self.assertEqual(device.software_version__platform__name, "cisco_xe")
+        self.assertEqual(device.software_version__platform__name, "cisco_ios")
 
     def test_load_device_types(self):
         """Validate normalized DeviceTypes are loaded once per model."""
@@ -70,7 +70,7 @@ class TestCiscoSdwanRemoteAdapter(TestCase):
     def test_load_software_versions(self):
         """Validate normalized SoftwareVersions are loaded once per version."""
         self.assertEqual(
-            {"cisco_xe__17.06.03a__Active", "cisco_xe__17.09.04__Active", "cisco_xe__20.06.03__Active"},
+            {"cisco_ios__17.06.03a__Active", "cisco_ios__17.09.04__Active", "cisco_ios__20.06.03__Active"},
             {version.get_unique_id() for version in self.adapter.get_all("software_version")},
         )
 
