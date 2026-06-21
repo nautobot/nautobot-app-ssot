@@ -104,7 +104,7 @@ class LibreNMSApi(ApiEndpoint):  # pylint: disable=too-few-public-methods
         verify: bool = True,
     ):
         """Create LibreNMS API connection."""
-        super().__init__(url=url)
+        super().__init__(url=url, port=port)
         self.url = url
         self.token = token
         self.verify = verify
