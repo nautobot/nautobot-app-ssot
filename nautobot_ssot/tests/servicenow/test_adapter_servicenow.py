@@ -1,6 +1,7 @@
 """Unit tests for the ServiceNowDiffSync adapter class."""
 
 from collections import defaultdict
+from itertools import islice
 from unittest.mock import MagicMock
 
 from nautobot.apps.testing import TestCase
@@ -686,6 +687,39 @@ class ServiceNowClientPaginationTestCase(TestCase):
         list(client.all_table_entries("t"))
         self.assertEqual(calls[0]["fields"], [])
         self.assertEqual(calls[0]["limit"], 10000)
+
+    def test_streams_page_without_materializing(self):
+        """Each page is consumed lazily; reading a few records does not pull the whole page into memory."""
+        pages = []
+
+        class CountingPage:
+            def __init__(self, count):
+                self.count = count
+                self.pulled = 0
+
+            def all(self):
+                for i in range(self.count):
+                    self.pulled += 1
+                    yield {"sys_id": f"id{i}"}
+
+        client = ServiceNowClient.__new__(ServiceNowClient)
+
+        def resource(api_path=None):  # pylint: disable=unused-argument
+            res = MagicMock()
+
+            def get(query=None, fields=None, limit=None, offset=None, stream=None):  # pylint: disable=unused-argument
+                page = CountingPage(limit)
+                pages.append(page)
+                return page
+
+            res.get.side_effect = get
+            return res
+
+        client.resource = resource
+        first_three = list(islice(client.all_table_entries("t", limit=10000), 3))
+        self.assertEqual(len(first_three), 3)
+        self.assertEqual(len(pages), 1)
+        self.assertEqual(pages[0].pulled, 3)
 
 
 class FieldsForMappingsTestCase(TestCase):

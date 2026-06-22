@@ -42,13 +42,16 @@ class ServiceNowClient(Client):
         logger.debug("Getting all entries in table %s matching query %s", table, query)
         offset = 0
         while True:
-            page = list(
+            count = 0
+            page = (
                 self.resource(api_path=f"/table/{table}")
                 .get(query=query, fields=fields, limit=limit, offset=offset, stream=True)
                 .all()
             )
-            yield from page
-            if len(page) < limit:
+            for record in page:
+                count += 1
+                yield record
+            if count < limit:
                 break
             offset += limit
 
