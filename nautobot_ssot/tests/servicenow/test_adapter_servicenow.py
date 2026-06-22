@@ -669,8 +669,34 @@ class ServiceNowClientPaginationTestCase(TestCase):
         result = list(client.all_table_entries("cmdb_ci", fields=["sys_id"], limit=10000))
         self.assertEqual(len(result), 25001)
         self.assertEqual([row["sys_id"] for row in result], [row["sys_id"] for row in rows])
-        self.assertEqual([call["offset"] for call in calls], [0, 10000, 20000])
+        self.assertEqual([call["offset"] for call in calls], [0, 10000, 20000, 25001])
         self.assertTrue(all(call["fields"] == ["sys_id"] for call in calls))
+
+    def test_returns_all_when_server_caps_response_below_limit(self):
+        """ServiceNow may return fewer rows than requested; offset must advance by the count actually returned."""
+        server_cap = 4576
+        rows = [{"sys_id": f"id{i}"} for i in range(12934)]
+        client = ServiceNowClient.__new__(ServiceNowClient)
+        calls = []
+
+        def resource(api_path=None):  # pylint: disable=unused-argument
+            res = MagicMock()
+
+            def get(query=None, fields=None, limit=None, offset=None, stream=None):  # pylint: disable=unused-argument
+                calls.append(offset)
+                returned = min(limit, server_cap)
+                page = MagicMock()
+                page.all.return_value = iter(rows[offset : offset + returned])
+                return page
+
+            res.get.side_effect = get
+            return res
+
+        client.resource = resource
+        result = list(client.all_table_entries("incident", fields=["sys_id"], limit=10000))
+        self.assertEqual(len(result), 12934)
+        self.assertEqual([row["sys_id"] for row in result], [row["sys_id"] for row in rows])
+        self.assertEqual(calls, [0, 4576, 9152, 12934])
 
     def test_terminates_on_exact_page_multiple(self):
         """A row count that is an exact multiple of the page size still terminates."""

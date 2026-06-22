@@ -34,7 +34,8 @@ class ServiceNowClient(Client):
             table (str): ServiceNow table name.
             query (dict): Optional query filter.
             fields (list): Optional columns to request via `sysparm_fields`; all columns are returned when omitted.
-            limit (int): Page size (`sysparm_limit`); records are fetched in pages of this size until exhausted.
+            limit (int): Requested page size (`sysparm_limit`). ServiceNow may return fewer records per response
+                than requested, so pages advance by the number of records actually returned and stop on an empty page.
         """
         if not query:
             query = {}
@@ -51,9 +52,9 @@ class ServiceNowClient(Client):
             for record in page:
                 count += 1
                 yield record
-            if count < limit:
+            if count == 0:
                 break
-            offset += limit
+            offset += count
 
     def get_by_sys_id(self, table, sys_id):
         """Get a record with a given sys_id from a given table."""
