@@ -1,0 +1,1 @@
+Fixed ServiceNow integration silently truncating tables larger than 10,000 rows; `all_table_entries()` now paginates through the entire result set.

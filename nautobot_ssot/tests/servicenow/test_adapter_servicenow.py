@@ -1,12 +1,14 @@
 """Unit tests for the ServiceNowDiffSync adapter class."""
 
 from collections import defaultdict
+from unittest.mock import MagicMock
 
 from nautobot.apps.testing import TestCase
 from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.servicenow.diffsync.adapter_servicenow import ServiceNowDiffSync
 from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
+from nautobot_ssot.integrations.servicenow.servicenow import ServiceNowClient
 
 
 class MockServiceNowClient:
@@ -14,15 +16,17 @@ class MockServiceNowClient:
 
     def __init__(self):
         self.query_params = defaultdict(list)
+        self.field_params = defaultdict(list)
 
     def get_by_sys_id(self, table, sys_id):  # pylint: disable=unused-argument
         """Get a record with a given sys_id from a given table."""
         return None
 
-    def all_table_entries(self, table, query={}):  # pylint: disable=dangerous-default-value
+    def all_table_entries(self, table, query={}, fields=None, limit=10000):  # pylint: disable=dangerous-default-value,unused-argument
         """Iterator over all records in a given table."""
 
         self.query_params[table].append(query)
+        self.field_params[table].append(fields)
 
         if table == "cmn_location":
             yield from [
@@ -631,3 +635,73 @@ class ServiceNowDiffSyncTestCase(TestCase):
 
         snds.load()
         self.assertEqual(mock_snow_client.query_params["core_company"], [{"manufacturer": True}])
+        self.assertEqual(mock_snow_client.field_params["core_company"], [["manufacturer", "name", "sys_id"]])
+
+
+class ServiceNowClientPaginationTestCase(TestCase):
+    """Test that ServiceNowClient.all_table_entries paginates the full result set."""
+
+    @staticmethod
+    def _client_returning(rows):
+        client = ServiceNowClient.__new__(ServiceNowClient)
+        calls = []
+
+        def resource(api_path=None):  # pylint: disable=unused-argument
+            res = MagicMock()
+
+            def get(query=None, fields=None, limit=None, offset=None, stream=None):  # pylint: disable=unused-argument
+                calls.append({"fields": fields, "limit": limit, "offset": offset})
+                page = MagicMock()
+                page.all.return_value = iter(rows[offset : offset + limit])
+                return page
+
+            res.get.side_effect = get
+            return res
+
+        client.resource = resource
+        return client, calls
+
+    def test_paginates_beyond_single_page(self):
+        """A table larger than one page is returned in full, not truncated at the page size."""
+        rows = [{"sys_id": f"id{i}"} for i in range(25001)]
+        client, calls = self._client_returning(rows)
+        result = list(client.all_table_entries("cmdb_ci", fields=["sys_id"], limit=10000))
+        self.assertEqual(len(result), 25001)
+        self.assertEqual([row["sys_id"] for row in result], [row["sys_id"] for row in rows])
+        self.assertEqual([call["offset"] for call in calls], [0, 10000, 20000])
+        self.assertTrue(all(call["fields"] == ["sys_id"] for call in calls))
+
+    def test_terminates_on_exact_page_multiple(self):
+        """A row count that is an exact multiple of the page size still terminates."""
+        rows = [{"sys_id": f"id{i}"} for i in range(10000)]
+        client, calls = self._client_returning(rows)
+        result = list(client.all_table_entries("t", limit=10000))
+        self.assertEqual(len(result), 10000)
+        self.assertEqual(len(calls), 2)
+
+    def test_default_fields_preserves_all_columns_behavior(self):
+        """With no fields specified, sysparm_fields stays empty so all columns are returned as before."""
+        rows = [{"sys_id": "id0"}]
+        client, calls = self._client_returning(rows)
+        list(client.all_table_entries("t"))
+        self.assertEqual(calls[0]["fields"], [])
+        self.assertEqual(calls[0]["limit"], 10000)
+
+
+class FieldsForMappingsTestCase(TestCase):
+    """Test sysparm_fields derivation from the YAML mappings."""
+
+    def test_derives_columns_and_reference_keys(self):
+        """Derived fields include sys_id, every mapped column, and every reference key."""
+        mappings = [
+            {
+                "field": "manufacturer_name",
+                "reference": {"key": "manufacturer", "table": "core_company", "column": "name"},
+            },
+            {"field": "model_name", "column": "name"},
+            {"field": "model_number", "column": "model_number"},
+        ]
+        self.assertEqual(
+            ServiceNowDiffSync.fields_for_mappings(mappings),
+            ["manufacturer", "model_number", "name", "sys_id"],
+        )

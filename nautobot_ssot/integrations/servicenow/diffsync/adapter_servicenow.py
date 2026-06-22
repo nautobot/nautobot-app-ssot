@@ -129,6 +129,17 @@ class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attribut
         populated = template.render(config)
         return yaml.safe_load(populated)
 
+    @staticmethod
+    def fields_for_mappings(mappings):
+        """Collect the ServiceNow columns referenced by a set of mappings, for use as `sysparm_fields`."""
+        fields = {"sys_id"}
+        for mapping in mappings:
+            if "column" in mapping:
+                fields.add(mapping["column"])
+            elif "reference" in mapping and "key" in mapping["reference"]:
+                fields.add(mapping["reference"]["key"])
+        return sorted(fields)
+
     def load_table(self, modelname, table, mappings, **kwargs):
         """Load data from the ServiceNow "table" into the DiffSync model.
 
@@ -139,22 +150,30 @@ class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attribut
           **kwargs: Optional arguments, all of which default to False if unset:
 
             - parent (dict): Dict of {"modelname": ..., "field": ...} used to link table records back to their parents
+            - fields (list): Columns to request from ServiceNow; derived from the mappings if unset.
+            - limit (int): Page size for ServiceNow pagination.
         """
         model_cls = getattr(self, modelname)
         self.job.logger.info(f"Loading ServiceNow table `{table}` into {modelname} instances...")
         table_query_filter = kwargs.get("table_query", {})
+        fields = kwargs.get("fields") or self.fields_for_mappings(mappings)
+        limit = kwargs.get("limit", 10000)
 
         if "parent" not in kwargs:
             # Load the entire table
-            for record in self.client.all_table_entries(table, table_query_filter):
+            for record in self.client.all_table_entries(table, table_query_filter, fields=fields, limit=limit):
                 self.load_record(table, record, model_cls, mappings, **kwargs)
         else:
             # Load items per parent object that we know/care about
             # This is necessary because, for example, the cmdb_ci_network_adapter table contains network interfaces
             # for ALL types of devices (servers, switches, firewalls, etc.) but we only have switches as parent objects
+            parent_column = kwargs["parent"]["column"]
+            parent_fields = sorted(set(fields) | {parent_column})
             for parent in self.get_all(kwargs["parent"]["modelname"]):
-                table_query_filter[kwargs["parent"]["column"]] = parent.sys_id
-                for record in self.client.all_table_entries(table, table_query_filter):
+                table_query_filter[parent_column] = parent.sys_id
+                for record in self.client.all_table_entries(
+                    table, table_query_filter, fields=parent_fields, limit=limit
+                ):
                     self.load_record(table, record, model_cls, mappings, **kwargs)
         if self.duplicate_records.get(modelname, False):
             self.job.logger.warning(f"Found {len(self.duplicate_records[modelname])} duplicate {modelname} record(s).")
