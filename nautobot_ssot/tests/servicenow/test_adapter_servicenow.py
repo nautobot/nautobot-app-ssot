@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 from nautobot.apps.testing import TestCase
 from nautobot.extras.models import JobResult
 
+from nautobot_ssot.integrations.servicenow.diffsync import models
 from nautobot_ssot.integrations.servicenow.diffsync.adapter_servicenow import ServiceNowDiffSync
 from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
 from nautobot_ssot.integrations.servicenow.servicenow import ServiceNowClient
@@ -765,3 +766,37 @@ class FieldsForMappingsTestCase(TestCase):
             ServiceNowDiffSync.fields_for_mappings(mappings),
             ["manufacturer", "model_number", "name", "sys_id"],
         )
+
+
+class ServiceNowModelUpdateTestCase(TestCase):
+    """Test that ServiceNowCRUDMixin.update writes and verifies only the mapped, changed fields."""
+
+    ENTRY = {"table": "cmdb_ci_ip_switch", "mappings": [{"field": "asset_tag", "column": "asset_tag"}]}
+    # ServiceNow returns the full record on update, including a server-managed timestamp that always changes.
+    UPDATE_RESULT = {"sys_id": "abc123", "asset_tag": "NEW-TAG", "sys_updated_on": "2026-06-23 12:23:52"}
+
+    def _device(self):
+        adapter = MagicMock()
+        adapter.job.debug = False
+        adapter.mapping_data = {"device": self.ENTRY}
+        self.resource = MagicMock()
+        result = MagicMock()
+        result.one.return_value = self.UPDATE_RESULT
+        self.resource.update.return_value = result
+        adapter.client.resource.return_value = self.resource
+        return models.Device(name="switch1", adapter=adapter, sys_id="abc123")
+
+    def test_update_keys_on_known_sys_id(self):
+        """The update is keyed on the sys_id captured at load time, not re-queried by identifier."""
+        self._device().update({"asset_tag": "NEW-TAG"})
+        self.assertEqual(self.resource.update.call_args.kwargs["query"], {"sys_id": "abc123"})
+
+    def test_update_payload_only_includes_mapped_changed_fields(self):
+        """Only the mapped, changed column is sent — not the full existing record or server-managed fields."""
+        self._device().update({"asset_tag": "NEW-TAG"})
+        self.assertEqual(self.resource.update.call_args.kwargs["payload"], {"asset_tag": "NEW-TAG"})
+
+    def test_update_tolerates_server_managed_timestamp_change(self):
+        """A changed sys_updated_on in the response must not raise ObjectNotUpdated for a successful write."""
+        device = self._device()
+        self.assertEqual(device.update({"asset_tag": "NEW-TAG"}), device)

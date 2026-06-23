@@ -97,18 +97,20 @@ class ServiceNowCRUDMixin:
         entry = self.adapter.mapping_data[self.get_type()]
 
         sn_resource = self.adapter.client.resource(api_path=f"/table/{entry['table']}")
-        query = self.map_data_to_sn_record(data=self.get_identifiers(), mapping_entry=entry)
+        if self.sys_id:
+            query = {"sys_id": self.sys_id}
+        else:
+            query = self.map_data_to_sn_record(data=self.get_identifiers(), mapping_entry=entry)
+
+        sn_record = self.map_data_to_sn_record(data=attrs, mapping_entry=entry)
         try:
-            record = sn_resource.get(query=query).one()
+            result = sn_resource.update(query=query, payload=sn_record)
         except pysnow.exceptions.MultipleResults:
             self.adapter.job.logger.error(
                 f"Unsure which record to update, as query {query} matched more than one item "
                 f"in table {entry['table']}"
             )
             return None
-
-        sn_record = self.map_data_to_sn_record(data=attrs, mapping_entry=entry, existing_record=record)
-        result = sn_resource.update(query=query, payload=sn_record)
         if self.adapter.job.debug:
             self.adapter.job.logger.debug(f"Result of update: {result.one()}")
         for key in sn_record:

@@ -1,1 +1,2 @@
 Fixed ServiceNow integration silently truncating tables larger than 10,000 rows; `all_table_entries()` now paginates through the entire result set.
+Fixed ServiceNow integration raising a spurious `ObjectNotUpdated` on successful updates; updates now write and verify only the mapped fields and key on the record's known `sys_id`, instead of comparing server-managed columns such as `sys_updated_on`.
