@@ -113,20 +113,21 @@ class ServiceNowCRUDMixin:
             return None
         if self.adapter.job.debug:
             self.adapter.job.logger.debug(f"Result of update: {result.one()}")
-        for key in sn_record:
+        for key, value in sn_record.items():
             if key not in result.one():
                 self.adapter.job.logger.warning(
                     f"Key {key} from SN record {sn_record} not found in result {result.one()}"
                 )
             # Convert True/False to true/false before comparing
-            if isinstance(sn_record[key], bool):
-                sn_record[key] = "true" if sn_record[key] else "false"
-            if sn_record[key] and sn_record[key] != result.one()[key]:
+            if isinstance(value, bool):
+                value = "true" if value else "false"
+                sn_record[key] = value
+            if value and value != result.one()[key]:
                 self.adapter.job.logger.warning(
-                    f"Value {sn_record[key]} from SN record {sn_record} does not match result {result.one()[key]}"
+                    f"Value {value} from SN record {sn_record} does not match result {result.one()[key]}"
                 )
                 raise ObjectNotUpdated(
-                    f"Value {sn_record[key]} from SN record {sn_record} does not match result {result.one()[key]}"
+                    f"Value {value} from SN record {sn_record} does not match result {result.one()[key]}"
                 )
 
         super().update(attrs)

@@ -720,11 +720,14 @@ class ServiceNowClientPaginationTestCase(TestCase):
         pages = []
 
         class CountingPage:
+            """Page that records how many of its rows were actually pulled."""
+
             def __init__(self, count):
                 self.count = count
                 self.pulled = 0
 
             def all(self):
+                """Lazily yield rows, counting each one as it is consumed."""
                 for i in range(self.count):
                     self.pulled += 1
                     yield {"sys_id": f"id{i}"}
@@ -779,24 +782,26 @@ class ServiceNowModelUpdateTestCase(TestCase):
         adapter = MagicMock()
         adapter.job.debug = False
         adapter.mapping_data = {"device": self.ENTRY}
-        self.resource = MagicMock()
+        resource = MagicMock()
         result = MagicMock()
         result.one.return_value = self.UPDATE_RESULT
-        self.resource.update.return_value = result
-        adapter.client.resource.return_value = self.resource
-        return models.Device(name="switch1", adapter=adapter, sys_id="abc123")
+        resource.update.return_value = result
+        adapter.client.resource.return_value = resource
+        return models.Device(name="switch1", adapter=adapter, sys_id="abc123"), resource
 
     def test_update_keys_on_known_sys_id(self):
         """The update is keyed on the sys_id captured at load time, not re-queried by identifier."""
-        self._device().update({"asset_tag": "NEW-TAG"})
-        self.assertEqual(self.resource.update.call_args.kwargs["query"], {"sys_id": "abc123"})
+        device, resource = self._device()
+        device.update({"asset_tag": "NEW-TAG"})
+        self.assertEqual(resource.update.call_args.kwargs["query"], {"sys_id": "abc123"})
 
     def test_update_payload_only_includes_mapped_changed_fields(self):
         """Only the mapped, changed column is sent — not the full existing record or server-managed fields."""
-        self._device().update({"asset_tag": "NEW-TAG"})
-        self.assertEqual(self.resource.update.call_args.kwargs["payload"], {"asset_tag": "NEW-TAG"})
+        device, resource = self._device()
+        device.update({"asset_tag": "NEW-TAG"})
+        self.assertEqual(resource.update.call_args.kwargs["payload"], {"asset_tag": "NEW-TAG"})
 
     def test_update_tolerates_server_managed_timestamp_change(self):
         """A changed sys_updated_on in the response must not raise ObjectNotUpdated for a successful write."""
-        device = self._device()
+        device, _ = self._device()
         self.assertEqual(device.update({"asset_tag": "NEW-TAG"}), device)
