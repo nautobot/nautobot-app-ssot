@@ -779,14 +779,15 @@ class ServiceNowModelUpdateTestCase(TestCase):
     UPDATE_RESULT = {"sys_id": "abc123", "asset_tag": "NEW-TAG", "sys_updated_on": "2026-06-23 12:23:52"}
 
     def _device(self):
-        adapter = MagicMock()
-        adapter.job.debug = False
-        adapter.mapping_data = {"device": self.ENTRY}
         resource = MagicMock()
         result = MagicMock()
         result.one.return_value = self.UPDATE_RESULT
         resource.update.return_value = result
-        adapter.client.resource.return_value = resource
+        client = MagicMock()
+        client.resource.return_value = resource
+        adapter = ServiceNowDiffSync(client=client, job=MagicMock())
+        adapter.job.debug = False
+        adapter.mapping_data = {"device": self.ENTRY}
         return models.Device(name="switch1", adapter=adapter, sys_id="abc123"), resource
 
     def test_update_keys_on_known_sys_id(self):
