@@ -15,6 +15,7 @@ import builtins
 import contextlib
 import importlib
 import os.path
+import types
 import unittest
 from unittest.mock import patch
 
@@ -81,6 +82,32 @@ def _forced_fallback_module():
         importlib.reload(component_creation_module)
 
 
+@contextlib.contextmanager
+def _forced_upstream_module():
+    """Reload ``component_creation`` with the upstream import forced to succeed.
+
+    Substitutes a stand-in ``nautobot.apps.dcim`` module (which may be absent entirely on
+    older Nautobot) so the ``try`` import succeeds, exercising the upstream-available branch.
+    The module is reloaded normally on exit so other tests see the genuine symbols.
+    """
+    real_import = builtins.__import__
+    fake_module = types.ModuleType("nautobot.apps.dcim")
+    fake_module.SkipAutoComponentCreation = object
+    fake_module.is_auto_component_creation_suppressed = lambda: False
+
+    def _fake_import(name, *args, **kwargs):
+        if name == "nautobot.apps.dcim":
+            return fake_module
+        return real_import(name, *args, **kwargs)
+
+    builtins.__import__ = _fake_import
+    try:
+        yield importlib.reload(component_creation_module)
+    finally:
+        builtins.__import__ = real_import
+        importlib.reload(component_creation_module)
+
+
 class ContextManagerFeatureDetectionTestCase(TestCase):
     """Tests for the feature-detection wrapper itself."""
 
@@ -96,6 +123,11 @@ class ContextManagerFeatureDetectionTestCase(TestCase):
     def test_upstream_available_returns_bool(self):
         """``upstream_available()`` returns a bool reflecting whether the upstream symbol was importable."""
         self.assertIsInstance(upstream_available(), bool)
+
+    def test_reports_upstream_available_when_symbols_present(self):
+        """With the upstream symbols importable, the module reports upstream as available."""
+        with _forced_upstream_module() as component_creation:
+            self.assertTrue(component_creation.upstream_available())
 
 
 class FallbackContextManagerTestCase(TestCase):

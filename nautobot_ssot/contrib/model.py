@@ -345,11 +345,11 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
                     destination_object = adapter.get_from_orm_cache(related_model_dict, related_model_class)
                 except related_model_class.DoesNotExist as error:
                     raise ObjectCrudException(
-                        f"Couldn't resolve custom relationship {relationship.name}, no such {related_model_class._meta.verbose_name} object with parameters {related_model_dict}."
+                        f"Couldn't resolve custom relationship {relationship.label}, no such {related_model_class._meta.verbose_name} object with parameters {related_model_dict}."
                     ) from error
                 except related_model_class.MultipleObjectsReturned as error:
                     raise ObjectCrudException(
-                        f"Couldn't resolve custom relationship {relationship.name}, multiple {related_model_class._meta.verbose_name} objects with parameters {related_model_dict}."
+                        f"Couldn't resolve custom relationship {relationship.label}, multiple {related_model_class._meta.verbose_name} objects with parameters {related_model_dict}."
                     ) from error
                 RelationshipAssociation.objects.update_or_create(
                     **parameters,
@@ -443,12 +443,15 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
     @classmethod
     def _update_obj_metadata(cls, obj, adapter):
         """Update a given Nautobot ORM object with the required object metadata."""
-        # Get the scope_fields from the DiffSync Model
-        obj_metadata_scope_fields = adapter.metadata_scope_fields[cls]
-        obj_metadata = obj.associated_object_metadata.filter(
-            metadata_type=adapter.metadata_type
-        ).first() or ObjectMetadata(metadata_type=adapter.metadata_type, assigned_object=obj)
+        try:
+            # Get the scope_fields from the DiffSync Model
+            obj_metadata_scope_fields = adapter.metadata_scope_fields[cls]
+            obj_metadata = obj.associated_object_metadata.filter(
+                metadata_type=adapter.metadata_type
+            ).first() or ObjectMetadata(metadata_type=adapter.metadata_type, assigned_object=obj)
 
-        obj_metadata.scoped_fields = obj_metadata_scope_fields
-        obj_metadata.value = datetime.now()
-        obj_metadata.validated_save()
+            obj_metadata.scoped_fields = obj_metadata_scope_fields
+            obj_metadata.value = datetime.now()
+            obj_metadata.validated_save()
+        except (ValidationError, KeyError) as error:
+            raise ObjectCrudException(f"Failed to update last-sync metadata for {obj}: {error}") from error

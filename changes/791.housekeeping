@@ -1,1 +1,1 @@
-Added unit tests bringing the SSoT contrib `types.py` and `adapter.py` modules to 100% test coverage.
+Reorganized the SSoT `contrib` unit tests into the `nautobot_ssot/tests/contrib/` subpackage and brought the entire `contrib` module to 100% test coverage.

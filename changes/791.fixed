@@ -1,1 +1,1 @@
-Fixed a bug in the SSoT contrib adapter where a custom-relationship foreign key matching more than one association raised an `AttributeError` instead of logging a warning.
+Fixed two latent bugs in the SSoT contrib adapter and model where custom-relationship error handlers referenced attributes that do not exist (a model instance's `__name__` and `Relationship.name`), raising `AttributeError` instead of the intended warning/error message.

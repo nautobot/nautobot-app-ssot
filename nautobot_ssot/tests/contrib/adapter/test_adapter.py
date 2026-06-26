@@ -21,12 +21,10 @@ from typing_extensions import TypedDict
 
 from nautobot_ssot.contrib import (
     CustomFieldAnnotation,
-    CustomRelationshipAnnotation,
     NautobotAdapter,
     NautobotModel,
-    RelationshipSideEnum,
 )
-from nautobot_ssot.tests.contrib_base_classes import (
+from nautobot_ssot.tests.contrib.base import (
     NautobotCable,
     NautobotDevice,
     NautobotDeviceBay,
@@ -37,6 +35,7 @@ from nautobot_ssot.tests.contrib_base_classes import (
     ProviderModelCustomRelationship,
     TenantModelCustomManyTomanyRelationship,
     TenantModelCustomRelationship,
+    TenantToOneProviderModel,
     TestAdapter,
     TestCaseWithDeviceData,
 )
@@ -576,32 +575,11 @@ class NautobotAdapterPydanticErrorTest(TestCase):
             adapter.load()
 
 
-class _ProviderDict(TypedDict):
-    """Typed dict describing the interesting fields of a related Provider."""
-
-    name: str
-
-
-class TenantToOneDestinationModel(NautobotModel):
-    """Destination-side, to-one custom relationship field (no '__') for one-to-many edge coverage."""
-
-    _model = tenancy_models.Tenant
-    _modelname = "tenant"
-    _identifiers = ("name",)
-    _attributes = ("provider",)
-
-    name: str
-    provider: Annotated[
-        Optional[_ProviderDict],
-        CustomRelationshipAnnotation(name="Test Relationship", side=RelationshipSideEnum.DESTINATION),
-    ] = None
-
-
 class TenantToOneDestinationAdapter(NautobotAdapter):
     """Adapter loading the destination-side to-one custom relationship model."""
 
     top_level = ("tenant",)
-    tenant = TenantToOneDestinationModel
+    tenant = TenantToOneProviderModel
 
 
 class NautobotAdapterCustomRelationshipEdgeTests(TestCase):
@@ -627,14 +605,14 @@ class NautobotAdapterCustomRelationshipEdgeTests(TestCase):
         """A destination-side to-one field with no association loads as None."""
         adapter = TenantToOneDestinationAdapter(job=MagicMock())
         adapter.load()
-        self.assertIsNone(adapter.get(TenantToOneDestinationModel, "Edge Tenant").provider)
+        self.assertIsNone(adapter.get(TenantToOneProviderModel, "Edge Tenant").provider)
 
     def test_to_one_destination_single_association(self):
         """A destination-side to-one field with one association loads as a single dict."""
         self._associate("Edge Provider")
         adapter = TenantToOneDestinationAdapter(job=MagicMock())
         adapter.load()
-        self.assertEqual(adapter.get(TenantToOneDestinationModel, "Edge Tenant").provider, {"name": "Edge Provider"})
+        self.assertEqual(adapter.get(TenantToOneProviderModel, "Edge Tenant").provider, {"name": "Edge Provider"})
 
     def test_to_one_destination_multiple_associations_raises(self):
         """More than one association for a one-to-many destination raises ObjectCrudException."""
