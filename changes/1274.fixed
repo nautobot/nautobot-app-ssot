@@ -1,0 +1,1 @@
+Fixed a bug in the LibreNMS integration where the port parameter was not passed to the parent ApiEndpoint class, causing all connections to default to port 443 regardless of the configured port.
