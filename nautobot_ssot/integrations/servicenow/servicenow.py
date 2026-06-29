@@ -27,12 +27,34 @@ class ServiceNowClient(Client):
         # We don't need the link for our purposes, and including it makes it harder to preserve idempotence.
         self.parameters.exclude_reference_link = True
 
-    def all_table_entries(self, table, query=None):
-        """Iterator over all records in a given table."""
+    def all_table_entries(self, table, query=None, fields=None, limit=10000):
+        """Iterator over all records in a given table, paginating through the full result set.
+
+        Args:
+            table (str): ServiceNow table name.
+            query (dict): Optional query filter.
+            fields (list): Optional columns to request via `sysparm_fields`; all columns are returned when omitted.
+            limit (int): Requested page size (`sysparm_limit`). ServiceNow may return fewer records per response
+                than requested, so pages advance by the number of records actually returned and stop on an empty page.
+        """
         if not query:
             query = {}
+        fields = fields or []
         logger.debug("Getting all entries in table %s matching query %s", table, query)
-        yield from self.resource(api_path=f"/table/{table}").get(query=query, stream=True).all()
+        offset = 0
+        while True:
+            count = 0
+            page = (
+                self.resource(api_path=f"/table/{table}")
+                .get(query=query, fields=fields, limit=limit, offset=offset, stream=True)
+                .all()
+            )
+            for record in page:
+                count += 1
+                yield record
+            if count == 0:
+                break
+            offset += count
 
     def get_by_sys_id(self, table, sys_id):
         """Get a record with a given sys_id from a given table."""
