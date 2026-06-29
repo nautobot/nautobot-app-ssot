@@ -4,8 +4,9 @@ This document describes all new features and changes in the release. The format 
 
 ## Release Overview
 
-- Major features or milestones
-- Changes to compatibility with Nautobot and/or other apps, libraries etc.
+- Added opt-in progress logging to the contrib `NautobotAdapter`, so large syncs emit periodic "objects loaded" messages to the job log instead of running silently through the load phase. Enable it under with `enable_progress_logger: True` in your `PLUGINS_CONFIG` (defaults to `False`) and tune how often messages are logged with `progress_logger_interval` (number of objects between log lines, defaults to `1000`; `0` disables it)
+- SSoT jobs can now suppress Nautobot's automatic Device/Module component instantiation during a sync. Opt in via a `DataSyncBaseJob` class attribute, the `PLUGINS_CONFIG` global setting, or the `SkipAutoComponentCreation` context manager directly (any source enabling it wins). Default behavior is unchanged for jobs that don't opt in, and the feature degrades gracefully (no-op plus a one-time warning) on Nautobot versions that lack the underlying core extension point.
+- Added a generic `ObjectMetadataAnnotation` to `nautobot_ssot.contrib`, letting any contrib `NautobotModel` DiffSync model read and write a field's value to Nautobot `ObjectMetadata`. Reads are lenient (missing type/row resolves to `None`) and prefetched to avoid N+1 queries; writes are strict and idempotent, with None treated as a no-op.
 
 <!-- towncrier release notes start -->
 
