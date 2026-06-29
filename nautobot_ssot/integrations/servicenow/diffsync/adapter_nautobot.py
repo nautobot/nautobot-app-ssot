@@ -167,6 +167,7 @@ class NautobotDiffSync(Adapter):
             if synced_pks:
                 self.tag_objects(nautobot_model, synced_pks, tag, custom_field, today)
 
+    # pylint: disable=too-many-arguments
     def tag_objects(self, nautobot_model, pks, tag, custom_field, today):
         """Bulk-apply the given tag and custom field to many objects of a single Nautobot model.
 
