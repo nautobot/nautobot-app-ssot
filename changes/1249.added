@@ -1,1 +1,0 @@
-Added `ObjectMetadataAnnotation` to `nautobot_ssot.contrib`, letting DiffSync models on the `NautobotModel` base read and write a field's value to Nautobot ObjectMetadata.

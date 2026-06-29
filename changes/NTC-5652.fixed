@@ -1,1 +1,0 @@
-Change MTU in DNA Center integration to account for 0 as an output from DNAC and save it in Nautobot as None.
