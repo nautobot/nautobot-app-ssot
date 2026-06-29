@@ -1,1 +1,0 @@
-Added automatic `sysparm_fields` selection to the ServiceNow integration so each table load only requests the columns referenced by its mappings, and made the ServiceNow page size (`limit`) configurable.

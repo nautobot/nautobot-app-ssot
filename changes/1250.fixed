@@ -1,1 +1,0 @@
-Fixed vSphere SSoT sync crash when more than one `IPAddress` shares the primary IP host, by catching `MultipleObjectsReturned` during primary IP assignment.
