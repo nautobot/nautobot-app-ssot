@@ -22,7 +22,7 @@ This document describes all new features and changes in the release. The format 
 
 ### Fixed
 
-- [#NTC-5652](https://github.com/nautobot/nautobot-app-ssot/issues/NTC-5652) - Change MTU in DNA Center integration to account for 0 as an output from DNAC and save it in Nautobot as None.
+- [#NTC-5652](https://github.com/nautobot/nautobot-app-ssot/pull/1193) - Change MTU in DNA Center integration to account for 0 as an output from DNAC and save it in Nautobot as None.
 - [#791](https://github.com/nautobot/nautobot-app-ssot/issues/791) - Fixed two latent bugs in the SSoT contrib adapter and model where custom-relationship error handlers referenced attributes that do not exist (a model instance's `__name__` and `Relationship.name`), raising `AttributeError` instead of the intended warning/error message.
 - [#1159](https://github.com/nautobot/nautobot-app-ssot/issues/1159) - Fixed Meraki SSoT crashing Nautobot startup with `MultipleObjectsReturned` when more than one Platform name contains "Meraki", by looking up the canonical `Cisco Meraki` Platform by exact name instead of `name__icontains`.
 - [#1205](https://github.com/nautobot/nautobot-app-ssot/issues/1205) - Fixed Meraki SSoT assigning the management/primary IP from a Not-Active uplink: an inactive static uplink no longer sets `mgmt_ip`, so it cannot shadow an Active uplink or suppress the DHCP management-IP fallback.
