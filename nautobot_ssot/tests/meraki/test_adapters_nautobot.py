@@ -4,8 +4,9 @@ from unittest.mock import MagicMock
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import JobResult, Note, Role, Status
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
 
@@ -15,30 +16,32 @@ from nautobot_ssot.integrations.meraki.jobs import MerakiDataSource
 User = get_user_model()
 
 
-class NautobotDiffSyncTestCase(TransactionTestCase):
+class NautobotDiffSyncTestCase(TestCase):
     """Test the NautobotAdapter class."""
 
     databases = ("default", "job_logs")
 
-    def setUp(self):  # pylint: disable=too-many-locals disable=too-many-statements
+    @classmethod
+    def setUpTestData(cls):  # pylint: disable=too-many-locals disable=too-many-statements
         """Per-test-case data setup."""
-        super().setUp()
-        self.status_active = Status.objects.get(name="Active")
+        super().setUpTestData()
+        populate_status_choices()
+        cls.status_active = Status.objects.get(name="Active")
 
-        self.region_type = LocationType.objects.get_or_create(name="Region", defaults={"nestable": True})[0]
+        cls.region_type = LocationType.objects.get_or_create(name="Region", defaults={"nestable": True})[0]
         global_region = Location.objects.create(
             name="Global Region",
-            location_type=self.region_type,
-            status=self.status_active,
+            location_type=cls.region_type,
+            status=cls.status_active,
         )
         global_region.validated_save()
-        self.site_type = LocationType.objects.get_or_create(name="Site")[0]
-        self.site_type.content_types.add(ContentType.objects.get_for_model(Device))
-        self.site_type.content_types.add(ContentType.objects.get_for_model(Prefix))
+        cls.site_type = LocationType.objects.get_or_create(name="Site")[0]
+        cls.site_type.content_types.add(ContentType.objects.get_for_model(Device))
+        cls.site_type.content_types.add(ContentType.objects.get_for_model(Prefix))
         site1 = Location.objects.create(
             name="Lab",
-            location_type=self.site_type,
-            status=self.status_active,
+            location_type=cls.site_type,
+            status=cls.status_active,
             time_zone="America/Chicago",
         )
         site1.validated_save()
@@ -66,7 +69,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
         lab01 = Device.objects.create(
             name="Lab01",
             serial="ABC-123-456",
-            status=self.status_active,
+            status=cls.status_active,
             role=core_role,
             device_type=mx84,
             platform=meraki_plat,
@@ -91,7 +94,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
             mode="access",
             mgmt_only=True,
             type="1000base-t",
-            status=self.status_active,
+            status=cls.status_active,
         )
         lab01_mgmt.validated_save()
         lab01_mgmt.custom_field_data["system_of_record"] = "Meraki SSoT"
@@ -99,9 +102,9 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
 
         test_ns = Namespace.objects.create(name="Test")
         lab_prefix = Prefix.objects.create(
-            prefix="10.0.0.0/24", location=site1, namespace=test_ns, status=self.status_active
+            prefix="10.0.0.0/24", location=site1, namespace=test_ns, status=cls.status_active
         )
-        lab01_mgmt_ip = IPAddress.objects.create(address="10.0.0.1/24", parent=lab_prefix, status=self.status_active)
+        lab01_mgmt_ip = IPAddress.objects.create(address="10.0.0.1/24", parent=lab_prefix, status=cls.status_active)
         lab_prefix.custom_field_data["system_of_record"] = "Meraki SSoT"
         lab_prefix.validated_save()
         lab01_mgmt_ip.custom_field_data["system_of_record"] = "Meraki SSoT"
@@ -113,11 +116,11 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
         job.parent_location = global_region
         job.hostname_mapping = []
         job.devicetype_mapping = [("MS", "Switch"), ("MX", "Firewall")]
-        job.network_loctype = self.site_type
+        job.network_loctype = cls.site_type
         job.tenant = None
         job.device_status = None
         job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
-        self.nb_adapter = NautobotAdapter(job=job, sync=None)
+        cls.nb_adapter = NautobotAdapter(job=job, sync=None)
 
     def test_data_loading(self):
         """Test the load() function."""

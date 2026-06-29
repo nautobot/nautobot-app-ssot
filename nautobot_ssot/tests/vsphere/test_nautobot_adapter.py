@@ -3,7 +3,7 @@
 # pylint: disable=protected-access
 from unittest.mock import MagicMock
 
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.extras.models.statuses import Status
 from nautobot.extras.models.tags import Tag
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
@@ -31,42 +31,45 @@ from .vsphere_fixtures import create_default_vsphere_config
 class TestNautobotAdapter(TestCase):  # pylint: disable=too-many-instance-attributes
     """Test cases for vSphere Nautobot adapter."""
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         test_cluster_type, _ = ClusterType.objects.get_or_create(name="Test")
-        self.test_cluster_group, _ = ClusterGroup.objects.get_or_create(name="Test Group")
-        self.test_cluster, _ = Cluster.objects.get_or_create(
+        cls.test_cluster_group, _ = ClusterGroup.objects.get_or_create(name="Test Group")
+        cls.test_cluster, _ = Cluster.objects.update_or_create(
             name="Test Cluster",
-            cluster_type=test_cluster_type,
-            cluster_group=self.test_cluster_group,
+            defaults={
+                "cluster_type": test_cluster_type,
+                "cluster_group": cls.test_cluster_group,
+            },
         )
-        self.status, _ = Status.objects.get_or_create(name="Active")
-        self.ssot_tag, _ = Tag.objects.get_or_create(name="SSoT Synced from vSphere")
-        self.test_virtualmachine, _ = VirtualMachine.objects.get_or_create(
+        cls.status, _ = Status.objects.get_or_create(name="Active")
+        cls.ssot_tag, _ = Tag.objects.get_or_create(name="SSoT Synced from vSphere")
+        cls.test_virtualmachine, _ = VirtualMachine.objects.get_or_create(
             name="Test VM",
-            cluster=self.test_cluster,
-            status=self.status,
+            cluster=cls.test_cluster,
+            status=cls.status,
             vcpus=2,
             memory=4094,
             disk=50,
         )
-        self.test_virtualmachine.tags.set([self.ssot_tag])
-        self.vm_interface_1, _ = VMInterface.objects.get_or_create(
+        cls.test_virtualmachine.tags.set([cls.ssot_tag])
+        cls.vm_interface_1, _ = VMInterface.objects.get_or_create(
             name="Test Interface",
             enabled=True,
-            virtual_machine=self.test_virtualmachine,
+            virtual_machine=cls.test_virtualmachine,
             mac_address="AA:BB:CC:DD:EE:FF",
-            status=self.status,
+            status=cls.status,
         )
 
-        self.prefix, _ = Prefix.objects.get_or_create(
+        cls.prefix, _ = Prefix.objects.get_or_create(
             network="192.168.1.0",
             prefix_length=24,
             namespace=Namespace.objects.get(name="Global"),
-            status=self.status,
+            status=cls.status,
             type="network",
         )
-        self.vm_ip, _ = IPAddress.objects.get_or_create(host="192.168.1.1", mask_length=24, status=self.status)
-        self.vm_ip.vm_interfaces.set([self.vm_interface_1])
+        cls.vm_ip, _ = IPAddress.objects.get_or_create(host="192.168.1.1", mask_length=24, status=cls.status)
+        cls.vm_ip.vm_interfaces.set([cls.vm_interface_1])
 
     def test_load(self):
         self.test_virtualmachine.primary_ip4 = self.vm_ip

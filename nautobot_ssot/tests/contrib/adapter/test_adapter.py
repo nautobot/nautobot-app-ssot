@@ -5,6 +5,7 @@ from unittest import skip
 from unittest.mock import MagicMock
 
 from diffsync import ObjectNotFound
+from diffsync.exceptions import ObjectCrudException
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
@@ -18,15 +19,23 @@ from nautobot.ipam import models as ipam_models
 from nautobot.tenancy import models as tenancy_models
 from typing_extensions import TypedDict
 
-from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotAdapter, NautobotModel
-from nautobot_ssot.tests.contrib_base_classes import (
+from nautobot_ssot.contrib import (
+    CustomFieldAnnotation,
+    NautobotAdapter,
+    NautobotModel,
+)
+from nautobot_ssot.tests.contrib.base import (
     NautobotCable,
     NautobotDevice,
+    NautobotDeviceBay,
+    NautobotDeviceInvalidChildAttr,
+    NautobotDeviceWithChildBay,
     NautobotTenant,
     NautobotTenantGroup,
     ProviderModelCustomRelationship,
     TenantModelCustomManyTomanyRelationship,
     TenantModelCustomRelationship,
+    TenantToOneProviderModel,
     TestAdapter,
     TestCaseWithDeviceData,
 )
@@ -45,7 +54,7 @@ class NautobotAdapterOneToOneRelationTests(TestCaseWithDeviceData):
             device = NautobotDevice
 
         device = dcim_models.Device.objects.first()
-        interface = dcim_models.Interface.objects.get(name="Loopback 1", device=device)
+        interface = dcim_models.Interface.objects.get(name="Ethernet1", device=device)
         interface.ip_addresses.add(self.ip_address_1)
         device.primary_ip4 = self.ip_address_1
         device.validated_save()
@@ -57,14 +66,47 @@ class NautobotAdapterOneToOneRelationTests(TestCaseWithDeviceData):
         self.assertEqual(self.ip_address_1.host, diffsync_device.primary_ip4__host)
         self.assertEqual(self.ip_address_1.mask_length, diffsync_device.primary_ip4__mask_length)
 
+    def test_one_to_one_relationship_children(self):
+        """Test that loading a one-to-one relationship works in children."""
+
+        class Adapter(NautobotAdapter):
+            """Adapter for loading one-to-one relationship fields on a device children."""
+
+            top_level = ("device",)
+            device = NautobotDeviceWithChildBay
+            device_bay = NautobotDeviceBay
+
+        device = dcim_models.Device.objects.first()
+        parent_device = dcim_models.Device.objects.last()
+        dcim_models.DeviceBay.objects.create(name="Slot0", device=parent_device, installed_device=device)
+
+        adapter = Adapter(job=MagicMock())
+        adapter.load()
+        diffsync_device = adapter.get(NautobotDeviceWithChildBay, {"name": device.name})
+        self.assertTrue(device.parent_bay.name in diffsync_device.parent_bay[0])
+
+    def test_invalid_children_attr_raises(self):
+        """Test that invalid attribute name in _children raises AttributeError."""
+
+        class Adapter(NautobotAdapter):
+            """Adapter with invalid children field."""
+
+            top_level = ("device",)
+            device = NautobotDeviceInvalidChildAttr
+            device_bay = NautobotDeviceBay
+
+        adapter = Adapter(job=MagicMock())
+        with self.assertRaises(AttributeError):
+            adapter.load()
+
 
 class NautobotAdapterGenericRelationTests(TestCaseWithDeviceData):
     """Testing the generic relation capability of the 'NautobotAdapter' class."""
 
     def setUp(self):
         dcim_models.Cable.objects.create(
-            termination_a=dcim_models.Interface.objects.all().filter(name="Loopback 1").first(),
-            termination_b=dcim_models.Interface.objects.all().filter(name="Loopback 1").last(),
+            termination_a=dcim_models.Interface.objects.all().filter(name="Ethernet1").first(),
+            termination_b=dcim_models.Interface.objects.all().filter(name="Ethernet1").last(),
             status=extras_models.Status.objects.get(name="Active"),
         )
         super().setUp()
@@ -88,11 +130,11 @@ class NautobotAdapterGenericRelationTests(TestCaseWithDeviceData):
         expected = {
             "termination_a__app_label": "dcim",
             "termination_a__model": "interface",
-            "termination_a__name": "Loopback 1",
+            "termination_a__name": "Ethernet1",
             "termination_a__device__name": "sw01",
             "termination_b__app_label": "dcim",
             "termination_b__model": "interface",
-            "termination_b__name": "Loopback 1",
+            "termination_b__name": "Ethernet1",
             "termination_b__device__name": "sw02",
         }
         for key, value in expected.items():
@@ -407,3 +449,216 @@ class AdapterCustomRelationshipSortingTest(NautobotAdapter):
             "name",
         ),
     )
+
+
+class CustomFieldAnnotationValidationTest(TestCase):
+    """Cover validation on the CustomFieldAnnotation dataclass."""
+
+    def test_requires_key_or_name(self):
+        """A CustomFieldAnnotation with neither 'key' nor 'name' raises ValueError."""
+        with self.assertRaises(ValueError):
+            CustomFieldAnnotation()
+
+
+class NautobotAdapterUtilityCoverageTests(TestCase):
+    """Cover small utility / edge branches of NautobotAdapter."""
+
+    def test_progress_logger_disabled_is_noop(self):
+        """With the progress logger disabled, log_loaded_objects does nothing."""
+        adapter = TestAdapter(job=MagicMock())
+        adapter.enable_progress_logger = False
+        adapter.log_loaded_objects()
+        self.assertEqual(adapter.objects_loaded, 0)
+        adapter.job.logger.info.assert_not_called()
+
+    def test_progress_logger_logs_on_interval(self):
+        """With the progress logger enabled, log_loaded_objects logs when the interval is hit."""
+        adapter = TestAdapter(job=MagicMock())
+        adapter.enable_progress_logger = True
+        adapter.progress_logger_interval = 1
+        adapter.log_loaded_objects()
+        self.assertEqual(adapter.objects_loaded, 1)
+        adapter.job.logger.info.assert_called_once()
+
+    def test_validate_adapter_requires_top_level(self):
+        """Instantiating an adapter without 'top_level' raises ValueError."""
+
+        class NoTopLevelAdapter(NautobotAdapter):
+            """Adapter missing the required 'top_level' attribute."""
+
+        with self.assertRaises(ValueError):
+            NoTopLevelAdapter(job=MagicMock())
+
+    def test_get_parameter_names(self):
+        """_get_parameter_names returns the model's synced attributes."""
+        self.assertEqual(
+            NautobotAdapter._get_parameter_names(NautobotTenant),  # pylint: disable=protected-access
+            NautobotTenant.get_synced_attributes(),
+        )
+
+    def test_invalidate_cache_is_deprecated(self):
+        """The deprecated invalidate_cache method logs a warning and delegates to the cache."""
+        adapter = TestAdapter(job=MagicMock())
+        adapter.invalidate_cache()
+        adapter.job.logger.warning.assert_called_once()
+
+    def test_get_diffsync_class_missing_attribute(self):
+        """Requesting a diffsync class not defined on the adapter raises AttributeError.
+
+        (diffsync validates 'top_level' at class-definition time, so this is exercised via a
+        direct call, mirroring how child-model names are resolved at runtime.)
+        """
+        adapter = TestAdapter(job=MagicMock())
+        with self.assertRaises(AttributeError):
+            adapter._get_diffsync_class("does_not_exist")  # pylint: disable=protected-access
+
+
+class NautobotAdapterCustomLoaderTest(TestCase):
+    """Cover the per-parameter custom loader (load_param_<field>) branch."""
+
+    def test_load_param_custom_loader(self):
+        """A 'load_param_<field>' method on the adapter overrides the loaded value."""
+
+        class TenantModel(NautobotModel):
+            """Tenant model with a normal field served by a custom loader."""
+
+            _model = tenancy_models.Tenant
+            _modelname = "tenant"
+            _identifiers = ("name",)
+            _attributes = ("description",)
+
+            name: str
+            description: Optional[str] = None
+
+        class Adapter(NautobotAdapter):
+            """Adapter providing a custom loader for 'description'."""
+
+            top_level = ("tenant",)
+            tenant = TenantModel
+
+            def load_param_description(self, _parameter_name, _database_object):
+                """Return a fixed value to exercise the custom-loader branch."""
+                return "custom-loaded"
+
+        tenancy_models.Tenant.objects.create(name="LoaderTenant", description="original")
+        adapter = Adapter(job=MagicMock())
+        adapter.load()
+        self.assertEqual(adapter.get(TenantModel, "LoaderTenant").description, "custom-loaded")
+
+
+class NautobotAdapterPydanticErrorTest(TestCase):
+    """Cover the pydantic-ValidationError -> ValueError translation during load."""
+
+    def test_pydantic_validation_error_becomes_value_error(self):
+        """A value that fails pydantic validation during load is re-raised as ValueError."""
+
+        class BadTenantModel(NautobotModel):
+            """Model whose 'description' is typed int, but the DB holds a non-numeric string."""
+
+            _model = tenancy_models.Tenant
+            _modelname = "tenant"
+            _identifiers = ("name",)
+            _attributes = ("description",)
+
+            name: str
+            description: int
+
+        class Adapter(NautobotAdapter):
+            """Adapter for the deliberately mistyped model."""
+
+            top_level = ("tenant",)
+            tenant = BadTenantModel
+
+        tenancy_models.Tenant.objects.create(name="BadTenant", description="not-an-int")
+        adapter = Adapter(job=MagicMock())
+        with self.assertRaises(ValueError):
+            adapter.load()
+
+
+class TenantToOneDestinationAdapter(NautobotAdapter):
+    """Adapter loading the destination-side to-one custom relationship model."""
+
+    top_level = ("tenant",)
+    tenant = TenantToOneProviderModel
+
+
+class NautobotAdapterCustomRelationshipEdgeTests(TestCase):
+    """Cover the one-to-many DESTINATION and foreign-key custom-relationship edge branches."""
+
+    def setUp(self):
+        self.relationship = extras_models.Relationship.objects.create(
+            label="Test Relationship",
+            type=RelationshipTypeChoices.TYPE_ONE_TO_MANY,
+            source_type=ContentType.objects.get_for_model(circuits_models.Provider),
+            destination_type=ContentType.objects.get_for_model(tenancy_models.Tenant),
+        )
+        self.tenant = tenancy_models.Tenant.objects.create(name="Edge Tenant")
+
+    def _associate(self, provider_name):
+        provider = circuits_models.Provider.objects.create(name=provider_name)
+        extras_models.RelationshipAssociation.objects.create(
+            relationship=self.relationship, source=provider, destination=self.tenant
+        )
+        return provider
+
+    def test_to_one_destination_without_association_is_none(self):
+        """A destination-side to-one field with no association loads as None."""
+        adapter = TenantToOneDestinationAdapter(job=MagicMock())
+        adapter.load()
+        self.assertIsNone(adapter.get(TenantToOneProviderModel, "Edge Tenant").provider)
+
+    def test_to_one_destination_single_association(self):
+        """A destination-side to-one field with one association loads as a single dict."""
+        self._associate("Edge Provider")
+        adapter = TenantToOneDestinationAdapter(job=MagicMock())
+        adapter.load()
+        self.assertEqual(adapter.get(TenantToOneProviderModel, "Edge Tenant").provider, {"name": "Edge Provider"})
+
+    def test_to_one_destination_multiple_associations_raises(self):
+        """More than one association for a one-to-many destination raises ObjectCrudException."""
+        self._associate("Provider 1")
+        self._associate("Provider 2")
+        adapter = TenantToOneDestinationAdapter(job=MagicMock())
+        with self.assertRaises(ObjectCrudException):
+            adapter.load()
+
+    def test_foreign_key_custom_relationship_without_association_is_none(self):
+        """A foreign-key custom-relationship field with no association loads as None."""
+        adapter = CustomRelationShipTestAdapterSource(job=MagicMock())
+        adapter.load()
+        self.assertIsNone(adapter.get(TenantModelCustomRelationship, "Edge Tenant").provider__name)
+
+    def test_foreign_key_custom_relationship_multiple_associations_warns(self):
+        """More than one association for a foreign-key custom relationship logs a warning."""
+        self._associate("Provider 1")
+        self._associate("Provider 2")
+        adapter = CustomRelationShipTestAdapterSource(job=MagicMock())
+        adapter.load()
+        adapter.job.logger.warning.assert_called()
+        self.assertIsNotNone(adapter.get(TenantModelCustomRelationship, "Edge Tenant").provider__name)
+
+
+class _CoverageJobMeta:
+    data_source = "Coverage Source"
+
+
+class _CoverageJob:
+    """Minimal job stand-in exposing Meta.data_source for get_or_create_metadatatype."""
+
+    Meta = _CoverageJobMeta
+
+    def __init__(self):
+        self.logger = MagicMock()
+
+
+class NautobotAdapterMetadataTypeChildrenTest(TestCase):
+    """Cover the child-model loop in get_or_create_metadatatype."""
+
+    def test_children_models_included(self):
+        """get_or_create_metadatatype walks child models and records their scope fields."""
+        adapter = TestAdapter(job=_CoverageJob())
+        adapter.get_or_create_metadatatype()
+        self.assertIsNotNone(adapter.metadata_type)
+        # The top-level model and its child model both get scope fields recorded.
+        self.assertIn(NautobotTenantGroup, adapter.metadata_scope_fields)
+        self.assertIn(NautobotTenant, adapter.metadata_scope_fields)

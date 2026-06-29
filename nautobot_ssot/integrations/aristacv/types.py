@@ -13,6 +13,7 @@ class CloudVisionAppConfig(NamedTuple):
     cvp_password: str
     token: str
     delete_devices_on_sync: bool
+    delete_ipaddresses_on_sync: bool
     delete_namespaces_on_sync: bool
     delete_prefixes_on_sync: bool
     from_cloudvision_default_site: str

@@ -9,6 +9,7 @@ from typing import Dict, List, Type
 import pydantic
 from diffsync import Adapter, DiffSyncModel
 from diffsync.exceptions import ObjectCrudException
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Model
 from nautobot.extras.choices import RelationshipTypeChoices
@@ -19,6 +20,7 @@ from nautobot_ssot.contrib.base import BaseNautobotAdapter, BaseNautobotModel
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
+    ObjectMetadataAnnotation,
     RelationshipSideEnum,
 )
 from nautobot_ssot.utils.cache import ORMCache
@@ -29,8 +31,10 @@ from nautobot_ssot.utils.orm import (
 )
 from nautobot_ssot.utils.typing import get_inner_type
 
+CONTRIB_CONFIG = getattr(settings, "PLUGINS_CONFIG", {}).get("nautobot_ssot", {}).get("contrib", {})
 
-class NautobotAdapter(Adapter, BaseNautobotAdapter):
+
+class NautobotAdapter(Adapter, BaseNautobotAdapter):  # pylint: disable=too-many-instance-attributes
     """
     Adapter for loading data from Nautobot through the ORM.
 
@@ -46,6 +50,19 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         self.metadata_type = None
         self.metadata_scope_fields = {}
         self.validate_adapter()
+
+        # Progress Logger
+        self.enable_progress_logger = CONTRIB_CONFIG.get("enable_progress_logger", False)
+        self.progress_logger_interval = CONTRIB_CONFIG.get("progress_logger_interval", 1000)
+        self.objects_loaded = 0
+
+    def log_loaded_objects(self, increment: int = 1):
+        """Log current progress of SSoT."""
+        if not self.enable_progress_logger or self.progress_logger_interval == 0:
+            return
+        self.objects_loaded += increment
+        if self.objects_loaded % self.progress_logger_interval == 0:
+            self.job.logger.info(f"SSoT Contrib Progress: Loaded {self.objects_loaded} objects from database.")
 
     def validate_adapter(self):
         """Validate adapter is properly built."""
@@ -83,6 +100,11 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
             field_key = annotation.key or annotation.name
             if field_key in database_object.cf:
                 parameters[parameter_name] = database_object.cf[field_key]
+            return
+
+        # Handle ObjectMetadata-backed fields. See ObjectMetadataAnnotation docstring for more details.
+        if isinstance(annotation, ObjectMetadataAnnotation):
+            parameters[parameter_name] = self._get_object_metadata_value(database_object, annotation)
             return
 
         is_custom_relationship = isinstance(annotation, CustomRelationshipAnnotation)
@@ -123,6 +145,18 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         else:
             parameters[parameter_name] = getattr(database_object, parameter_name)
 
+    @staticmethod
+    def _get_object_metadata_value(database_object, annotation: ObjectMetadataAnnotation):
+        """Return the value of the ObjectMetadata matching the annotation, or None.
+
+        Reads from the prefetched `associated_object_metadata` relation, so callers must
+        prefetch it (handled by `NautobotModel._get_queryset`) to avoid N+1 queries.
+        """
+        for metadata in database_object.associated_object_metadata.all():
+            if metadata.metadata_type.name == annotation.metadata_type_name:
+                return metadata.value
+        return None
+
     def _load_single_object(self, database_object, diffsync_model, parameter_names):
         """Load a single diffsync object from a single database object."""
         parameters = {}
@@ -134,13 +168,23 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
         except pydantic.ValidationError as error:
             raise ValueError(f"Parameters: {parameters}") from error
         self.add(diffsync_model_instance)
+        self.log_loaded_objects()
         self._handle_children(database_object, diffsync_model_instance)
         return diffsync_model_instance
 
     def _handle_children(self, database_object, diffsync_model: BaseNautobotModel):
         """Recurse through all the children for this model."""
+        available_fields = {field.name for field in diffsync_model._model._meta.get_fields()}
         for children_parameter, children_field in diffsync_model._children.items():
-            children = getattr(database_object, children_field).all()
+            if children_field not in available_fields:
+                raise AttributeError(
+                    f"'{diffsync_model._model.__name__}' has no field '{children_field}'. "
+                    f"Check the '_children' mapping on '{diffsync_model.__class__.__name__}'."
+                )
+            if not hasattr(database_object, children_field):  # covers OneToOneField with no related object
+                continue
+            _children = getattr(database_object, children_field)
+            children = _children.all() if hasattr(_children, "all") else [_children]
             diffsync_model_child: BaseNautobotModel = self._get_diffsync_class(model_name=children_parameter)
             for child in children:
                 parameter_names = diffsync_model_child.get_synced_attributes()
@@ -286,7 +330,7 @@ class NautobotAdapter(Adapter, BaseNautobotAdapter):
             return None
         if association_count > 1:
             self.job.logger.warning(
-                f"Foreign key ({database_object.__name__}.{parameter_name}) "
+                f"Foreign key ({type(database_object).__name__}.{parameter_name}) "
                 "custom relationship matched two associations - this shouldn't happen."
             )
 

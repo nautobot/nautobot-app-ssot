@@ -1,12 +1,16 @@
 """Unit tests for the ServiceNowDiffSync adapter class."""
 
 from collections import defaultdict
+from itertools import islice
+from unittest.mock import MagicMock
 
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.extras.models import JobResult
 
+from nautobot_ssot.integrations.servicenow.diffsync import models
 from nautobot_ssot.integrations.servicenow.diffsync.adapter_servicenow import ServiceNowDiffSync
 from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
+from nautobot_ssot.integrations.servicenow.servicenow import ServiceNowClient
 
 
 class MockServiceNowClient:
@@ -14,15 +18,17 @@ class MockServiceNowClient:
 
     def __init__(self):
         self.query_params = defaultdict(list)
+        self.field_params = defaultdict(list)
 
     def get_by_sys_id(self, table, sys_id):  # pylint: disable=unused-argument
         """Get a record with a given sys_id from a given table."""
         return None
 
-    def all_table_entries(self, table, query={}):  # pylint: disable=dangerous-default-value
+    def all_table_entries(self, table, query={}, fields=None, limit=10000):  # pylint: disable=dangerous-default-value,unused-argument
         """Iterator over all records in a given table."""
 
         self.query_params[table].append(query)
+        self.field_params[table].append(fields)
 
         if table == "cmn_location":
             yield from [
@@ -575,7 +581,7 @@ class MockServiceNowClient:
             yield from []
 
 
-class ServiceNowDiffSyncTestCase(TransactionTestCase):
+class ServiceNowDiffSyncTestCase(TestCase):
     """Test the ServiceNowDiffSync adapter class."""
 
     job_class = ServiceNowDataTarget
@@ -631,3 +637,172 @@ class ServiceNowDiffSyncTestCase(TransactionTestCase):
 
         snds.load()
         self.assertEqual(mock_snow_client.query_params["core_company"], [{"manufacturer": True}])
+        self.assertEqual(mock_snow_client.field_params["core_company"], [["manufacturer", "name", "sys_id"]])
+
+
+class ServiceNowClientPaginationTestCase(TestCase):
+    """Test that ServiceNowClient.all_table_entries paginates the full result set."""
+
+    @staticmethod
+    def _client_returning(rows):
+        client = ServiceNowClient.__new__(ServiceNowClient)
+        calls = []
+
+        def resource(api_path=None):  # pylint: disable=unused-argument
+            res = MagicMock()
+
+            def get(query=None, fields=None, limit=None, offset=None, stream=None):  # pylint: disable=unused-argument
+                calls.append({"fields": fields, "limit": limit, "offset": offset})
+                page = MagicMock()
+                page.all.return_value = iter(rows[offset : offset + limit])
+                return page
+
+            res.get.side_effect = get
+            return res
+
+        client.resource = resource
+        return client, calls
+
+    def test_paginates_beyond_single_page(self):
+        """A table larger than one page is returned in full, not truncated at the page size."""
+        rows = [{"sys_id": f"id{i}"} for i in range(25001)]
+        client, calls = self._client_returning(rows)
+        result = list(client.all_table_entries("cmdb_ci", fields=["sys_id"], limit=10000))
+        self.assertEqual(len(result), 25001)
+        self.assertEqual([row["sys_id"] for row in result], [row["sys_id"] for row in rows])
+        self.assertEqual([call["offset"] for call in calls], [0, 10000, 20000, 25001])
+        self.assertTrue(all(call["fields"] == ["sys_id"] for call in calls))
+
+    def test_returns_all_when_server_caps_response_below_limit(self):
+        """ServiceNow may return fewer rows than requested; offset must advance by the count actually returned."""
+        server_cap = 4576
+        rows = [{"sys_id": f"id{i}"} for i in range(12934)]
+        client = ServiceNowClient.__new__(ServiceNowClient)
+        calls = []
+
+        def resource(api_path=None):  # pylint: disable=unused-argument
+            res = MagicMock()
+
+            def get(query=None, fields=None, limit=None, offset=None, stream=None):  # pylint: disable=unused-argument
+                calls.append(offset)
+                returned = min(limit, server_cap)
+                page = MagicMock()
+                page.all.return_value = iter(rows[offset : offset + returned])
+                return page
+
+            res.get.side_effect = get
+            return res
+
+        client.resource = resource
+        result = list(client.all_table_entries("incident", fields=["sys_id"], limit=10000))
+        self.assertEqual(len(result), 12934)
+        self.assertEqual([row["sys_id"] for row in result], [row["sys_id"] for row in rows])
+        self.assertEqual(calls, [0, 4576, 9152, 12934])
+
+    def test_terminates_on_exact_page_multiple(self):
+        """A row count that is an exact multiple of the page size still terminates."""
+        rows = [{"sys_id": f"id{i}"} for i in range(10000)]
+        client, calls = self._client_returning(rows)
+        result = list(client.all_table_entries("t", limit=10000))
+        self.assertEqual(len(result), 10000)
+        self.assertEqual(len(calls), 2)
+
+    def test_default_fields_preserves_all_columns_behavior(self):
+        """With no fields specified, sysparm_fields stays empty so all columns are returned as before."""
+        rows = [{"sys_id": "id0"}]
+        client, calls = self._client_returning(rows)
+        list(client.all_table_entries("t"))
+        self.assertEqual(calls[0]["fields"], [])
+        self.assertEqual(calls[0]["limit"], 10000)
+
+    def test_streams_page_without_materializing(self):
+        """Each page is consumed lazily; reading a few records does not pull the whole page into memory."""
+        pages = []
+
+        class CountingPage:
+            """Page that records how many of its rows were actually pulled."""
+
+            def __init__(self, count):
+                self.count = count
+                self.pulled = 0
+
+            def all(self):
+                """Lazily yield rows, counting each one as it is consumed."""
+                for i in range(self.count):
+                    self.pulled += 1
+                    yield {"sys_id": f"id{i}"}
+
+        client = ServiceNowClient.__new__(ServiceNowClient)
+
+        def resource(api_path=None):  # pylint: disable=unused-argument
+            res = MagicMock()
+
+            def get(query=None, fields=None, limit=None, offset=None, stream=None):  # pylint: disable=unused-argument
+                page = CountingPage(limit)
+                pages.append(page)
+                return page
+
+            res.get.side_effect = get
+            return res
+
+        client.resource = resource
+        first_three = list(islice(client.all_table_entries("t", limit=10000), 3))
+        self.assertEqual(len(first_three), 3)
+        self.assertEqual(len(pages), 1)
+        self.assertEqual(pages[0].pulled, 3)
+
+
+class FieldsForMappingsTestCase(TestCase):
+    """Test sysparm_fields derivation from the YAML mappings."""
+
+    def test_derives_columns_and_reference_keys(self):
+        """Derived fields include sys_id, every mapped column, and every reference key."""
+        mappings = [
+            {
+                "field": "manufacturer_name",
+                "reference": {"key": "manufacturer", "table": "core_company", "column": "name"},
+            },
+            {"field": "model_name", "column": "name"},
+            {"field": "model_number", "column": "model_number"},
+        ]
+        self.assertEqual(
+            ServiceNowDiffSync.fields_for_mappings(mappings),
+            ["manufacturer", "model_number", "name", "sys_id"],
+        )
+
+
+class ServiceNowModelUpdateTestCase(TestCase):
+    """Test that ServiceNowCRUDMixin.update writes and verifies only the mapped, changed fields."""
+
+    ENTRY = {"table": "cmdb_ci_ip_switch", "mappings": [{"field": "asset_tag", "column": "asset_tag"}]}
+    # ServiceNow returns the full record on update, including a server-managed timestamp that always changes.
+    UPDATE_RESULT = {"sys_id": "abc123", "asset_tag": "NEW-TAG", "sys_updated_on": "2026-06-23 12:23:52"}
+
+    def _device(self):
+        resource = MagicMock()
+        result = MagicMock()
+        result.one.return_value = self.UPDATE_RESULT
+        resource.update.return_value = result
+        client = MagicMock()
+        client.resource.return_value = resource
+        adapter = ServiceNowDiffSync(client=client, job=MagicMock())
+        adapter.job.debug = False
+        adapter.mapping_data = {"device": self.ENTRY}
+        return models.Device(name="switch1", adapter=adapter, sys_id="abc123"), resource
+
+    def test_update_keys_on_known_sys_id(self):
+        """The update is keyed on the sys_id captured at load time, not re-queried by identifier."""
+        device, resource = self._device()
+        device.update({"asset_tag": "NEW-TAG"})
+        self.assertEqual(resource.update.call_args.kwargs["query"], {"sys_id": "abc123"})
+
+    def test_update_payload_only_includes_mapped_changed_fields(self):
+        """Only the mapped, changed column is sent — not the full existing record or server-managed fields."""
+        device, resource = self._device()
+        device.update({"asset_tag": "NEW-TAG"})
+        self.assertEqual(resource.update.call_args.kwargs["payload"], {"asset_tag": "NEW-TAG"})
+
+    def test_update_tolerates_server_managed_timestamp_change(self):
+        """A changed sys_updated_on in the response must not raise ObjectNotUpdated for a successful write."""
+        device, _ = self._device()
+        self.assertEqual(device.update({"asset_tag": "NEW-TAG"}), device)

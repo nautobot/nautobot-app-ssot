@@ -230,12 +230,12 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                             location=self.resolve_location_name(network_id),
                         )
                         if port_uplink_settings["pppoe"]["enabled"]:
-                            mgmt_ip = port_svis["address"]
                             host_addr = port_svis["address"]
                             mask_length = "32"
                         else:
+                            host_addr, mask_length = port_svis["address"].split("/")
+                        if uplink_status == "Active":
                             mgmt_ip = port_svis["address"]
-                            host_addr, mask_length = mgmt_ip.split("/")
                         self.load_ipaddress(
                             host_addr=host_addr,
                             mask_length=mask_length,
@@ -251,43 +251,42 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     primary_found = True
         if not mgmt_ip and settings.PLUGINS_CONFIG["nautobot_ssot"].get("meraki_allow_dhcp_mgmt_ips"):
             uplink_ports = self.conn.get_org_uplink_addresses_by_device(serial=serial)
-            mgmt_ip, mgmt_port_name = get_mgmt_port_from_uplinks(mgmt_ip=lan_ip, uplink_ports=uplink_ports)
-            mgmt_ip_mask_length = (
-                32  # In this case the subnet mask will be set to 32 since we can't get it from the device configuration
-            )
-            net_prefix = ipaddress_interface(ip=mgmt_ip, attr="network.with_prefixlen")
-            try:
-                self.get(self.port, {"name": mgmt_port_name, "device": device.name})
-            except ObjectNotFound:
-                mgmt_port = self.port(
-                    name=mgmt_port_name,
-                    device=device.name,
-                    management=True,
-                    enabled=True,
-                    port_type="1000base-t",
-                    port_status="Active",
-                    tagging=False,
-                    uuid=None,
-                )
-                self.add(mgmt_port)
-                device.add_child(mgmt_port)
-            if mgmt_ip:
-                self.load_prefix(prefix=net_prefix)
-                self.load_prefix_location(
-                    prefix=net_prefix,
-                    location=self.resolve_location_name(network_id),
-                )
-                self.load_ipaddress(
-                    host_addr=mgmt_ip,
-                    mask_length=mgmt_ip_mask_length,
-                    prefix=net_prefix,
-                )
-                self.load_ipassignment(
-                    host_address=mgmt_ip,
-                    dev_name=device.name,
-                    port=mgmt_port_name,
-                    primary=True,
-                )
+            if uplink_ports:  # Find the mgmt interface from the uplink interfaces
+                mgmt_ip, mgmt_port_name = get_mgmt_port_from_uplinks(mgmt_ip=lan_ip, uplink_ports=uplink_ports)
+                mgmt_ip_mask_length = 32  # In this case the subnet mask will be set to 32 since we can't get it from the device configuration
+                net_prefix = ipaddress_interface(ip=mgmt_ip, attr="network.with_prefixlen")
+                try:
+                    self.get(self.port, {"name": mgmt_port_name, "device": device.name})
+                except ObjectNotFound:
+                    mgmt_port = self.port(
+                        name=mgmt_port_name,
+                        device=device.name,
+                        management=True,
+                        enabled=True,
+                        port_type="1000base-t",
+                        port_status="Active",
+                        tagging=False,
+                        uuid=None,
+                    )
+                    self.add(mgmt_port)
+                    device.add_child(mgmt_port)
+                if mgmt_ip:
+                    self.load_prefix(prefix=net_prefix)
+                    self.load_prefix_location(
+                        prefix=net_prefix,
+                        location=self.resolve_location_name(network_id),
+                    )
+                    self.load_ipaddress(
+                        host_addr=mgmt_ip,
+                        mask_length=mgmt_ip_mask_length,
+                        prefix=net_prefix,
+                    )
+                    self.load_ipassignment(
+                        host_address=mgmt_ip,
+                        dev_name=device.name,
+                        port=mgmt_port_name,
+                        primary=True,
+                    )
 
         if lan_ports:
             self.process_lan_ports(device, lan_ports)

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, call, patch
 
 from diffsync.enum import DiffSyncModelFlags
 from django.contrib.contenttypes.models import ContentType
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device, Location, LocationType
 from nautobot.extras.models import JobResult, Role, Status
 
@@ -14,51 +14,50 @@ from nautobot_ssot.integrations.solarwinds.diffsync.adapters.solarwinds import S
 from nautobot_ssot.integrations.solarwinds.jobs import SolarWindsDataSource
 
 
-class TestSolarWindsAdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-public-methods
+class TestSolarWindsAdapterTestCase(TestCase):  # pylint: disable=too-many-public-methods
     """Test NautobotSsotSolarWindsAdapter class."""
 
     databases = ("default", "job_logs")
 
-    def setUp(self):  # pylint: disable=invalid-name
+    @classmethod
+    def setUpTestData(cls):  # pylint: disable=invalid-name
         """Initialize test case."""
-        self.status_active = Status.objects.get_or_create(name="Active")[0]
-        self.status_active.content_types.add(ContentType.objects.get_for_model(Device))
+        cls.status_active = Status.objects.get_or_create(name="Active")[0]
+        cls.status_active.content_types.add(ContentType.objects.get_for_model(Device))
 
-        self.solarwinds_client = MagicMock()
-        self.solarwinds_client.get_top_level_containers.return_value = fix.GET_TOP_LEVEL_CONTAINERS_FIXTURE
-        self.solarwinds_client.get_filtered_container_ids.return_value = {"HQ": 1}
-        self.solarwinds_client.get_container_nodes.side_effect = fix.get_container_nodes
+        cls.solarwinds_client = MagicMock()
+        cls.solarwinds_client.get_top_level_containers.return_value = fix.GET_TOP_LEVEL_CONTAINERS_FIXTURE
+        cls.solarwinds_client.get_filtered_container_ids.return_value = {"HQ": 1}
+        cls.solarwinds_client.get_container_nodes.side_effect = fix.get_container_nodes
 
-        self.containers = "HQ"
+        cls.containers = "HQ"
 
         region_type, _ = LocationType.objects.get_or_create(name="Region")
-        self.location_type, _ = LocationType.objects.update_or_create(name="Site", defaults={"parent": region_type})
-        self.location_type.content_types.add(ContentType.objects.get_for_model(Device))
+        cls.location_type, _ = LocationType.objects.update_or_create(name="Site", defaults={"parent": region_type})
+        cls.location_type.content_types.add(ContentType.objects.get_for_model(Device))
 
-        self.parent, _ = Location.objects.get_or_create(
-            name="USA", location_type=region_type, status=self.status_active
-        )
+        cls.parent, _ = Location.objects.get_or_create(name="USA", location_type=region_type, status=cls.status_active)
 
-        self.job = SolarWindsDataSource()
-        self.job.debug = True
-        self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, task_name="Fake task", user=None, id=uuid.uuid4()
+        cls.job = SolarWindsDataSource()
+        cls.job.debug = True
+        cls.job.job_result = JobResult.objects.create(
+            name=cls.job.class_path, task_name="Fake task", user=None, id=uuid.uuid4()
         )
-        self.job.logger = MagicMock()
-        self.job.logger.debug = MagicMock()
-        self.job.logger.error = MagicMock()
-        self.job.logger.info = MagicMock()
-        self.job.logger.warning = MagicMock()
-        self.job.location_type = self.location_type
-        self.job.location_override = None
-        self.job.parent = self.parent
-        self.job.default_role = Role.objects.get_or_create(name="Router")[0]
-        self.solarwinds = SolarWindsAdapter(
-            job=self.job,
+        cls.job.logger = MagicMock()
+        cls.job.logger.debug = MagicMock()
+        cls.job.logger.error = MagicMock()
+        cls.job.logger.info = MagicMock()
+        cls.job.logger.warning = MagicMock()
+        cls.job.location_type = cls.location_type
+        cls.job.location_override = None
+        cls.job.parent = cls.parent
+        cls.job.default_role = Role.objects.get_or_create(name="Router")[0]
+        cls.solarwinds = SolarWindsAdapter(
+            job=cls.job,
             sync=None,
-            client=self.solarwinds_client,
-            containers=self.containers,
-            location_type=self.location_type,
+            client=cls.solarwinds_client,
+            containers=cls.containers,
+            location_type=cls.location_type,
         )
 
     def test_data_loading_wo_parent(self):

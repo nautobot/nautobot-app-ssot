@@ -2,13 +2,16 @@
 
 from datetime import datetime
 from unittest import skip
+from unittest.mock import MagicMock
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
+from django.http import Http404
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
-from nautobot.apps.testing import ViewTestCases
+from nautobot.apps.testing import TestCase, ViewTestCases
+from nautobot.apps.ui import ObjectTextPanel, SectionChoices
 from nautobot.core.testing.utils import disable_warnings
 from nautobot.extras.models import Job, JobResult
 from nautobot.users.models import ObjectPermission
@@ -16,8 +19,13 @@ from nautobot.users.models import ObjectPermission
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
 from nautobot_ssot.jobs.examples import ExampleDataSource
 from nautobot_ssot.models import Sync, SyncLogEntry
-from nautobot_ssot.tests.utils.job_helpers import get_test_job_model
-from nautobot_ssot.views import SyncLogEntryUIViewSet
+from nautobot_ssot.tests.utils.job_helpers import create_example_sync, get_test_job_model
+from nautobot_ssot.views import (
+    DataSourceTargetView,
+    DiffPanel,
+    StatisticsObjectPanel,
+    SyncLogEntryUIViewSet,
+)
 
 
 class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
@@ -135,6 +143,16 @@ class SyncViewsTestCase(  # pylint: disable=too-many-ancestors
         response = self.client.get(url)
         self.assertHttpStatus(response, 200)
 
+    def test_config_view_without_permission(self):
+        """The SSOT config view enforces permissions."""
+        with disable_warnings("django.request"):
+            self.assertHttpStatus(self.client.get(reverse("plugins:nautobot_ssot:config")), 403)
+
+    def test_config_view_with_permission(self):
+        """The SSOT config view renders for a permitted user."""
+        self.add_permissions("nautobot_ssot.view_ssotconfig")
+        self.assertHttpStatus(self.client.get(reverse("plugins:nautobot_ssot:config")), 200)
+
 
 class SyncLogEntryViewsTestCase(ViewTestCases.ListObjectsViewTestCase):  # pylint: disable=too-many-ancestors
     """Test views related to the SyncLogEntry model."""
@@ -215,3 +233,43 @@ class SyncLogEntryViewsTestCase(ViewTestCases.ListObjectsViewTestCase):  # pylin
             1,
             "Accessing sync.diff should trigger an additional query since it wasn't loaded in the original queryset",
         )
+
+
+class SSoTViewHelpersTestCase(TestCase):
+    """Unit tests for view panels and helper methods."""
+
+    def setUp(self):
+        """Create a Sync with a diff for panel rendering."""
+        self.sync = create_example_sync(diff={"region": {"ams": {"+": {"name": "Amsterdam"}}}})
+
+    def test_diff_panel_get_value_without_request(self):
+        """DiffPanel falls back to the non-paginated renderer when no request is in context."""
+        panel = DiffPanel(
+            weight=300,
+            section=SectionChoices.FULL_WIDTH,
+            label="Diff",
+            object_field="diff",
+            render_as=ObjectTextPanel.RenderOptions.PLAINTEXT,
+        )
+        result = panel.get_value({"object": self.sync})
+        self.assertIn("region", str(result))
+
+    def test_statistics_panel_render_value_fallthrough(self):
+        """StatisticsObjectPanel delegates unknown keys to the parent renderer."""
+        panel = StatisticsObjectPanel(
+            weight=200,
+            section=SectionChoices.RIGHT_HALF,
+            label="Statistics",
+            fields=["num_created"],
+        )
+        # A key that is not one of the specially handled statistics keys falls through to super().
+        result = panel.render_value("some_other_field", 7, {"object": self.sync})
+        self.assertIsNotNone(result)
+
+    def test_data_source_target_view_extra_context_raises_404(self):
+        """DataSourceTargetView raises Http404 when the job is not a Data Source/Target."""
+        view = DataSourceTargetView()
+        instance = MagicMock()
+        instance.job_class = object  # not a DataSource/DataTarget subclass
+        with self.assertRaises(Http404):
+            view.get_extra_context(request=MagicMock(), instance=instance)

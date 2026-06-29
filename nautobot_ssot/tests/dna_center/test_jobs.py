@@ -6,8 +6,8 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
+from nautobot.apps.testing import TestCase, TransactionTestCase
 from nautobot.core.testing import run_job_for_testing
 from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup, Device, Interface, Location, LocationType
 from nautobot.extras.choices import CustomFieldTypeChoices, SecretsGroupAccessTypeChoices, SecretsGroupSecretTypeChoices

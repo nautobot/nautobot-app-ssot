@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 from diffsync.exceptions import ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import (
     Device,
     DeviceType,
@@ -15,6 +15,7 @@ from nautobot.dcim.models import (
     Manufacturer,
     Platform,
 )
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import JobResult, Role, Status
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
 
@@ -22,7 +23,7 @@ from nautobot_ssot.integrations.dna_center.diffsync.adapters.nautobot import Nau
 from nautobot_ssot.integrations.dna_center.jobs import DnaCenterDataSource
 
 
-class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many-instance-attributes
+class NautobotDiffSyncTestCase(TestCase):  # pylint: disable=too-many-instance-attributes
     """Test the NautobotAdapter class."""
 
     databases = ("default", "job_logs")
@@ -34,17 +35,17 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
         self.hq_site = None
         self.floor_loc = None
 
-    def setUp(self):  # pylint: disable=too-many-locals
+    @classmethod
+    def setUpTestData(cls):  # pylint: disable=too-many-locals
         """Per-test-case data setup."""
-        super().setUp()
-        self.status_active = Status.objects.get(name="Active")
-        self.reg_loc_type = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
-        self.site_loc_type, _ = LocationType.objects.update_or_create(
-            name="Site", defaults={"parent": self.reg_loc_type}
-        )
-        self.site_loc_type.content_types.add(ContentType.objects.get_for_model(Device))
-        self.floor_loc_type = LocationType.objects.get_or_create(name="Floor", parent=self.site_loc_type)[0]
-        self.floor_loc_type.content_types.add(ContentType.objects.get_for_model(Device))
+        super().setUpTestData()
+        populate_status_choices()
+        cls.status_active = Status.objects.get(name="Active")
+        cls.reg_loc_type = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
+        cls.site_loc_type, _ = LocationType.objects.update_or_create(name="Site", defaults={"parent": cls.reg_loc_type})
+        cls.site_loc_type.content_types.add(ContentType.objects.get_for_model(Device))
+        cls.floor_loc_type = LocationType.objects.get_or_create(name="Floor", parent=cls.site_loc_type)[0]
+        cls.floor_loc_type.content_types.add(ContentType.objects.get_for_model(Device))
 
         job = DnaCenterDataSource()
         job.job_result = JobResult.objects.create(
@@ -52,10 +53,10 @@ class NautobotDiffSyncTestCase(TransactionTestCase):  # pylint: disable=too-many
         )
         job.logger.info = MagicMock()
         job.logger.warning = MagicMock()
-        job.area_loctype = self.reg_loc_type
-        job.building_loctype = self.site_loc_type
-        job.floor_loctype = self.floor_loc_type
-        self.nb_adapter = NautobotAdapter(job=job, sync=None)
+        job.area_loctype = cls.reg_loc_type
+        job.building_loctype = cls.site_loc_type
+        job.floor_loctype = cls.floor_loc_type
+        cls.nb_adapter = NautobotAdapter(job=job, sync=None)
 
     def build_nautobot_objects(self):  # pylint: disable=too-many-locals, too-many-statements
         """Build out Nautobot objects to test loading."""

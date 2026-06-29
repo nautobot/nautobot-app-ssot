@@ -13,12 +13,13 @@ from django.core.exceptions import MultipleObjectsReturned, ValidationError
 from django.db.models import ProtectedError, QuerySet
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
-from nautobot.extras.models.metadata import ObjectMetadata
+from nautobot.extras.models.metadata import MetadataType, ObjectMetadata
 
 from nautobot_ssot.contrib.base import BaseNautobotModel
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
+    ObjectMetadataAnnotation,
     RelationshipSideEnum,
 )
 from nautobot_ssot.utils.diffsync import DiffSyncModelUtilityMixin
@@ -47,6 +48,12 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
         prefetch_related_parameters = [
             "__".join(parameter.split("__")[:-1]) for parameter in parameter_names if "__" in parameter
         ]
+        # If any synced attribute is backed by ObjectMetadata, prefetch it (with its type) to avoid N+1 reads.
+        if any(
+            isinstance(cls.get_attr_annotation(parameter), ObjectMetadataAnnotation)
+            for parameter in cls.get_synced_attributes()
+        ):
+            prefetch_related_parameters.append("associated_object_metadata__metadata_type")
         qs = cls.get_queryset()
         return qs.prefetch_related(*prefetch_related_parameters)
 
@@ -134,6 +141,12 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
             obj.cf[annotation.key] = value
             return
 
+        # Handle ObjectMetadata-backed fields. The actual write happens post-save (it needs a pk),
+        # so just stash the pending value here. See ObjectMetadataAnnotation docstring for more details.
+        if isinstance(annotation, ObjectMetadataAnnotation):
+            relationship_fields["object_metadata_fields"][field] = (annotation, value)
+            return
+
         custom_relationship_annotation = annotation if isinstance(annotation, CustomRelationshipAnnotation) else None
 
         # Prepare handling of foreign keys and custom relationship foreign keys.
@@ -219,6 +232,8 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
             "custom_relationship_foreign_keys": defaultdict(dict),
             # Example: TODO
             "custom_relationship_many_to_many_fields": defaultdict(dict),
+            # Example: {"external_id": (ObjectMetadataAnnotation(...), "SN-123")}
+            "object_metadata_fields": defaultdict(dict),
         }
         for field, value in parameters.items():
             cls._handle_single_field(field, obj, value, relationship_fields, adapter)
@@ -245,6 +260,9 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
 
         # Set many-to-many fields after saving.
         cls._set_many_to_many_fields(relationship_fields["many_to_many_fields"], obj)
+
+        # Write ObjectMetadata-backed fields last, since they require a saved object (pk).
+        cls._set_object_metadata_fields(relationship_fields["object_metadata_fields"], obj, adapter)
 
     @classmethod
     def _set_custom_relationship_to_many_fields(cls, custom_relationship_many_to_many_fields, obj, adapter):
@@ -327,11 +345,11 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
                     destination_object = adapter.get_from_orm_cache(related_model_dict, related_model_class)
                 except related_model_class.DoesNotExist as error:
                     raise ObjectCrudException(
-                        f"Couldn't resolve custom relationship {relationship.name}, no such {related_model_class._meta.verbose_name} object with parameters {related_model_dict}."
+                        f"Couldn't resolve custom relationship {relationship.label}, no such {related_model_class._meta.verbose_name} object with parameters {related_model_dict}."
                     ) from error
                 except related_model_class.MultipleObjectsReturned as error:
                     raise ObjectCrudException(
-                        f"Couldn't resolve custom relationship {relationship.name}, multiple {related_model_class._meta.verbose_name} objects with parameters {related_model_dict}."
+                        f"Couldn't resolve custom relationship {relationship.label}, multiple {related_model_class._meta.verbose_name} objects with parameters {related_model_dict}."
                     ) from error
                 RelationshipAssociation.objects.update_or_create(
                     **parameters,
@@ -391,14 +409,49 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
             setattr(obj, field_name, related_object)
 
     @classmethod
+    def _set_object_metadata_fields(cls, object_metadata_fields, obj, adapter):
+        """Write ObjectMetadata rows for fields carrying an ObjectMetadataAnnotation.
+
+        One whole-object (`scoped_fields=[]`) row per annotation. A `None` value is a no-op.
+        The backing `MetadataType` must already exist with the object's content type attached;
+        otherwise an `ObjectCrudException` is raised.
+        """
+        for field, (annotation, value) in object_metadata_fields.items():
+            if value is None:
+                continue
+            try:
+                metadata_type = adapter.get_from_orm_cache({"name": annotation.metadata_type_name}, MetadataType)
+            except MetadataType.DoesNotExist as error:
+                raise ObjectCrudException(
+                    f"No such MetadataType '{annotation.metadata_type_name}' required by field '{field}'. "
+                    f"The integration must create it (and attach the '{obj._meta.label}' content type) before syncing."
+                ) from error
+            obj_metadata = obj.associated_object_metadata.filter(metadata_type=metadata_type).first() or ObjectMetadata(
+                metadata_type=metadata_type, assigned_object=obj
+            )
+            # Note: the `value` setter eagerly calls clean(), so the assignment is inside the try too.
+            try:
+                obj_metadata.value = value
+                obj_metadata.scoped_fields = []
+                obj_metadata.validated_save()
+            except ValidationError as error:
+                raise ObjectCrudException(
+                    f"Failed to write ObjectMetadata '{annotation.metadata_type_name}' for field "
+                    f"'{field}' on {obj}: {error}"
+                ) from error
+
+    @classmethod
     def _update_obj_metadata(cls, obj, adapter):
         """Update a given Nautobot ORM object with the required object metadata."""
-        # Get the scope_fields from the DiffSync Model
-        obj_metadata_scope_fields = adapter.metadata_scope_fields[cls]
-        obj_metadata = obj.associated_object_metadata.filter(
-            metadata_type=adapter.metadata_type
-        ).first() or ObjectMetadata(metadata_type=adapter.metadata_type, assigned_object=obj)
+        try:
+            # Get the scope_fields from the DiffSync Model
+            obj_metadata_scope_fields = adapter.metadata_scope_fields[cls]
+            obj_metadata = obj.associated_object_metadata.filter(
+                metadata_type=adapter.metadata_type
+            ).first() or ObjectMetadata(metadata_type=adapter.metadata_type, assigned_object=obj)
 
-        obj_metadata.scoped_fields = obj_metadata_scope_fields
-        obj_metadata.value = datetime.now()
-        obj_metadata.validated_save()
+            obj_metadata.scoped_fields = obj_metadata_scope_fields
+            obj_metadata.value = datetime.now()
+            obj_metadata.validated_save()
+        except (ValidationError, KeyError) as error:
+            raise ObjectCrudException(f"Failed to update last-sync metadata for {obj}: {error}") from error

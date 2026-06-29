@@ -4,8 +4,8 @@ import json
 from collections import defaultdict
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase
 from ipfabric.models.device import Device
+from nautobot.apps.testing import TestCase
 from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync

@@ -3,7 +3,7 @@
 import ipaddress
 from unittest.mock import MagicMock, patch
 
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.cloudvision import (
@@ -13,56 +13,53 @@ from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 from nautobot_ssot.tests.aristacv.fixtures import fixtures
 
 
-class CloudvisionAdapterTestCase(TransactionTestCase):
+class CloudvisionAdapterTestCase(TestCase):
     """Test the CloudvisionAdapter class."""
 
     job_class = CloudVisionDataSource
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Method to initialize test case."""
-        super().setUp()
-        self.client = MagicMock()
-        self.client.comm_channel = MagicMock()
-        self.client.get_inventory = MagicMock(return_value=fixtures.INVENTORY_FIXTURE)
-        self.client.get_version = MagicMock(return_value="2024.3.0")
+        super().setUpTestData()
+        cls.client = MagicMock()
+        cls.client.comm_channel = MagicMock()
+        cls.client.get_inventory = MagicMock(return_value=fixtures.INVENTORY_FIXTURE)
+        cls.client.get_version = MagicMock(return_value="2024.3.0")
 
-        self.cloudvision = MagicMock()
-        self.cloudvision.get_tags_by_type = MagicMock()
-        self.cloudvision.get_tags_by_type.return_value = []
-        self.cloudvision.get_device_type = MagicMock()
-        self.cloudvision.get_device_type.return_value = "fixedSystem"
-        self.cloudvision.get_interfaces_fixed = MagicMock()
-        self.cloudvision.get_interfaces_fixed.return_value = fixtures.FIXED_INTERFACE_FIXTURE
-        self.cloudvision.get_interfaces_port_channel = MagicMock()
-        self.cloudvision.get_interfaces_port_channel.return_value = fixtures.PORT_CHANNEL_INTERFACE_FIXTURE
-        self.cloudvision.get_port_channel_members = MagicMock()
-        self.cloudvision.get_port_channel_members.return_value = fixtures.PORT_CHANNEL_MEMBERS_FIXTURE
+        cls.cloudvision = MagicMock()
+        cls.cloudvision.get_tags_by_type = MagicMock()
+        cls.cloudvision.get_tags_by_type.return_value = []
+        cls.cloudvision.get_device_type = MagicMock()
+        cls.cloudvision.get_device_type.return_value = "fixedSystem"
+        cls.cloudvision.get_interfaces_fixed = MagicMock()
+        cls.cloudvision.get_interfaces_fixed.return_value = fixtures.FIXED_INTERFACE_FIXTURE
+        cls.cloudvision.get_interfaces_port_channel = MagicMock()
+        cls.cloudvision.get_interfaces_port_channel.return_value = fixtures.PORT_CHANNEL_INTERFACE_FIXTURE
+        cls.cloudvision.get_port_channel_members = MagicMock()
+        cls.cloudvision.get_port_channel_members.return_value = fixtures.PORT_CHANNEL_MEMBERS_FIXTURE
         all_intf_names = [
             port["interface"] for port in (*fixtures.PORT_CHANNEL_INTERFACE_FIXTURE, *fixtures.FIXED_INTERFACE_FIXTURE)
         ]
-        self.cloudvision.get_all_interface_modes = MagicMock()
-        self.cloudvision.get_all_interface_modes.return_value = {name: "access" for name in all_intf_names}
-        self.cloudvision.get_all_interface_transceivers = MagicMock()
-        self.cloudvision.get_all_interface_transceivers.return_value = {
+        cls.cloudvision.get_all_interface_modes = MagicMock()
+        cls.cloudvision.get_all_interface_modes.return_value = {name: "access" for name in all_intf_names}
+        cls.cloudvision.get_all_interface_transceivers = MagicMock()
+        cls.cloudvision.get_all_interface_transceivers.return_value = {
             name: "1000BASE-T" for name in all_intf_names if not name.startswith("Port-Channel")
         }
-        self.cloudvision.get_all_interface_descriptions = MagicMock()
-        self.cloudvision.get_all_interface_descriptions.return_value = {
-            name: "Uplink to DC1" for name in all_intf_names
-        }
-        self.cloudvision.get_routed_interface_description = MagicMock()
-        self.cloudvision.get_routed_interface_description.return_value = "hello!"
-        self.cloudvision.get_ip_interfaces = MagicMock()
-        self.cloudvision.get_ip_interfaces.return_value = fixtures.IP_INTF_FIXTURE
-        self.cloudvision.get_interface_vrf = MagicMock()
-        self.cloudvision.get_interface_vrf.return_value = "Global"
+        cls.cloudvision.get_all_interface_descriptions = MagicMock()
+        cls.cloudvision.get_all_interface_descriptions.return_value = {name: "Uplink to DC1" for name in all_intf_names}
+        cls.cloudvision.get_routed_interface_description = MagicMock()
+        cls.cloudvision.get_routed_interface_description.return_value = "hello!"
+        cls.cloudvision.get_ip_interfaces = MagicMock()
+        cls.cloudvision.get_ip_interfaces.return_value = fixtures.IP_INTF_FIXTURE
+        cls.cloudvision.get_interface_vrf = MagicMock()
+        cls.cloudvision.get_interface_vrf.return_value = "Global"
 
-        self.job = self.job_class()
-        self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, task_name="fake task", worker="default"
-        )
-        self.cvp = CloudvisionAdapter(job=self.job, conn=self.client)
+        cls.job = cls.job_class()
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
+        cls.cvp = CloudvisionAdapter(job=cls.job, conn=cls.client)
 
     def test_load_devices(self):
         """Test the load_devices() adapter method."""

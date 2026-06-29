@@ -1,6 +1,6 @@
 """Unit tests for the Nautobot DiffSync adapter."""
 
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
 from nautobot.extras.models import JobResult, Role, Status
 
@@ -8,13 +8,14 @@ from nautobot_ssot.integrations.servicenow.diffsync.adapter_nautobot import Naut
 from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
 
 
-class NautobotDiffSyncTestCase(TransactionTestCase):
+class NautobotDiffSyncTestCase(TestCase):
     """Test the NautobotDiffSync adapter class."""
 
     job_class = ServiceNowDataTarget
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Per-test-case data setup."""
         status_active, _ = Status.objects.get_or_create(name="Active")
 

@@ -87,3 +87,28 @@ class CustomFieldAnnotation(CustomAnnotation):
                 self.key = self.name
             else:
                 raise ValueError("The 'key' field on CustomFieldAnnotation needs to be set.")
+
+
+@dataclass
+class ObjectMetadataAnnotation(CustomAnnotation):
+    """Mark a DiffSync model field as backed by Nautobot ObjectMetadata.
+
+    Fields annotated with this type are read from / written to `ObjectMetadata`
+    (keyed by `metadata_type_name`) instead of a regular model field or custom field.
+    The backing `MetadataType` must already exist and have the model's content type
+    attached; this annotation does not create it.
+
+    Attributes:
+        metadata_type_name: The `MetadataType.name` to read/write.
+        data_type: Informational `MetadataTypeDataTypeChoices` value; defaults to `"text"`.
+
+    Example:
+        ```python
+        external_id: Annotated[
+            Optional[str], ObjectMetadataAnnotation(metadata_type_name="External System ID")
+        ] = None
+        ```
+    """
+
+    metadata_type_name: str
+    data_type: str = "text"

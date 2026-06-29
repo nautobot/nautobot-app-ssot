@@ -1,8 +1,9 @@
 """Tests of CloudVision utility methods."""
 
 from django.test import override_settings
-from nautobot.core.testing import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer, Platform, SoftwareVersion
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Role, Status, Tag
 
 from nautobot_ssot.integrations.aristacv.constants import ARISTA_PLATFORM
@@ -14,10 +15,12 @@ class TestNautobotUtils(TestCase):
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Configure shared test vars."""
-        self.arista_manu = Manufacturer.objects.get_or_create(name="Arista")[0]
-        self.arista_platform = Platform.objects.get_or_create(name=ARISTA_PLATFORM, manufacturer=self.arista_manu)[0]
+        populate_status_choices()
+        cls.arista_manu = Manufacturer.objects.get_or_create(name="Arista")[0]
+        cls.arista_platform = Platform.objects.get_or_create(name=ARISTA_PLATFORM, manufacturer=cls.arista_manu)[0]
 
     def test_verify_site_success(self):
         """Test the verify_site method for existing Site."""
@@ -147,8 +150,9 @@ class TestNautobotUtils(TestCase):
         },
     )
     def test_get_config_delete_namespaces_prefixes_default(self):
-        """With no delete_namespaces/prefixes settings, get_config returns False for both."""
+        """With no delete_ipaddresses/namespaces/prefixes settings, get_config returns False for all."""
         config = nautobot.get_config()
+        self.assertFalse(config.delete_ipaddresses_on_sync)
         self.assertFalse(config.delete_namespaces_on_sync)
         self.assertFalse(config.delete_prefixes_on_sync)
 
@@ -157,13 +161,15 @@ class TestNautobotUtils(TestCase):
             "nautobot_ssot": {
                 "aristacv_cvaas_url": "https://www.arista.io",
                 "aristacv_cvp_user": "admin",
+                "aristacv_delete_ipaddresses_on_sync": True,
                 "aristacv_delete_namespaces_on_sync": True,
                 "aristacv_delete_prefixes_on_sync": True,
             },
         },
     )
     def test_get_config_delete_namespaces_prefixes_override(self):
-        """With delete_namespaces/prefixes set True, get_config returns True for both."""
+        """With delete_ipaddresses/namespaces/prefixes set True, get_config returns True for all."""
         config = nautobot.get_config()
+        self.assertTrue(config.delete_ipaddresses_on_sync)
         self.assertTrue(config.delete_namespaces_on_sync)
         self.assertTrue(config.delete_prefixes_on_sync)

@@ -3,8 +3,8 @@
 import unittest
 
 from django.contrib.contenttypes.models import ContentType
+from nautobot.apps.testing import TestCase
 from nautobot.core.choices import ColorChoices
-from nautobot.core.testing import TestCase
 from nautobot.dcim.models import (
     Device,
     DeviceType,
@@ -15,6 +15,7 @@ from nautobot.dcim.models import (
     Platform,
     VirtualChassis,
 )
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Role, Status, Tag
 from nautobot.ipam.models import IPAddress, Prefix, get_default_namespace
 
@@ -30,6 +31,7 @@ class TestNautobotAdapter(TestCase):
     """Test cases for InfoBlox Nautobot adapter."""
 
     def setUp(self):
+        populate_status_choices()
         device_ct = ContentType.objects.get_for_model(Device)
         self.active_status = Status.objects.get(name="Active")
         self.ssot_tag, _ = Tag.objects.get_or_create(

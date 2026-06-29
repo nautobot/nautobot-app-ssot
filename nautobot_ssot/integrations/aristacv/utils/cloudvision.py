@@ -249,20 +249,25 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
         if not parsed_url.hostname:
             raise ValueError(f"Invalid URL provided for CloudVision. {config.url}")
         try:
-            if config.token and not config.is_on_premise:
+            if config.token:
                 client.connect(
                     nodes=[parsed_url.hostname],
                     username="",
                     password="",
-                    is_cvaas=True,
+                    is_cvaas=not config.is_on_premise,
                     api_token=config.token,
                 )
-            else:
+            elif config.cvp_user and config.cvp_password:
                 client.connect(
                     nodes=[parsed_url.hostname],
                     username=config.cvp_user,
                     password=config.cvp_password,
                     is_cvaas=False,
+                )
+            else:
+                raise AuthFailure(
+                    error_code="Missing Credentials",
+                    message="Unable to authenticate due to missing credentials.",
                 )
         except CvpLoginError as err:
             raise AuthFailure(
@@ -511,30 +516,33 @@ def get_interfaces_chassis(client: CloudvisionApi, dId):
     dataset = dId
     query = get_query(client, dataset, pathElts)
     queryLC = unfreeze_frozen_dict(query).keys()
-    intfStatusChassis = []
 
-    # Go through each linecard and get the state of all interfaces
+    # Group notifications by the interface name from the path elements. CloudVision may stream an
+    # interface's attributes across multiple frames, and a frame carrying state may not contain intfId, so
+    # anchoring on the path element and merging keeps those frames from being lost. Interface names
+    # are unique across linecards, so a single accumulator spans all of them.
+    per_intf = {}
     for lc in queryLC:
         pathElts = ["Sysdb", "interface", "status", "eth", "phy", "slice", lc, "intfStatus", Wildcard()]
 
         for batch in clean_query_results(pathElts, client, dataset):
             for notif in batch["notifications"]:
+                intf_name = notif["path_elements"][-1]
+                entry = per_intf.setdefault(intf_name, {"interface": intf_name})
                 results = notif["updates"]
-                if not results.get("intfId"):
-                    continue
-                new_intf = {"interface": results["intfId"]}
+                if results.get("intfId"):
+                    entry["interface"] = results["intfId"]
                 if results.get("linkStatus"):
-                    new_intf["link_status"] = "up" if results["linkStatus"]["Name"] == "linkUp" else "down"
+                    entry["link_status"] = "up" if results["linkStatus"]["Name"] == "linkUp" else "down"
                 if results.get("operStatus"):
-                    new_intf["oper_status"] = "up" if results["operStatus"]["Name"] == "intfOperUp" else "down"
+                    entry["oper_status"] = "up" if results["operStatus"]["Name"] == "intfOperUp" else "down"
                 if results.get("enabledState"):
-                    new_intf["enabled"] = bool(results["enabledState"]["Name"] == "enabled")
+                    entry["enabled"] = bool(results["enabledState"]["Name"] == "enabled")
                 if results.get("burnedInAddr"):
-                    new_intf["mac_addr"] = results["burnedInAddr"]
+                    entry["mac_addr"] = results["burnedInAddr"]
                 if results.get("mtu"):
-                    new_intf["mtu"] = results["mtu"]
-                intfStatusChassis.append(new_intf)
-    return intfStatusChassis
+                    entry["mtu"] = results["mtu"]
+    return list(per_intf.values())
 
 
 def get_interfaces_fixed(client: CloudvisionApi, dId: str):
@@ -546,25 +554,28 @@ def get_interfaces_fixed(client: CloudvisionApi, dId: str):
     """
     pathElts = ["Sysdb", "interface", "status", "eth", "phy", "slice", "1", "intfStatus", Wildcard()]
 
-    intfStatusFixed = []
+    # Group notifications by the wildcarded interface name from the path. CloudVision may stream an
+    # interface's attributes across multiple frames, and a frame carrying state (e.g. enabledState)
+    # may not contain intfId, so anchoring on the path element and merging keeps those frames from being lost.
+    per_intf = {}
     for batch in clean_query_results(pathElts, client, dId):
         for notif in batch["notifications"]:
+            intf_name = notif["path_elements"][-1]
+            entry = per_intf.setdefault(intf_name, {"interface": intf_name})
             results = notif["updates"]
-            if not results.get("intfId"):
-                continue
-            new_intf = {"interface": results["intfId"]}
+            if results.get("intfId"):
+                entry["interface"] = results["intfId"]
             if results.get("enabledState"):
-                new_intf["enabled"] = bool(results["enabledState"]["Name"] == "enabled")
+                entry["enabled"] = bool(results["enabledState"]["Name"] == "enabled")
             if results.get("burnedInAddr"):
-                new_intf["mac_addr"] = results["burnedInAddr"]
+                entry["mac_addr"] = results["burnedInAddr"]
             if results.get("mtu"):
-                new_intf["mtu"] = results["mtu"]
+                entry["mtu"] = results["mtu"]
             if results.get("operStatus"):
-                new_intf["oper_status"] = "up" if results["operStatus"]["Name"] == "intfOperUp" else "down"
+                entry["oper_status"] = "up" if results["operStatus"]["Name"] == "intfOperUp" else "down"
             if results.get("linkStatus"):
-                new_intf["link_status"] = "up" if results["linkStatus"]["Name"] == "linkUp" else "down"
-            intfStatusFixed.append(new_intf)
-    return intfStatusFixed
+                entry["link_status"] = "up" if results["linkStatus"]["Name"] == "linkUp" else "down"
+    return list(per_intf.values())
 
 
 def clean_query_results(path_elements: List[str], client: CloudvisionApi, dataset: str):
@@ -593,11 +604,13 @@ def get_interfaces_port_channel(client: CloudvisionApi, dId: str):
     pc_interfaces = {}
     for batch in clean_query_results(status_path, client, dId):
         for notif in batch["notifications"]:
+            # Anchor on the wildcarded interface name from the path so frames that omit intfId
+            # (CloudVision may stream a Port-Channel's attributes across multiple frames) still merge.
+            intf_id = notif["path_elements"][-1]
             results = notif["updates"]
-            intf_id = results.get("intfId")
-            if not intf_id:
-                continue
             entry = pc_interfaces.setdefault(intf_id, {"interface": intf_id})
+            if results.get("intfId"):
+                entry["interface"] = results["intfId"]
             if results.get("linkStatus"):
                 entry["link_status"] = "up" if results["linkStatus"]["Name"] == "linkUp" else "down"
             if results.get("operStatus"):
@@ -613,10 +626,9 @@ def get_interfaces_port_channel(client: CloudvisionApi, dId: str):
 
     for batch in clean_query_results(config_path, client, dId):
         for notif in batch["notifications"]:
+            # Anchor on the wildcarded interface name from the path so frames that omit name still merge.
+            name = notif["path_elements"][-1]
             results = notif["updates"]
-            name = results.get("name")
-            if not name:
-                continue
             entry = pc_interfaces.setdefault(name, {"interface": name})
             if results.get("mtu") and not entry.get("mtu"):
                 entry["mtu"] = results["mtu"]
