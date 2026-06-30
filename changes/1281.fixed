@@ -1,0 +1,1 @@
+Fixed `_children` mappings that reference a model property returning a queryset or manager (such as `Device.all_interfaces`) raising `AttributeError` during load. Properties returning other types are not yet supported.
