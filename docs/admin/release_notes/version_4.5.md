@@ -10,6 +10,12 @@ This document describes all new features and changes in the release. The format 
 
 <!-- towncrier release notes start -->
 
+## [v4.5.1 (2026-07-01)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v4.5.1)
+
+### Fixed
+
+- [#1281](https://github.com/nautobot/nautobot-app-ssot/issues/1281) - Fixed `_children` mappings that reference a model property returning a queryset or manager (such as `Device.all_interfaces`) raising `AttributeError` during load. Properties returning other types are not yet supported.
+
 ## [v4.5.0 (2026-06-29)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v4.5.0)
 
 ### Added
