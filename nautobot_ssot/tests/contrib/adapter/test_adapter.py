@@ -30,6 +30,8 @@ from nautobot_ssot.tests.contrib.base import (
     NautobotDeviceBay,
     NautobotDeviceInvalidChildAttr,
     NautobotDeviceWithChildBay,
+    NautobotDeviceWithInterfaceProperty,
+    NautobotInterface,
     NautobotTenant,
     NautobotTenantGroup,
     ProviderModelCustomRelationship,
@@ -98,6 +100,30 @@ class NautobotAdapterOneToOneRelationTests(TestCaseWithDeviceData):
         adapter = Adapter(job=MagicMock())
         with self.assertRaises(AttributeError):
             adapter.load()
+
+    def test_property_children_returns_queryset(self):
+        """Test that a `_children` mapping pointing at a property returning a queryset loads children.
+
+        Regression test: `_children` targets are not required to be concrete model fields; a
+        `@property` that returns a queryset (e.g. `Device.all_interfaces`) must also load.
+        """
+
+        class Adapter(NautobotAdapter):
+            """Adapter loading interface children from the `all_interfaces` property."""
+
+            top_level = ("device",)
+            device = NautobotDeviceWithInterfaceProperty
+            interface = NautobotInterface
+
+        device = dcim_models.Device.objects.first()
+        adapter = Adapter(job=MagicMock())
+        adapter.load()
+
+        diffsync_device = adapter.get(NautobotDeviceWithInterfaceProperty, {"name": device.name})
+        loaded_children = diffsync_device.all_interfaces
+        self.assertEqual(len(loaded_children), device.all_interfaces.count())
+        for interface_name in device.all_interfaces.values_list("name", flat=True):
+            self.assertTrue(any(interface_name in child for child in loaded_children))
 
 
 class NautobotAdapterGenericRelationTests(TestCaseWithDeviceData):

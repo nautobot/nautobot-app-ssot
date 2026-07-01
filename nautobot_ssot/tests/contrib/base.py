@@ -230,6 +230,22 @@ class NautobotInterface(NautobotModel):
     ip_addresses: List[IPAddressDict] = []
 
 
+class NautobotDeviceWithInterfaceProperty(NautobotModel):
+    """A Device model whose children are sourced from a property that returns a queryset.
+
+    `Device.all_interfaces` is a `@property` (not a concrete field), exercising support for
+    property-backed `_children` mappings.
+    """
+
+    _model = dcim_models.Device
+    _modelname = "device"
+    _identifiers = ("name",)
+    _children = {"interface": "all_interfaces"}
+
+    name: str
+    all_interfaces: List[NautobotInterface] = []
+
+
 class NautobotDevice(NautobotModel):
     """Device test model."""
 
