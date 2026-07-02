@@ -1,0 +1,5 @@
+{
+    "pveversion": "pve-manager/8.1.4/example",
+    "cpuinfo": {"cpus": 16, "model": "Intel(R) Xeon(R)"},
+    "memory": {"total": 67430219776, "used": 12345678}
+}

@@ -1,0 +1,4 @@
+[
+    {"node": "pve1", "status": "online", "type": "node", "maxcpu": 16, "maxmem": 67430219776},
+    {"node": "pve2", "status": "online", "type": "node", "maxcpu": 16, "maxmem": 67430219776}
+]

@@ -1,0 +1,37 @@
+[
+    {
+        "vmid": 100,
+        "type": "qemu",
+        "node": "pve1",
+        "name": "web01",
+        "status": "running",
+        "maxcpu": 4,
+        "maxmem": 4294967296,
+        "maxdisk": 34359738368,
+        "template": 0,
+        "tags": "prod;web"
+    },
+    {
+        "vmid": 200,
+        "type": "lxc",
+        "node": "pve2",
+        "name": "ct-dns",
+        "status": "running",
+        "maxcpu": 1,
+        "maxmem": 536870912,
+        "maxdisk": 8589934592,
+        "template": 0,
+        "tags": ""
+    },
+    {
+        "vmid": 900,
+        "type": "qemu",
+        "node": "pve1",
+        "name": "ubuntu-template",
+        "status": "stopped",
+        "maxcpu": 1,
+        "maxmem": 1073741824,
+        "maxdisk": 10737418240,
+        "template": 1
+    }
+]
