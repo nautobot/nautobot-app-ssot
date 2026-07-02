@@ -18,3 +18,4 @@ This Nautobot app supports the following integrations:
 - [Slurpit](./slurpit_setup.md)
 - [SolarWinds](./solarwinds_setup.md)
 - [vSphere](./vsphere_setup.md)
+- [Proxmox VE](./proxmox_setup.md)
