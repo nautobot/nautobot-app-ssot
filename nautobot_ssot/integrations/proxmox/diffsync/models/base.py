@@ -61,7 +61,7 @@ class ProxmoxModelDiffSync(NautobotModel):
         if hasattr(nautobot_object, "cf"):
             if not any(cfield for cfield in CustomField.objects.all() if cfield.key == custom_field_key):
                 custom_field_obj, _ = CustomField.objects.get_or_create(
-                    type=CustomFieldTypeChoices.TYPE_DATETIME,
+                    type=CustomFieldTypeChoices.TYPE_DATE,
                     key=custom_field_key,
                     defaults={
                         "label": SSOT_CUSTOM_FIELD_LABEL,
@@ -72,8 +72,8 @@ class ProxmoxModelDiffSync(NautobotModel):
                     custom_field_obj.content_types.add(ContentType.objects.get_for_model(model))
                 custom_field_obj.validated_save()
 
-            # Stamp at call time (not import time) with minute precision.
-            nautobot_object.cf[custom_field_key] = timezone.now().isoformat(timespec="minutes")
+            # Stamp at call time (not import time).
+            nautobot_object.cf[custom_field_key] = timezone.now().date().isoformat()
         nautobot_object.validated_save()
 
     @classmethod

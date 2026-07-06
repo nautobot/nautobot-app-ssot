@@ -41,8 +41,7 @@ Because Nautobot's `VirtualMachine` has no host-Device foreign key, the Proxmox 
 linked through the **"Proxmox VM Host"** custom relationship (Device → VirtualMachine).
 
 Every synced object is tagged **SSoT Synced from Proxmox** (the tag name is configurable) and stamped
-with the `last_synced_from_proxmox_on` custom field, which records the date and time (to the minute)
-of the last sync.
+with the `last_synced_from_proxmox_on` custom field, which records the date of the last sync.
 
 ![Detail View](../../images/proxmox_detail.png)
 

@@ -89,11 +89,11 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
 
     custom_field, _ = CustomField.objects.get_or_create(
         key=SSOT_CUSTOM_FIELD_KEY,
-        defaults={"type": CustomFieldTypeChoices.TYPE_DATETIME, "label": SSOT_CUSTOM_FIELD_LABEL},
+        defaults={"type": CustomFieldTypeChoices.TYPE_DATE, "label": SSOT_CUSTOM_FIELD_LABEL},
     )
     for content_type in (device_ct, vm_ct, vminterface_ct, ipaddress_ct):
         custom_field.content_types.add(content_type)
-    custom_field.type = CustomFieldTypeChoices.TYPE_DATETIME
+    custom_field.type = CustomFieldTypeChoices.TYPE_DATE
     custom_field.save()
 
     # Links each VM to its host node Device (Nautobot's VirtualMachine has no host-Device FK).

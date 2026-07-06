@@ -86,10 +86,9 @@ class TestProxmoxDiffSyncModelsCreate(TestCase):
         self.assertEqual(nb_device.cf["proxmox_cpu_count"], 16)
         self.assertEqual(nb_device.cf["proxmox_memory_gb"], 62)
         self.assertIn(SSOT_TAG_NAME, [tag.name for tag in nb_device.tags.all()])
-        # The last-synced custom field records date AND time (minute precision), not just a date.
+        # The last-synced custom field records just a date (Nautobot 3.0.0 has no datetime custom field type).
         last_synced = str(nb_device.cf["last_synced_from_proxmox_on"])
-        self.assertIn("T", last_synced)
-        self.assertIn(":", last_synced)
+        self.assertRegex(last_synced, r"^\d{4}-\d{2}-\d{2}$")
 
     def test_device_interface_topology(self):
         self._seed_cluster()
