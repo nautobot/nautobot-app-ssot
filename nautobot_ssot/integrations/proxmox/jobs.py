@@ -2,6 +2,7 @@
 #  pylint: disable=too-few-public-methods
 #  pylint: disable=too-many-locals
 #  pylint: disable=abstract-method
+#  pylint: disable=duplicate-code
 
 """Job for the Proxmox VE integration with the SSoT app."""
 
