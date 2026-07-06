@@ -95,6 +95,36 @@ class TestNautobotAdapterTestCase(TestCase):
             print(f"Loaded device type: {type(loaded_device)}")
             self.assertIsNotNone(loaded_device, f"Device {device['sysName']} not found in the adapter.")
 
+    def test_load_devices_skips_device_without_platform(self):
+        """Test that a device with no Platform assigned is skipped instead of crashing the load."""
+        location = ORMLocation.objects.get(name=DEVICE_FIXTURE[0]["location"])
+        manufacturer, _ = Manufacturer.objects.get_or_create(name=os_manufacturer_map[DEVICE_FIXTURE[0]["os"]])
+        role, _ = Role.objects.get_or_create(name=DEVICE_FIXTURE[0]["type"])
+        status, _ = Status.objects.get_or_create(name=librenms_status_map[DEVICE_FIXTURE[0]["status"]])
+        device_type, _ = DeviceType.objects.get_or_create(model="Passive Patch Panel", manufacturer=manufacturer)
+        ORMDevice.objects.create(
+            name="passive-patch-panel-01",
+            device_type=device_type,
+            role=role,
+            location=location,
+            status=status,
+            serial="PP-0001",
+            platform=None,
+        )
+
+        self.nautobot_adapter.job.logger.warning.reset_mock()
+        self.nautobot_adapter.load_device()
+
+        loaded_devices = {device.get_unique_id() for device in self.nautobot_adapter.get_all("device")}
+        self.assertNotIn(
+            "passive-patch-panel-01",
+            loaded_devices,
+            "Device without a Platform should not have been loaded.",
+        )
+        self.nautobot_adapter.job.logger.warning.assert_called_once_with(
+            "Skipping device passive-patch-panel-01: no Platform assigned, cannot be synced with LibreNMS."
+        )
+
     def test_load_locations(self):
         """Test that locations are correctly loaded from the Nautobot ORM."""
         self.nautobot_adapter.load_location()

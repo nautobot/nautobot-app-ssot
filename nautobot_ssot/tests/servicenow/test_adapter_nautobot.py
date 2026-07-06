@@ -1,8 +1,10 @@
 """Unit tests for the Nautobot DiffSync adapter."""
 
+import datetime
+
 from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
-from nautobot.extras.models import JobResult, Role, Status
+from nautobot.extras.models import JobResult, Role, Status, Tag
 
 from nautobot_ssot.integrations.servicenow.diffsync.adapter_nautobot import NautobotDiffSync
 from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
@@ -75,3 +77,34 @@ class NautobotDiffSyncTestCase(TestCase):
             ["csr1__eth1", "csr1__eth2", "csr2__eth1", "csr2__eth2"],
             sorted(intf.get_unique_id() for intf in nds.get_all("interface")),
         )
+
+    def test_tag_involved_objects(self):
+        """Test that tag_involved_objects() bulk-applies the tag and custom field to synced objects."""
+        job = self.job_class()
+        job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
+        Location.objects.filter(location_type__name="Site").exclude(name__contains="Site").delete()
+
+        source = NautobotDiffSync(job=job, sync=None)
+        source.load()
+        # A second adapter loaded from the same database stands in for a target where every object
+        # was successfully synced, so the target.get() existence check succeeds for all of them.
+        target = NautobotDiffSync(job=job, sync=None)
+        target.load()
+
+        source.tag_involved_objects(target=target)
+
+        tag = Tag.objects.get(name="SSoT Synced to ServiceNow")
+        today = datetime.date.today().isoformat()
+
+        # Taggable models receive both the tag and the "last synced" custom field stamp.
+        for device in Device.objects.all():
+            self.assertIn(tag, device.tags.all())
+            self.assertEqual(device.cf["ssot_synced_to_servicenow"], today)
+
+        # Manufacturer is not taggable, but should still receive the custom field stamp.
+        manufacturer = Manufacturer.objects.get(name="Cisco")
+        self.assertEqual(manufacturer.cf["ssot_synced_to_servicenow"], today)
+
+        # Re-running must be idempotent and not create duplicate tag assignments.
+        source.tag_involved_objects(target=target)
+        self.assertEqual(Device.objects.get(name="csr1").tags.count(), 1)

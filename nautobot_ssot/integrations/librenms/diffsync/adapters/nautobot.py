@@ -76,6 +76,11 @@ class NautobotAdapter(Adapter):
         else:
             devices = OrmDevice.objects.all()
         for nb_device in devices:
+            if nb_device.platform is None:
+                self.job.logger.warning(
+                    f"Skipping device {nb_device.name}: no Platform assigned, cannot be synced with LibreNMS."
+                )
+                continue
             if self.job.debug:
                 self.job.logger.debug(f"Nautobot Adapter Loading Nautobot Device {nb_device}")
                 self.job.logger.debug(
