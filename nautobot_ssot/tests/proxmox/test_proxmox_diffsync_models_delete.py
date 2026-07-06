@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 from django.apps import apps as django_apps
 from nautobot.apps.testing import TestCase
+from nautobot.extras.models import Tag
 from nautobot.virtualization.models import Cluster, VirtualMachine, VMInterface
 
 from nautobot_ssot.integrations.proxmox.constants import SSOT_TAG_DESCRIPTION, SSOT_TAG_NAME
@@ -12,7 +13,7 @@ from nautobot_ssot.integrations.proxmox.diffsync.adapters.adapter_nautobot impor
 from nautobot_ssot.integrations.proxmox.diffsync.adapters.adapter_proxmox import ProxmoxDiffSync
 from nautobot_ssot.integrations.proxmox.signals import nautobot_database_ready_callback
 
-from .fixtures_proxmox import _get_virtual_machine_dict, _get_vm_interface_dict, create_default_proxmox_config
+from .proxmox_fixtures import _get_virtual_machine_dict, _get_vm_interface_dict, create_default_proxmox_config
 
 
 class TestProxmoxDiffSyncModelsDelete(TestCase):
@@ -65,3 +66,17 @@ class TestProxmoxDiffSyncModelsDelete(TestCase):
         self.assertFalse(VMInterface.objects.filter(name="net0").exists())
         # Clusters use SKIP_UNMATCHED_DST, so they are preserved.
         self.assertTrue(Cluster.objects.filter(name="TestCluster").exists())
+
+    def test_tag_model_delete(self):
+        """A Tag no longer present in the source is deleted."""
+        source = self._source()
+        self._seed_cluster(source)
+        tag = source.tag(name="custom-tag", description="temp")
+        source.add(tag)
+        source.sync_to(self._nb_adapter())
+        self.assertTrue(Tag.objects.filter(name="custom-tag").exists())
+
+        empty_source = self._source()
+        self._seed_cluster(empty_source)
+        empty_source.sync_to(self._nb_adapter())
+        self.assertFalse(Tag.objects.filter(name="custom-tag").exists())

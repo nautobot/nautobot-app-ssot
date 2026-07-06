@@ -4,9 +4,10 @@
 from unittest.mock import MagicMock
 
 from django.apps import apps as django_apps
+from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device, Interface
-from nautobot.extras.models import RelationshipAssociation
+from nautobot.extras.models import RelationshipAssociation, Tag
 from nautobot.ipam.models import IPAddress, Prefix
 from nautobot.virtualization.models import Cluster, ClusterGroup, VirtualMachine
 
@@ -15,7 +16,7 @@ from nautobot_ssot.integrations.proxmox.diffsync.adapters.adapter_nautobot impor
 from nautobot_ssot.integrations.proxmox.diffsync.adapters.adapter_proxmox import ProxmoxDiffSync
 from nautobot_ssot.integrations.proxmox.signals import nautobot_database_ready_callback
 
-from .fixtures_proxmox import (
+from .proxmox_fixtures import (
     _get_device_interface_dict,
     _get_virtual_machine_dict,
     _get_vm_interface_dict,
@@ -218,3 +219,14 @@ class TestProxmoxDiffSyncModelsCreate(TestCase):
         self.assertIn("vmbr0", [iface.name for iface in nb_ip.interfaces.all()])
         nb_device = Device.objects.get(name="pve1")
         self.assertEqual(nb_device.primary_ip.host, "10.0.0.1")
+
+    def test_tag_creation(self):
+        """A Tag hand-rolled outside the contrib flow is created with a color and content types."""
+        self._seed_cluster()
+        custom_tag = self.source.tag(name="custom-tag", description="A custom tag")
+        self.source.add(custom_tag)
+        self.source.sync_to(self._nb_adapter())
+
+        nb_tag = Tag.objects.get(name="custom-tag")
+        self.assertEqual(nb_tag.description, "A custom tag")
+        self.assertIn(ContentType.objects.get_for_model(VirtualMachine), nb_tag.content_types.all())

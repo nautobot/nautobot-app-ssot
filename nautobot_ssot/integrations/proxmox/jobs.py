@@ -141,7 +141,6 @@ class ProxmoxDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         """Run the sync."""
         self.dryrun = kwargs.get("dryrun")
         self.debug = kwargs.get("debug")
-        self.memory_profiling = kwargs.get("memory_profiling")
         self.cluster_filters = kwargs.get("cluster_filters")
         self.config = kwargs.get("config")
         if not self.config.enable_sync_to_nautobot:

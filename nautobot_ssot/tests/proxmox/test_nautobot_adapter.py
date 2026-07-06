@@ -11,7 +11,7 @@ from nautobot_ssot.integrations.proxmox.diffsync.adapters.adapter_nautobot impor
 from nautobot_ssot.integrations.proxmox.diffsync.adapters.adapter_proxmox import ProxmoxDiffSync
 from nautobot_ssot.integrations.proxmox.signals import nautobot_database_ready_callback
 
-from .fixtures_proxmox import _get_device_interface_dict, _get_virtual_machine_dict, create_default_proxmox_config
+from .proxmox_fixtures import _get_device_interface_dict, _get_virtual_machine_dict, create_default_proxmox_config
 
 
 class TestProxmoxNautobotAdapter(TestCase):
