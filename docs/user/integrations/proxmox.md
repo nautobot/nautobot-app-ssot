@@ -109,3 +109,8 @@ Keep these constraints in mind when relying on the synced data:
   (rounded down from the bytes Proxmox reports), so very small values may display as `0`.
 - **Token authentication only.** The integration authenticates with a Proxmox **API token**; username
   /password login is not supported.
+- **Running this alongside the vSphere integration can cause a sync error.** If both are enabled,
+  a vSphere sync may try to remove the "SSoT Synced from Proxmox" tag and fail with an error,
+  because that tag is protected while it's in use. Nothing gets corrupted, but the vSphere sync
+  will report a failure. This is a known issue with how the vSphere integration handles Tags, not
+  something specific to this integration's setup.
