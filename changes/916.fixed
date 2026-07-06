@@ -1,1 +1,0 @@
-Fixed LibreNMS SSoT crashing with `AttributeError: 'NoneType' object has no attribute 'name'` during Nautobot adapter load when a synced device has no Platform assigned, by skipping such devices with a warning instead.
