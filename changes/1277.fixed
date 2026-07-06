@@ -1,0 +1,1 @@
+Fixed slow performance of the ServiceNow integration when tagging synced objects by replacing per-object saves in `tag_involved_objects()` with bulk database operations.
