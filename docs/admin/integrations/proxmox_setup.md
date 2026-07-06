@@ -258,7 +258,7 @@ integration manages, filter on the SSoT tag below.
 | Purpose | Type | Name / key |
 | :------ | :--- | :--------- |
 | Marks every synced object | Tag | **SSoT Synced from Proxmox** (default; select a different Tag via `default_ssot_tag`) |
-| Date/time of the last sync | Custom field (Date/Time, minute precision) | key `last_synced_from_proxmox_on` ("Last synced from Proxmox on") |
+| Date of the last sync | Custom field (Date) | key `last_synced_from_proxmox_on` ("Last synced from Proxmox on") |
 | Links a VM to its host node | Relationship (Device → VM, one-to-many) | label **Proxmox VM Host**, key `proxmox_vm_host` |
 | Node PVE version | Device custom field (Text) | key `proxmox_pve_version` |
 | Node CPU count | Device custom field (Integer) | key `proxmox_cpu_count` |
