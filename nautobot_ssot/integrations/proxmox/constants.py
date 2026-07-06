@@ -37,3 +37,20 @@ NODE_INTERFACE_TYPE_MAP = {
     "OVSBridge": InterfaceTypeChoices.TYPE_BRIDGE,
     "vlan": InterfaceTypeChoices.TYPE_VIRTUAL,
 }
+
+# Values used when building Nautobot Status/Namespace/Prefix objects during Proxmox VE sync.
+ACTIVE_STATUS_NAME = "Active"
+GLOBAL_NAMESPACE_NAME = "Global"
+NETWORK_PREFIX_TYPE = "network"
+
+
+def get_ssot_tag_name(config) -> str:
+    """Return the configured SSoT sync tag name, falling back to the built-in default.
+
+    Args:
+        config (Optional[SSOTProxmoxConfig]): The integration configuration object, or ``None``.
+
+    Returns:
+        str: The tag name to use for SSoT-synced objects.
+    """
+    return getattr(getattr(config, "default_ssot_tag", None), "name", None) or SSOT_TAG_NAME

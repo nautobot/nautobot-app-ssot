@@ -17,6 +17,7 @@ from nautobot_ssot.integrations.proxmox.constants import (
     SSOT_CUSTOM_FIELD_KEY,
     SSOT_CUSTOM_FIELD_LABEL,
     SSOT_TAG_NAME,
+    get_ssot_tag_name,
 )
 
 
@@ -38,8 +39,7 @@ class ProxmoxModelDiffSync(NautobotModel):
         """
         super()._update_obj_with_parameters(obj, parameters, adapter)
         if isinstance(obj, (Device, VirtualMachine, VMInterface, IPAddress)):
-            config_tag = getattr(getattr(adapter, "config", None), "default_ssot_tag", None)
-            tag_name = getattr(config_tag, "name", None) or SSOT_TAG_NAME
+            tag_name = get_ssot_tag_name(getattr(adapter, "config", None))
             cls.tag_object(cls, obj, tag_name=tag_name)
 
     def tag_object(
@@ -55,30 +55,26 @@ class ProxmoxModelDiffSync(NautobotModel):
             custom_field_key (str): Key of the custom field to stamp. Defaults to ``SSOT_CUSTOM_FIELD_KEY``.
             tag_name (str): Name of the SSoT tag to apply. Defaults to ``SSOT_TAG_NAME``.
         """
+        tag, _ = Tag.objects.get_or_create(name=tag_name)
+        if hasattr(nautobot_object, "tags"):
+            nautobot_object.tags.add(tag)
+        if hasattr(nautobot_object, "cf"):
+            if not any(cfield for cfield in CustomField.objects.all() if cfield.key == custom_field_key):
+                custom_field_obj, _ = CustomField.objects.get_or_create(
+                    type=CustomFieldTypeChoices.TYPE_DATETIME,
+                    key=custom_field_key,
+                    defaults={
+                        "label": SSOT_CUSTOM_FIELD_LABEL,
+                    },
+                )
+                synced_from_models = [Device, VirtualMachine, VMInterface, IPAddress]
+                for model in synced_from_models:
+                    custom_field_obj.content_types.add(ContentType.objects.get_for_model(model))
+                custom_field_obj.validated_save()
 
-        def _tag_object(nautobot_object):
-            tag, _ = Tag.objects.get_or_create(name=tag_name)
-            if hasattr(nautobot_object, "tags"):
-                nautobot_object.tags.add(tag)
-            if hasattr(nautobot_object, "cf"):
-                if not any(cfield for cfield in CustomField.objects.all() if cfield.key == custom_field_key):
-                    custom_field_obj, _ = CustomField.objects.get_or_create(
-                        type=CustomFieldTypeChoices.TYPE_DATETIME,
-                        key=custom_field_key,
-                        defaults={
-                            "label": SSOT_CUSTOM_FIELD_LABEL,
-                        },
-                    )
-                    synced_from_models = [Device, VirtualMachine, VMInterface, IPAddress]
-                    for model in synced_from_models:
-                        custom_field_obj.content_types.add(ContentType.objects.get_for_model(model))
-                    custom_field_obj.validated_save()
-
-                # Stamp at call time (not import time) with minute precision.
-                nautobot_object.cf[custom_field_key] = timezone.now().isoformat(timespec="minutes")
-            nautobot_object.validated_save()
-
-        _tag_object(nautobot_object)
+            # Stamp at call time (not import time) with minute precision.
+            nautobot_object.cf[custom_field_key] = timezone.now().isoformat(timespec="minutes")
+        nautobot_object.validated_save()
 
     @classmethod
     def _get_queryset(cls, config, cluster_filters):

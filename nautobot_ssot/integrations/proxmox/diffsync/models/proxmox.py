@@ -30,14 +30,9 @@ from nautobot_ssot.integrations.proxmox.constants import (
     NODE_CPU_COUNT_CF,
     NODE_MEMORY_GB_CF,
     NODE_PVE_VERSION_CF,
-    SSOT_TAG_NAME,
+    get_ssot_tag_name,
 )
 from nautobot_ssot.integrations.proxmox.diffsync.models.base import ProxmoxModelDiffSync
-
-
-def _ssot_tag_name(config):
-    """Return the configured SSoT sync tag name, falling back to the built-in default."""
-    return getattr(getattr(config, "default_ssot_tag", None), "name", None) or SSOT_TAG_NAME
 
 
 class InterfacesDict(TypedDict):
@@ -117,7 +112,7 @@ class IPAddressModel(ProxmoxModelDiffSync):
         Returns:
             QuerySet: The IPAddress queryset to load.
         """
-        return cls._model.objects.filter(tags__name__in=[_ssot_tag_name(config)])
+        return cls._model.objects.filter(tags__name__in=[get_ssot_tag_name(config)])
 
 
 class VMInterfaceModel(ProxmoxModelDiffSync):
@@ -220,7 +215,7 @@ class DeviceInterfaceModel(ProxmoxModelDiffSync):
         Returns:
             QuerySet: The Interface queryset to load.
         """
-        return cls._model.objects.filter(device__tags__name__in=[_ssot_tag_name(config)])
+        return cls._model.objects.filter(device__tags__name__in=[get_ssot_tag_name(config)])
 
 
 class DeviceModel(ProxmoxModelDiffSync):
@@ -303,7 +298,7 @@ class DeviceModel(ProxmoxModelDiffSync):
         Returns:
             QuerySet: The Device queryset to load.
         """
-        return cls._model.objects.filter(tags__name__in=[_ssot_tag_name(config)])
+        return cls._model.objects.filter(tags__name__in=[get_ssot_tag_name(config)])
 
 
 class VirtualMachineModel(ProxmoxModelDiffSync):
@@ -405,7 +400,7 @@ class VirtualMachineModel(ProxmoxModelDiffSync):
         Returns:
             QuerySet: The VirtualMachine queryset to load.
         """
-        tag_name = _ssot_tag_name(config)
+        tag_name = get_ssot_tag_name(config)
         if cluster_filters:
             return cls._model.objects.filter(tags__name__in=[tag_name], cluster__in=cluster_filters)
         return cls._model.objects.filter(tags__name__in=[tag_name])

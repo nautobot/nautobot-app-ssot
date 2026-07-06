@@ -84,3 +84,31 @@ class TestProxmoxClient(unittest.TestCase):
         self.assertEqual(client.get_resources(resource_type="vm"), [{"vmid": 100}])
         mock_api.return_value.cluster.resources.get.assert_called_with(type="vm")
         self.assertIsInstance(client.api, MagicMock)
+
+    def test_get_qemu_config_propagates_exception(self, mock_api):
+        """Unlike its guest-agent sibling, get_qemu_config() has no try/except and re-raises."""
+        client = ProxmoxClient(_config())
+        mock_api.return_value.nodes.return_value.qemu.return_value.config.get.side_effect = OSError("boom")
+        with self.assertRaises(OSError):
+            client.get_qemu_config("pve1", 100)
+
+    def test_get_lxc_config_propagates_exception(self, mock_api):
+        """Unlike its guest-agent sibling, get_lxc_config() has no try/except and re-raises."""
+        client = ProxmoxClient(_config())
+        mock_api.return_value.nodes.return_value.lxc.return_value.config.get.side_effect = OSError("boom")
+        with self.assertRaises(OSError):
+            client.get_lxc_config("pve1", 100)
+
+    def test_get_cluster_status_propagates_exception(self, mock_api):
+        """get_cluster_status() has no try/except and re-raises."""
+        client = ProxmoxClient(_config())
+        mock_api.return_value.cluster.status.get.side_effect = OSError("boom")
+        with self.assertRaises(OSError):
+            client.get_cluster_status()
+
+    def test_get_nodes_propagates_exception(self, mock_api):
+        """get_nodes() has no try/except and re-raises."""
+        client = ProxmoxClient(_config())
+        mock_api.return_value.nodes.get.side_effect = OSError("boom")
+        with self.assertRaises(OSError):
+            client.get_nodes()

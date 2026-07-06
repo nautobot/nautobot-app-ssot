@@ -12,7 +12,7 @@ from nautobot_ssot.integrations.proxmox.diffsync.adapters.adapter_proxmox import
     parse_net_config,
 )
 
-from .fixtures import json_fixture
+from .proxmox_fixtures import json_fixture, real_path
 
 
 def _default_config():
@@ -42,14 +42,14 @@ class TestProxmoxAdapter(unittest.TestCase):
 
     def setUp(self):
         self.client = MagicMock()
-        self.client.get_cluster_status.return_value = json_fixture("cluster_status.json")
-        self.client.get_nodes.return_value = json_fixture("nodes.json")
-        self.client.get_resources.return_value = json_fixture("resources_vm.json")
-        self.client.get_qemu_config.return_value = json_fixture("qemu_config.json")
-        self.client.get_qemu_agent_interfaces.return_value = json_fixture("qemu_agent_interfaces.json")
-        self.client.get_lxc_config.return_value = json_fixture("lxc_config.json")
-        self.client.get_node_network.return_value = json_fixture("node_network.json")
-        self.client.get_node_status.return_value = json_fixture("node_status.json")
+        self.client.get_cluster_status.return_value = json_fixture(f"{real_path}/cluster_status.json")
+        self.client.get_nodes.return_value = json_fixture(f"{real_path}/nodes.json")
+        self.client.get_resources.return_value = json_fixture(f"{real_path}/resources_vm.json")
+        self.client.get_qemu_config.return_value = json_fixture(f"{real_path}/qemu_config.json")
+        self.client.get_qemu_agent_interfaces.return_value = json_fixture(f"{real_path}/qemu_agent_interfaces.json")
+        self.client.get_lxc_config.return_value = json_fixture(f"{real_path}/lxc_config.json")
+        self.client.get_node_network.return_value = json_fixture(f"{real_path}/node_network.json")
+        self.client.get_node_status.return_value = json_fixture(f"{real_path}/node_status.json")
 
         self.adapter = ProxmoxDiffSync(
             job=MagicMock(),
@@ -213,6 +213,84 @@ class TestProxmoxAdapter(unittest.TestCase):
         self.assertEqual(ip.mask_length, 24)
         prefix = self.adapter.get("prefix", "10.0.20.0__24__Global__Active")
         self.assertEqual(prefix.type, "network")
+
+    def test_load_virtual_machines_skips_unknown_status(self):
+        # "unknownstatus" has no entry in default_vm_status_map, so the VM is skipped entirely.
+        self.client.get_resources.return_value = [
+            {
+                "vmid": 999,
+                "type": "qemu",
+                "node": "pve1",
+                "name": "weird-vm",
+                "status": "unknownstatus",
+                "maxcpu": 1,
+                "maxmem": 1073741824,
+                "maxdisk": 1073741824,
+                "template": 0,
+            }
+        ]
+        adapter = ProxmoxDiffSync(
+            job=MagicMock(),
+            sync=MagicMock(),
+            client=self.client,
+            config=_default_config(),
+            cluster_filters=None,
+        )
+        adapter.load()
+        names = [vm.name for vm in adapter.get_all("virtual_machine")]
+        self.assertNotIn("weird-vm", names)
+
+    def test_load_virtual_machines_skips_duplicate_name(self):
+        # Two resources sharing a name in the same cluster; only the first is kept.
+        self.client.get_resources.return_value = [
+            {
+                "vmid": 101,
+                "type": "qemu",
+                "node": "pve1",
+                "name": "dup-vm",
+                "status": "running",
+                "maxcpu": 1,
+                "maxmem": 1073741824,
+                "maxdisk": 1073741824,
+                "template": 0,
+            },
+            {
+                "vmid": 102,
+                "type": "qemu",
+                "node": "pve1",
+                "name": "dup-vm",
+                "status": "running",
+                "maxcpu": 2,
+                "maxmem": 2147483648,
+                "maxdisk": 2147483648,
+                "template": 0,
+            },
+        ]
+        adapter = ProxmoxDiffSync(
+            job=MagicMock(),
+            sync=MagicMock(),
+            client=self.client,
+            config=_default_config(),
+            cluster_filters=None,
+        )
+        adapter.load()
+        dup_vms = [vm for vm in adapter.get_all("virtual_machine") if vm.name == "dup-vm"]
+        self.assertEqual(len(dup_vms), 1)
+        self.assertEqual(dup_vms[0].vcpus, 1)
+
+    def test_load_clusters_use_clusters_false_uses_default_cluster_name(self):
+        config = _default_config()
+        config.use_clusters = False
+        adapter = ProxmoxDiffSync(
+            job=MagicMock(),
+            sync=MagicMock(),
+            client=self.client,
+            config=config,
+            cluster_filters=None,
+        )
+        adapter.load_clusters()
+        self.assertEqual(adapter.cluster_name, config.default_cluster_name)
+        self.assertIsNotNone(adapter.get("cluster", config.default_cluster_name))
 
 
 class TestProxmoxHelpers(unittest.TestCase):
