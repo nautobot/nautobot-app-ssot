@@ -10,6 +10,13 @@ This document describes all new features and changes in the release. The format 
 
 <!-- towncrier release notes start -->
 
+## [v4.5.2 (2026-07-06)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v4.5.2)
+
+### Fixed
+
+- [#916](https://github.com/nautobot/nautobot-app-ssot/issues/916) - Fixed LibreNMS SSoT crashing with `AttributeError: 'NoneType' object has no attribute 'name'` during Nautobot adapter load when a synced device has no Platform assigned, by skipping such devices with a warning instead.
+- [#1277](https://github.com/nautobot/nautobot-app-ssot/issues/1277) - Fixed slow performance of the ServiceNow integration when tagging synced objects by replacing per-object saves in `tag_involved_objects()` with bulk database operations.
+
 ## [v4.5.1 (2026-07-01)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v4.5.1)
 
 ### Fixed
