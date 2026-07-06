@@ -65,7 +65,7 @@ class ProxmoxJobTest(TestCase):
     def test_get_proxmox_client_config(self):
         """_get_proxmox_client_config() builds a ProxmoxConfig from the SSOTProxmoxConfig instance."""
         app_config = _mock_app_config()
-        client_config = jobs._get_proxmox_client_config(app_config, debug=True)
+        client_config = jobs._get_proxmox_client_config(app_config, debug=True)  # pylint: disable=protected-access
 
         self.assertEqual(client_config.proxmox_uri, "https://pve.local:8006")
         self.assertEqual(client_config.token_id, "token-id")

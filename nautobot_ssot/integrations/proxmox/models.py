@@ -1,3 +1,5 @@
+#  pylint: disable=duplicate-code
+
 """Models implementation for SSOT Proxmox VE."""
 
 from django.core.exceptions import ValidationError
