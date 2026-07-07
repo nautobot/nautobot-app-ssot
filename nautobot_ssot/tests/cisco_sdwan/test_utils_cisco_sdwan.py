@@ -3,6 +3,8 @@
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
+from cisco_sdwan.base.rest_api import RestAPIException
+
 from nautobot_ssot.integrations.cisco_sdwan.utils.cisco_sdwan import (
     CiscoSdwanManager,
     normalize_device_model,
@@ -98,3 +100,72 @@ class TestCiscoSdwanManager(TestCase):
         """Validate unsupported HTTP methods raise a ValueError."""
         with self.assertRaises(ValueError):
             self.manager.send_request(method="patch", endpoint="/device")
+
+    def test_send_request_with_existing_client(self):
+        """Validate each HTTP method is dispatched to the matching client call."""
+        api = MagicMock()
+        self.manager.send_request(method="get", endpoint="/device", api=api)
+        api.get.assert_called_once_with("/device")
+        self.manager.send_request(method="post", endpoint="/device", api=api, payload={"a": 1})
+        api.post.assert_called_once_with("/device", {"a": 1})
+        self.manager.send_request(method="put", endpoint="/device", api=api, payload={"b": 2})
+        api.put.assert_called_once_with("/device", {"b": 2})
+        self.manager.send_request(method="delete", endpoint="/device", api=api)
+        api.delete.assert_called_once_with("/device", {})
+
+    def test_send_request_creates_client(self):
+        """Validate a temporary client is created when none is passed in."""
+        client = MagicMock()
+        client.get.return_value = {"data": []}
+        with patch.object(self.manager, "_new_api") as mock_new_api:
+            mock_new_api.return_value.__enter__.return_value = client
+            response = self.manager.send_request(method="get", endpoint="/device")
+        self.assertEqual(response, {"data": []})
+        client.get.assert_called_once_with("/device")
+
+    def test_send_request_api_error_logged(self):
+        """Validate API errors are logged and None is returned."""
+        api = MagicMock()
+        api.get.side_effect = RestAPIException("boom")
+        response = self.manager.send_request(method="get", endpoint="/device", api=api)
+        self.assertIsNone(response)
+        self.job.logger.error.assert_called_once()
+
+    def test_get_server_version(self):
+        """Validate the server version is read from the API client."""
+        client = MagicMock()
+        client.server_version = "20.9.4"
+        with patch.object(self.manager, "_new_api") as mock_new_api:
+            mock_new_api.return_value.__enter__.return_value = client
+            self.assertEqual(self.manager.get_server_version(), "20.9.4")
+
+    def test_get_device_interfaces(self):
+        """Validate device interfaces are returned from the synced interface endpoint."""
+        api = MagicMock()
+        api.get.return_value = {"data": [{"ifname": "GigabitEthernet1"}]}
+        interfaces = self.manager.get_device_interfaces(device_id="10.255.1.1", api=api)
+        self.assertEqual(interfaces, [{"ifname": "GigabitEthernet1"}])
+        api.get.assert_called_once_with("/device/interface/synced?deviceId=10.255.1.1")
+
+    def test_get_device_interfaces_no_response(self):
+        """Validate None is returned when the SD-WAN Manager returns no data."""
+        api = MagicMock()
+        api.get.side_effect = RestAPIException("boom")
+        self.assertIsNone(self.manager.get_device_interfaces(device_id="10.255.1.1", api=api))
+
+    def test_get_interfaces(self):
+        """Validate interface data is attached to each device record."""
+        devices = [
+            {"host-name": "sdwan-edge-01", "system-ip": "10.255.1.1"},
+            {"host-name": "no-system-ip"},
+        ]
+        with (
+            patch.object(self.manager, "_new_api") as mock_new_api,
+            patch.object(self.manager, "get_device_interfaces") as mock_get_device_interfaces,
+        ):
+            mock_new_api.return_value.__enter__.return_value = MagicMock()
+            mock_get_device_interfaces.return_value = [{"ifname": "GigabitEthernet1"}]
+            result = self.manager.get_interfaces(devices)
+        self.assertEqual(result[0]["interfaces"], [{"ifname": "GigabitEthernet1"}])
+        self.assertEqual(result[1]["interfaces"], [])
+        mock_get_device_interfaces.assert_called_once()

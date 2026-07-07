@@ -144,7 +144,6 @@ aristacv = [
 bootstrap = []
 cisco_sdwan = [
     "cisco-sdwan",
-    "netutils",
 ]
 citrix-adm = [
     "requests",

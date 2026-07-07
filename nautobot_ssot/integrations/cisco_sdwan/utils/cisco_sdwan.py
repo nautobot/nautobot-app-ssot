@@ -74,14 +74,15 @@ class CiscoSdwanManager:
 
         def _call(client: Rest) -> Any:  # pylint: disable=inconsistent-return-statements
             try:
-                if method == "get":
-                    return client.get(endpoint)
-                if method == "post":
-                    return client.post(endpoint, payload or {})
-                if method == "put":
-                    return client.put(endpoint, payload or {})
-                if method == "delete":
-                    return client.delete(endpoint, payload or {})
+                match method:
+                    case "get":
+                        return client.get(endpoint)
+                    case "post":
+                        return client.post(endpoint, payload or {})
+                    case "put":
+                        return client.put(endpoint, payload or {})
+                    case "delete":
+                        return client.delete(endpoint, payload or {})
             except RestAPIException as err:
                 self.job.logger.error(f"API {method} request to {endpoint} failed with {err}")
 

@@ -7895,7 +7895,7 @@ aci = ["PyYAML"]
 all = ["Jinja2", "PyYAML", "cisco-sdwan", "cloudvision", "cvprac", "dnacentersdk", "dnspython", "ijson", "ipfabric", "meraki", "nautobot-device-lifecycle-mgmt", "netutils", "oauthlib", "python-magic", "pytz", "requests", "requests-oauthlib", "six", "slurpit-sdk", "urllib3"]
 aristacv = ["cloudvision", "cvprac"]
 bootstrap = []
-cisco-sdwan = ["cisco-sdwan", "netutils"]
+cisco-sdwan = ["cisco-sdwan"]
 citrix-adm = ["netutils", "requests", "urllib3"]
 device42 = ["requests"]
 dna-center = ["dnacentersdk", "netutils"]
@@ -7910,4 +7910,4 @@ slurpit = ["slurpit-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.15"
-content-hash = "56ec81bdec286919ab6e5d87d710f2519f47b0bf681dda194a447654f2db1de0"
+content-hash = "a9bfc9508f1fd48ce0c93b1096f6b219f61dcb3ef01327aa092608a5438d4ed8"

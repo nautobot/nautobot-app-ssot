@@ -1,15 +1,21 @@
 """Jobs for the Cisco SD-WAN SSoT integration."""
 
-from diffsync.enum import DiffSyncFlags
 from django.conf import settings
 from django.urls import reverse
 from nautobot.apps.jobs import BooleanVar, MultiObjectVar, ObjectVar, StringVar, register_jobs
 from nautobot.dcim.models import Controller, ControllerManagedDeviceGroup, Device, Location, Platform
 from nautobot.extras.models import Role, SecretsGroup, Status
+from nautobot.ipam.models import Namespace
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.exceptions import JobException
-from nautobot_ssot.integrations.cisco_sdwan.constants import DATA_SOURCE_NAME
+from nautobot_ssot.integrations.cisco_sdwan.constants import (
+    DATA_SOURCE_NAME,
+    DEVICE_RETIRED_STATUS,
+    EXCLUDED_INTERFACES,
+    EXCLUDED_PREFIXES,
+    PRIMARY_IP_INTERFACES,
+)
 from nautobot_ssot.integrations.cisco_sdwan.diffsync.adapters.cisco_sdwan import CiscoSdwanRemoteAdapter
 from nautobot_ssot.integrations.cisco_sdwan.diffsync.adapters.nautobot import CiscoSdwanNautobotAdapter
 from nautobot_ssot.jobs.base import DataMapping, DataSource
@@ -90,6 +96,13 @@ class CiscoSdwanDataSource(DataSource):  # pylint: disable=too-many-instance-att
         label="Tenant",
         required=False,
     )
+    namespace = ObjectVar(
+        model=Namespace,
+        description="IPAM Namespace for imported Prefixes and IP Addresses. Defaults to Global.",
+        display_field="display",
+        label="IPAM Namespace",
+        required=False,
+    )
     model_normalization = StringVar(
         label="Device Model Normalization",
         description="Regex pattern to be removed from the SD-WAN Device Model.",
@@ -128,6 +141,7 @@ class CiscoSdwanDataSource(DataSource):  # pylint: disable=too-many-instance-att
             "device_location",
             "device_secrets_group",
             "device_tenant",
+            "namespace",
             "model_normalization",
             "ignore_address_mask",
             "delete_replaced_ips",
@@ -136,7 +150,13 @@ class CiscoSdwanDataSource(DataSource):  # pylint: disable=too-many-instance-att
     @classmethod
     def config_information(cls):
         """Dictionary describing the configuration of this DataSource."""
-        return {}
+        return {
+            "Instances": "Found in Extensibility -> External Integrations menu.",
+            "Device Retired Status": DEVICE_RETIRED_STATUS,
+            "Primary IP Interfaces": ", ".join(PRIMARY_IP_INTERFACES),
+            "Excluded Interfaces": ", ".join(EXCLUDED_INTERFACES),
+            "Excluded Prefixes": ", ".join(EXCLUDED_PREFIXES),
+        }
 
     @classmethod
     def data_mappings(cls):
@@ -149,13 +169,6 @@ class CiscoSdwanDataSource(DataSource):  # pylint: disable=too-many-instance-att
             DataMapping("Interface IPv4 Addresses", None, "IP Addresses", reverse("ipam:ipaddress_list")),
             DataMapping("VPNs", None, "VRFs", reverse("ipam:vrf_list")),
         )
-
-    def __init__(self):
-        """Initialize CiscoSdwanDataSource."""
-        super().__init__()
-        self.diffsync_flags = (
-            self.diffsync_flags | DiffSyncFlags.CONTINUE_ON_FAILURE
-        ) & ~DiffSyncFlags.LOG_UNCHANGED_RECORDS
 
     def validate_metadata_configuration(self):
         """Ensure the SSoT metadata feature is enabled for this Job.
@@ -197,6 +210,7 @@ class CiscoSdwanDataSource(DataSource):  # pylint: disable=too-many-instance-att
         device_location,
         device_secrets_group,
         device_tenant,
+        namespace,
         model_normalization,
         ignore_address_mask,
         delete_replaced_ips,
@@ -216,6 +230,7 @@ class CiscoSdwanDataSource(DataSource):  # pylint: disable=too-many-instance-att
         self.device_location = device_location
         self.device_secrets_group = device_secrets_group
         self.device_tenant = device_tenant
+        self.namespace = namespace or Namespace.objects.get_or_create(name="Global")[0]
         self.model_normalization = model_normalization
         self.ignore_address_mask = ignore_address_mask
         self.delete_replaced_ips = delete_replaced_ips

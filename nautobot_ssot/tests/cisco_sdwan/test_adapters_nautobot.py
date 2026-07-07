@@ -72,6 +72,7 @@ class TestCiscoSdwanNautobotAdapter(TransactionTestCase):  # pylint: disable=too
         self.job = MagicMock()
         self.job.devices = None
         self.job.managed_device_group = self.managed_device_group
+        self.job.device_platform = self.platform
         self.adapter = CiscoSdwanNautobotAdapter(job=self.job, sync=None)
 
     def _create_device(self, name, status, in_group):

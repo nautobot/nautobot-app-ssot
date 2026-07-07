@@ -45,8 +45,8 @@ Other behaviors for the integration can be controlled with the following setting
 | cisco_sdwan_if_up_states                     | list    | SD-WAN admin states that mark an Interface as enabled.                                                     | ["if-state-up", "up"]                |
 | cisco_sdwan_null_ip_addresses                | list    | SD-WAN IP address values to treat as undefined.                                                            | ["-", "0.0.0.0"]                     |
 | cisco_sdwan_null_mtu_values                  | list    | SD-WAN MTU values to treat as undefined.                                                                   | ["0"]                                |
-| cisco_sdwan_primary_ip_interfaces            | list    | Interface names whose IP address is set as the Device's primary IPv4 address.                              | ["system"]                           |
-| cisco_sdwan_software_version_platform_name   | string  | Name of the Platform that imported SoftwareVersions are associated with.                                   | "cisco_xe"                           |
+| cisco_sdwan_primary_ip_interfaces            | list    | Interface names whose IP address is set as the Device's primary IPv4 address.                              | ["sdwan-system-intf"]                |
+| cisco_sdwan_software_version_platform_name   | string  | Name of the Platform that imported SoftwareVersions are associated with. Only set this when SoftwareVersions should use a different Platform than the one assigned to imported Devices; by default the Job's Device Platform is used. | None (the Job's Device Platform) |
 
 !!! note
     The default interface exclusions (`Loopback65528`, `Loopback65529`) are loopbacks used internally by Cisco SD-WAN devices. Extend the `cisco_sdwan_excluded_prefixes` list with any address ranges (for example transport or management ranges) that you do not want imported into Nautobot.

@@ -5,7 +5,7 @@ from ipaddress import ip_network
 from django.core.exceptions import ObjectDoesNotExist
 from nautobot.extras.models import Status
 from nautobot.ipam.choices import IPAddressTypeChoices, PrefixTypeChoices
-from nautobot.ipam.models import VRF, IPAddress, Namespace, Prefix
+from nautobot.ipam.models import VRF, IPAddress, Prefix
 
 
 def get_or_create_prefix(adapter, address):
@@ -17,7 +17,7 @@ def get_or_create_prefix(adapter, address):
             prefix = Prefix.objects.get(
                 network=network,
                 prefix_length=prefix_length,
-                namespace=Namespace.objects.get(name="Global"),
+                namespace=adapter.job.namespace,
             )
             return prefix
         except ObjectDoesNotExist:
@@ -27,7 +27,7 @@ def get_or_create_prefix(adapter, address):
             prefix = Prefix(
                 network=network,
                 prefix_length=prefix_length,
-                namespace=Namespace.objects.get(name="Global"),
+                namespace=adapter.job.namespace,
                 status=Status.objects.get(name="Active"),
                 type=PrefixTypeChoices.TYPE_NETWORK,
             )
@@ -46,7 +46,7 @@ def get_or_create_ip_address(adapter, address, status):  # pylint: disable=incon
     host, mask_length = str(address).split("/", maxsplit=1)
     try:
         # Attempt to get an existing IP Address, update the mask length if necessary
-        addr = IPAddress.objects.get(host=host, parent__namespace=Namespace.objects.get(name="Global"))
+        addr = IPAddress.objects.get(host=host, parent__namespace=adapter.job.namespace)
         # If the existing IP Address has a different mask length, update it
         if str(addr.mask_length) != mask_length:
             if adapter.job.ignore_address_mask:
@@ -76,7 +76,7 @@ def get_or_create_ip_address(adapter, address, status):  # pylint: disable=incon
         try:
             if adapter.job.debug:
                 adapter.job.logger.debug(f"Creating IPAddress {address}")
-            addr = IPAddress(address=address, status=status, type=IPAddressTypeChoices.TYPE_HOST)
+            addr = IPAddress(address=address, status=status, type=IPAddressTypeChoices.TYPE_HOST, parent=prefix)
             addr.validated_save()
             return (addr, "ip_address")
         except Exception as err:  # pylint: disable=broad-exception-caught
