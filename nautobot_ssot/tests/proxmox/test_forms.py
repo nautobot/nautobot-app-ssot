@@ -37,6 +37,10 @@ class SSOTProxmoxConfigFormTestCase(TestCase):
             timeout=30,
         )
         cls.ssot_tag = Tag.objects.get_or_create(name="ProxmoxFormUnitTestTag")[0]
+        # "Suspended" and "Reserved" aren't Nautobot's own built-in defaults (unlike "Active"/"Offline");
+        # they're normally created by nautobot_database_ready_callback, which this test doesn't invoke.
+        Status.objects.get_or_create(name="Suspended")
+        Status.objects.get_or_create(name="Reserved")
         cls.cluster_type = ClusterType.objects.get_or_create(name="ProxmoxFormUnitTestClusterType")[0]
         location_type, _ = LocationType.objects.get_or_create(name="ProxmoxFormUnitTestLocationType")
         cls.location = Location.objects.get_or_create(
