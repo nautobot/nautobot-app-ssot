@@ -113,6 +113,7 @@ nav:
           - "user/integrations/index.md"
           - Cisco ACI: "user/integrations/aci.md"
           - Bootstrap: "user/integrations/bootstrap.md"
+          - Cisco SD-WAN: "user/integrations/cisco_sdwan.md"
           - Citrix ADM: "user/integrations/citrix_adm.md"
           - Arista CloudVision: "user/integrations/aristacv.md"
           - Device42: "user/integrations/device42.md"
@@ -135,6 +136,7 @@ nav:
       - Integrations Installation:
           - "admin/integrations/index.md"
           - Cisco ACI: "admin/integrations/aci_setup.md"
+          - Cisco SD-WAN: "admin/integrations/cisco_sdwan_setup.md"
           - Citrix ADM: "admin/integrations/citrix_adm_setup.md"
           - Bootstrap: "admin/integrations/bootstrap_setup.md"
           - Arista CloudVision: "admin/integrations/aristacv_setup.md"

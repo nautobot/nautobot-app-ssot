@@ -94,6 +94,7 @@ Set up each integration using the specific guides:
 - [Cisco ACI](./integrations/aci_setup.md)
 - [Arista CloudVision](./integrations/aristacv_setup.md)
 - [Bootstrap](./integrations/bootstrap_setup.md)
+- [Cisco SD-WAN](./integrations/cisco_sdwan_setup.md)
 - [Device42](./integrations/device42_setup.md)
 - [Cisco DNA Center](./integrations/dna_center_setup.md)
 - [Infoblox](./integrations/infoblox_setup.md)

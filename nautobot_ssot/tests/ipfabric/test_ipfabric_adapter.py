@@ -36,7 +36,7 @@ class IPFabricDiffSyncTestCase(TestCase):
         ipfabric_client.inventory.sites.all.return_value = SITE_FIXTURE
         ipfabric_client.devices.by_site = defaultdict(list)
         for dev in DEVICE_INVENTORY_FIXTURE:
-            ipfabric_client.devices.by_site[dev["siteName"]].append(Device(**dev))
+            ipfabric_client.devices.by_site[dev["siteName"]].append(Device(**dev))  # pylint: disable=no-member
         ipfabric_client.fetch_all = MagicMock(
             side_effect=(lambda x: VLAN_FIXTURE if x == "tables/vlan/site-summary" else "")
         )
