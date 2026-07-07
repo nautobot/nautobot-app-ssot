@@ -13,8 +13,8 @@ import nautobot_ssot.integrations.proxmox.models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("dcim", "0085_fix_128gfc_qsfp28_typo"),
-        ("extras", "0142_remove_scheduledjob_approval_required"),
+        ("dcim", "0081_alter_device_device_redundancy_group_priority_and_more"),
+        ("extras", "0132_approval_workflow_seed_data"),
         ("nautobot_ssot", "0017_ssotvsphereconfig_sync_vsphere_tags"),
         ("virtualization", "0030_alter_virtualmachine_local_config_context_data_owner_content_type_and_more"),
     ]
