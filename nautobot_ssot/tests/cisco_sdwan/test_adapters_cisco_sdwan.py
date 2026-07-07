@@ -24,20 +24,25 @@ def build_mock_job():
     return job
 
 
+def build_adapter(job):
+    """Build a CiscoSdwanRemoteAdapter with a mocked SD-WAN Manager client."""
+    sdwan_manager = MagicMock()
+    sdwan_manager.get_devices.return_value = get_merged_devices()
+    sdwan_manager.get_interfaces.side_effect = attach_interfaces
+    with patch(
+        "nautobot_ssot.integrations.cisco_sdwan.diffsync.adapters.cisco_sdwan.CiscoSdwanManager",
+        return_value=sdwan_manager,
+    ):
+        return CiscoSdwanRemoteAdapter(job=job, sync=None)
+
+
 class TestCiscoSdwanRemoteAdapter(TestCase):
     """Test the CiscoSdwanRemoteAdapter class."""
 
     def setUp(self):
         """Initialize the adapter with a mocked SD-WAN Manager client."""
         self.job = build_mock_job()
-        sdwan_manager = MagicMock()
-        sdwan_manager.get_devices.return_value = get_merged_devices()
-        sdwan_manager.get_interfaces.side_effect = attach_interfaces
-        with patch(
-            "nautobot_ssot.integrations.cisco_sdwan.diffsync.adapters.cisco_sdwan.CiscoSdwanManager",
-            return_value=sdwan_manager,
-        ):
-            self.adapter = CiscoSdwanRemoteAdapter(job=self.job, sync=None)
+        self.adapter = build_adapter(self.job)
         self.adapter.load()
 
     def test_load_devices(self):
@@ -129,3 +134,47 @@ class TestCiscoSdwanRemoteAdapter(TestCase):
             },
         )
         self.assertEqual(assignment.interface__vrf__name, "10")
+
+
+class TestCiscoSdwanRemoteAdapterEdgeCases(TestCase):
+    """Test the CiscoSdwanRemoteAdapter debug logging and invalid data handling."""
+
+    def setUp(self):
+        """Initialize the adapter without loading it."""
+        self.job = build_mock_job()
+        self.adapter = build_adapter(self.job)
+
+    def test_load_with_debug_logging(self):
+        """Validate the load emits debug logs for every object when debug is enabled."""
+        self.job.debug = True
+        self.adapter.load()
+        self.assertTrue(self.job.logger.debug.called)
+        debug_messages = " ".join(str(call) for call in self.job.logger.debug.call_args_list)
+        self.assertIn("Device Type:", debug_messages)
+        self.assertIn("Software Version:", debug_messages)
+        self.assertIn("Interface:", debug_messages)
+        self.assertIn("Excluded IP", debug_messages)
+
+    def test_validate_ip_address_invalid_mask(self):
+        """Validate an invalid subnet mask is skipped with an error."""
+        interface = {
+            "ip-address": "192.0.2.10",
+            "ipv4-subnet-mask": "not-a-mask",
+            "ifname": "GigabitEthernet1",
+            "vdevice-name": "10.255.1.1",
+        }
+        result = self.adapter._validate_ip_address(interface)  # pylint: disable=protected-access
+        self.assertIsNone(result)
+        self.job.logger.error.assert_called_once()
+
+    def test_validate_ip_address_invalid_ip(self):
+        """Validate an invalid IP address is skipped with an error."""
+        interface = {
+            "ip-address": "999.999.999.999",
+            "ipv4-subnet-mask": "",
+            "ifname": "GigabitEthernet1",
+            "vdevice-name": "10.255.1.1",
+        }
+        result = self.adapter._validate_ip_address(interface)  # pylint: disable=protected-access
+        self.assertIsNone(result)
+        self.job.logger.error.assert_called_once()

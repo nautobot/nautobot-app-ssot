@@ -121,3 +121,24 @@ class TestCiscoSdwanNautobotAdapter(TransactionTestCase):  # pylint: disable=too
         """Validate SoftwareVersions are not loaded without integration metadata present."""
         self.adapter.load()
         self.assertEqual([], list(self.adapter.get_all("software_version")))
+
+    def test_load_skips_duplicate_objects(self):
+        """Validate objects mapping to an already-loaded identity are skipped."""
+        other_location = Location.objects.create(
+            name="Second Site", location_type=self.location.location_type, status=self.status_active
+        )
+        duplicate = Device.objects.create(
+            name="sdwan-edge-01",
+            status=self.status_active,
+            role=self.device_role,
+            device_type=self.device_type,
+            platform=self.platform,
+            location=other_location,
+        )
+        duplicate.controller_managed_device_group = self.managed_device_group
+        duplicate.validated_save()
+        self.adapter.load()
+        self.assertEqual(
+            {"sdwan-edge-01"},
+            {device.get_unique_id() for device in self.adapter.get_all("device")},
+        )

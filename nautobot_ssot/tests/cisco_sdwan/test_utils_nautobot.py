@@ -58,6 +58,12 @@ class TestGetOrCreatePrefix(TransactionTestCase):
         self.assertIsNone(prefix)
         self.adapter.job.logger.error.assert_called_once()
 
+    def test_create_prefix_debug_logging(self):
+        """Validate a debug message is logged when creating a Prefix with debug enabled."""
+        self.adapter.job.debug = True
+        get_or_create_prefix(self.adapter, "192.0.2.10/24")
+        self.adapter.job.logger.debug.assert_called_once()
+
 
 class TestGetOrCreateIPAddress(TransactionTestCase):
     """Test the get_or_create_ip_address function."""
@@ -111,6 +117,45 @@ class TestGetOrCreateIPAddress(TransactionTestCase):
         self.assertIsNone(addr)
         self.assertIsNone(created_type)
 
+    def test_create_with_invalid_mask(self):
+        """Validate (None, None) is returned when the parent Prefix cannot be built on creation."""
+        addr, created_type = get_or_create_ip_address(self.adapter, "198.51.100.5/99", self.status_active)
+        self.assertIsNone(addr)
+        self.assertIsNone(created_type)
+        self.assertFalse(IPAddress.objects.filter(host="198.51.100.5").exists())
+
+    def test_mask_mismatch_update_with_invalid_mask(self):
+        """Validate (None, None) is returned when the updated mask cannot form a valid Prefix."""
+        self.adapter.job.ignore_address_mask = False
+        get_or_create_ip_address(self.adapter, "192.0.2.10/24", self.status_active)
+        addr, created_type = get_or_create_ip_address(self.adapter, "192.0.2.10/99", self.status_active)
+        self.assertIsNone(addr)
+        self.assertIsNone(created_type)
+        self.assertEqual(IPAddress.objects.get(host="192.0.2.10").mask_length, 24)
+
+    def test_mask_mismatch_updated_with_debug_logging(self):
+        """Validate debug messages are logged when updating a mask with debug enabled."""
+        self.adapter.job.ignore_address_mask = False
+        get_or_create_ip_address(self.adapter, "192.0.2.10/24", self.status_active)
+        self.adapter.job.debug = True
+        addr, _ = get_or_create_ip_address(self.adapter, "192.0.2.10/25", self.status_active)
+        self.assertEqual(addr.mask_length, 25)
+        self.assertTrue(self.adapter.job.logger.debug.called)
+
+    def test_create_with_debug_logging(self):
+        """Validate a debug message is logged when creating an IPAddress with debug enabled."""
+        self.adapter.job.debug = True
+        addr, _ = get_or_create_ip_address(self.adapter, "192.0.2.10/24", self.status_active)
+        self.assertIsNotNone(addr)
+        self.assertTrue(self.adapter.job.logger.debug.called)
+
+    def test_create_failure_logged(self):
+        """Validate (None, None) is returned and an error logged when the IPAddress cannot be saved."""
+        addr, created_type = get_or_create_ip_address(self.adapter, "203.0.113.5/24", None)
+        self.assertIsNone(addr)
+        self.assertIsNone(created_type)
+        self.adapter.job.logger.error.assert_called_once()
+
 
 class TestGetOrCreateVRF(TransactionTestCase):
     """Test the get_or_create_vrf function."""
@@ -135,3 +180,9 @@ class TestGetOrCreateVRF(TransactionTestCase):
         vrf = get_or_create_vrf(self.adapter, "10")
         self.assertEqual(vrf.id, existing.id)
         self.assertEqual(VRF.objects.filter(name="10").count(), 1)
+
+    def test_create_vrf_debug_logging(self):
+        """Validate a debug message is logged when creating a VRF with debug enabled."""
+        self.adapter.job.debug = True
+        get_or_create_vrf(self.adapter, "20")
+        self.adapter.job.logger.debug.assert_called_once()
