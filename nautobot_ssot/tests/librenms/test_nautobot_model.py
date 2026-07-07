@@ -1,6 +1,6 @@
-"""Unit tests for the Nautobot-side LibreNMS DiffSync models (NautobotDevice)."""
+"""Unit tests for the Nautobot-side LibreNMS DiffSync models (NautobotDevice) and helpers."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from diffsync import Adapter
 from django.contrib.contenttypes.models import ContentType
@@ -10,8 +10,12 @@ from nautobot.dcim.models import DeviceType, LocationType, Manufacturer
 from nautobot.dcim.models import Location as ORMLocation
 from nautobot.dcim.models import Platform as ORMPlatform
 from nautobot.extras.models import Role, Status
+from nautobot.ipam.models import Namespace
+from nautobot.tenancy.models import Tenant
 
-from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import NautobotDevice
+from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location
+from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import NautobotDevice, ensure_ip_address
+from nautobot_ssot.integrations.librenms.jobs import LibrenmsDataTarget
 
 
 class TestNautobotDeviceLocationSync(TestCase):
@@ -167,3 +171,92 @@ class TestNautobotDeviceUpdatePlatform(TestCase):
         self.assertIsNotNone(software_version)
         self.assertEqual(software_version.platform, self.platform)
         self.assertEqual(software_version.version, "2.0")
+
+
+class TestEnsureIPAddress(TestCase):
+    """Test that ensure_ip_address works with and without a tenant selected on the job."""
+
+    def test_no_tenant_uses_global_namespace(self):
+        """A sync without a Tenant Filter must not crash and must use the Global namespace."""
+        adapter = MagicMock()
+        adapter.job.tenant = None
+
+        ip_address = ensure_ip_address(ip_address="192.0.2.10/24", ip_prefix="192.0.2.0/24", adapter=adapter)
+
+        self.assertEqual(str(ip_address.address), "192.0.2.10/24")
+        self.assertEqual(ip_address.parent.namespace, Namespace.objects.get(name="Global"))
+
+    def test_tenant_uses_tenant_named_namespace(self):
+        """A sync with a Tenant Filter places IPs in a namespace named after the tenant."""
+        tenant = Tenant.objects.create(name="Acme Corp")
+        adapter = MagicMock()
+        adapter.job.tenant = tenant
+
+        ip_address = ensure_ip_address(ip_address="198.51.100.10/24", ip_prefix="198.51.100.0/24", adapter=adapter)
+
+        self.assertEqual(str(ip_address.address), "198.51.100.10/24")
+        self.assertEqual(ip_address.parent.namespace.name, "Acme Corp")
+
+
+class StubAdapter(Adapter):
+    """Minimal adapter for diffing the base DiffSync models."""
+
+    location = Location
+    device = Device
+
+    top_level = ["location", "device"]
+
+
+class TestTenantNotSynced(TestCase):
+    """Tenant differences must not produce diffs; tenant is assigned only at create time."""
+
+    device_kwargs = {
+        "name": "device1",
+        "location": "Site A",
+        "status": "Active",
+        "device_type": "Model X",
+        "manufacturer": "Vendor",
+        "system_of_record": "LibreNMS",
+    }
+
+    def test_device_tenant_mismatch_produces_no_diff(self):
+        """A device with a tenant in Nautobot but none in LibreNMS must not show a perpetual diff."""
+        source = StubAdapter()
+        target = StubAdapter()
+        source.add(Device(**self.device_kwargs, tenant=None))
+        target.add(Device(**self.device_kwargs, tenant="Acme Corp"))
+
+        diff = source.diff_to(target)
+
+        self.assertFalse(diff.has_diffs(), f"Tenant mismatch must not generate a diff: {diff.str()}")
+
+    def test_tenant_not_in_synced_attributes(self):
+        """Tenant must not be declared as a synced attribute on any LibreNMS DiffSync model."""
+        self.assertNotIn("tenant", Device._attributes)  # pylint: disable=protected-access
+        self.assertNotIn("tenant", Location._attributes)  # pylint: disable=protected-access
+
+
+class TestLibrenmsDataTargetTenant(TestCase):
+    """Test tenant handling in the Nautobot to LibreNMS job."""
+
+    @patch("nautobot_ssot.integrations.librenms.diffsync.adapters.nautobot.NautobotAdapter")
+    def test_load_source_adapter_passes_tenant(self, mock_adapter):
+        """The optional Tenant Filter must be passed through to the Nautobot adapter."""
+        job = LibrenmsDataTarget()
+        job.sync = None
+        job.tenant = Tenant.objects.create(name="Acme Corp")
+
+        job.load_source_adapter()
+
+        mock_adapter.assert_called_once_with(job=job, sync=None, tenant=job.tenant)
+
+    @patch("nautobot_ssot.integrations.librenms.diffsync.adapters.nautobot.NautobotAdapter")
+    def test_load_source_adapter_without_tenant(self, mock_adapter):
+        """The job must load cleanly when no tenant is selected."""
+        job = LibrenmsDataTarget()
+        job.sync = None
+        job.tenant = None
+
+        job.load_source_adapter()
+
+        mock_adapter.assert_called_once_with(job=job, sync=None, tenant=None)
