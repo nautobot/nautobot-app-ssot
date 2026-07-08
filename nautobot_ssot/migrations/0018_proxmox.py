@@ -44,7 +44,13 @@ class Migration(migrations.Migration):
                 ("sync_proxmox_tags", models.BooleanField(default=True)),
                 (
                     "default_ssot_tag",
-                    models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name="+", to="extras.tag"),
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to="extras.tag",
+                    ),
                 ),
                 (
                     "default_vm_status_map",

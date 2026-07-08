@@ -40,8 +40,10 @@ The sync calls these read-only REST endpoints (plus the QEMU guest agent and LXC
 Because Nautobot's `VirtualMachine` has no host-Device foreign key, the Proxmox node hosting a VM is
 linked through the **"Proxmox VM Host"** custom relationship (Device → VirtualMachine).
 
-Every synced object is tagged **SSoT Synced from Proxmox** (the tag name is configurable) and stamped
-with the `last_synced_from_proxmox_on` custom field, which records the date of the last sync.
+Every synced object is stamped with the `last_synced_from_proxmox_on` custom field, which records
+the date of the last sync and is what the integration uses to identify which objects it manages.
+Objects are also tagged **SSoT Synced from Proxmox** (the tag name is configurable) for visibility
+in the Nautobot UI — this tag is purely cosmetic and has no effect on what gets synced or deleted.
 
 ![Detail View](../../images/proxmox_detail.png)
 
@@ -66,8 +68,8 @@ with the `last_synced_from_proxmox_on` custom field, which records the date of t
 The sync is idempotent — running it repeatedly converges Nautobot to match Proxmox:
 
 - Unchanged objects are left untouched, changed attributes are updated, and new objects are created.
-- Only objects tagged **SSoT Synced from Proxmox** are considered for update or deletion, so objects
-  you created manually are never modified or removed.
+- Only objects previously stamped with the `last_synced_from_proxmox_on` custom field are considered
+  for update or deletion, so objects you created manually are never modified or removed.
 - **Deleted when they disappear from Proxmox:** `VirtualMachine`, `VMInterface`, and node
   `Interface` objects.
 - **Never deleted by a sync (preserved):** `Prefix`, `IPAddress`, `Device` (nodes), `Cluster`, and
@@ -95,9 +97,11 @@ Keep these constraints in mind when relying on the synced data:
   data, and cluster-filtered runs don't see everything). Only `VirtualMachine`, `VMInterface`, and
   node `Interface` objects are removed when they vanish from the source. Clean those up manually if
   needed.
-- **Only SSoT-managed objects are touched.** Objects must carry the SSoT marker tag (default
-  **SSoT Synced from Proxmox**, configurable via the config's *SSoT Tag Name*) to be updated or
-  deleted by the sync, so anything you created by hand is never altered.
+- **Only SSoT-managed objects are touched.** Objects must carry the `last_synced_from_proxmox_on`
+  custom field to be updated or deleted by the sync, so anything you created by hand is never
+  altered. The **SSoT Synced from Proxmox** tag (configurable via the config's *SSoT Tag Name*) is
+  applied alongside the custom field for visibility in the Nautobot UI, but is cosmetic only — it
+  has no effect on what the sync manages.
 - **Cluster Filters scope Virtual Machines only.** The job's *Cluster Filters* option restricts which
   VMs are synced; nodes, interfaces, prefixes, and IPs are not narrowed by it.
 - **Link-local addresses are skipped by default.** Link-local / APIPA addresses on VM interfaces are
@@ -108,8 +112,9 @@ Keep these constraints in mind when relying on the synced data:
   (rounded down from the bytes Proxmox reports), so very small values may display as `0`.
 - **Token authentication only.** The integration authenticates with a Proxmox **API token**; username
   /password login is not supported.
-- **Running this alongside the vSphere integration can cause a sync error.** If both are enabled,
-  a vSphere sync may try to remove the "SSoT Synced from Proxmox" tag and fail with an error,
-  because that tag is protected while it's in use. Nothing gets corrupted, but the vSphere sync
-  will report a failure. This is a known issue with how the vSphere integration handles Tags, not
-  something specific to this integration's setup.
+- **Running this alongside the vSphere integration may cause the SSoT tag to disappear and
+  reappear.** If both are enabled, a vSphere sync may delete the "SSoT Synced from Proxmox" tag
+  (vSphere doesn't scope its own tag cleanup to tags it created). This is harmless: the tag is
+  purely cosmetic, sync scoping doesn't depend on it, and the next Proxmox VE sync recreates it
+  automatically. This is a known issue with how the vSphere integration handles Tags, not something
+  specific to this integration's setup.

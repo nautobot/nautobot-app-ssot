@@ -88,7 +88,8 @@ class SSOTProxmoxConfigForm(NautobotModelForm):  # pylint: disable=too-many-ance
             # unsaved instance. Pre-populate the object-reference fields with the well-known defaults
             # that signals.py creates on app startup, so a from-scratch config saves cleanly without
             # the admin having to hunt down each object manually. Use .filter().first() rather than
-            # .get() so the form still renders (as an empty required dropdown) if a default is missing.
+            # .get() so the form still renders (as an empty dropdown — required for most of these
+            # fields, but optional for default_ssot_tag) if a default is missing.
             self.fields["default_ssot_tag"].initial = Tag.objects.filter(name=SSOT_TAG_NAME).first()
             self.fields["default_cluster_type"].initial = ClusterType.objects.filter(name=CLUSTER_TYPE_NAME).first()
             self.fields["default_location"].initial = Location.objects.filter(name=NODE_LOCATION_NAME).first()

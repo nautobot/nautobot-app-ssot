@@ -137,10 +137,15 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
 
     active_status.content_types.add(ContentType.objects.get_for_model(Location))
     active_status.content_types.add(device_ct)
-    Location.objects.get_or_create(
-        name=NODE_LOCATION_NAME,
-        defaults={"location_type": location_type, "status": active_status},
-    )
+    # Unlike the other prerequisites above, this default Location has no sync-time consumer of its
+    # own (nothing looks it up by NODE_LOCATION_NAME) — it exists purely as an initial value for a
+    # fresh SSOTProxmoxConfig's default_location field, so it's only worth creating alongside the
+    # rest of the auto-bootstrap config that would otherwise point at it.
+    if config.get("proxmox_create_default_secrets", True):
+        Location.objects.get_or_create(
+            name=NODE_LOCATION_NAME,
+            defaults={"location_type": location_type, "status": active_status},
+        )
 
 
 def create_default_proxmox_config(sender, *, apps, **kwargs):  # pylint: disable=unused-argument

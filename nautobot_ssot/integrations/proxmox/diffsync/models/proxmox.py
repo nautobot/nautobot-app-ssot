@@ -30,7 +30,7 @@ from nautobot_ssot.integrations.proxmox.constants import (
     NODE_CPU_COUNT_CF,
     NODE_MEMORY_GB_CF,
     NODE_PVE_VERSION_CF,
-    get_ssot_tag_name,
+    SSOT_CUSTOM_FIELD_KEY,
 )
 from nautobot_ssot.integrations.proxmox.diffsync.models.base import ProxmoxModelDiffSync
 
@@ -102,8 +102,12 @@ class IPAddressModel(ProxmoxModelDiffSync):
     interfaces: List[InterfaceDict] = []
 
     @classmethod
-    def get_queryset(cls, config, cluster_filters):
-        """Only load IP addresses tagged as being synced from Proxmox VE.
+    def get_queryset(cls, config, cluster_filters):  # pylint: disable=unused-argument
+        """Only load IP addresses previously synced from Proxmox VE.
+
+        Scoping is derived from the ``last_synced_from_proxmox_on`` custom field (stamped on every
+        sync), not the cosmetic SSoT tag, so another integration deleting that tag can't affect
+        which objects this integration considers its own.
 
         Args:
             config (SSOTProxmoxConfig): The integration configuration object.
@@ -112,7 +116,7 @@ class IPAddressModel(ProxmoxModelDiffSync):
         Returns:
             QuerySet: The IPAddress queryset to load.
         """
-        return cls._model.objects.filter(tags__name__in=[get_ssot_tag_name(config)])
+        return cls._model.objects.filter(_custom_field_data__has_key=SSOT_CUSTOM_FIELD_KEY)
 
 
 class VMInterfaceModel(ProxmoxModelDiffSync):
@@ -205,8 +209,12 @@ class DeviceInterfaceModel(ProxmoxModelDiffSync):
             )
 
     @classmethod
-    def get_queryset(cls, config, cluster_filters):
-        """Only load Interfaces on Devices synced from Proxmox VE.
+    def get_queryset(cls, config, cluster_filters):  # pylint: disable=unused-argument
+        """Only load Interfaces on Devices previously synced from Proxmox VE.
+
+        Scoping traverses to the host Device's ``last_synced_from_proxmox_on`` custom field (Device
+        is the object that actually gets tagged/stamped by ``ProxmoxModelDiffSync``; the Interface
+        itself never is), not the cosmetic SSoT tag.
 
         Args:
             config (SSOTProxmoxConfig): The integration configuration object.
@@ -215,7 +223,7 @@ class DeviceInterfaceModel(ProxmoxModelDiffSync):
         Returns:
             QuerySet: The Interface queryset to load.
         """
-        return cls._model.objects.filter(device__tags__name__in=[get_ssot_tag_name(config)])
+        return cls._model.objects.filter(device___custom_field_data__has_key=SSOT_CUSTOM_FIELD_KEY)
 
 
 class DeviceModel(ProxmoxModelDiffSync):
@@ -288,8 +296,11 @@ class DeviceModel(ProxmoxModelDiffSync):
         return super().update(attrs)
 
     @classmethod
-    def get_queryset(cls, config, cluster_filters):
-        """Only load Devices tagged as being synced from Proxmox VE.
+    def get_queryset(cls, config, cluster_filters):  # pylint: disable=unused-argument
+        """Only load Devices previously synced from Proxmox VE.
+
+        Scoping is derived from the ``last_synced_from_proxmox_on`` custom field, not the cosmetic
+        SSoT tag.
 
         Args:
             config (SSOTProxmoxConfig): The integration configuration object.
@@ -298,7 +309,7 @@ class DeviceModel(ProxmoxModelDiffSync):
         Returns:
             QuerySet: The Device queryset to load.
         """
-        return cls._model.objects.filter(tags__name__in=[get_ssot_tag_name(config)])
+        return cls._model.objects.filter(_custom_field_data__has_key=SSOT_CUSTOM_FIELD_KEY)
 
 
 class VirtualMachineModel(ProxmoxModelDiffSync):
@@ -390,8 +401,12 @@ class VirtualMachineModel(ProxmoxModelDiffSync):
         return super().update(attrs)
 
     @classmethod
-    def get_queryset(cls, config, cluster_filters):
+    def get_queryset(cls, config, cluster_filters):  # pylint: disable=unused-argument
         """Load existing Proxmox-synced VMs, optionally scoped to selected clusters.
+
+        Scoping is derived from the ``last_synced_from_proxmox_on`` custom field rather than the
+        cosmetic SSoT tag, so it's unaffected by another integration deleting/recreating that tag
+        mid-sync.
 
         Args:
             config (SSOTProxmoxConfig): The integration configuration object.
@@ -400,10 +415,11 @@ class VirtualMachineModel(ProxmoxModelDiffSync):
         Returns:
             QuerySet: The VirtualMachine queryset to load.
         """
-        tag_name = get_ssot_tag_name(config)
         if cluster_filters:
-            return cls._model.objects.filter(tags__name__in=[tag_name], cluster__in=cluster_filters)
-        return cls._model.objects.filter(tags__name__in=[tag_name])
+            return cls._model.objects.filter(
+                _custom_field_data__has_key=SSOT_CUSTOM_FIELD_KEY, cluster__in=cluster_filters
+            )
+        return cls._model.objects.filter(_custom_field_data__has_key=SSOT_CUSTOM_FIELD_KEY)
 
 
 class ClusterModel(ProxmoxModelDiffSync):

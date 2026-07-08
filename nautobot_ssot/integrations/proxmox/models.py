@@ -87,11 +87,15 @@ class SSOTProxmoxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
     )
     default_ssot_tag = models.ForeignKey(
         to="extras.Tag",
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="+",
         verbose_name="SSoT Tag",
-        help_text="Tag applied to every object synced from Proxmox VE. Also used to identify which "
-        "objects this integration manages (and may delete).",
+        help_text="Tag applied to every object synced from Proxmox VE, for visibility in the "
+        "Nautobot UI. Purely cosmetic — this integration identifies which objects it manages via "
+        "the 'last_synced_from_proxmox_on' custom field, not this tag. If another integration "
+        "deletes this tag, the next Proxmox VE sync recreates it automatically.",
     )
     default_vm_status_map = models.JSONField(default=_get_default_vm_status_map, encoder=DjangoJSONEncoder)
     default_ip_status_map = models.JSONField(default=_get_default_ip_status_map, encoder=DjangoJSONEncoder, blank=True)
