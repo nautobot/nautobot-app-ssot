@@ -25,6 +25,7 @@ from nautobot.extras.models import (
 from nautobot.virtualization.models import ClusterType
 
 from nautobot_ssot.integrations.proxmox.choices import PrimaryIpSortByChoices
+from nautobot_ssot.integrations.proxmox.constants import SSOT_TAG_NAME, get_ssot_tag_name
 from nautobot_ssot.integrations.proxmox.models import SSOTProxmoxConfig
 
 
@@ -137,7 +138,9 @@ class SSOTProxmoxConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
         self.assertEqual(config_db.default_ip_status_map, {"PREFERRED": "Active", "UNKNOWN": "Reserved"})
         self.assertEqual(config_db.primary_ip_sort_by, PrimaryIpSortByChoices.LOWEST)
         self.assertFalse(config_db.job_enabled)
-        # The 5 object-reference fields are required with no model-level default; confirm they persist.
+        # 4 of the 5 object-reference fields are required with no model-level default; default_ssot_tag
+        # is optional (SET_NULL) but still persists here since it was explicitly provided. Confirm all
+        # 5 persist correctly.
         self.assertEqual(config_db.default_cluster_type, self.cluster_type)
         self.assertEqual(config_db.default_ssot_tag, self.ssot_tag)
         self.assertEqual(config_db.default_location, self.location)
@@ -271,3 +274,20 @@ class SSOTProxmoxConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
         self.assertIn("Token", failure.exception.messages[0])
         self.sg_token_secret.secret_type = SecretsGroupSecretTypeChoices.TYPE_TOKEN
         self.sg_token_secret.save()
+
+    def test_default_ssot_tag_survives_tag_deletion(self):
+        """Deleting the referenced Tag nulls the FK instead of raising (SET_NULL, not PROTECT).
+
+        This is the scenario that used to crash: another integration's sync deleting this Tag while
+        a SSOTProxmoxConfig still references it. With SET_NULL, the config survives and
+        get_ssot_tag_name() still falls back to the built-in default tag name.
+        """
+        config_dict = deepcopy(self.proxmox_config_dict)
+        config = SSOTProxmoxConfig(**config_dict)
+        config.validated_save()
+
+        self.ssot_tag.delete()
+
+        config.refresh_from_db()
+        self.assertIsNone(config.default_ssot_tag)
+        self.assertEqual(get_ssot_tag_name(config), SSOT_TAG_NAME)

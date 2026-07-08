@@ -94,8 +94,10 @@ choice between two starting points:
   [External Integration][nb-extint] and a `SSOTProxmoxConfig` pointing at it (placeholder values are
   fine for both — the same Config page fields above set Remote URL/Verify SSL/Timeout/Secrets Group
   either way). The schema prerequisites (SSoT tag, custom fields, relationship, statuses, node Device
-  prerequisites) are still created regardless of this setting — only the Secrets/SecretsGroup/
-  ExternalIntegration/Config bootstrap is skipped.
+  Manufacturer/DeviceType/Role) are still created regardless of this setting. The one exception is the
+  default **Location** (`Proxmox VE Default Location`) — it exists only as an initial value for a
+  fresh Config's `default_location` field, so it's skipped along with the rest of the bootstrap when
+  this is `False`.
 
 !!! note "The secret provider is your choice"
     The environment-variable provider used by the default Secrets is **only an example** — **any
@@ -130,7 +132,8 @@ The `SSOTProxmoxConfig` model exposes the following fields, all editable on its 
 Single Source of Truth → Proxmox VE Config**). Five of them (SSoT Tag, Default Cluster Type, Default
 Location, Default Node Device Type, Default Node Device Role) are **object references** rendered as
 dropdowns rather than free text — each points at an object `signals.py` pre-creates on first migrate,
-so the pre-populated default is normally all you need:
+so the pre-populated default is normally all you need. Of these, only **SSoT Tag** is optional (it's
+cosmetic — see the table below); the other four are required.
 
 | Field | Default | Purpose |
 | ----- | ------- | ------- |
@@ -140,7 +143,7 @@ so the pre-populated default is normally all you need:
 | **Sync LXC Containers** (`sync_lxc`) | `True` | Include LXC containers as Virtual Machines (in addition to QEMU VMs). |
 | **Sync Nodes as Devices** (`sync_nodes_as_devices`) | `True` | Model Proxmox nodes as Nautobot Devices and link VMs to their host node. |
 | **Sync Proxmox VE Tags** (`sync_proxmox_tags`) | `True` | Copy Proxmox VE tags onto Nautobot Virtual Machines as Tags. |
-| **SSoT Tag** (`default_ssot_tag`) | Tag named "SSoT Synced from Proxmox" (pre-created) | Dropdown selecting the marker tag applied to every synced object. Also identifies which objects the integration manages (and may delete) — see [Limitations](../../user/integrations/proxmox.md#limitations). Edit the Tag object itself to change its name/description. |
+| **SSoT Tag** (`default_ssot_tag`) | Tag named "SSoT Synced from Proxmox" (pre-created) | Optional. Dropdown selecting a Tag applied to every synced object for visibility in the Nautobot UI. Purely cosmetic — the integration identifies which objects it manages via the `last_synced_from_proxmox_on` custom field, not this tag. If the tag is deleted (e.g. by another integration — see [Limitations](../../user/integrations/proxmox.md#limitations)), this field is set to blank and the next sync recreates the tag automatically. |
 | **VM status map** (`default_vm_status_map`) | see [The three JSON map fields](#the-three-json-map-fields) | Map Proxmox VM states to Nautobot Status names. |
 | **IP status map** (`default_ip_status_map`) | see [The three JSON map fields](#the-three-json-map-fields) | Map IP states to Nautobot Status names. |
 | **Node interface type map** (`default_node_interface_type_map`) | see [The three JSON map fields](#the-three-json-map-fields) | Map Proxmox node interface types to Nautobot DCIM interface types. |
@@ -149,17 +152,18 @@ so the pre-populated default is normally all you need:
 | **Default Cluster Group Name** (`default_clustergroup_name`) | `Proxmox VE Default Cluster Group` | Name given to the ClusterGroup created on first sync to group synced clusters. Free text — the sync creates it if it doesn't exist yet. |
 | **Default Cluster Name** (`default_cluster_name`) | `Proxmox VE Default Cluster` | Name given to the Cluster created on first sync when **Use Clusters** is disabled. Free text — the sync creates it if it doesn't exist yet. |
 | **Default Cluster Type** (`default_cluster_type`) | ClusterType named "Proxmox VE" (pre-created) | Dropdown selecting the ClusterType assigned to synced clusters. |
-| **Default Location** (`default_location`) | Location named "Proxmox VE Default Location" (pre-created) | Dropdown selecting the Location assigned to node Devices. |
+| **Default Location** (`default_location`) | Location named "Proxmox VE Default Location" (pre-created when `proxmox_create_default_secrets=True`, the default) | Dropdown selecting the Location assigned to node Devices. Not pre-created under the [manual path](#the-one-manual-step-creating-the-secrets) — point this at your own Location instead. |
 | **Default Node Device Type** (`default_device_type`) | DeviceType named "Proxmox Node" (pre-created) | Dropdown selecting the DeviceType assigned to node Devices. |
 | **Default Node Device Role** (`default_device_role`) | Role named "Proxmox Node" (pre-created) | Dropdown selecting the Role assigned to node Devices. |
 
 ### Full example configuration
 
-`name`, `proxmox_instance`, and the 5 object-reference fields (SSoT Tag, Default Cluster Type,
-Default Location, Default Node Device Type, Default Node Device Role) are required — every other
-field defaults to the value shown in the table above. For reference, here's the minimal
-`nautobot-server nbshell` equivalent of filling in just the required fields via the GUI, pointing each
-object reference at the object `signals.py` already pre-created:
+`name`, `proxmox_instance`, and 4 of the 5 object-reference fields (Default Cluster Type, Default
+Location, Default Node Device Type, Default Node Device Role) are required — every other field,
+including the optional/cosmetic SSoT Tag, defaults to the value shown in the table above. For
+reference, here's the minimal `nautobot-server nbshell` equivalent of filling in just the required
+fields via the GUI, pointing each object reference at the object `signals.py` already pre-created
+(the SSoT Tag is included here too, since leaving it set is still the recommended default):
 
 ```python
 from nautobot.dcim.models import DeviceType, Location
@@ -253,12 +257,13 @@ Override it if your hardware differs — for example, to map physical NICs to 10
 The integration creates and relies on a fixed set of Nautobot objects with stable names/keys
 (defined in `nautobot_ssot/integrations/proxmox/constants.py`). These are useful when filtering,
 reporting, or writing automation against the synced data — for example, to find everything the
-integration manages, filter on the SSoT tag below.
+integration manages, filter on the custom field below (the tag is cosmetic only and shouldn't be
+relied on for this — see [Limitations](../../user/integrations/proxmox.md#limitations)).
 
 | Purpose | Type | Name / key |
 | :------ | :--- | :--------- |
-| Marks every synced object | Tag | **SSoT Synced from Proxmox** (default; select a different Tag via `default_ssot_tag`) |
-| Date of the last sync | Custom field (Date) | key `last_synced_from_proxmox_on` ("Last synced from Proxmox on") |
+| Identifies which objects the integration manages | Custom field (Date) | key `last_synced_from_proxmox_on` ("Last synced from Proxmox on") |
+| Marks every synced object for visibility (cosmetic only) | Tag | **SSoT Synced from Proxmox** (default; select a different Tag via `default_ssot_tag`) |
 | Links a VM to its host node | Relationship (Device → VM, one-to-many) | label **Proxmox VM Host**, key `proxmox_vm_host` |
 | Node PVE version | Device custom field (Text) | key `proxmox_pve_version` |
 | Node CPU count | Device custom field (Integer) | key `proxmox_cpu_count` |
