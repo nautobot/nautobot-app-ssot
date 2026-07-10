@@ -47,7 +47,7 @@ class TestNautobotDeviceLocationSync(TestCase):
             location=self.chicago,
         )
 
-        self.adapter = Adapter()
+        self.adapter = MagicMock(spec=Adapter)
         self.adapter.job = MagicMock()
         self.adapter.job.location_type = self.site_type
         self.adapter.job.debug = False
