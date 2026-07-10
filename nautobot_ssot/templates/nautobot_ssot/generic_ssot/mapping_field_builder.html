@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% load helpers generic_ssot_helpers %}
+
+{% block breadcrumbs %}
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'plugins:nautobot_ssot:dashboard' %}">Single Source of Truth</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'plugins:nautobot_ssot:ssotmapping_list' %}">SSoT Mappings</a></li>
+        <li class="breadcrumb-item"><a href="{{ mapping.get_absolute_url }}">{{ mapping.name }}</a></li>
+        <li class="breadcrumb-item active">Build Field Mappings</li>
+    </ol>
+{% endblock breadcrumbs %}
+
+{% block title %}Build Field Mappings - {{ mapping.name }}{% endblock title %}
+
+{% block content %}
+<form method="post">
+    {% csrf_token %}
+
+    {# ── Header card with discovery info and instructions ── #}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Field Mapping Builder</h3>
+                </div>
+                <div class="card-body">
+                    {% if data_discovery %}
+                        <p>
+                            Building field mappings for <strong>{{ mapping.name }}</strong>
+                            from discovery <strong>{{ data_discovery.name }}</strong>
+                            (discovered {{ data_discovery.discovered_at }}).
+                        </p>
+                        <p class="text-muted">
+                            Each row below represents a field discovered in the source data.
+                            The <strong>JMESPath</strong> column shows the expression used to
+                            extract the value from each record during sync.  Map source fields
+                            to Nautobot by choosing a <strong>Nautobot Model</strong> (content
+                            type) and <strong>Nautobot Field</strong> (attribute name, e.g.
+                            <code>name</code>, <code>serial</code>, or
+                            <code>location__name</code> for related fields).
+                        </p>
+                        <p class="text-muted">
+                            Mark fields as <em>Identifier</em> if they should be used to match
+                            existing Nautobot objects during sync.  Leave the model blank to
+                            skip a source field.
+                        </p>
+                    {% else %}
+                        <p class="text-warning">
+                            No data discovery is associated with this mapping.
+                            Please link a data discovery before building field mappings.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if data_discovery and endpoint_contexts %}
+    {% for ep_ctx in endpoint_contexts %}
+    <div class="row mt-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">Endpoint: {{ ep_ctx.endpoint_name }}</h4>
+                </div>
+                <div class="card-body">
+
+                    {# ── Sample Data Preview ── #}
+                    {% if ep_ctx.sample_rows %}
+                    <h5>Sample Data (first {{ ep_ctx.sample_rows|length }} records)</h5>
+                    <div class="table-responsive mb-4" style="max-height: 320px; overflow: auto;">
+                        <table class="table table-sm table-bordered table-hover table-striped">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="text-muted">#</th>
+                                    {% for col in ep_ctx.top_level_keys %}
+                                    <th>{{ col }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in ep_ctx.sample_rows %}
+                                <tr>
+                                    <td class="text-muted">{{ forloop.counter }}</td>
+                                    {% for col in ep_ctx.top_level_keys %}
+                                    <td>
+                                        {% with val=record|get_item:col %}
+                                            {% if val is None %}
+                                                <span class="text-muted">null</span>
+                                            {% elif val == "" %}
+                                                <span class="text-muted">(empty)</span>
+                                            {% else %}
+                                                {{ val }}
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    {# ── Field Mapping Table ── #}
+                    <h5>Map Source Fields to Nautobot</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="min-width:180px">Source Field (JMESPath)</th>
+                                    <th>Type</th>
+                                    <th>Sample Values</th>
+                                    <th style="min-width:200px">Nautobot Model</th>
+                                    <th style="min-width:160px">Nautobot Field</th>
+                                    <th class="text-center">ID?</th>
+                                    <th class="text-center">Req?</th>
+                                    <th style="min-width:120px">Default</th>
+                                    <th>Transform</th>
+                                    <th class="text-center">On</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for form in ep_ctx.row_forms %}
+                                <tr>
+                                    {# Hidden fields carry endpoint_name, source_field (jmespath), existing pk #}
+                                    {{ form.endpoint_name }}
+                                    {{ form.source_field }}
+                                    {{ form.existing_mapping_pk }}
+
+                                    {# Source Field / JMESPath expression #}
+                                    <td><code>{{ form.initial.source_field }}</code></td>
+
+                                    {# Inferred type #}
+                                    <td>
+                                        {% with finfo=ep_ctx.discovered_fields|get_item:forloop.counter0 %}
+                                            {% if finfo %}
+                                                <span class="badge bg-info text-dark">{{ finfo.field_type }}</span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+
+                                    {# Sample values #}
+                                    <td>
+                                        {% with finfo=ep_ctx.discovered_fields|get_item:forloop.counter0 %}
+                                            {% if finfo %}
+                                                {% for val in finfo.sample_values %}
+                                                    <span class="badge bg-secondary">{{ val }}</span>
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endwith %}
+                                    </td>
+
+                                    {# Nautobot Model (ContentType dropdown) #}
+                                    <td>
+                                        {{ form.nautobot_content_type }}
+                                        {% if form.nautobot_content_type.errors %}
+                                            <br><small class="text-danger">{{ form.nautobot_content_type.errors.0 }}</small>
+                                        {% endif %}
+                                    </td>
+
+                                    {# Nautobot Field #}
+                                    <td>
+                                        {{ form.nautobot_field }}
+                                        {% if form.nautobot_field.errors %}
+                                            <br><small class="text-danger">{{ form.nautobot_field.errors.0 }}</small>
+                                        {% endif %}
+                                    </td>
+
+                                    {# Identifier? #}
+                                    <td class="text-center">{{ form.is_identifier }}</td>
+
+                                    {# Required? #}
+                                    <td class="text-center">{{ form.is_required }}</td>
+
+                                    {# Default value #}
+                                    <td>{{ form.default_value }}</td>
+
+                                    {# Transformation type #}
+                                    <td>{{ form.transformation_type }}</td>
+
+                                    {# Enabled toggle #}
+                                    <td class="text-center">{{ form.enabled }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {# ── Submit / Cancel ── #}
+    <div class="row mt-3 mb-4">
+        <div class="col-md-12 text-end">
+            <a href="{{ mapping.get_absolute_url }}" class="btn btn-outline-secondary me-2">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                <span class="mdi mdi-content-save-outline"></span> Save Field Mappings
+            </button>
+        </div>
+    </div>
+    {% endif %}
+</form>
+{% endblock content %}

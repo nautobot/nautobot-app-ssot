@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Nautobot Data Import — Drag-and-Drop Mapping Mockup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #0f172a; --panel: #1e293b; --panel-2: #0b1220; --panel-3: #020617;
+    --border: #334155; --border-strong: #475569;
+    --text: #e2e8f0; --muted: #94a3b8; --muted-2: #64748b;
+    --accent: #38bdf8; --success: #22c55e; --warning: #f59e0b;
+    --danger: #ef4444; --required: #f472b6; --purple: #a78bfa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0; padding: 24px; font-size: 14px;
+  }
+  header { max-width: 1400px; margin: 0 auto 18px; }
+  h1 { font-size: 21px; margin: 0 0 6px; }
+  p.lead { color: var(--muted); margin: 0; max-width: 950px; line-height: 1.5; }
+  p.lead strong { color: var(--accent); }
+
+  .frame { max-width: 1400px; margin: 0 auto; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+
+  /* table tabs */
+  .table-tabs { display: flex; gap: 0; background: var(--panel-2); border-bottom: 1px solid var(--border); padding: 0 12px; }
+  .ttab {
+    padding: 12px 18px; color: var(--muted); cursor: pointer; font-size: 13px;
+    border-bottom: 2px solid transparent; display: flex; align-items: center; gap: 8px;
+  }
+  .ttab.active { color: var(--text); border-bottom-color: var(--accent); }
+  .ttab .src-badge { font-size: 10px; padding: 1px 7px; border-radius: 100px; font-weight: 700; }
+  .src-badge.api { background: rgba(56,189,248,.15); color: var(--accent); }
+  .src-badge.csv { background: rgba(34,197,94,.15); color: var(--success); }
+  .src-badge.derived { background: rgba(167,139,250,.15); color: var(--purple); }
+
+  .layout { display: grid; grid-template-columns: 270px 1fr; }
+
+  /* palette */
+  .palette { background: var(--panel-2); border-right: 1px solid var(--border); padding: 14px; }
+  .palette h3 { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 14px 0 8px; }
+  .palette h3:first-child { margin-top: 0; }
+  .model-pick {
+    width: 100%; background: var(--panel-3); color: var(--text);
+    border: 1px solid var(--border-strong); border-radius: 6px; padding: 7px 10px; font-size: 13px; margin-bottom: 6px;
+  }
+  .palette .hint { color: var(--muted-2); font-size: 11px; line-height: 1.4; margin: 4px 0 0; }
+
+  .chip {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--panel-3); border: 1px solid var(--border-strong); border-radius: 6px;
+    padding: 6px 9px; margin-bottom: 6px; font-size: 12.5px; cursor: grab; user-select: none;
+  }
+  .chip:active { cursor: grabbing; }
+  .chip.required { border-left: 3px solid var(--required); }
+  .chip.dragging { opacity: .4; }
+  .chip.placed { opacity: .38; cursor: default; }
+  .chip.placed .grip { visibility: hidden; }
+  .chip .grip { color: var(--muted-2); font-size: 11px; }
+  .chip .fname { flex: 1; }
+  .chip .fk-tag { font-size: 9px; padding: 1px 5px; border-radius: 100px; background: rgba(56,189,248,.15); color: var(--accent); font-weight: 700; }
+  .chip .done { color: var(--success); font-size: 12px; display: none; }
+  .chip.placed .done { display: inline; }
+  .chip .pinbtn {
+    font-size: 10px; color: var(--muted); border: 1px dashed var(--border-strong);
+    border-radius: 4px; padding: 1px 5px; cursor: pointer; display: none;
+  }
+  .chip.pin-offer .pinbtn { display: inline; }
+  .chip .pinbtn:hover { color: var(--warning); border-color: var(--warning); }
+
+  /* grid area */
+  .gridwrap { padding: 16px; overflow-x: auto; }
+  .readiness {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 14px;
+  }
+  .readiness .bar { flex: 0 0 160px; height: 8px; border-radius: 100px; background: var(--panel-3); overflow: hidden; }
+  .readiness .fill { height: 100%; background: var(--warning); width: 40%; transition: width .25s, background .25s; }
+  .readiness.ok .fill { background: var(--success); }
+  .readiness .rtext { font-size: 12.5px; color: var(--muted); flex: 1; }
+  .readiness .rtext strong { color: var(--text); }
+  .readiness button {
+    background: var(--border); color: var(--muted-2); border: none; border-radius: 6px;
+    padding: 7px 14px; font-weight: 600; font-size: 12px; cursor: not-allowed;
+  }
+  .readiness.ok button { background: var(--success); color: #052e16; cursor: pointer; }
+
+  table.grid { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 12.5px; }
+  .grid th {
+    background: var(--panel-2); border: 1px solid var(--border); border-bottom-width: 0;
+    padding: 0; text-align: left; vertical-align: top; min-width: 150px;
+  }
+  .grid th .colname {
+    padding: 8px 10px 4px; font-family: ui-monospace, "SF Mono", monospace; font-size: 11.5px;
+    color: var(--muted); font-weight: 600;
+  }
+  .grid th .dropzone {
+    margin: 4px 8px 8px; min-height: 30px; border: 1px dashed var(--border-strong);
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    color: var(--muted-2); font-size: 11px; padding: 3px 6px; transition: all .12s;
+  }
+  .grid th .dropzone.over { border-color: var(--accent); background: rgba(56,189,248,.1); color: var(--accent); }
+  .grid th .dropzone.filled { border-style: solid; border-color: var(--accent); background: rgba(56,189,248,.08); color: var(--text); justify-content: space-between; gap: 6px; }
+  .dz-chip { display: flex; align-items: center; gap: 5px; font-size: 11.5px; }
+  .dz-chip .star { color: var(--warning); cursor: pointer; }
+  .dz-chip .fkb { font-size: 9px; padding: 1px 5px; border-radius: 100px; background: rgba(56,189,248,.18); color: var(--accent); font-weight: 700; cursor: pointer; }
+  .dz-chip .rm { color: var(--muted-2); cursor: pointer; font-size: 13px; line-height: 1; }
+  .dz-chip .rm:hover { color: var(--danger); }
+  .grid td { border: 1px solid var(--border); padding: 7px 10px; font-family: ui-monospace, monospace; font-size: 11.5px; color: #cbd5e1; background: var(--panel-3); white-space: nowrap; }
+  .grid tr:first-child td { border-top-width: 0; }
+
+  /* mini fk popover strip */
+  .fkstrip {
+    display: none; margin-top: 12px; background: rgba(56,189,248,.06);
+    border: 1px solid rgba(56,189,248,.35); border-radius: 8px; padding: 12px 14px; font-size: 12.5px;
+  }
+  .fkstrip.show { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .fkstrip .icon { font-size: 16px; }
+  .fkstrip select { background: var(--panel-3); color: var(--text); border: 1px solid var(--border-strong); border-radius: 6px; padding: 5px 8px; font-size: 12px; }
+  .fkstrip .ok { background: var(--accent); color: #042f4a; border: none; border-radius: 6px; padding: 6px 12px; font-weight: 700; font-size: 12px; cursor: pointer; }
+  .fkstrip .note { color: var(--muted); font-size: 11.5px; flex-basis: 100%; }
+
+  /* value-map nudge */
+  .vm-nudge { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; color: var(--warning); background: rgba(245,158,11,.12); border-radius: 100px; padding: 1px 8px; margin: 0 8px 8px; cursor: pointer; }
+
+  /* interfaces tab: parent link callout */
+  .parent-callout {
+    background: rgba(167,139,250,.07); border: 1px dashed rgba(167,139,250,.45);
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; font-size: 12.5px; color: var(--text);
+  }
+  .parent-callout strong { color: var(--purple); }
+  .lock { color: var(--purple); font-size: 11px; }
+
+  .tabpane { display: none; }
+  .tabpane.active { display: block; }
+  .footnote { max-width: 1400px; margin: 14px auto 0; color: var(--muted-2); font-size: 12px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Data Import — Drag-and-Drop Mapping Grid</h1>
+  <p class="lead">
+    <strong>Try it:</strong> drag field chips from the left palette onto the column headers. Drop the <em>location</em> chip to see the FK strategy prompt. Use 📌 on <em>status</em> / <em>role</em> to set a fixed value for fields with no source column. The readiness bar unlocks dry-run when all required fields are handled. Switch tables (tabs) to see the derived child table with its automatic parent link.
+  </p>
+</header>
+
+<div class="frame">
+  <div class="table-tabs">
+    <div class="ttab active" data-pane="devices">devices <span class="src-badge api">API</span></div>
+    <div class="ttab" data-pane="interfaces">devices.interfaces <span class="src-badge derived">DERIVED</span></div>
+    <div class="ttab" data-pane="sites">sites.csv <span class="src-badge csv">CSV</span></div>
+  </div>
+
+  <!-- ════════ DEVICES TAB ════════ -->
+  <div class="tabpane active" id="pane-devices">
+  <div class="layout">
+    <div class="palette">
+      <h3>Target model</h3>
+      <select class="model-pick"><option>dcim.Device</option><option>+ Add another output…</option></select>
+      <p class="hint">Fields below come from Nautobot's schema for Device. Drag onto a column, or 📌 pin a fixed value.</p>
+
+      <h3>Required</h3>
+      <div id="chips-req"></div>
+
+      <h3>Optional</h3>
+      <div id="chips-opt"></div>
+    </div>
+
+    <div class="gridwrap">
+      <div class="readiness" id="readiness">
+        <div class="bar"><div class="fill" id="rfill"></div></div>
+        <div class="rtext" id="rtext"></div>
+        <button id="dryrun-btn">Dry-run →</button>
+      </div>
+
+      <table class="grid">
+        <thead>
+          <tr id="headrow"></tr>
+        </thead>
+        <tbody id="gridbody"></tbody>
+      </table>
+
+      <div class="fkstrip" id="fkstrip">
+        <span class="icon">🧩</span>
+        <strong id="fk-title">location → dcim.Location</strong>
+        <select id="fk-choice">
+          <option>🔍 Lookup by name · skip record if missing</option>
+          <option>🔍 Lookup by name · skip just this field</option>
+          <option>✨ Lookup or create</option>
+          <option>📌 Static value</option>
+        </select>
+        <button class="ok" id="fk-ok">Save</button>
+        <span class="note">Full popover (parent cascades, create-defaults, live preview) opens from the 🔗 badge — see the FK popover mockup.</span>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- ════════ INTERFACES TAB ════════ -->
+  <div class="tabpane" id="pane-interfaces">
+  <div class="layout">
+    <div class="palette">
+      <h3>Target model</h3>
+      <select class="model-pick"><option>dcim.Interface</option></select>
+      <h3>Required</h3>
+      <div class="chip required placed"><span class="grip">⠿</span><span class="fname">★ name</span><span class="done">✓</span></div>
+      <div class="chip required placed"><span class="grip">⠿</span><span class="fname">device</span><span class="fk-tag">FK</span><span class="done">✓</span></div>
+      <div class="chip required placed"><span class="grip">⠿</span><span class="fname">status</span><span class="fk-tag">FK</span><span class="done">✓</span></div>
+      <div class="chip required placed"><span class="grip">⠿</span><span class="fname">type</span><span class="done">✓</span></div>
+      <h3>Optional</h3>
+      <div class="chip"><span class="grip">⠿</span><span class="fname">mac_address</span></div>
+      <div class="chip"><span class="grip">⠿</span><span class="fname">mtu</span></div>
+      <div class="chip"><span class="grip">⠿</span><span class="fname">description</span></div>
+    </div>
+    <div class="gridwrap">
+      <div class="parent-callout">
+        ⛓ <strong>Parent link detected automatically.</strong> This table was derived from the <code>interfaces[*]</code> array inside each device record. The <code>_parent_key</code> column links every row back to its parent device — <strong>Interface.device is already mapped</strong> and the import will create Devices before Interfaces. Nothing to configure.
+      </div>
+      <div class="readiness ok">
+        <div class="bar"><div class="fill" style="width:100%"></div></div>
+        <div class="rtext"><strong>4 of 4</strong> required fields mapped — ready</div>
+        <button>Dry-run →</button>
+      </div>
+      <table class="grid">
+        <thead><tr>
+          <th><div class="colname">_parent_key 🔒</div><div class="dropzone filled"><span class="dz-chip"><span class="lock">⛓ Interface.device (auto)</span></span></div></th>
+          <th><div class="colname">if_name</div><div class="dropzone filled"><span class="dz-chip"><span class="star">★</span> Interface.name <span class="rm">×</span></span></div></th>
+          <th><div class="colname">oper_status</div><div class="dropzone filled"><span class="dz-chip">Interface.status <span class="fkb">🔗 FK</span> <span class="rm">×</span></span></div><span class="vm-nudge">⚡ 2 values need mapping →</span></th>
+          <th><div class="colname">if_type</div><div class="dropzone filled"><span class="dz-chip">Interface.type <span class="rm">×</span></span></div></th>
+          <th><div class="colname">mac</div><div class="dropzone">drop a field here</div></th>
+        </tr></thead>
+        <tbody>
+          <tr><td>rtr-dc1-01</td><td>GigabitEthernet0/0</td><td>up</td><td>1000base-t</td><td>00:1A:2B:3C:4D:5E</td></tr>
+          <tr><td>rtr-dc1-01</td><td>GigabitEthernet0/1</td><td>down</td><td>1000base-t</td><td>00:1A:2B:3C:4D:5F</td></tr>
+          <tr><td>rtr-dc1-02</td><td>GigabitEthernet0/0</td><td>up</td><td>1000base-t</td><td>00:1A:2B:3C:4E:01</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  </div>
+
+  <!-- ════════ SITES CSV TAB ════════ -->
+  <div class="tabpane" id="pane-sites">
+  <div class="layout">
+    <div class="palette">
+      <h3>Target model</h3>
+      <select class="model-pick"><option>dcim.Location</option></select>
+      <h3>Required</h3>
+      <div class="chip required placed"><span class="grip">⠿</span><span class="fname">★ name</span><span class="done">✓</span></div>
+      <div class="chip required placed"><span class="grip">⠿</span><span class="fname">location_type</span><span class="fk-tag">FK</span><span class="done">✓</span></div>
+      <div class="chip required placed"><span class="grip">⠿</span><span class="fname">status</span><span class="fk-tag">FK</span><span class="done">✓</span></div>
+      <h3>Optional</h3>
+      <div class="chip placed"><span class="grip">⠿</span><span class="fname">physical_address</span><span class="done">✓</span></div>
+      <div class="chip"><span class="grip">⠿</span><span class="fname">description</span></div>
+    </div>
+    <div class="gridwrap">
+      <div class="parent-callout" style="border-color: rgba(34,197,94,.45); background: rgba(34,197,94,.06);">
+        📄 <strong style="color:var(--success)">Uploaded file: sites.csv</strong> · 14 rows · header row detected · comma-delimited. Same mapping experience as API data — a table is a table. Re-run options: use this stored file, prompt for a new upload each run, or fetch from a URL.
+      </div>
+      <div class="readiness ok">
+        <div class="bar"><div class="fill" style="width:100%"></div></div>
+        <div class="rtext"><strong>3 of 3</strong> required fields mapped — ready</div>
+        <button>Dry-run →</button>
+      </div>
+      <table class="grid">
+        <thead><tr>
+          <th><div class="colname">site_name</div><div class="dropzone filled"><span class="dz-chip"><span class="star">★</span> Location.name <span class="rm">×</span></span></div></th>
+          <th><div class="colname">type</div><div class="dropzone filled"><span class="dz-chip">Location.location_type <span class="fkb">🔗 FK</span> <span class="rm">×</span></span></div></th>
+          <th><div class="colname">address</div><div class="dropzone filled"><span class="dz-chip">Location.physical_address <span class="rm">×</span></span></div></th>
+          <th><div class="colname">region</div><div class="dropzone">drop a field here</div></th>
+        </tr></thead>
+        <tbody>
+          <tr><td>DC1</td><td>Data Center</td><td>100 Main St, Kansas City MO</td><td>Central</td></tr>
+          <tr><td>DC2</td><td>Data Center</td><td>200 Oak Ave, Denver CO</td><td>West</td></tr>
+          <tr><td>BR-04</td><td>Branch</td><td>4 Elm Ct, Tulsa OK</td><td>Central</td></tr>
+        </tbody>
+      </table>
+      <p style="color: var(--muted); font-size: 12px; margin-top: 10px;">status has no source column → pinned to fixed value <strong style="color:var(--warning)">📌 Active</strong> (set from the chip's pin button).</p>
+    </div>
+  </div>
+  </div>
+</div>
+
+<p class="footnote">
+  Mockup notes: the devices tab is fully interactive (drag, drop, remove, pin, readiness). The other tabs are illustrative snapshots of the same component in different states — a derived child table with an automatic parent link, and a CSV file showing the identical mapping experience. In the real build, columns auto-suggested by the FieldSuggester arrive pre-mapped (hostname → name and serial_no → serial start pre-placed here to show that).
+</p>
+
+<script>
+(function () {
+  // ── devices tab data ──────────────────────────────────────────────
+  const COLUMNS = [
+    { id: "hostname",  rows: ["rtr-dc1-01", "rtr-dc1-02", "sw-dc2-01"] },
+    { id: "serial_no", rows: ["FCH2345X1Y2", "FCH2345X1Y3", "FDO1122A3B4"] },
+    { id: "site",      rows: ["DC1", "DC1", "DC2"] },
+    { id: "model",     rows: ["C9300-48P", "C9300-48P", "C9500-24Y4C"] },
+    { id: "os_version",rows: ["17.3.5", "17.3.5", "16.12.4"] },
+    { id: "mgmt_ip",   rows: ["10.42.1.1", "10.42.1.2", "10.43.1.1"] },
+  ];
+  const FIELDS = [
+    { id: "name",        label: "name",        required: true,  fk: false, star: true,  pin: false },
+    { id: "status",      label: "status",      required: true,  fk: true,  star: false, pin: true  },
+    { id: "role",        label: "role",        required: true,  fk: true,  star: false, pin: true  },
+    { id: "device_type", label: "device_type", required: true,  fk: true,  star: false, pin: false },
+    { id: "location",    label: "location",    required: true,  fk: true,  star: false, pin: false },
+    { id: "serial",      label: "serial",      required: false, fk: false },
+    { id: "asset_tag",   label: "asset_tag",   required: false, fk: false },
+    { id: "platform",    label: "platform",    required: false, fk: true  },
+    { id: "primary_ip4", label: "primary_ip4", required: false, fk: true  },
+    { id: "cf_snow_id",  label: "_cf_snow_id", required: false, fk: false },
+  ];
+  // state: fieldId -> {col} or {fixed}
+  const assign = { name: { col: "hostname" }, serial: { col: "serial_no" } }; // pre-suggested
+  let dragField = null;
+
+  const reqWrap = document.getElementById("chips-req");
+  const optWrap = document.getElementById("chips-opt");
+  const headrow = document.getElementById("headrow");
+  const gridbody = document.getElementById("gridbody");
+  const fkstrip = document.getElementById("fkstrip");
+  const fkTitle = document.getElementById("fk-title");
+
+  function fieldById(id) { return FIELDS.find(f => f.id === id); }
+  function assignedTo(colId) {
+    return Object.keys(assign).find(fid => assign[fid].col === colId) || null;
+  }
+
+  function renderChips() {
+    reqWrap.innerHTML = ""; optWrap.innerHTML = "";
+    FIELDS.forEach(f => {
+      const el = document.createElement("div");
+      const placed = !!assign[f.id];
+      el.className = "chip" + (f.required ? " required" : "") + (placed ? " placed" : "") + (!placed && f.pin ? " pin-offer" : "");
+      el.draggable = !placed;
+      el.innerHTML =
+        '<span class="grip">⠿</span><span class="fname">' + (f.star ? "★ " : "") + f.label + "</span>" +
+        (f.fk ? '<span class="fk-tag">FK</span>' : "") +
+        '<span class="done">✓' + (assign[f.id] && assign[f.id].fixed ? " 📌 " + assign[f.id].fixed : "") + "</span>" +
+        (f.pin ? '<span class="pinbtn" title="No source column? Pin a fixed value.">📌 fixed</span>' : "");
+      el.addEventListener("dragstart", ev => {
+        dragField = f.id; el.classList.add("dragging");
+        ev.dataTransfer.setData("text/plain", f.id);
+      });
+      el.addEventListener("dragend", () => { dragField = null; el.classList.remove("dragging"); });
+      const pin = el.querySelector(".pinbtn");
+      if (pin) pin.addEventListener("click", () => {
+        assign[f.id] = { fixed: f.id === "status" ? "Active" : "network" };
+        renderAll();
+      });
+      (f.required ? reqWrap : optWrap).appendChild(el);
+    });
+  }
+
+  function renderGrid() {
+    headrow.innerHTML = "";
+    COLUMNS.forEach(col => {
+      const th = document.createElement("th");
+      const fid = assignedTo(col.id);
+      let dz;
+      if (fid) {
+        const f = fieldById(fid);
+        dz = '<div class="dropzone filled" data-col="' + col.id + '"><span class="dz-chip">' +
+             (f.star ? '<span class="star" title="identifier">★</span> ' : "") +
+             "Device." + f.label +
+             (f.fk ? ' <span class="fkb" data-f="' + f.label + '">🔗 FK</span>' : "") +
+             ' <span class="rm" data-remove="' + fid + '">×</span></span></div>';
+      } else {
+        dz = '<div class="dropzone" data-col="' + col.id + '">drop a field here</div>';
+      }
+      th.innerHTML = '<div class="colname">' + col.id + "</div>" + dz;
+      headrow.appendChild(th);
+    });
+    gridbody.innerHTML = "";
+    for (let r = 0; r < 3; r++) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = COLUMNS.map(c => "<td>" + c.rows[r] + "</td>").join("");
+      gridbody.appendChild(tr);
+    }
+    // wire dropzones
+    headrow.querySelectorAll(".dropzone").forEach(dz => {
+      dz.addEventListener("dragover", ev => { ev.preventDefault(); dz.classList.add("over"); });
+      dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+      dz.addEventListener("drop", ev => {
+        ev.preventDefault(); dz.classList.remove("over");
+        const fid = ev.dataTransfer.getData("text/plain");
+        if (!fid || assign[fid]) return;
+        // one field per column: clear existing occupant
+        const occupant = assignedTo(dz.dataset.col);
+        if (occupant) delete assign[occupant];
+        assign[fid] = { col: dz.dataset.col };
+        renderAll();
+        const f = fieldById(fid);
+        if (f.fk) {
+          fkTitle.textContent = f.label + " → " + ({location:"dcim.Location", role:"extras.Role", status:"extras.Status", device_type:"dcim.DeviceType", platform:"dcim.Platform", primary_ip4:"ipam.IPAddress"}[f.id] || "related model");
+          fkstrip.classList.add("show");
+          fkstrip.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      });
+    });
+    headrow.querySelectorAll("[data-remove]").forEach(x =>
+      x.addEventListener("click", () => { delete assign[x.dataset.remove]; renderAll(); }));
+    headrow.querySelectorAll(".fkb").forEach(b =>
+      b.addEventListener("click", () => {
+        fkTitle.textContent = b.dataset.f + " → related model";
+        fkstrip.classList.add("show");
+      }));
+  }
+
+  function renderReadiness() {
+    const req = FIELDS.filter(f => f.required);
+    const done = req.filter(f => assign[f.id]).length;
+    const el = document.getElementById("readiness");
+    document.getElementById("rfill").style.width = (done / req.length * 100) + "%";
+    const missing = req.filter(f => !assign[f.id]).map(f => f.label);
+    document.getElementById("rtext").innerHTML =
+      "<strong>" + done + " of " + req.length + "</strong> required fields mapped" +
+      (missing.length ? " — missing: " + missing.join(", ") : " — ready");
+    el.classList.toggle("ok", done === req.length);
+  }
+
+  function renderAll() { renderChips(); renderGrid(); renderReadiness(); }
+  renderAll();
+
+  document.getElementById("fk-ok").addEventListener("click", () => fkstrip.classList.remove("show"));
+
+  // tab switching
+  document.querySelectorAll(".ttab").forEach(t => t.addEventListener("click", () => {
+    document.querySelectorAll(".ttab").forEach(x => x.classList.remove("active"));
+    document.querySelectorAll(".tabpane").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    document.getElementById("pane-" + t.dataset.pane).classList.add("active");
+  }));
+})();
+</script>
+
+</body>
+</html>

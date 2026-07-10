@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% load helpers %}
+
+{% block breadcrumbs %}
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'plugins:nautobot_ssot:dashboard' %}">Single Source of Truth</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'plugins:nautobot_ssot:ssotsyncconfig_list' %}">SSoT Sync Configs</a></li>
+        <li class="breadcrumb-item"><a href="{{ sync_config.get_absolute_url }}">{{ sync_config.name }}</a></li>
+        <li class="breadcrumb-item active">Select Models</li>
+    </ol>
+{% endblock breadcrumbs %}
+
+{% block title %}Select Models - {{ sync_config.name }}{% endblock title %}
+
+{% block content %}
+<form method="post" id="model-selection-form">
+    {% csrf_token %}
+
+    <div class="row">
+        {# Left panel: model checkboxes #}
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="card-title mb-0">Available Nautobot Models</h4>
+                    <button type="button" class="btn btn-sm btn-outline-info" id="preview-deps-btn">
+                        <span class="mdi mdi-graph-outline"></span> Preview Dependencies
+                    </button>
+                </div>
+                <div class="card-body" style="max-height:600px; overflow-y:auto;">
+                    {% for app_label, models_list in grouped_models.items %}
+                    <div class="mb-3">
+                        <h6 class="text-uppercase text-muted">{{ app_label }}</h6>
+                        {% for item in models_list %}
+                        <div class="form-check">
+                            <input class="form-check-input model-checkbox" type="checkbox"
+                                   name="selected_models" value="{{ item.ct.id }}"
+                                   id="ct_{{ item.ct.id }}"
+                                   {% if item.is_selected %}checked{% endif %}>
+                            <label class="form-check-label" for="ct_{{ item.ct.id }}">
+                                {{ item.model_name }}
+                                <small class="text-muted">({{ item.ct.app_label }}.{{ item.ct.model }})</small>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {# Right panel: dependency tree #}
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title mb-0">Dependency Tree</h4>
+                </div>
+                <div class="card-body" id="dep-tree-panel" style="min-height:400px;">
+                    <div id="dep-tree-content">
+                        <p class="text-muted" id="dep-tree-placeholder">
+                            Select models and click <strong>Preview Dependencies</strong> to see the dependency tree.
+                        </p>
+                        <div id="dep-tree-nodes" class="d-none"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-3 mb-4">
+        <div class="col-md-12 text-end">
+            <a href="{{ sync_config.get_absolute_url }}" class="btn btn-outline-secondary me-2">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                <span class="mdi mdi-content-save-outline"></span> Save Model Selection
+            </button>
+        </div>
+    </div>
+</form>
+
+<script>
+var DEP_TREE = {{ dep_tree_json|safe }};
+
+function renderDepTree(tree) {
+    var container = document.getElementById('dep-tree-nodes');
+    var placeholder = document.getElementById('dep-tree-placeholder');
+
+    if (!tree.nodes || tree.nodes.length === 0) {
+        placeholder.classList.remove('d-none');
+        placeholder.textContent = 'No models selected.';
+        container.classList.add('d-none');
+        return;
+    }
+
+    placeholder.classList.add('d-none');
+    container.classList.remove('d-none');
+
+    // Sort: user-selected first, then by depth, then alphabetically.
+    var sorted = tree.nodes.slice().sort(function(a, b) {
+        if (a.is_user_selected !== b.is_user_selected) return a.is_user_selected ? -1 : 1;
+        if (a.depth !== b.depth) return a.depth - b.depth;
+        return a.model_name.localeCompare(b.model_name);
+    });
+
+    var html = '<div class="list-group">';
+    for (var i = 0; i < sorted.length; i++) {
+        var node = sorted[i];
+        var badgeClass = node.is_user_selected ? 'bg-primary' : (node.is_required_dependency ? 'bg-warning text-dark' : 'bg-secondary');
+        var label = node.is_user_selected ? 'Selected' : (node.is_required_dependency ? 'Required Dep' : 'Optional');
+        var lockIcon = node.is_required_dependency && !node.is_user_selected ? ' <span class="mdi mdi-lock"></span>' : '';
+        var requiredBy = '';
+        if (node.required_by && node.required_by.length > 0) {
+            var names = [];
+            for (var j = 0; j < node.required_by.length; j++) {
+                for (var k = 0; k < tree.nodes.length; k++) {
+                    if (tree.nodes[k].content_type_id === node.required_by[j]) {
+                        names.push(tree.nodes[k].model_name);
+                    }
+                }
+            }
+            if (names.length > 0) {
+                requiredBy = '<br><small class="text-muted">Required by: ' + names.join(', ') + '</small>';
+            }
+        }
+
+        html += '<div class="list-group-item d-flex justify-content-between align-items-start">';
+        html += '<div><strong>' + node.model_name + '</strong>' + lockIcon;
+        html += '<br><small class="text-muted">' + node.app_label + '.' + node.model + ' (depth ' + node.depth + ')</small>';
+        html += requiredBy;
+        html += '</div>';
+        html += '<span class="badge ' + badgeClass + '">' + label + '</span>';
+        html += '</div>';
+    }
+    html += '</div>';
+
+    // Edge summary.
+    if (tree.edges && tree.edges.length > 0) {
+        html += '<div class="mt-3"><h6>FK Relationships</h6><ul class="list-unstyled small">';
+        for (var e = 0; e < tree.edges.length; e++) {
+            var edge = tree.edges[e];
+            var fromName = '', toName = '';
+            for (var n = 0; n < tree.nodes.length; n++) {
+                if (tree.nodes[n].content_type_id === edge.from_ct_id) fromName = tree.nodes[n].model_name;
+                if (tree.nodes[n].content_type_id === edge.to_ct_id) toName = tree.nodes[n].model_name;
+            }
+            var reqBadge = edge.is_required ? '<span class="badge bg-danger ms-1">required</span>' : '<span class="badge bg-secondary ms-1">optional</span>';
+            html += '<li>' + fromName + '.<code>' + edge.field_name + '</code> &rarr; ' + toName + ' ' + reqBadge + '</li>';
+        }
+        html += '</ul></div>';
+    }
+
+    container.innerHTML = html;
+}
+
+// Initial render if we have pre-computed data.
+if (DEP_TREE.nodes && DEP_TREE.nodes.length > 0) {
+    renderDepTree(DEP_TREE);
+}
+
+// AJAX preview.
+document.getElementById('preview-deps-btn').addEventListener('click', function() {
+    var form = document.getElementById('model-selection-form');
+    var formData = new FormData(form);
+
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        DEP_TREE = data;
+        renderDepTree(data);
+    })
+    .catch(function(err) {
+        console.error('Error fetching dependencies:', err);
+    });
+});
+</script>
+{% endblock content %}

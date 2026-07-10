@@ -223,6 +223,9 @@ PLUGINS_CONFIG = {
         "enable_citrix_adm": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_CITRIX_ADM")),
         "enable_device42": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DEVICE42")),
         "enable_dna_center": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DNA_CENTER")),
+        "enable_generic_ssot": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_GENERIC_SSOT", "false")),
+        # Dev default "true" because development.env cannot be edited by tooling.
+        "enable_data_import": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_DATA_IMPORT", "true")),
         "enable_infoblox": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_INFOBLOX")),
         "enable_ipfabric": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_IPFABRIC")),
         "enable_itential": is_truthy(os.getenv("NAUTOBOT_SSOT_ENABLE_ITENTIAL")),

@@ -131,6 +131,7 @@ all = [
     "dnacentersdk",
     "meraki",
     "slurpit_sdk",
+    "jmespath",
 ]
 aristacv = [
     "cloudvision",
@@ -150,6 +151,9 @@ device42 = [
 dna_center = [
     "dnacentersdk",
     "netutils"
+]
+generic = [
+    "jmespath",
 ]
 infoblox = [
     "dnspython",

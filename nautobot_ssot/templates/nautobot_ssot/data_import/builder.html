@@ -1,0 +1,983 @@
+{% extends "base.html" %}
+{% load helpers %}
+
+{% block title %}Import Plan Builder — {{ plan.name }}{% endblock %}
+
+{% block extra_styles %}
+<style>
+/* ── theme variables ─────────────────────────────────────────────────
+   Light defaults; overridden when Nautobot's dark theme is active
+   (html[data-theme="dark"]) or the OS prefers dark and no explicit
+   light theme is set. Colors chosen for ≥4.5:1 contrast in both modes. */
+#di-builder {
+  --di-bg: #ffffff;
+  --di-bg-2: #f5f6f7;
+  --di-bg-3: #eef6fc;
+  --di-border: #cfd4d9;
+  --di-border-strong: #9aa2ab;
+  --di-text: #24292f;
+  --di-muted: #57606a;
+  --di-accent: #0b6aa8;
+  --di-accent-bg: #d9edf7;
+  --di-success: #1a7f37;
+  --di-warning: #9a6700;
+  --di-warning-bg: #fff3cd;
+  --di-danger: #c73737;
+  --di-star-off: #8f979f;
+  --di-focus: #0b6aa8;
+}
+html[data-theme="dark"] #di-builder {
+  --di-bg: #1e242b;
+  --di-bg-2: #171c22;
+  --di-bg-3: #12324a;
+  --di-border: #3d454e;
+  --di-border-strong: #5b656f;
+  --di-text: #e6edf3;
+  --di-muted: #a7b1bb;
+  --di-accent: #58b4f0;
+  --di-accent-bg: #123a55;
+  --di-success: #4ecb71;
+  --di-warning: #e8b93e;
+  --di-warning-bg: #4a3a12;
+  --di-danger: #f47067;
+  --di-star-off: #6b747d;
+  --di-focus: #58b4f0;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) #di-builder {
+    --di-bg: #1e242b;
+    --di-bg-2: #171c22;
+    --di-bg-3: #12324a;
+    --di-border: #3d454e;
+    --di-border-strong: #5b656f;
+    --di-text: #e6edf3;
+    --di-muted: #a7b1bb;
+    --di-accent: #58b4f0;
+    --di-accent-bg: #123a55;
+    --di-success: #4ecb71;
+    --di-warning: #e8b93e;
+    --di-warning-bg: #4a3a12;
+    --di-danger: #f47067;
+    --di-star-off: #6b747d;
+    --di-focus: #58b4f0;
+  }
+}
+
+#di-builder { font-size: 13px; color: var(--di-text); }
+#di-builder .di-panel { background: var(--di-bg); border: 1px solid var(--di-border); border-radius: 6px; padding: 14px; margin-bottom: 14px; }
+#di-builder h4 { margin-top: 0; font-size: 15px; color: var(--di-text); }
+#di-builder .di-muted { color: var(--di-muted); font-size: 12px; }
+#di-builder :focus-visible { outline: 2px solid var(--di-focus); outline-offset: 1px; border-radius: 4px; }
+#di-builder input, #di-builder select {
+  background: var(--di-bg); color: var(--di-text);
+  border: 1px solid var(--di-border-strong); border-radius: 4px; font-size: 12px; padding: 4px 6px;
+}
+
+/* top bar */
+#di-topbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+#di-topbar .spacer { flex: 1; }
+#di-readiness { display: flex; align-items: center; gap: 10px; }
+#di-readiness .bar { width: 140px; height: 8px; background: var(--di-bg-2); border: 1px solid var(--di-border); border-radius: 99px; overflow: hidden; }
+#di-readiness .fill { height: 100%; width: 0; background: var(--di-warning); transition: width .2s; }
+#di-readiness.ok .fill { background: var(--di-success); }
+
+/* sources */
+.di-source-card { border: 1px solid var(--di-border); background: var(--di-bg); border-radius: 5px; padding: 10px 12px; margin-bottom: 8px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.di-source-card .badge-src { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+.badge-src.api { background: var(--di-accent-bg); color: var(--di-accent); }
+.badge-src.csv { background: var(--di-bg-2); color: var(--di-success); border: 1px solid var(--di-success); }
+.di-source-card .src-name { font-weight: 600; }
+.di-source-card .src-meta { color: var(--di-muted); font-family: monospace; font-size: 11px; }
+.di-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-top: 8px; }
+.di-form-grid label { font-size: 10px; text-transform: uppercase; color: var(--di-muted); display: block; margin-bottom: 2px; }
+.di-form-grid input, .di-form-grid select { width: 100%; }
+.di-form-grid input:disabled { opacity: .55; }
+
+/* table tabs */
+.di-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--di-border); margin-bottom: 12px; flex-wrap: wrap; }
+.di-tab { padding: 7px 14px; cursor: pointer; border: 1px solid transparent; border-bottom: none; border-radius: 5px 5px 0 0; color: var(--di-muted); background: transparent; font-size: 13px; }
+.di-tab.active { background: var(--di-bg); border-color: var(--di-border); color: var(--di-text); font-weight: 600; }
+.di-tab .cnt { color: var(--di-muted); font-size: 11px; }
+
+/* layout: palette + grid.
+   minmax(0, 1fr) is load-bearing: plain 1fr lets a wide table blow out the
+   grid track and push the whole page wide instead of scrolling internally. */
+.di-map-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 14px; align-items: start; }
+.di-palette { position: sticky; top: 8px; max-height: 85vh; overflow-y: auto; }
+.di-palette h5 { font-size: 10px; text-transform: uppercase; color: var(--di-muted); margin: 12px 0 6px; }
+.di-chip { display: flex; align-items: center; gap: 6px; border: 1px solid var(--di-border-strong); border-radius: 5px; padding: 5px 8px; margin-bottom: 5px; background: var(--di-bg-2); color: var(--di-text); cursor: grab; user-select: none; font-size: 12px; width: 100%; text-align: left; }
+.di-chip.required { border-left: 3px solid var(--di-danger); }
+.di-chip.placed { opacity: .85; cursor: default; border-style: solid; border-color: var(--di-accent); background: var(--di-bg-3); }
+.di-chip .asg { color: var(--di-muted); font-family: monospace; font-size: 10.5px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.di-chip .mini { background: transparent; border: none; cursor: pointer; font-size: 11px; color: var(--di-muted); padding: 0 2px; }
+.di-chip .mini:hover { color: var(--di-accent); }
+.di-chip .mini.rm:hover { color: var(--di-danger); }
+.di-chip.armed { border-color: var(--di-accent); background: var(--di-bg-3); box-shadow: 0 0 0 1px var(--di-accent); }
+.di-chip .fk-tag { font-size: 9px; font-weight: 700; background: var(--di-accent-bg); color: var(--di-accent); padding: 1px 5px; border-radius: 99px; }
+.di-chip .cf-tag { font-size: 9px; font-weight: 700; background: var(--di-warning-bg); color: var(--di-warning); padding: 1px 5px; border-radius: 99px; }
+.di-chip .grow { flex: 1; }
+.di-chip .pin { font-size: 10px; border: 1px dashed var(--di-border-strong); background: transparent; border-radius: 4px; padding: 0 5px; cursor: pointer; color: var(--di-muted); }
+.di-chip .pin:hover { color: var(--di-warning); border-color: var(--di-warning); }
+.di-chip.dragging { opacity: .4; }
+
+/* view switcher */
+.di-viewbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.di-viewbar .vw { border: 1px solid var(--di-border-strong); background: var(--di-bg-2); color: var(--di-text); border-radius: 5px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+.di-viewbar .vw.active { background: var(--di-accent-bg); color: var(--di-accent); border-color: var(--di-accent); font-weight: 600; }
+.di-viewbar input { min-width: 200px; }
+.di-viewbar .vinfo { color: var(--di-muted); font-size: 11px; }
+
+/* grid (spreadsheet view): scrolls independently, sticky header */
+.di-gridwrap { overflow: auto; max-height: 62vh; border: 1px solid var(--di-border); border-radius: 5px; }
+table.di-grid { border-collapse: separate; border-spacing: 0; min-width: 100%; }
+.di-grid thead th { position: sticky; top: 0; z-index: 2; }
+.di-grid th { background: var(--di-bg-2); border: 1px solid var(--di-border); padding: 0; text-align: left; vertical-align: top; min-width: 140px; }
+.di-grid th .colname { font-family: monospace; font-size: 11px; color: var(--di-muted); padding: 6px 8px 2px; font-weight: 600; }
+.di-grid th .dz { margin: 4px 6px 6px; min-height: 28px; border: 1px dashed var(--di-border-strong); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--di-muted); padding: 2px 5px; }
+.di-grid th .dz.over, .di-grid th .dz.armed-target { border-color: var(--di-accent); background: var(--di-bg-3); color: var(--di-accent); cursor: pointer; }
+.di-grid th .dz.filled { border-style: solid; border-color: var(--di-accent); background: var(--di-bg-3); color: var(--di-text); justify-content: space-between; gap: 5px; }
+.di-grid td { border: 1px solid var(--di-border); background: var(--di-bg); color: var(--di-text); padding: 5px 8px; font-family: monospace; font-size: 11px; white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+.dz button { background: transparent; border: none; padding: 0 2px; cursor: pointer; font-size: inherit; color: inherit; }
+
+/* list view (one row per source column) — the many-columns-friendly layout */
+#di-listwrap { max-height: 62vh; overflow-y: auto; border: 1px solid var(--di-border); border-radius: 5px; }
+table.di-list { width: 100%; border-collapse: separate; border-spacing: 0; }
+.di-list th { position: sticky; top: 0; z-index: 2; background: var(--di-bg-2); color: var(--di-muted); text-align: left; font-size: 10px; text-transform: uppercase; padding: 6px 10px; border-bottom: 1px solid var(--di-border); }
+.di-list td { padding: 6px 10px; border-bottom: 1px solid var(--di-border); vertical-align: middle; background: var(--di-bg); }
+.di-list tr.mapped td { background: var(--di-bg-2); }
+.di-list .lcol { font-family: monospace; font-size: 12px; color: var(--di-text); white-space: nowrap; }
+.di-list .lsamples { font-family: monospace; font-size: 11px; color: var(--di-muted); max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.di-list .dz { min-height: 28px; border: 1px dashed var(--di-border-strong); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--di-muted); padding: 2px 6px; min-width: 190px; }
+.di-list .dz.over, .di-list .dz.armed-target { border-color: var(--di-accent); background: var(--di-bg-3); color: var(--di-accent); cursor: pointer; }
+.di-list .dz.filled { border-style: solid; border-color: var(--di-accent); background: var(--di-bg-3); color: var(--di-text); justify-content: space-between; gap: 5px; }
+.dz .star { color: var(--di-star-off); }
+.dz .star.on { color: var(--di-warning); }
+.dz .cfg { font-size: 10px; background: var(--di-accent-bg); color: var(--di-accent); border-radius: 99px; padding: 0 6px; font-weight: 700; }
+.dz .rm { color: var(--di-muted); margin-left: 2px; }
+.dz .rm:hover { color: var(--di-danger); }
+
+/* config strip */
+#di-cfgstrip { border: 1px solid var(--di-accent); background: var(--di-bg-2); border-radius: 6px; padding: 12px; margin-top: 12px; display: none; color: var(--di-text); }
+#di-cfgstrip.show { display: block; }
+#di-cfgstrip .row-flex { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 8px; }
+#di-cfgstrip label { font-size: 10px; text-transform: uppercase; color: var(--di-muted); display: block; margin-bottom: 2px; }
+.di-kv-row { display: flex; gap: 6px; margin-bottom: 4px; align-items: center; }
+
+/* results */
+#di-results .totals { display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+#di-results .tot { border: 1px solid var(--di-border); background: var(--di-bg); border-radius: 6px; padding: 8px 16px; text-align: center; }
+#di-results .tot .n { font-size: 22px; font-weight: 700; }
+#di-results .tot.create .n { color: var(--di-success); }
+#di-results .tot.update .n { color: var(--di-accent); }
+#di-results .tot.skip .n { color: var(--di-warning); }
+#di-results .tot.err .n { color: var(--di-danger); }
+#di-results pre { max-height: 300px; overflow: auto; font-size: 11px; background: var(--di-bg-2); color: var(--di-text); border: 1px solid var(--di-border); }
+
+.di-btn-sm { font-size: 11px; padding: 3px 8px; }
+#di-expandbar { margin: 8px 0; }
+#di-armhint { display: none; margin: 6px 0; color: var(--di-accent); font-size: 12px; }
+#di-armhint.show { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="di-builder">
+  <div class="di-panel" id="di-topbar">
+    <h4 style="margin:0;">🧭 Import Plan Builder — {{ plan.name }}</h4>
+    <span class="di-muted">{% if has_integration %}Integration: {{ plan.integration }}{% else %}No integration (CSV only){% endif %}</span>
+    <div class="spacer"></div>
+    <div id="di-readiness"><div class="bar"><div class="fill" id="di-rfill"></div></div><span id="di-rtext" class="di-muted"></span></div>
+    <button class="btn btn-default" id="di-save">Save</button>
+    <button class="btn btn-primary" id="di-dryrun" disabled>Preview dry-run</button>
+    <a class="btn btn-default" href="{% url 'plugins:nautobot_ssot:importplan' pk=plan.pk %}">Done</a>
+  </div>
+
+  <div class="di-panel">
+    <h4>1 · Sources</h4>
+    <div id="di-sources"></div>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      {% if has_integration %}<button class="btn btn-default di-btn-sm" id="di-add-api">+ API source</button>{% endif %}
+      <button class="btn btn-default di-btn-sm" id="di-add-csv">+ CSV source</button>
+    </div>
+    <div id="di-newsource"></div>
+  </div>
+
+  <div class="di-panel">
+    <h4>2 · Map fields</h4>
+    <div class="di-tabs" id="di-tabs"></div>
+    <div id="di-expandbar"></div>
+    <div id="di-armhint" role="status" aria-live="polite"></div>
+    <div class="di-map-layout" id="di-maplayout" style="display:none;">
+      <div class="di-palette">
+        <label style="font-size:10px; text-transform:uppercase; color:#888;">Target model</label>
+        <select id="di-target" style="width:100%; font-size:12px; padding:4px;"></select>
+        <div id="di-chips"></div>
+      </div>
+      <div>
+        <div class="di-viewbar">
+          <button type="button" class="vw" id="di-view-list" aria-pressed="false">☰ Column list</button>
+          <button type="button" class="vw" id="di-view-grid" aria-pressed="false">▦ Data grid</button>
+          <input type="search" id="di-colfilter" placeholder="Filter columns…" aria-label="Filter columns by name">
+          <span class="vinfo" id="di-viewinfo"></span>
+        </div>
+        <div class="di-gridwrap" id="di-gridwrap"><table class="di-grid"><thead><tr id="di-headrow"></tr></thead><tbody id="di-gridbody"></tbody></table></div>
+        <div id="di-listwrap" style="display:none;"><table class="di-list">
+          <thead><tr><th style="width:220px;">Maps to</th><th>Source column</th><th>Sample values</th></tr></thead>
+          <tbody id="di-listbody"></tbody>
+        </table></div>
+        <div id="di-cfgstrip"></div>
+      </div>
+    </div>
+    <p class="di-muted" id="di-nomap">Add a source and fetch/upload data to start mapping.</p>
+  </div>
+
+  <div class="di-panel" id="di-results" style="display:none;">
+    <h4>3 · Dry-run preview <span class="di-muted">(sample data, nothing written)</span></h4>
+    <div class="totals" id="di-totals"></div>
+    <div id="di-outputs"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+"use strict";
+/* ── bootstrap data ─────────────────────────────────────────────────── */
+const PLAN_PK = "{{ plan.pk }}";
+const URLS = {
+  uploadCsv: "{% url 'plugins:nautobot_ssot:importplan_builder_upload_csv' pk=plan.pk %}",
+  fetchSample: "{% url 'plugins:nautobot_ssot:importplan_builder_fetch_sample' pk=plan.pk %}",
+  introspect: "{% url 'plugins:nautobot_ssot:importplan_builder_introspect' pk=plan.pk %}",
+  save: "{% url 'plugins:nautobot_ssot:importplan_builder_save' pk=plan.pk %}",
+  dryRun: "{% url 'plugins:nautobot_ssot:importplan_builder_dry_run' pk=plan.pk %}",
+};
+let doc = {{ document_json|safe }};
+const cachedTables = {{ cached_tables_json|safe }};
+const targetChoices = {{ target_choices_json|safe }};
+
+/* ── state ──────────────────────────────────────────────────────────── */
+const state = {
+  sources: (doc.sources || []),
+  tables: (doc.tables || []),
+  outputs: {},          // tableId -> {to, assign:{field:{column,fixed,identifier,value_map,fk}}}
+  introspect: {},       // modelLabel -> payload
+  activeTable: null,
+  dragField: null,
+  armedField: null,
+  cfgField: null,
+  viewMode: null,       // null = auto (list when many columns), else "list" | "grid"
+  colFilter: "",
+};
+(doc.outputs || []).forEach(o => {
+  const assign = {};
+  Object.entries(o.identifiers || {}).forEach(([f, s]) => { assign[f] = Object.assign({identifier: true}, s); });
+  Object.entries(o.fields || {}).forEach(([f, s]) => { assign[f] = Object.assign({identifier: false}, s); });
+  state.outputs[o.table] = { to: o.to, assign };
+});
+// Ensure every source has a root table entry.
+state.sources.forEach(s => {
+  if (!state.tables.some(t => t.id === s.id && !t.expand)) state.tables.push({ id: s.id, from: s.id });
+});
+
+function csrftoken() {
+  const m = document.cookie.match(/csrftoken=([^;]+)/);
+  return m ? m[1] : "";
+}
+function jpost(url, body) {
+  return fetch(url, {
+    method: "POST",
+    headers: {"Content-Type": "application/json", "X-CSRFToken": csrftoken()},
+    body: JSON.stringify(body),
+  }).then(r => r.json().then(j => { if (!r.ok) throw new Error(j.error || r.statusText); return j; }));
+}
+function esc(s) { const d = document.createElement("div"); d.textContent = String(s == null ? "" : s); return d.innerHTML; }
+
+/* ── table previews (root from cache; derived computed client-side) ── */
+function flattenJs(obj, prefix, depth, out) {
+  Object.entries(obj || {}).forEach(([k, v]) => {
+    const path = prefix ? prefix + "." + k : k;
+    if (v && typeof v === "object" && !Array.isArray(v) && depth < 3) flattenJs(v, path, depth + 1, out);
+    else out[path] = v;
+  });
+  return out;
+}
+function tablePreview(tableId) {
+  const t = state.tables.find(x => x.id === tableId);
+  if (!t) return null;
+  if (!t.expand) return cachedTables[t.from] || null;
+  const parentT = state.tables.find(x => x.id === t.parent);
+  const parentCache = parentT ? cachedTables[parentT.from] : null;
+  if (!parentCache || !parentCache.raw_rows) return null;
+  const parentOut = state.outputs[t.parent];
+  let identCol = null;
+  if (parentOut) {
+    const identField = Object.keys(parentOut.assign).find(f => parentOut.assign[f].identifier && parentOut.assign[f].column);
+    if (identField) identCol = parentOut.assign[identField].column;
+  }
+  if (!identCol && parentCache.columns.length) identCol = parentCache.columns[0];
+  const rows = [];
+  parentCache.raw_rows.forEach(pr => {
+    const arr = pr[t.expand];
+    if (!Array.isArray(arr)) return;
+    arr.forEach(el => {
+      if (typeof el !== "object" || el === null || Array.isArray(el)) return;
+      const row = flattenJs(el, "", 0, {});
+      row["_parent_key"] = pr[identCol];
+      rows.push(row);
+    });
+  });
+  const cols = [];
+  const seen = new Set();
+  rows.slice(0, 100).forEach(r => Object.keys(r).forEach(k => { if (!seen.has(k)) { seen.add(k); cols.push(k); } }));
+  // _parent_key first
+  const pi = cols.indexOf("_parent_key");
+  if (pi > 0) { cols.splice(pi, 1); cols.unshift("_parent_key"); }
+  return { columns: cols, rows: rows.slice(0, 50), row_count: rows.length, expandable_columns: [] };
+}
+function distinctValues(tableId, col, cap) {
+  const p = tablePreview(tableId);
+  if (!p) return [];
+  const vals = new Set();
+  (p.rows || []).forEach(r => { const v = r[col]; if (v != null && v !== "") vals.add(String(v)); });
+  return Array.from(vals).slice(0, cap || 20);
+}
+
+/* ── sources UI ─────────────────────────────────────────────────────── */
+function renderSources() {
+  const wrap = document.getElementById("di-sources");
+  wrap.innerHTML = "";
+  state.sources.forEach(src => {
+    const cache = cachedTables[src.id];
+    const div = document.createElement("div");
+    div.className = "di-source-card";
+    div.innerHTML =
+      '<span class="badge-src ' + (src.type === "csv" ? "csv" : "api") + '">' + (src.type === "csv" ? "CSV" : "API") + "</span>" +
+      '<span class="src-name">' + esc(src.id) + "</span>" +
+      '<span class="src-meta">' + esc(src.type === "csv" ? "uploaded file" : (src.api_path || "")) + "</span>" +
+      '<span class="di-muted">' + (cache ? (cache.row_count + " records sampled") : "no sample yet") + "</span>" +
+      '<span style="flex:1"></span>' +
+      (src.type === "csv"
+        ? '<label class="btn btn-default di-btn-sm" style="margin:0;">Upload CSV<input type="file" accept=".csv,text/csv" style="display:none" data-upload="' + esc(src.id) + '" aria-label="Upload CSV for ' + esc(src.id) + '"></label>'
+        : '<button class="btn btn-default di-btn-sm" data-fetch="' + esc(src.id) + '">Test fetch</button>' +
+          '<button class="btn btn-default di-btn-sm" data-editsrc="' + esc(src.id) + '">Edit</button>') +
+      '<button class="btn btn-default di-btn-sm" data-rmsrc="' + esc(src.id) + '" aria-label="Remove source ' + esc(src.id) + '">✕</button>';
+    wrap.appendChild(div);
+  });
+  wrap.querySelectorAll("[data-fetch]").forEach(b => b.addEventListener("click", () => testFetch(b.dataset.fetch)));
+  wrap.querySelectorAll("[data-editsrc]").forEach(b => b.addEventListener("click", () => {
+    const src = state.sources.find(s => s.id === b.dataset.editsrc);
+    if (src) sourceForm(src.type, src);
+  }));
+  wrap.querySelectorAll("[data-upload]").forEach(inp => inp.addEventListener("change", () => uploadCsv(inp.dataset.upload, inp.files[0])));
+  wrap.querySelectorAll("[data-rmsrc]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.rmsrc;
+    if (!confirm("Remove source “" + id + "” and its tables/mappings?")) return;
+    state.sources = state.sources.filter(s => s.id !== id);
+    const removedTables = state.tables.filter(t => t.from === id).map(t => t.id);
+    state.tables = state.tables.filter(t => t.from !== id);
+    removedTables.forEach(tid => delete state.outputs[tid]);
+    if (removedTables.includes(state.activeTable)) state.activeTable = state.tables.length ? state.tables[0].id : null;
+    renderAll();
+  }));
+}
+function sourceForm(type, existing) {
+  const holder = document.getElementById("di-newsource");
+  const isEdit = !!existing;
+  const btnLabel = isEdit ? "Update source" : (type === "csv" ? "Add CSV source" : "Add API source");
+  const idAttrs = isEdit ? ' disabled title="The source id cannot be changed after creation."' : "";
+  const pag = (existing && existing.pagination) || {};
+  if (type === "csv") {
+    holder.innerHTML = '<div class="di-form-grid" style="max-width:420px;">' +
+      '<div><label>Source id</label><input id="ns-id" placeholder="sites" value="' + esc(existing ? existing.id : "") + '"' + idAttrs + "></div>" +
+      '<div style="align-self:end;"><button class="btn btn-primary di-btn-sm" id="ns-add">' + btnLabel + "</button> " +
+      '<button class="btn btn-default di-btn-sm" id="ns-cancel">Cancel</button></div></div>';
+  } else {
+    const existingQuery = Object.entries((existing && existing.query_params) || {})
+      .map(([key, val]) => key + "=" + val)
+      .join("&");
+    holder.innerHTML = '<div class="di-form-grid">' +
+      '<div><label>Source id</label><input id="ns-id" placeholder="devices" value="' + esc(existing ? existing.id : "") + '"' + idAttrs + "></div>" +
+      '<div><label>API path</label><input id="ns-path" placeholder="/api/v0/devices" value="' + esc(existing ? existing.api_path || "" : "") + '"></div>' +
+      '<div><label>Data path</label><input id="ns-datapath" placeholder="devices or result" value="' + esc(existing ? existing.data_path || "" : "") + '"></div>' +
+      '<div style="grid-column: span 2;"><label>Query params <span style="text-transform:none;">(key=value&amp;key2=value2)</span></label>' +
+        '<input id="ns-query" placeholder="columns=device_id,port_id,ifName" value="' + esc(existingQuery) + '"></div>' +
+      '<div><label>Pagination</label><select id="ns-pag">' +
+        '<option value="none"' + (pag.type === "none" || !pag.type ? " selected" : "") + ">None</option>" +
+        '<option value="offset"' + (pag.type === "offset" ? " selected" : "") + ">Offset</option>" +
+        '<option value="page"' + (pag.type === "page" ? " selected" : "") + ">Page</option></select></div>" +
+      '<div><label>Page size</label><input id="ns-pagsize" value="' + esc(pag.page_size || 100) + '"></div>' +
+      '<div style="align-self:end;"><button class="btn btn-primary di-btn-sm" id="ns-add">' + btnLabel + "</button> " +
+      '<button class="btn btn-default di-btn-sm" id="ns-cancel">Cancel</button></div></div>';
+  }
+  document.getElementById("ns-cancel").addEventListener("click", () => { holder.innerHTML = ""; });
+  document.getElementById("ns-add").addEventListener("click", () => {
+    const id = isEdit ? existing.id : (document.getElementById("ns-id").value || "").trim();
+    if (!id) return alert("Source id is required.");
+    if (!isEdit && state.sources.some(s => s.id === id)) return alert("Source id already exists.");
+    const target = isEdit ? existing : { id, type };
+    if (type !== "csv") {
+      target.api_path = document.getElementById("ns-path").value.trim();
+      target.data_path = document.getElementById("ns-datapath").value.trim();
+      target.method = target.method || "GET";
+      target.pagination = { type: document.getElementById("ns-pag").value, page_size: parseInt(document.getElementById("ns-pagsize").value || "100", 10), params: (target.pagination || {}).params || {} };
+      const queryText = document.getElementById("ns-query").value.trim();
+      const queryParams = {};
+      queryText.split("&").forEach(pair => {
+        const eq = pair.indexOf("=");
+        if (eq > 0) queryParams[pair.slice(0, eq).trim()] = pair.slice(eq + 1).trim();
+      });
+      if (Object.keys(queryParams).length) target.query_params = queryParams;
+      else delete target.query_params;
+    }
+    if (!isEdit) {
+      state.sources.push(target);
+      state.tables.push({ id, from: id });
+    } else if (type !== "csv") {
+      // Config changed — the cached sample may be stale; nudge a re-fetch.
+      delete cachedTables[id];
+    }
+    holder.innerHTML = "";
+    renderAll();
+  });
+}
+function testFetch(sourceId) {
+  const src = state.sources.find(s => s.id === sourceId);
+  jpost(URLS.fetchSample, { source: src })
+    .then(res => { cachedTables[sourceId] = res.table; if (!state.activeTable) state.activeTable = sourceId; renderAll(); })
+    .catch(e => alert(e.message));
+}
+function uploadCsv(sourceId, file) {
+  if (!file) return;
+  const fd = new FormData();
+  fd.append("source_id", sourceId);
+  fd.append("file", file);
+  fetch(URLS.uploadCsv, { method: "POST", headers: {"X-CSRFToken": csrftoken()}, body: fd })
+    .then(r => r.json().then(j => { if (!r.ok) throw new Error(j.error || r.statusText); return j; }))
+    .then(res => { cachedTables[sourceId] = res.table; if (!state.activeTable) state.activeTable = sourceId; renderAll(); })
+    .catch(e => alert(e.message));
+}
+
+/* ── tabs + expand ──────────────────────────────────────────────────── */
+function renderTabs() {
+  const wrap = document.getElementById("di-tabs");
+  wrap.innerHTML = "";
+  state.tables.forEach(t => {
+    const p = tablePreview(t.id);
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "di-tab" + (state.activeTable === t.id ? " active" : "");
+    el.setAttribute("role", "tab");
+    el.setAttribute("aria-selected", state.activeTable === t.id ? "true" : "false");
+    el.innerHTML = esc(t.id) + (t.expand ? ' <span class="cnt">(derived)</span>' : "") +
+      ' <span class="cnt">' + (p ? p.row_count + " rows" : "–") + "</span>";
+    el.addEventListener("click", () => { state.activeTable = t.id; hideCfg(); renderAll(); });
+    wrap.appendChild(el);
+  });
+  // expand bar: offer nested-array expansion for the active root table
+  const bar = document.getElementById("di-expandbar");
+  bar.innerHTML = "";
+  const active = state.tables.find(t => t.id === state.activeTable);
+  const p = active && !active.expand ? tablePreview(active.id) : null;
+  if (p && p.expandable_columns && p.expandable_columns.length) {
+    p.expandable_columns.forEach(col => {
+      const childId = active.id + "." + col;
+      if (state.tables.some(t => t.id === childId)) return;
+      const btn = document.createElement("button");
+      btn.className = "btn btn-default di-btn-sm";
+      btn.textContent = "⛓ Expand nested array “" + col + "” into a child table";
+      btn.addEventListener("click", () => {
+        state.tables.push({ id: childId, from: active.from, expand: col, parent: active.id });
+        state.activeTable = childId;
+        renderAll();
+      });
+      bar.appendChild(btn);
+    });
+  }
+}
+
+/* ── palette + introspection ────────────────────────────────────────── */
+function getOutput(tableId) {
+  if (!state.outputs[tableId]) state.outputs[tableId] = { to: "", assign: {} };
+  return state.outputs[tableId];
+}
+function loadIntrospect(label, cb) {
+  if (state.introspect[label]) return cb(state.introspect[label]);
+  fetch(URLS.introspect + "?content_type=" + encodeURIComponent(label))
+    .then(r => r.json())
+    .then(payload => { state.introspect[label] = payload; cb(payload); })
+    .catch(() => cb(null));
+}
+function autoAssignParentKey(tableId) {
+  // On derived tables, auto-map the FK pointing at the parent output's model to _parent_key.
+  const t = state.tables.find(x => x.id === tableId);
+  if (!t || !t.expand) return;
+  const out = getOutput(tableId);
+  const parentOut = state.outputs[t.parent];
+  const meta = state.introspect[out.to];
+  if (!meta || !parentOut || !parentOut.to) return;
+  meta.fields.forEach(f => {
+    if (f.is_fk && f.related_model === parentOut.to && !out.assign[f.name]) {
+      out.assign[f.name] = { column: "_parent_key", identifier: true, fk: { on_missing: "skip_record", lookup_field: f.lookup_field } };
+    }
+  });
+}
+function renderPalette() {
+  const out = getOutput(state.activeTable);
+  const sel = document.getElementById("di-target");
+  sel.innerHTML = '<option value="">— pick target model —</option>' +
+    targetChoices.map(c => '<option value="' + c.label + '"' + (out.to === c.label ? " selected" : "") + ">" + esc(c.display) + "</option>").join("");
+  sel.onchange = () => { out.to = sel.value; out.assign = {}; hideCfg(); renderMapping(); };
+
+  const chips = document.getElementById("di-chips");
+  chips.innerHTML = "";
+  if (!out.to) return;
+  loadIntrospect(out.to, meta => {
+    if (!meta) { chips.innerHTML = '<p class="di-muted">Could not introspect model.</p>'; return; }
+    autoAssignParentKey(state.activeTable);
+    const groups = [["Required", meta.fields.filter(f => f.required)],
+                    ["Optional", meta.fields.filter(f => !f.required && !f.is_custom_field)],
+                    ["Custom fields", meta.fields.filter(f => f.is_custom_field)]];
+    groups.forEach(([title, fields]) => {
+      if (!fields.length) return;
+      const h = document.createElement("h5"); h.textContent = title; chips.appendChild(h);
+      fields.forEach(f => {
+        const placed = !!out.assign[f.name];
+        const armed = state.armedField === f.name;
+        const el = document.createElement("div");
+        el.className = "di-chip" + (f.required ? " required" : "") + (placed ? " placed" : "") + (armed ? " armed" : "");
+        el.draggable = !placed;
+        if (!placed) {
+          el.tabIndex = 0;
+          el.setAttribute("role", "button");
+          el.setAttribute("aria-pressed", armed ? "true" : "false");
+          el.setAttribute("aria-label", "Field " + f.name + (f.is_fk ? " (relationship)" : "") + ". Drag onto a column, or press Enter then choose a column.");
+        }
+        let assignedSummary = "";
+        if (placed) {
+          const s = out.assign[f.name];
+          if (s.column) assignedSummary = "→ " + s.column;
+          else if (s.fk && s.fk.on_missing === "static") assignedSummary = "📌 " + (s.fk.static_value || "set value…");
+          else if ("fixed" in s) assignedSummary = "📌 " + (s.fixed !== "" && s.fixed != null ? s.fixed : "set value…");
+        }
+        el.innerHTML = '<span class="grow">' + esc(f.name) + "</span>" +
+          (f.is_fk ? '<span class="fk-tag">FK</span>' : "") +
+          (f.is_custom_field ? '<span class="cf-tag">CF</span>' : "") +
+          (placed
+            ? '<span class="asg" title="' + esc(assignedSummary) + '">' + esc(assignedSummary) + "</span>" +
+              '<button type="button" class="mini cfgbtn" title="Configure" aria-label="Configure ' + esc(f.name) + '">⚙</button>' +
+              '<button type="button" class="mini rm" title="Remove mapping" aria-label="Remove mapping for ' + esc(f.name) + '">✕</button>'
+            : '<button type="button" class="pin" title="Set a fixed value (no source column)" aria-label="Set fixed value for ' + esc(f.name) + '">📌</button>');
+        if (placed) {
+          el.querySelector(".cfgbtn").addEventListener("click", () => openCfg(f.name));
+          el.querySelector(".rm").addEventListener("click", () => {
+            delete out.assign[f.name];
+            hideCfg();
+            renderMapping();
+          });
+        } else {
+          el.addEventListener("dragstart", ev => { state.dragField = f.name; el.classList.add("dragging"); ev.dataTransfer.setData("text/plain", f.name); });
+          el.addEventListener("dragend", () => { state.dragField = null; el.classList.remove("dragging"); });
+          const armToggle = () => { state.armedField = armed ? null : f.name; renderMapping(); };
+          el.addEventListener("click", ev => { if (ev.target.closest(".pin")) return; armToggle(); });
+          el.addEventListener("keydown", ev => {
+            if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); armToggle(); }
+          });
+          const pin = el.querySelector(".pin");
+          if (pin) pin.addEventListener("click", () => {
+            state.armedField = null;
+            out.assign[f.name] = { fixed: "", identifier: false };
+            if (f.is_fk) out.assign[f.name].fk = { on_missing: "static", lookup_field: f.lookup_field, static_value: "" };
+            openCfg(f.name);
+            renderMapping();
+          });
+        }
+        chips.appendChild(el);
+      });
+    });
+    const hint = document.getElementById("di-armhint");
+    if (state.armedField) {
+      hint.textContent = "“" + state.armedField + "” selected — click (or Tab to) a column below to assign it. Press Escape to cancel.";
+      hint.classList.add("show");
+    } else {
+      hint.classList.remove("show");
+    }
+    renderViews(meta);
+    readiness(meta);
+  });
+}
+
+/* ── grid ───────────────────────────────────────────────────────────── */
+function fieldMeta(name) {
+  const out = getOutput(state.activeTable);
+  const meta = state.introspect[out.to];
+  return meta ? meta.fields.find(f => f.name === name) : null;
+}
+function assignField(fname, col) {
+  const out = getOutput(state.activeTable);
+  Object.keys(out.assign).forEach(k => { if (out.assign[k].column === col) delete out.assign[k]; });
+  const fm = fieldMeta(fname) || {};
+  const spec = { column: col, identifier: false };
+  const metaObj = state.introspect[out.to];
+  if (metaObj && metaObj.natural_key_field === fname) spec.identifier = true;
+  if (fm.is_fk) spec.fk = { on_missing: "skip_record", lookup_field: fm.lookup_field };
+  out.assign[fname] = spec;
+  state.armedField = null;
+  renderMapping();
+  if (fm.is_fk) openCfg(fname);
+}
+
+function dzHtml(col, out) {
+  // Shared dropzone markup for both views.
+  const assignedField = Object.keys(out.assign).find(f => out.assign[f].column === col);
+  if (assignedField) {
+    const spec = out.assign[assignedField];
+    const fm = fieldMeta(assignedField) || {};
+    return '<div class="dz filled" data-col="' + esc(col) + '">' +
+      '<span><button type="button" class="star' + (spec.identifier ? " on" : "") + '" data-star="' + esc(assignedField) + '" title="Toggle identifier" aria-label="Toggle identifier for ' + esc(assignedField) + '" aria-pressed="' + (spec.identifier ? "true" : "false") + '">★</button> ' + esc(assignedField) +
+      ' <button type="button" class="cfg" data-cfg="' + esc(assignedField) + '" aria-label="Configure ' + esc(assignedField) + '">' + (fm.is_fk ? "FK ⚙" : "⚙") + "</button></span>" +
+      '<button type="button" class="rm" data-rm="' + esc(assignedField) + '" aria-label="Remove mapping for ' + esc(assignedField) + '">✕</button></div>';
+  }
+  const armed = !!state.armedField;
+  return '<div class="dz' + (armed ? " armed-target" : "") + '" data-col="' + esc(col) + '"' +
+    (armed ? ' tabindex="0" role="button" aria-label="Assign ' + esc(state.armedField) + " to column " + esc(col) + '"' : "") +
+    ">" + (armed ? "assign here" : "drop field") + "</div>";
+}
+
+function wireDropzones(container, out) {
+  container.querySelectorAll(".dz").forEach(dz => {
+    dz.addEventListener("dragover", ev => { ev.preventDefault(); dz.classList.add("over"); });
+    dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+    dz.addEventListener("drop", ev => {
+      ev.preventDefault(); dz.classList.remove("over");
+      const fname = ev.dataTransfer.getData("text/plain");
+      if (fname) assignField(fname, dz.dataset.col);
+    });
+    if (!dz.classList.contains("filled")) {
+      dz.addEventListener("click", () => { if (state.armedField) assignField(state.armedField, dz.dataset.col); });
+      dz.addEventListener("keydown", ev => {
+        if ((ev.key === "Enter" || ev.key === " ") && state.armedField) { ev.preventDefault(); assignField(state.armedField, dz.dataset.col); }
+      });
+    }
+  });
+  container.querySelectorAll("[data-rm]").forEach(x => x.addEventListener("click", () => { delete out.assign[x.dataset.rm]; hideCfg(); renderMapping(); }));
+  container.querySelectorAll("[data-star]").forEach(x => x.addEventListener("click", () => {
+    const spec = out.assign[x.dataset.star];
+    spec.identifier = !spec.identifier;
+    renderMapping();
+  }));
+  container.querySelectorAll("[data-cfg]").forEach(x => x.addEventListener("click", () => openCfg(x.dataset.cfg)));
+}
+
+function filteredColumns(p) {
+  const q = state.colFilter.trim().toLowerCase();
+  if (!q) return p.columns;
+  return p.columns.filter(c => c.toLowerCase().includes(q));
+}
+
+const AUTO_LIST_THRESHOLD = 9;  // more columns than this → default to list view
+
+function currentViewMode(p) {
+  if (state.viewMode) return state.viewMode;
+  return p && p.columns.length > AUTO_LIST_THRESHOLD ? "list" : "grid";
+}
+
+function renderViews(meta) {
+  const p = tablePreview(state.activeTable);
+  const gridWrap = document.getElementById("di-gridwrap");
+  const listWrap = document.getElementById("di-listwrap");
+  if (!p) { gridWrap.style.display = "none"; listWrap.style.display = "none"; return; }
+  const mode = currentViewMode(p);
+  gridWrap.style.display = mode === "grid" ? "block" : "none";
+  listWrap.style.display = mode === "list" ? "block" : "none";
+  document.getElementById("di-view-list").classList.toggle("active", mode === "list");
+  document.getElementById("di-view-list").setAttribute("aria-pressed", mode === "list" ? "true" : "false");
+  document.getElementById("di-view-grid").classList.toggle("active", mode === "grid");
+  document.getElementById("di-view-grid").setAttribute("aria-pressed", mode === "grid" ? "true" : "false");
+  const cols = filteredColumns(p);
+  document.getElementById("di-viewinfo").textContent =
+    cols.length + " of " + p.columns.length + " columns" + (state.colFilter ? " (filtered)" : "");
+  if (mode === "grid") renderGrid(p, cols);
+  else renderList(p, cols);
+}
+
+function renderGrid(p, cols) {
+  const head = document.getElementById("di-headrow");
+  const body = document.getElementById("di-gridbody");
+  head.innerHTML = ""; body.innerHTML = "";
+  const out = getOutput(state.activeTable);
+
+  cols.forEach(col => {
+    const th = document.createElement("th");
+    th.innerHTML = '<div class="colname">' + esc(col) + "</div>" + dzHtml(col, out);
+    head.appendChild(th);
+  });
+  (p.rows || []).slice(0, 5).forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = cols.map(c => "<td>" + esc(r[c]) + "</td>").join("");
+    body.appendChild(tr);
+  });
+  wireDropzones(head, out);
+}
+
+function renderList(p, cols) {
+  const body = document.getElementById("di-listbody");
+  body.innerHTML = "";
+  const out = getOutput(state.activeTable);
+
+  cols.forEach(col => {
+    const mapped = Object.keys(out.assign).some(f => out.assign[f].column === col);
+    const samples = [];
+    for (const r of (p.rows || [])) {
+      const v = r[col];
+      if (v != null && v !== "" && !samples.includes(String(v))) samples.push(String(v));
+      if (samples.length >= 3) break;
+    }
+    const tr = document.createElement("tr");
+    tr.className = mapped ? "mapped" : "";
+    tr.innerHTML =
+      "<td>" + dzHtml(col, out) + "</td>" +
+      '<td class="lcol">' + esc(col) + "</td>" +
+      '<td class="lsamples" title="' + esc(samples.join(" · ")) + '">' + esc(samples.join(" · ") || "—") + "</td>";
+    body.appendChild(tr);
+  });
+  wireDropzones(body, out);
+}
+
+/* ── field config strip (FK strategy / fixed / value map) ───────────── */
+function hideCfg() { state.cfgField = null; const s = document.getElementById("di-cfgstrip"); s.classList.remove("show"); s.innerHTML = ""; }
+function openCfg(fname) {
+  state.cfgField = fname;
+  const out = getOutput(state.activeTable);
+  const spec = out.assign[fname];
+  const fm = fieldMeta(fname) || {};
+  const strip = document.getElementById("di-cfgstrip");
+  let html = "<strong>⚙ " + esc(fname) + "</strong>" + (fm.related_model ? ' <span class="di-muted">→ ' + esc(fm.related_model) + "</span>" : "") + '<div style="margin-top:8px;">';
+
+  html += '<div class="row-flex">';
+  if ("fixed" in spec && !fm.is_fk) {
+    html += '<div><label>Fixed value</label><input id="cfg-fixed" value="' + esc(spec.fixed || "") + '"></div>';
+  }
+  if (fm.is_fk) {
+    const fk = spec.fk || {};
+    html += '<div><label>When not found</label><select id="cfg-strategy">' +
+      '<option value="skip_record"' + (fk.on_missing === "skip_record" ? " selected" : "") + ">Lookup · skip record</option>" +
+      '<option value="skip_field"' + (fk.on_missing === "skip_field" ? " selected" : "") + ">Lookup · skip just this field</option>" +
+      '<option value="create"' + (fk.on_missing === "create" ? " selected" : "") + ">Lookup or create</option>" +
+      '<option value="static"' + (fk.on_missing === "static" ? " selected" : "") + ">Static value (ignore source)</option>" +
+      "</select></div>" +
+      '<div><label>Lookup field</label><input id="cfg-lookup" value="' + esc(fk.lookup_field || fm.lookup_field || "name") + '" style="width:110px;"></div>' +
+      '<div id="cfg-staticwrap" style="display:' + (fk.on_missing === "static" ? "block" : "none") + ';"><label>Static value</label><input id="cfg-static" value="' + esc(fk.static_value || "") + '"></div>';
+  }
+  html += "</div>";
+
+  if (fm.is_fk) {
+    const fk = spec.fk || {};
+    const defs = fk.create_defaults || {};
+    html += '<div id="cfg-defaults" style="display:' + (fk.on_missing === "create" ? "block" : "none") + ';"><label>Defaults when creating' +
+      (fm.required_parents && fm.required_parents.length
+        ? ' <span class="di-muted">(required parent: ' + fm.required_parents.map(p => p.field + " → " + p.model).join(", ") + " — use key like " + fm.required_parents[0].field + "__" + fm.required_parents[0].lookup_field + ")</span>"
+        : "") + '</label><div id="cfg-defrows">';
+    Object.entries(defs).forEach(([k, v]) => { html += defRow(k, v); });
+    html += "</div><button class=\"btn btn-default di-btn-sm\" id=\"cfg-adddef\">+ default</button></div>";
+  }
+
+  // default + value map (only for column-sourced specs)
+  if (spec.column) {
+    html += '<div style="margin-top:8px;"><label>Default when source is empty <span class="di-muted">(optional — used when a record has no value in this column)</span></label>' +
+      '<input id="cfg-default" value="' + esc(spec.default != null ? spec.default : "") + '" placeholder="e.g. Generic"></div>';
+    const vm = spec.value_map || {};
+    const distinct = distinctValues(state.activeTable, spec.column, 12);
+    state.cfgChoices = (!fm.is_fk && fm.choices && fm.choices.length) ? fm.choices : null;
+    html += '<div style="margin-top:8px;"><label>Value map <span class="di-muted">(optional: source value → Nautobot value)</span></label>';
+    if (state.cfgChoices) {
+      html += '<datalist id="cfg-choicelist">' + state.cfgChoices.map(c => '<option value="' + esc(c) + '">').join("") + "</datalist>" +
+        '<div class="di-muted" style="margin-bottom:4px;">This field only accepts specific values — e.g. ' +
+        esc(state.cfgChoices.slice(0, 8).join(", ")) + (state.cfgChoices.length > 8 ? ", …" : "") +
+        ". Map each source value to one (inputs suggest valid values).</div>";
+    }
+    html += '<div id="cfg-vmrows">';
+    const keys = Object.keys(vm).length ? Object.keys(vm) : distinct;
+    keys.forEach(k => { html += vmRow(k, vm[k] || ""); });
+    html += '</div><button class="btn btn-default di-btn-sm" id="cfg-addvm">+ row</button></div>';
+  }
+
+  html += '<div style="margin-top:10px;"><button class="btn btn-primary di-btn-sm" id="cfg-apply">Apply</button> <button class="btn btn-default di-btn-sm" id="cfg-cancel">Close</button></div></div>';
+  strip.innerHTML = html;
+  strip.classList.add("show");
+
+  const strategySel = document.getElementById("cfg-strategy");
+  if (strategySel) strategySel.addEventListener("change", () => {
+    document.getElementById("cfg-staticwrap").style.display = strategySel.value === "static" ? "block" : "none";
+    const d = document.getElementById("cfg-defaults");
+    if (d) d.style.display = strategySel.value === "create" ? "block" : "none";
+  });
+  const addDef = document.getElementById("cfg-adddef");
+  if (addDef) addDef.addEventListener("click", () => { document.getElementById("cfg-defrows").insertAdjacentHTML("beforeend", defRow("", "")); });
+  const addVm = document.getElementById("cfg-addvm");
+  if (addVm) addVm.addEventListener("click", () => { document.getElementById("cfg-vmrows").insertAdjacentHTML("beforeend", vmRow("", "")); });
+  document.getElementById("cfg-cancel").addEventListener("click", hideCfg);
+  document.getElementById("cfg-apply").addEventListener("click", () => {
+    if ("fixed" in spec && !fm.is_fk) spec.fixed = document.getElementById("cfg-fixed").value;
+    if (fm.is_fk) {
+      const fk = spec.fk = spec.fk || {};
+      fk.on_missing = document.getElementById("cfg-strategy").value;
+      fk.lookup_field = document.getElementById("cfg-lookup").value.trim() || "name";
+      if (fk.on_missing === "static") { fk.static_value = document.getElementById("cfg-static").value; delete spec.column; spec.fixed = spec.fixed || ""; }
+      const defs = {};
+      document.querySelectorAll("#cfg-defrows .di-kv-row").forEach(row => {
+        const k = row.querySelector(".def-k").value.trim();
+        const type = row.querySelector(".def-t").value;
+        const v = row.querySelector(".def-v").value.trim();
+        if (k && v) defs[k] = type === "column" ? { column: v } : v;
+      });
+      if (Object.keys(defs).length) fk.create_defaults = defs; else delete fk.create_defaults;
+    }
+    const defaultInput = document.getElementById("cfg-default");
+    if (defaultInput) {
+      if (defaultInput.value.trim() !== "") spec.default = defaultInput.value.trim();
+      else delete spec.default;
+    }
+    const vmRows = document.querySelectorAll("#cfg-vmrows .di-kv-row");
+    if (vmRows.length) {
+      const vm = {};
+      vmRows.forEach(row => {
+        const k = row.querySelector(".vm-k").value;
+        const v = row.querySelector(".vm-v").value;
+        if (k !== "" && v !== "") vm[k] = v;
+      });
+      if (Object.keys(vm).length) spec.value_map = vm; else delete spec.value_map;
+    }
+    hideCfg();
+    renderMapping();
+  });
+}
+function defRow(k, v) {
+  const isCol = v && typeof v === "object" && v.column;
+  const val = isCol ? v.column : (v || "");
+  return '<div class="di-kv-row"><input class="def-k" placeholder="field or parent__name" value="' + esc(k) + '" style="width:200px;">' +
+    '<select class="def-t"><option value="literal"' + (!isCol ? " selected" : "") + '>literal</option><option value="column"' + (isCol ? " selected" : "") + ">column</option></select>" +
+    '<input class="def-v" placeholder="value" value="' + esc(val) + '" style="width:160px;"></div>';
+}
+function vmRow(k, v) {
+  const listAttr = state.cfgChoices ? ' list="cfg-choicelist"' : "";
+  return '<div class="di-kv-row"><input class="vm-k" value="' + esc(k) + '" style="width:160px;"> → <input class="vm-v" value="' + esc(v) + '" style="width:160px;" placeholder="Nautobot value"' + listAttr + "></div>";
+}
+
+/* ── readiness + serialize + actions ────────────────────────────────── */
+function readiness(meta) {
+  const out = getOutput(state.activeTable);
+  const el = document.getElementById("di-readiness");
+  const fill = document.getElementById("di-rfill");
+  const txt = document.getElementById("di-rtext");
+  const btn = document.getElementById("di-dryrun");
+  if (!meta) { fill.style.width = "0"; txt.textContent = ""; btn.disabled = true; return; }
+  const required = meta.fields.filter(f => f.required);
+  const done = required.filter(f => out.assign[f.name] && (out.assign[f.name].column || "fixed" in out.assign[f.name] || (out.assign[f.name].fk || {}).on_missing === "static"));
+  const hasIdent = Object.values(out.assign).some(s => s.identifier);
+  const ok = done.length === required.length && hasIdent;
+  fill.style.width = required.length ? (done.length / required.length * 100) + "%" : "0";
+  el.classList.toggle("ok", ok);
+  txt.textContent = done.length + "/" + required.length + " required" + (hasIdent ? "" : " · no identifier ★");
+  btn.disabled = !ok;
+}
+function serializeDoc() {
+  const outputs = [];
+  Object.entries(state.outputs).forEach(([tableId, o]) => {
+    if (!o.to || !Object.keys(o.assign).length) return;
+    const identifiers = {}, fields = {};
+    Object.entries(o.assign).forEach(([f, s]) => {
+      const spec = {};
+      if (s.column) spec.column = s.column;
+      if ("fixed" in s && s.fixed !== undefined && !(s.fk && s.fk.on_missing === "static" && s.fixed === "")) {
+        if (s.fixed !== "" || !s.fk) spec.fixed = s.fixed;
+      }
+      if (s.default != null && s.default !== "") spec.default = s.default;
+      if (s.value_map) spec.value_map = s.value_map;
+      if (s.fk) spec.fk = s.fk;
+      (s.identifier ? identifiers : fields)[f] = spec;
+    });
+    outputs.push({ table: tableId, to: o.to, identifiers, fields });
+  });
+  return {
+    version: 2,
+    sources: state.sources,
+    tables: state.tables,
+    outputs,
+    defaults: (doc.defaults || { on_record_error: "continue" }),
+  };
+}
+document.getElementById("di-save").addEventListener("click", () => {
+  jpost(URLS.save, { document: serializeDoc() })
+    .then(res => {
+      doc = serializeDoc();
+      if (res.problems && res.problems.length) alert("Saved with warnings:\n• " + res.problems.join("\n• "));
+      else alert("Saved.");
+    })
+    .catch(e => alert(e.message));
+});
+document.getElementById("di-dryrun").addEventListener("click", () => {
+  const btn = document.getElementById("di-dryrun");
+  btn.disabled = true; btn.textContent = "Running…";
+  jpost(URLS.dryRun, { document: serializeDoc() })
+    .then(renderResults)
+    .catch(e => alert(e.message))
+    .finally(() => { btn.disabled = false; btn.textContent = "Preview dry-run"; });
+});
+function renderResults(summary) {
+  const panel = document.getElementById("di-results");
+  panel.style.display = "block";
+  const t = summary.totals || {};
+  document.getElementById("di-totals").innerHTML =
+    '<div class="tot create"><div class="n">' + (t.created || 0) + '</div><div class="di-muted">create</div></div>' +
+    '<div class="tot update"><div class="n">' + (t.updated || 0) + '</div><div class="di-muted">update</div></div>' +
+    '<div class="tot"><div class="n">' + (t.unchanged || 0) + '</div><div class="di-muted">unchanged</div></div>' +
+    '<div class="tot skip"><div class="n">' + (t.skipped || 0) + '</div><div class="di-muted">skip</div></div>' +
+    '<div class="tot err"><div class="n">' + (t.errors || 0) + '</div><div class="di-muted">errors</div></div>';
+  const outWrap = document.getElementById("di-outputs");
+  outWrap.innerHTML = "";
+  (summary.outputs || []).forEach(o => {
+    const div = document.createElement("div");
+    const recs = (o.records || []).slice(0, 25).map(r =>
+      "• " + r.action + " " + (r.identifier || "") + (r.reason ? " — " + r.reason : "") +
+      (r.values ? " " + JSON.stringify(r.values) : "") + (r.changes ? " changes: " + JSON.stringify(r.changes) : "")
+    ).join("\n");
+    const errs = (o.errors || []).slice(0, 10).map(e => "⚠ " + e).join("\n");
+    div.innerHTML = "<strong>" + esc(o.target) + "</strong> — created " + (o.created || 0) + ", updated " + (o.updated || 0) +
+      ", unchanged " + (o.unchanged || 0) + ", skipped " + (o.skipped || 0) +
+      (recs || errs ? "<pre>" + esc([recs, errs].filter(Boolean).join("\n")) + "</pre>" : "");
+    outWrap.appendChild(div);
+  });
+  if (summary.auto_created_related && summary.auto_created_related.length) {
+    const div = document.createElement("div");
+    div.innerHTML = '<span class="di-muted">Would auto-create related: ' + esc(summary.auto_created_related.join(", ")) + "</span>";
+    outWrap.appendChild(div);
+  }
+  panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+/* ── boot ───────────────────────────────────────────────────────────── */
+function renderMapping() {
+  const out = state.activeTable ? getOutput(state.activeTable) : null;
+  const show = !!(state.activeTable && tablePreview(state.activeTable));
+  document.getElementById("di-maplayout").style.display = show ? "grid" : "none";
+  document.getElementById("di-nomap").style.display = show ? "none" : "block";
+  if (show) renderPalette();
+  else { const m = out && state.introspect[out.to]; readiness(m || null); }
+}
+function renderAll() { renderSources(); renderTabs(); renderMapping(); }
+const addApi = document.getElementById("di-add-api");
+if (addApi) addApi.addEventListener("click", () => sourceForm("api"));
+document.getElementById("di-add-csv").addEventListener("click", () => sourceForm("csv"));
+document.addEventListener("keydown", ev => {
+  if (ev.key === "Escape" && state.armedField) { state.armedField = null; renderMapping(); }
+});
+document.getElementById("di-view-list").addEventListener("click", () => { state.viewMode = "list"; renderMapping(); });
+document.getElementById("di-view-grid").addEventListener("click", () => { state.viewMode = "grid"; renderMapping(); });
+document.getElementById("di-colfilter").addEventListener("input", ev => {
+  state.colFilter = ev.target.value || "";
+  renderMapping();
+});
+if (!state.activeTable && state.tables.length) state.activeTable = state.tables[0].id;
+renderAll();
+})();
+</script>
+{% endblock %}

@@ -25,8 +25,17 @@ def each_enabled_integration_module(module_name: str) -> Generator[ModuleType, N
     for name in each_enabled_integration():
         try:
             module = import_module(f"nautobot_ssot.integrations.{name}.{module_name}")
-        except ModuleNotFoundError:
-            logger.debug("Integration %s does not have a %s module, skipping.", name, module_name)
+        except (ModuleNotFoundError, ImportError) as e:
+            logger.debug("Integration %s does not have a %s module, skipping: %s", name, module_name, e)
+            continue
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                "Integration %s failed to load %s module (skipping to avoid breaking other integrations): %s: %s",
+                name,
+                module_name,
+                type(e).__name__,
+                e,
+            )
             continue
 
         yield module

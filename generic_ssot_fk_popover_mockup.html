@@ -1,0 +1,1070 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Generic SSoT — FK Strategy Popover Mockup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #0b1220;
+    --panel-3: #020617;
+    --border: #334155;
+    --border-strong: #475569;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --muted-2: #64748b;
+    --accent: #38bdf8;
+    --accent-hover: #0ea5e9;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --required: #f472b6;
+    --purple: #a78bfa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 24px;
+    font-size: 14px;
+  }
+  header {
+    max-width: 1400px;
+    margin: 0 auto 24px;
+  }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  h2 { font-size: 14px; margin: 0 0 12px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; }
+  h3 { font-size: 13px; margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  p.lead { color: var(--muted); margin: 0 0 16px; max-width: 900px; line-height: 1.55; }
+
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 24px;
+  }
+  .grid-1 { grid-template-columns: 1fr; }
+
+  .demo-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    position: relative;
+  }
+  .demo-card .caption {
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+  .demo-card .scenario {
+    background: rgba(56, 189, 248, 0.08);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    padding: 8px 10px;
+    margin-bottom: 14px;
+    color: var(--text);
+    font-size: 12px;
+  }
+  .demo-card .scenario strong { color: var(--accent); }
+
+  /* Table simulating wizard mapping table */
+  .row-strip {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    display: grid;
+    grid-template-columns: 200px 1fr 140px;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+  .row-strip .label { color: var(--text); }
+  .row-strip .req { color: var(--required); margin-right: 4px; font-weight: bold; }
+  .row-strip .source { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; }
+  .row-strip .strategy-btn {
+    background: var(--panel-3);
+    border: 1px solid var(--border-strong);
+    color: var(--accent);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .row-strip.active .strategy-btn { background: var(--accent); color: #042f4a; border-color: var(--accent); }
+  .pill {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 100px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+  .pill.fk { background: rgba(56, 189, 248, 0.15); color: var(--accent); }
+  .pill.req { background: rgba(244, 114, 182, 0.15); color: var(--required); }
+
+  /* The popover itself */
+  .popover {
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    width: 100%;
+    overflow: hidden;
+  }
+  .popover-header {
+    padding: 14px 16px;
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--border);
+  }
+  .popover-header .title { font-weight: 600; font-size: 14px; }
+  .popover-header .subtitle { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .popover-body { padding: 16px; }
+  .popover-footer {
+    padding: 12px 16px;
+    background: var(--panel-2);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .popover-footer .hint { color: var(--muted); font-size: 11px; }
+
+  button {
+    background: var(--accent);
+    color: #042f4a;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 12px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  button:hover { background: var(--accent-hover); color: white; }
+  button.ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    font-weight: normal;
+  }
+  button.ghost:hover { background: var(--panel-2); }
+  button.danger { background: var(--danger); color: white; }
+
+  /* Strategy radio cards */
+  .strategy-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .strategy-card {
+    background: var(--panel-3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    align-items: start;
+    gap: 10px;
+  }
+  .strategy-card:hover { border-color: var(--accent); }
+  .strategy-card.selected {
+    border-color: var(--accent);
+    background: rgba(56, 189, 248, 0.08);
+  }
+  .strategy-card .radio {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 2px solid var(--border-strong);
+    background: var(--bg);
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+  .strategy-card.selected .radio {
+    border-color: var(--accent);
+    background: var(--accent);
+    box-shadow: inset 0 0 0 3px var(--bg);
+  }
+  .strategy-card .body { font-size: 13px; }
+  .strategy-card .body .name { font-weight: 600; margin-bottom: 2px; }
+  .strategy-card .body .desc { color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .strategy-card .badge {
+    font-size: 10px;
+    padding: 1px 8px;
+    border-radius: 100px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .badge.green { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+  .badge.amber { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+  .badge.red { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+  .badge.purple { background: rgba(167, 139, 250, 0.15); color: var(--purple); }
+
+  /* Form bits */
+  label.field {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    margin: 14px 0 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+  input[type="text"], select {
+    width: 100%;
+    background: var(--panel-3);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+  input[type="text"]:focus, select:focus { outline: none; border-color: var(--accent); }
+  .field-help { color: var(--muted-2); font-size: 11px; margin-top: 3px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Expandable advanced */
+  details {
+    margin-top: 14px;
+    border-top: 1px dashed var(--border);
+    padding-top: 12px;
+  }
+  details summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+  details[open] summary { color: var(--accent); }
+
+  /* Parent emit chain */
+  .parent-block {
+    background: rgba(167, 139, 250, 0.06);
+    border: 1px dashed rgba(167, 139, 250, 0.4);
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 12px;
+  }
+  .parent-block .ptitle {
+    color: var(--purple);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .nested-parent {
+    margin-left: 18px;
+    border-left: 2px solid rgba(167, 139, 250, 0.3);
+    padding-left: 14px;
+    margin-top: 12px;
+  }
+
+  /* Live preview pane */
+  .preview-box {
+    background: var(--panel-3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 12px;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .preview-box .pv-row {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .preview-box .pv-icon { color: var(--muted-2); flex-shrink: 0; }
+  .preview-box .pv-row.success .pv-icon { color: var(--success); }
+  .preview-box .pv-row.create .pv-icon { color: var(--purple); }
+  .preview-box .pv-row.skip .pv-icon { color: var(--warning); }
+  .preview-box .pv-row.danger .pv-icon { color: var(--danger); }
+  .preview-box code { color: var(--accent); }
+  .preview-box .arrow { color: var(--muted-2); }
+  .preview-box .pv-note { color: var(--muted); font-size: 11px; margin-top: 6px; }
+
+  /* YAML preview */
+  .yaml-snippet {
+    background: var(--panel-3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-top: 12px;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    line-height: 1.55;
+    white-space: pre;
+    overflow-x: auto;
+    color: #cbd5e1;
+  }
+  .yaml-snippet .k { color: #93c5fd; }
+  .yaml-snippet .s { color: #86efac; }
+  .yaml-snippet .c { color: #64748b; font-style: italic; }
+
+  /* Pointer indicator: shows the popover is anchored to a row */
+  .pointer-arrow {
+    position: relative;
+    margin-bottom: 8px;
+  }
+  .pointer-arrow::after {
+    content: "▲";
+    position: absolute;
+    left: 24px;
+    top: -2px;
+    color: var(--border-strong);
+    font-size: 16px;
+  }
+
+  /* Sample value resolver visual */
+  .resolver-chain {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--panel-3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-top: 8px;
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    flex-wrap: wrap;
+  }
+  .resolver-chain .step {
+    background: var(--panel-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    padding: 3px 8px;
+    color: var(--text);
+  }
+  .resolver-chain .arrow-r { color: var(--muted-2); }
+
+  .badge-inline {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--success);
+    padding: 1px 7px;
+    border-radius: 100px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  /* Section tabs (showing different scenarios) */
+  .scenario-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .scenario-btn {
+    background: var(--panel);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .scenario-btn.active { background: var(--accent); color: #042f4a; border-color: var(--accent); font-weight: 600; }
+
+  .scenario-content { display: none; }
+  .scenario-content.active { display: block; }
+
+  /* Spec column */
+  .spec-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    height: fit-content;
+  }
+  .spec-card h2 { margin-top: 0; }
+  .spec-card ul { margin: 0 0 8px; padding-left: 18px; color: var(--text); line-height: 1.55; font-size: 13px; }
+  .spec-card li { margin-bottom: 4px; }
+  .spec-card .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>FK Strategy Popover — Design Mockup</h1>
+  <p class="lead">
+    The inline popover that appears when a user clicks the strategy cell next to a foreign-key field in the wizard mapping table. This is the most complex micro-interaction in the system — it has to handle four distinct strategies, optional parent-object cascades, and live preview, without overwhelming non-coders.
+    <br /><br />
+    <strong>Click each scenario tab below</strong> to see how the popover behaves in different situations.
+  </p>
+</header>
+
+<div class="container">
+
+  <div class="scenario-tabs">
+    <button class="scenario-btn active" data-tab="initial">1 — Opening (default state)</button>
+    <button class="scenario-btn" data-tab="lookup">2 — Lookup only</button>
+    <button class="scenario-btn" data-tab="create">3 — Create if missing</button>
+    <button class="scenario-btn" data-tab="cascade">4 — Create + parent cascade (the hard case)</button>
+    <button class="scenario-btn" data-tab="static">5 — Static value</button>
+    <button class="scenario-btn" data-tab="reference">6 — At-a-glance reference</button>
+  </div>
+
+  <!-- ─── SCENARIO 1: INITIAL ─── -->
+  <div class="scenario-content active" id="tab-initial">
+    <div class="grid">
+      <div>
+        <div class="demo-card">
+          <div class="caption">Mapping table — wizard Step 3</div>
+          <div class="row-strip active">
+            <div class="label"><span class="req">★</span>location <span class="pill req">required</span> <span class="pill fk">FK</span></div>
+            <div class="source">source: <code>location.display_value</code></div>
+            <div class="strategy-btn">⚙ Configure FK ↓</div>
+          </div>
+          <div class="row-strip">
+            <div class="label">serial</div>
+            <div class="source">source: <code>serial_number</code></div>
+            <div></div>
+          </div>
+        </div>
+
+        <div class="pointer-arrow" style="margin-top: 14px;"></div>
+
+        <div class="popover">
+          <div class="popover-header">
+            <div class="title">⚙ FK strategy: <code>location</code></div>
+            <div class="subtitle">Target model: <code>dcim.Location</code> · Required for Device · Lookup field: <code>name</code></div>
+          </div>
+          <div class="popover-body">
+            <h3>How should we resolve this relationship?</h3>
+            <div class="strategy-list">
+              <div class="strategy-card selected">
+                <div class="radio"></div>
+                <div class="body">
+                  <div class="name">🔍 Lookup only · skip record if missing</div>
+                  <div class="desc">Look up an existing Location by name. If not found, skip this entire source record (no Device gets created).</div>
+                </div>
+                <div class="badge green">Safe default</div>
+              </div>
+              <div class="strategy-card">
+                <div class="radio"></div>
+                <div class="body">
+                  <div class="name">🔍 Lookup only · skip just this field</div>
+                  <div class="desc">Look up by name. If not found, leave the location field blank on the Device. The Device still gets created (only valid for optional FKs).</div>
+                </div>
+                <div class="badge amber">Optional FKs only</div>
+              </div>
+              <div class="strategy-card">
+                <div class="radio"></div>
+                <div class="body">
+                  <div class="name">✨ Lookup or create</div>
+                  <div class="desc">Look up by name. If not found, create a new Location with the value and any defaults you specify.</div>
+                </div>
+                <div class="badge purple">Most flexible</div>
+              </div>
+              <div class="strategy-card">
+                <div class="radio"></div>
+                <div class="body">
+                  <div class="name">📌 Static value (always the same)</div>
+                  <div class="desc">Don't look up anything from the source. Always set this field to a specific existing Nautobot object.</div>
+                </div>
+                <div class="badge amber">Fallback / catch-all</div>
+              </div>
+            </div>
+
+            <details>
+              <summary>Advanced options</summary>
+              <label class="field">Lookup field</label>
+              <select>
+                <option>name (default)</option>
+                <option>slug</option>
+                <option>display</option>
+                <option>id (Nautobot UUID)</option>
+                <option>cf_external_id (custom field)</option>
+              </select>
+              <div class="field-help">Which Location attribute to match the source value against.</div>
+
+              <label class="field" style="margin-top: 12px;">Case sensitivity</label>
+              <select>
+                <option>Case-insensitive (recommended)</option>
+                <option>Case-sensitive</option>
+              </select>
+            </details>
+
+            <div class="preview-box">
+              <div class="pv-row success">
+                <span class="pv-icon">✓</span>
+                <div>Record 1: <code>"DC1 - Building A"</code> <span class="arrow">→</span> <code>&lt;Location: DC1 - Building A&gt;</code> <span class="badge-inline">existing</span></div>
+              </div>
+              <div class="pv-row success">
+                <span class="pv-icon">✓</span>
+                <div>Record 2: <code>"DC2 - East"</code> <span class="arrow">→</span> <code>&lt;Location: DC2 - East&gt;</code> <span class="badge-inline">existing</span></div>
+              </div>
+              <div class="pv-row skip">
+                <span class="pv-icon">⏭</span>
+                <div>Record 3: <code>"DC9-old-name"</code> <span class="arrow">→</span> <em>not found</em> · whole record will be skipped</div>
+              </div>
+              <div class="pv-note">3 of 100 sample records would be skipped with this strategy. <a href="#" style="color: var(--accent);">View affected records →</a></div>
+            </div>
+          </div>
+          <div class="popover-footer">
+            <div class="hint">Anchored to the <code>location</code> field</div>
+            <div>
+              <button class="ghost">Cancel</button>
+              <button>Save strategy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="spec-card">
+        <h2>What's happening in this view</h2>
+        <ul>
+          <li><strong>Anchored popover</strong>, not a modal. The user can still see the mapping table behind it.</li>
+          <li><strong>4 strategies surfaced upfront</strong> — radio cards with a name, a one-sentence explanation, and a badge hinting at safety/use case.</li>
+          <li><strong>Smart default selection</strong>: for a required FK with a `name` lookup field, "Lookup · skip record if missing" is preselected. For optional FKs, "Lookup · skip just this field" would be the default.</li>
+          <li><strong>Advanced options collapsed</strong> behind a `details` element. Power users can override the lookup field or case sensitivity.</li>
+          <li><strong>Live preview pane</strong> shows what would happen for the first 3 records in the cached sample, using the currently selected strategy. Updates in real-time as the user changes choices.</li>
+          <li><strong>"View affected records"</strong> link expands a list of all records that would be skipped — surfacing data hygiene issues before the user runs the sync.</li>
+          <li><strong>Anchor hint</strong> in the footer reinforces which row this popover belongs to.</li>
+        </ul>
+
+        <h2 style="margin-top: 20px;">What it writes to the document</h2>
+        <div class="yaml-snippet"><span class="k">location:</span>
+  <span class="k">source:</span> <span class="s">"location.display_value"</span>
+  <span class="k">fk:</span>
+    <span class="k">on_missing:</span> <span class="s">skip_record</span>
+    <span class="k">lookup_field:</span> <span class="s">name</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SCENARIO 2: LOOKUP ─── -->
+  <div class="scenario-content" id="tab-lookup">
+    <div class="grid">
+      <div>
+        <div class="demo-card">
+          <div class="caption">Field: <code>tenant</code> (optional FK on Device)</div>
+          <div class="scenario">
+            <strong>Scenario:</strong> The user is mapping an optional FK. They don't want to skip the whole record if the tenant is missing — better to just leave the field blank and let the Device still get created.
+          </div>
+        </div>
+
+        <div class="popover">
+          <div class="popover-header">
+            <div class="title">⚙ FK strategy: <code>tenant</code></div>
+            <div class="subtitle">Target model: <code>tenancy.Tenant</code> · Optional · Lookup field: <code>name</code></div>
+          </div>
+          <div class="popover-body">
+            <h3>Strategy</h3>
+            <div class="strategy-list">
+              <div class="strategy-card">
+                <div class="radio"></div>
+                <div class="body">
+                  <div class="name">🔍 Lookup only · skip record if missing</div>
+                  <div class="desc">Skip the whole source record if no Tenant matches.</div>
+                </div>
+                <div class="badge red">Strict</div>
+              </div>
+              <div class="strategy-card selected">
+                <div class="radio"></div>
+                <div class="body">
+                  <div class="name">🔍 Lookup only · skip just this field</div>
+                  <div class="desc">If no Tenant matches, leave Device.tenant blank — the Device still gets created.</div>
+                </div>
+                <div class="badge green">Recommended for this field</div>
+              </div>
+              <div class="strategy-card">
+                <div class="radio"></div>
+                <div class="body">
+                  <div class="name">✨ Lookup or create</div>
+                  <div class="desc">Create a new Tenant with the source value if not found.</div>
+                </div>
+                <div class="badge purple">Most flexible</div>
+              </div>
+              <div class="strategy-card">
+                <div class="radio"></div>
+                <div class="body">
+                  <div class="name">📌 Static value (always the same)</div>
+                  <div class="desc">Always set tenant to one specific Nautobot Tenant.</div>
+                </div>
+                <div class="badge amber">Fallback</div>
+              </div>
+            </div>
+
+            <details>
+              <summary>Advanced options</summary>
+              <label class="field">Lookup field</label>
+              <select><option>name (default)</option><option>slug</option></select>
+            </details>
+
+            <div class="preview-box">
+              <div class="pv-row success">
+                <span class="pv-icon">✓</span>
+                <div>Record 1: <code>"Acme Corp"</code> <span class="arrow">→</span> <code>&lt;Tenant: Acme Corp&gt;</code> <span class="badge-inline">existing</span></div>
+              </div>
+              <div class="pv-row skip">
+                <span class="pv-icon">○</span>
+                <div>Record 2: <code>null</code> <span class="arrow">→</span> Device created without a tenant</div>
+              </div>
+              <div class="pv-row skip">
+                <span class="pv-icon">○</span>
+                <div>Record 3: <code>"BetaCo"</code> <span class="arrow">→</span> <em>not found</em> · Device created without a tenant</div>
+              </div>
+              <div class="pv-note">All 100 records would result in a Device. 18 of them without a tenant.</div>
+            </div>
+          </div>
+          <div class="popover-footer">
+            <div class="hint">Anchored to <code>tenant</code></div>
+            <div>
+              <button class="ghost">Cancel</button>
+              <button>Save strategy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="spec-card">
+        <h2>Why this scenario matters</h2>
+        <p style="color: var(--muted); font-size: 13px; line-height: 1.55;">
+          Optional FKs need their own default. The recommended badge moves to "skip just this field" so the user is nudged toward the right choice without having to think about it.
+        </p>
+        <h2 style="margin-top: 20px;">Recommendation logic (per FK)</h2>
+        <ul>
+          <li><strong>Required + has clean source values:</strong> Lookup · skip record</li>
+          <li><strong>Required + dirty source data:</strong> Lookup or create</li>
+          <li><strong>Optional FK:</strong> Lookup · skip just this field</li>
+          <li><strong>Status / role:</strong> Lookup or create (commonly missing from source)</li>
+          <li><strong>Manufacturer / DeviceType:</strong> Lookup or create with parent cascade</li>
+        </ul>
+        <p class="muted" style="font-size: 12px; margin-top: 12px;">The recommendation system is heuristic — the user always has the final say.</p>
+
+        <h2 style="margin-top: 20px;">Document output</h2>
+        <div class="yaml-snippet"><span class="k">tenant:</span>
+  <span class="k">source:</span> <span class="s">"company"</span>
+  <span class="k">fk:</span>
+    <span class="k">on_missing:</span> <span class="s">skip_field</span>
+    <span class="k">lookup_field:</span> <span class="s">name</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SCENARIO 3: CREATE ─── -->
+  <div class="scenario-content" id="tab-create">
+    <div class="grid">
+      <div>
+        <div class="demo-card">
+          <div class="caption">Field: <code>role</code> (required FK on Device)</div>
+          <div class="scenario">
+            <strong>Scenario:</strong> The source contains a free-form device role string (<code>"router"</code>, <code>"switch"</code>, etc.). The user wants Nautobot to grow its Role catalog naturally as new values appear.
+          </div>
+        </div>
+
+        <div class="popover">
+          <div class="popover-header">
+            <div class="title">⚙ FK strategy: <code>role</code></div>
+            <div class="subtitle">Target model: <code>extras.Role</code> · Required · Lookup field: <code>name</code></div>
+          </div>
+          <div class="popover-body">
+            <h3>Strategy</h3>
+            <div class="strategy-list">
+              <div class="strategy-card selected">
+                <div class="radio"></div>
+                <div class="body">
+                  <div class="name">✨ Lookup or create</div>
+                  <div class="desc">Find existing Role by name. If not found, create it.</div>
+                </div>
+                <div class="badge purple">Selected</div>
+              </div>
+            </div>
+
+            <h3 style="margin-top: 20px;">Defaults when creating a new Role</h3>
+            <p class="field-help" style="margin-top: -4px;">Only used when the lookup fails. Source data fills <code>name</code> automatically.</p>
+
+            <label class="field">color</label>
+            <input type="text" value="909090" />
+            <div class="field-help">Hex color (no #). Optional but recommended.</div>
+
+            <label class="field">description</label>
+            <input type="text" value="Auto-created from ServiceNow sync" />
+
+            <label class="field">content_types</label>
+            <select>
+              <option>dcim.device (auto-detected — required for Role)</option>
+            </select>
+            <div class="field-help">Role applies to which Nautobot models. Auto-included for the current target.</div>
+
+            <details>
+              <summary>Advanced options</summary>
+              <label class="field">Lookup field</label>
+              <select><option>name (default)</option><option>slug</option></select>
+            </details>
+
+            <div class="preview-box">
+              <div class="pv-row success">
+                <span class="pv-icon">✓</span>
+                <div>Record 1: <code>"router"</code> <span class="arrow">→</span> <code>&lt;Role: router&gt;</code> <span class="badge-inline">existing</span></div>
+              </div>
+              <div class="pv-row create">
+                <span class="pv-icon">＋</span>
+                <div>Record 2: <code>"loadbalancer"</code> <span class="arrow">→</span> <code>&lt;Role: loadbalancer&gt;</code> <em>will create</em></div>
+              </div>
+              <div class="pv-row create">
+                <span class="pv-icon">＋</span>
+                <div>Record 3: <code>"firewall"</code> <span class="arrow">→</span> <code>&lt;Role: firewall&gt;</code> <em>will create</em></div>
+              </div>
+              <div class="pv-note">3 new Roles will be created when you run this sync.</div>
+            </div>
+          </div>
+          <div class="popover-footer">
+            <div class="hint">Anchored to <code>role</code></div>
+            <div>
+              <button class="ghost">Cancel</button>
+              <button>Save strategy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="spec-card">
+        <h2>Key idea</h2>
+        <p style="color: var(--muted); font-size: 13px; line-height: 1.55;">
+          When the user chooses "Lookup or create", the popover expands to show a <strong>defaults form</strong> tailored to the target model. The system has used `SchemaIntrospector` to figure out which fields exist on `extras.Role` — only the ones the user might want to control are shown.
+        </p>
+        <p style="color: var(--muted); font-size: 13px; line-height: 1.55;">
+          Required fields on the target are <em>pre-filled with sensible defaults</em> the user can edit. The source value automatically fills the lookup field — the user doesn't have to repeat themselves.
+        </p>
+
+        <h2 style="margin-top: 20px;">Document output</h2>
+        <div class="yaml-snippet"><span class="k">role:</span>
+  <span class="k">source:</span> <span class="s">u_device_role</span>
+  <span class="k">fk:</span>
+    <span class="k">on_missing:</span> <span class="s">create</span>
+    <span class="k">lookup_field:</span> <span class="s">name</span>
+    <span class="k">create_defaults:</span>
+      <span class="k">color:</span> <span class="s">"909090"</span>
+      <span class="k">description:</span> <span class="s">"Auto-created from ServiceNow sync"</span>
+      <span class="k">content_types:</span> [<span class="s">dcim.device</span>]</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SCENARIO 4: CASCADE (the hard case) ─── -->
+  <div class="scenario-content" id="tab-cascade">
+    <div class="grid grid-1">
+      <div class="demo-card">
+        <div class="caption">Field: <code>device_type</code> (required FK on Device) — parent cascade case</div>
+        <div class="scenario">
+          <strong>The hard case:</strong> <code>DeviceType</code> itself has a required FK to <code>Manufacturer</code>. If we auto-create a missing DeviceType, we may also need to auto-create its Manufacturer. The popover surfaces this chain visually and lets the user configure each level inline.
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div>
+        <div class="popover">
+          <div class="popover-header">
+            <div class="title">⚙ FK strategy: <code>device_type</code></div>
+            <div class="subtitle">Target model: <code>dcim.DeviceType</code> · Required · Lookup field: <code>model</code></div>
+          </div>
+          <div class="popover-body">
+            <h3>Strategy</h3>
+            <div class="strategy-list">
+              <div class="strategy-card selected">
+                <div class="radio"></div>
+                <div class="body">
+                  <div class="name">✨ Lookup or create</div>
+                  <div class="desc">Find existing DeviceType by model name. If not found, create it.</div>
+                </div>
+                <div class="badge purple">Selected</div>
+              </div>
+            </div>
+
+            <h3 style="margin-top: 20px;">Defaults when creating a new DeviceType</h3>
+
+            <label class="field">u_height</label>
+            <input type="text" value="1" />
+            <div class="field-help">Default rack units. Edit if your source provides this.</div>
+
+            <!-- The parent cascade block -->
+            <div class="parent-block">
+              <div class="ptitle">⛓ DeviceType requires a Manufacturer</div>
+              <p style="color: var(--muted); font-size: 12px; margin: 0 0 8px;">
+                When we auto-create a DeviceType, we also need a Manufacturer for it. Configure that here.
+              </p>
+
+              <label class="field">Source for Manufacturer name</label>
+              <input type="text" value="manufacturer.display_value" />
+              <div class="field-help">JMESPath on the source record. Auto-suggested from sample data.</div>
+
+              <label class="field">When a Manufacturer is missing</label>
+              <select>
+                <option>✨ Look up or create (recommended)</option>
+                <option>🔍 Look up only (skip the DeviceType creation)</option>
+                <option>📌 Use a static Manufacturer</option>
+              </select>
+
+              <div class="nested-parent">
+                <h3 style="font-size: 11px; margin-top: 0;">Defaults when creating a new Manufacturer</h3>
+                <label class="field">description</label>
+                <input type="text" value="Auto-created from ServiceNow sync" />
+                <p style="color: var(--muted); font-size: 11px; margin-top: 8px; margin-bottom: 0;">
+                  ✓ Manufacturer has no further required FKs. Cascade ends here.
+                </p>
+              </div>
+            </div>
+
+            <details>
+              <summary>Advanced options</summary>
+              <label class="field">Lookup field for DeviceType</label>
+              <select><option>model (default)</option><option>slug</option><option>id</option></select>
+            </details>
+
+            <h3 style="margin-top: 20px;">Cascade preview</h3>
+            <div class="resolver-chain">
+              <div class="step">Source record</div>
+              <div class="arrow-r">→</div>
+              <div class="step">Manufacturer "Cisco"</div>
+              <div class="arrow-r">→</div>
+              <div class="step">DeviceType "C9300-48P"</div>
+              <div class="arrow-r">→</div>
+              <div class="step">Device "rtr-dc1-01"</div>
+            </div>
+            <p style="color: var(--muted); font-size: 11px; margin-top: 6px;">
+              For each new DeviceType, we'll look up or create the Manufacturer first, then create the DeviceType, then assign it to the Device.
+            </p>
+
+            <div class="preview-box" style="margin-top: 14px;">
+              <div class="pv-row success">
+                <span class="pv-icon">✓</span>
+                <div>Rec 1: <code>"C9300-48P"</code> / <code>"Cisco"</code> <span class="arrow">→</span> all existing <span class="badge-inline">existing</span></div>
+              </div>
+              <div class="pv-row create">
+                <span class="pv-icon">＋</span>
+                <div>Rec 2: <code>"PA-3220"</code> / <code>"Palo Alto Networks"</code> <span class="arrow">→</span> create Manufacturer, then DeviceType</div>
+              </div>
+              <div class="pv-row create">
+                <span class="pv-icon">＋</span>
+                <div>Rec 3: <code>"F5-i2800"</code> / <code>"F5 Networks"</code> <span class="arrow">→</span> create Manufacturer, then DeviceType</div>
+              </div>
+              <div class="pv-note">Across all 100 records: 2 new Manufacturers, 4 new DeviceTypes will be created.</div>
+            </div>
+          </div>
+          <div class="popover-footer">
+            <div class="hint">Anchored to <code>device_type</code></div>
+            <div>
+              <button class="ghost">Cancel</button>
+              <button>Save strategy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="spec-card">
+        <h2>Why this is the hard case</h2>
+        <p style="color: var(--muted); font-size: 13px; line-height: 1.55;">
+          Many Nautobot models have <em>required FKs of their own</em>. Auto-creating one means committing to a chain of creates. The system can't make this decision for the user — they have to confirm what the cascade looks like.
+        </p>
+        <p style="color: var(--muted); font-size: 13px; line-height: 1.55;">
+          The popover handles this by <strong>recursively expanding</strong>: when the user says "create DeviceType", and DeviceType has a required Manufacturer FK, a nested parent block appears. The user can recurse as deep as needed (limited to 3 levels in practice — deeper than that is a smell).
+        </p>
+
+        <h2 style="margin-top: 20px;">Visual cascade preview</h2>
+        <p style="color: var(--muted); font-size: 13px; line-height: 1.55;">
+          The resolver chain at the bottom visualizes the auto-creation order. This builds the user's mental model of what the engine will do.
+        </p>
+
+        <h2 style="margin-top: 20px;">Termination</h2>
+        <p style="color: var(--muted); font-size: 13px; line-height: 1.55;">
+          The cascade terminates when the next-level target has no further required FKs. The popover shows this explicitly: <em>"✓ Manufacturer has no further required FKs. Cascade ends here."</em>
+        </p>
+
+        <h2 style="margin-top: 20px;">Document output</h2>
+        <div class="yaml-snippet"><span class="k">device_type:</span>
+  <span class="k">source:</span> <span class="s">"model_id.display_value"</span>
+  <span class="k">fk:</span>
+    <span class="k">on_missing:</span> <span class="s">create</span>
+    <span class="k">lookup_field:</span> <span class="s">model</span>
+    <span class="k">create_defaults:</span>
+      <span class="k">u_height:</span> <span class="s">1</span>
+    <span class="k">also_emit:</span>
+      <span class="k">to:</span> <span class="s">dcim.devicetype</span>
+      <span class="k">fields:</span>
+        <span class="k">manufacturer:</span>
+          <span class="k">source:</span> <span class="s">"manufacturer.display_value"</span>
+          <span class="k">fk:</span>
+            <span class="k">on_missing:</span> <span class="s">create</span>
+            <span class="k">create_defaults:</span>
+              <span class="k">description:</span> <span class="s">"Auto-created from ServiceNow sync"</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SCENARIO 5: STATIC ─── -->
+  <div class="scenario-content" id="tab-static">
+    <div class="grid">
+      <div>
+        <div class="demo-card">
+          <div class="caption">Field: <code>status</code> (required FK on Device)</div>
+          <div class="scenario">
+            <strong>Scenario:</strong> The source system doesn't have a usable status field. The user wants every imported Device to land in Nautobot as "Active" regardless.
+          </div>
+        </div>
+
+        <div class="popover">
+          <div class="popover-header">
+            <div class="title">⚙ FK strategy: <code>status</code></div>
+            <div class="subtitle">Target model: <code>extras.Status</code> · Required</div>
+          </div>
+          <div class="popover-body">
+            <h3>Strategy</h3>
+            <div class="strategy-list">
+              <div class="strategy-card selected">
+                <div class="radio"></div>
+                <div class="body">
+                  <div class="name">📌 Static value (always the same)</div>
+                  <div class="desc">Don't look at the source. Always use one specific Nautobot Status.</div>
+                </div>
+                <div class="badge amber">Selected</div>
+              </div>
+            </div>
+
+            <h3 style="margin-top: 20px;">Pick the Status</h3>
+            <label class="field">Status to assign to every Device</label>
+            <select>
+              <option>Active (Nautobot built-in)</option>
+              <option>Planned</option>
+              <option>Staged</option>
+              <option>Failed</option>
+              <option>Inventory</option>
+              <option>Decommissioning</option>
+              <option>Retired</option>
+            </select>
+            <div class="field-help">Only Statuses valid for <code>dcim.Device</code> are shown.</div>
+
+            <div class="preview-box">
+              <div class="pv-row success">
+                <span class="pv-icon">✓</span>
+                <div>All 100 records <span class="arrow">→</span> <code>&lt;Status: Active&gt;</code></div>
+              </div>
+            </div>
+          </div>
+          <div class="popover-footer">
+            <div class="hint">Anchored to <code>status</code></div>
+            <div>
+              <button class="ghost">Cancel</button>
+              <button>Save strategy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="spec-card">
+        <h2>Why "static" matters</h2>
+        <p style="color: var(--muted); font-size: 13px; line-height: 1.55;">
+          Many real-world API responses are missing fields Nautobot considers mandatory. Without a static-value strategy, the user is forced into ugly workarounds (fake JMESPath that always returns the same thing). Making it a first-class strategy keeps the document declarative.
+        </p>
+
+        <h2 style="margin-top: 20px;">Constrained picker</h2>
+        <p style="color: var(--muted); font-size: 13px; line-height: 1.55;">
+          The dropdown only shows Statuses that are <em>valid for the target model</em>. Nautobot Statuses are filtered by ContentType — we use that filter automatically. Same applies to Roles (which are also content-type constrained).
+        </p>
+
+        <h2 style="margin-top: 20px;">Document output</h2>
+        <div class="yaml-snippet"><span class="k">status:</span>
+  <span class="k">fk:</span>
+    <span class="k">on_missing:</span> <span class="s">static</span>
+    <span class="k">static_value:</span> <span class="s">"Active"</span>
+  <span class="c"># note: no `source:` key — we never look at the record</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── SCENARIO 6: REFERENCE ─── -->
+  <div class="scenario-content" id="tab-reference">
+    <div class="grid grid-1">
+      <div class="spec-card">
+        <h2>At-a-glance reference</h2>
+        <p style="color: var(--muted); font-size: 13px;">A summary of every choice the popover surfaces, the document output, and when to recommend each one.</p>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="spec-card">
+        <h2>🔍 Lookup · skip record</h2>
+        <p style="color: var(--muted); font-size: 13px;">Look up by attribute. If not found, skip the entire source record (no Device created).</p>
+        <p style="color: var(--muted); font-size: 12px;"><strong>Recommend when:</strong> required FK + source data is trusted + missing FK means the record is bad data.</p>
+        <div class="yaml-snippet"><span class="k">on_missing:</span> <span class="s">skip_record</span>
+<span class="k">lookup_field:</span> <span class="s">name</span></div>
+      </div>
+
+      <div class="spec-card">
+        <h2>🔍 Lookup · skip field</h2>
+        <p style="color: var(--muted); font-size: 13px;">Look up by attribute. If not found, leave just this field blank. Record still gets created.</p>
+        <p style="color: var(--muted); font-size: 12px;"><strong>Recommend when:</strong> optional FK + you'd rather have the record without this relationship than skip it.</p>
+        <div class="yaml-snippet"><span class="k">on_missing:</span> <span class="s">skip_field</span>
+<span class="k">lookup_field:</span> <span class="s">name</span></div>
+      </div>
+
+      <div class="spec-card">
+        <h2>✨ Lookup or create</h2>
+        <p style="color: var(--muted); font-size: 13px;">Look up. If not found, create with defaults. Recursively handles parent FKs via <code>also_emit</code>.</p>
+        <p style="color: var(--muted); font-size: 12px;"><strong>Recommend when:</strong> the FK target represents a growing catalog (Role, DeviceType, Manufacturer).</p>
+        <div class="yaml-snippet"><span class="k">on_missing:</span> <span class="s">create</span>
+<span class="k">create_defaults:</span> { <span class="c">...</span> }
+<span class="k">also_emit:</span> { <span class="c">parent chain...</span> }</div>
+      </div>
+
+      <div class="spec-card">
+        <h2>📌 Static value</h2>
+        <p style="color: var(--muted); font-size: 13px;">Ignore the source. Always use one fixed Nautobot object. Picker constrained to valid choices.</p>
+        <p style="color: var(--muted); font-size: 12px;"><strong>Recommend when:</strong> source has no usable data for this FK + every record should land at the same place.</p>
+        <div class="yaml-snippet"><span class="k">on_missing:</span> <span class="s">static</span>
+<span class="k">static_value:</span> <span class="s">"Active"</span></div>
+      </div>
+    </div>
+
+    <div class="grid grid-1" style="margin-top: 24px;">
+      <div class="spec-card">
+        <h2>Design principles</h2>
+        <ul>
+          <li><strong>Anchored, not modal</strong> — keep the mapping table in view so context is never lost.</li>
+          <li><strong>Smart defaults</strong> — preselect the strategy that's right for the field type (required vs optional, content-type-constrained vs free, etc.). The user overrides only when necessary.</li>
+          <li><strong>Progressive disclosure</strong> — collapse advanced options. Show the parent cascade only when the user chooses `create`.</li>
+          <li><strong>Live preview</strong> — show what would happen for the first few cached sample records using the current settings. Updates in real time.</li>
+          <li><strong>Affected-record drilldown</strong> — surface which records would be skipped or created before the user runs the sync.</li>
+          <li><strong>Constrained pickers</strong> — for Status/Role/etc., filter the choices by ContentType automatically.</li>
+          <li><strong>Cascade visualization</strong> — when parent objects auto-create, show the chain explicitly so users build the right mental model.</li>
+          <li><strong>YAML mirrors UI</strong> — every choice in the popover writes to exactly one path in the document. Reversible: opening a popover on a configured field shows its current state.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  document.querySelectorAll('.scenario-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.scenario-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>

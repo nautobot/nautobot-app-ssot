@@ -405,6 +405,27 @@ class SyncLogEntryUIViewSet(ObjectListViewMixin):
     action_buttons = ("export",)
 
 
+# Re-export generic_ssot viewsets at the nautobot_ssot.views level so that
+# Nautobot's get_related_class_for_model() can find them by convention:
+# nautobot_ssot.views.{ModelName}UIViewSet
+try:
+    from nautobot_ssot.integrations.generic_ssot.views import (  # noqa: F401
+        SSOTEndpointJoinUIViewSet,
+        SSOTEndpointUIViewSet,
+        SSOTFieldMappingUIViewSet,
+        SSOTSyncConfigEndpointUIViewSet,
+        SSOTSyncConfigUIViewSet,
+    )
+except ImportError:
+    pass
+
+# Same convention re-export for the data_import integration.
+try:
+    from nautobot_ssot.integrations.data_import.views import ImportPlanUIViewSet  # noqa: F401
+except ImportError:
+    pass
+
+
 class SSOTConfigView(ContentTypePermissionRequiredMixin, DjangoView):
     """View with the SSOT integration configs."""
 

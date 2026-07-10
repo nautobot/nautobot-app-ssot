@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load helpers %}
+
+{% block breadcrumbs %}
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'plugins:nautobot_ssot:dashboard' %}">Single Source of Truth</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'plugins:nautobot_ssot:ssotsyncconfig_list' %}">Sync Configs</a></li>
+        <li class="breadcrumb-item"><a href="{{ sync_config.get_absolute_url }}">{{ sync_config.name }}</a></li>
+        <li class="breadcrumb-item active">Build Field Mappings</li>
+    </ol>
+{% endblock breadcrumbs %}
+
+{% block title %}Build Field Mappings - {{ sync_config.name }}{% endblock title %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Field Mapping Builder</h3>
+            </div>
+            <div class="card-body">
+                {% if data_discovery %}
+                    <p>Building field mappings for sync config <strong>{{ sync_config.name }}</strong>
+                        from discovery <strong>{{ data_discovery.name }}</strong>.</p>
+
+                    {% if endpoints %}
+                        <h4>Endpoints</h4>
+                        <ul>
+                        {% for endpoint in endpoints %}
+                            <li>{{ endpoint.name }} ({{ endpoint.api_path }})</li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">No endpoints configured for this sync config.</p>
+                    {% endif %}
+
+                    {% if master_data %}
+                        <h4>Discovered Data Keys</h4>
+                        <ul>
+                        {% for key in master_data.keys %}
+                            <li>{{ key }}</li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted">No discovery data available. Run a discovery job first.</p>
+                    {% endif %}
+                {% else %}
+                    <p class="text-warning">No data discovery is associated with this sync config.
+                        Please link a data discovery before building field mappings.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
