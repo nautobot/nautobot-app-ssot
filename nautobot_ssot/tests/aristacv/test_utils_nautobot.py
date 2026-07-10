@@ -1,10 +1,12 @@
 """Tests of CloudVision utility methods."""
 
 from django.test import override_settings
-from nautobot.core.testing import TestCase
-from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer
+from nautobot.apps.testing import TestCase
+from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer, Platform, SoftwareVersion
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Role, Status, Tag
 
+from nautobot_ssot.integrations.aristacv.constants import ARISTA_PLATFORM
 from nautobot_ssot.integrations.aristacv.utils import nautobot
 
 
@@ -13,9 +15,12 @@ class TestNautobotUtils(TestCase):
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Configure shared test vars."""
-        self.arista_manu = Manufacturer.objects.get_or_create(name="Arista")[0]
+        populate_status_choices()
+        cls.arista_manu = Manufacturer.objects.get_or_create(name="Arista")[0]
+        cls.arista_platform = Platform.objects.get_or_create(name=ARISTA_PLATFORM, manufacturer=cls.arista_manu)[0]
 
     def test_verify_site_success(self):
         """Test the verify_site method for existing Site."""
@@ -43,6 +48,24 @@ class TestNautobotUtils(TestCase):
         result = nautobot.verify_device_type_object(device_type="DCS-7150S-24")
         self.assertEqual(result.model, "DCS-7150S-24")
         self.assertTrue(isinstance(result, DeviceType))
+
+    def test_verify_software_version_object_success(self):
+        """Test the verify_software_version_object method for existing SoftwareVersion."""
+        existing = SoftwareVersion.objects.create(
+            version="4.28.1F",
+            platform=self.arista_platform,
+            status=Status.objects.get(name="Active"),
+        )
+        result = nautobot.verify_software_version_object(version="4.28.1F", platform=self.arista_platform)
+        self.assertEqual(result, existing)
+
+    def test_verify_software_version_object_fail(self):
+        """Test the verify_software_version_object method for non-existing SoftwareVersion."""
+        result = nautobot.verify_software_version_object(version="4.29.0F", platform=self.arista_platform)
+        self.assertEqual(result.version, "4.29.0F")
+        self.assertEqual(result.platform, self.arista_platform)
+        self.assertEqual(result.status, Status.objects.get(name="Active"))
+        self.assertTrue(isinstance(result, SoftwareVersion))
 
     def test_verify_device_role_object_success(self):
         """Test the verify_device_role_object method for existing DeviceRole."""
@@ -117,3 +140,36 @@ class TestNautobotUtils(TestCase):
         results = nautobot.parse_hostname(host, config.hostname_patterns)
         expected = (None, "leaf")
         self.assertEqual(results, expected)
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvaas_url": "https://www.arista.io",
+                "aristacv_cvp_user": "admin",
+            },
+        },
+    )
+    def test_get_config_delete_namespaces_prefixes_default(self):
+        """With no delete_ipaddresses/namespaces/prefixes settings, get_config returns False for all."""
+        config = nautobot.get_config()
+        self.assertFalse(config.delete_ipaddresses_on_sync)
+        self.assertFalse(config.delete_namespaces_on_sync)
+        self.assertFalse(config.delete_prefixes_on_sync)
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvaas_url": "https://www.arista.io",
+                "aristacv_cvp_user": "admin",
+                "aristacv_delete_ipaddresses_on_sync": True,
+                "aristacv_delete_namespaces_on_sync": True,
+                "aristacv_delete_prefixes_on_sync": True,
+            },
+        },
+    )
+    def test_get_config_delete_namespaces_prefixes_override(self):
+        """With delete_ipaddresses/namespaces/prefixes set True, get_config returns True for all."""
+        config = nautobot.get_config()
+        self.assertTrue(config.delete_ipaddresses_on_sync)
+        self.assertTrue(config.delete_namespaces_on_sync)
+        self.assertTrue(config.delete_prefixes_on_sync)

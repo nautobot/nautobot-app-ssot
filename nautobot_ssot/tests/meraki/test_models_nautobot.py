@@ -5,8 +5,9 @@ from unittest.mock import MagicMock, patch
 from diffsync import Adapter
 from django.contrib.contenttypes.models import ContentType
 from django.test import override_settings
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Location, LocationType
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Status
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
@@ -15,37 +16,37 @@ from nautobot_ssot.integrations.meraki.diffsync.models.nautobot import NautobotI
 
 
 @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"enable_meraki": True}})
-class TestNautobotPrefix(TransactionTestCase):  # pylint: disable=too-many-instance-attributes
+class TestNautobotPrefix(TestCase):  # pylint: disable=too-many-instance-attributes
     """Test the NautobotPrefix class."""
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Configure common variables and objects for tests."""
-        super().setUp()
-        self.status_active = Status.objects.get(name="Active")
+        super().setUpTestData()
+        populate_status_choices()
+        cls.status_active = Status.objects.get(name="Active")
         site_lt = LocationType.objects.get_or_create(name="Site")[0]
         site_lt.content_types.add(ContentType.objects.get_for_model(Prefix))
-        self.test_site = Location.objects.get_or_create(name="Test", location_type=site_lt, status=self.status_active)[
-            0
-        ]
-        self.update_site = Location.objects.get_or_create(
-            name="Update", location_type=site_lt, status=self.status_active
+        cls.test_site = Location.objects.get_or_create(name="Test", location_type=site_lt, status=cls.status_active)[0]
+        cls.update_site = Location.objects.get_or_create(
+            name="Update", location_type=site_lt, status=cls.status_active
         )[0]
-        self.test_tenant = Tenant.objects.get_or_create(name="Test")[0]
-        self.update_tenant = Tenant.objects.get_or_create(name="Update")[0]
-        self.test_ns = Namespace.objects.get_or_create(name="Test")[0]
-        self.prefix = Prefix.objects.create(
-            prefix="10.0.0.0/24", namespace=self.test_ns, status=self.status_active, tenant=self.test_tenant
+        cls.test_tenant = Tenant.objects.get_or_create(name="Test")[0]
+        cls.update_tenant = Tenant.objects.get_or_create(name="Update")[0]
+        cls.test_ns = Namespace.objects.get_or_create(name="Test")[0]
+        cls.prefix = Prefix.objects.create(
+            prefix="10.0.0.0/24", namespace=cls.test_ns, status=cls.status_active, tenant=cls.test_tenant
         )
-        self.adapter = Adapter()
-        self.adapter.namespace_map = {"Test": self.test_ns.id, "Update": self.update_site.id}
-        self.adapter.site_map = {"Test": self.test_site, "Update": self.update_site}
-        self.adapter.tenant_map = {"Test": self.test_tenant.id, "Update": self.update_tenant.id}
-        self.adapter.status_map = {"Active": self.status_active.id}
-        self.adapter.prefix_map = {}
-        self.adapter.objects_to_create = {"prefixes": []}
-        self.adapter.objects_to_delete = {"prefixes": []}
+        cls.adapter = Adapter()
+        cls.adapter.namespace_map = {"Test": cls.test_ns.id, "Update": cls.update_site.id}
+        cls.adapter.site_map = {"Test": cls.test_site, "Update": cls.update_site}
+        cls.adapter.tenant_map = {"Test": cls.test_tenant.id, "Update": cls.update_tenant.id}
+        cls.adapter.status_map = {"Active": cls.status_active.id}
+        cls.adapter.prefix_map = {}
+        cls.adapter.objects_to_create = {"prefixes": []}
+        cls.adapter.objects_to_delete = {"prefixes": []}
 
     def test_create(self):
         """Validate the NautobotPrefix create() method creates a Prefix."""
@@ -92,54 +93,54 @@ class TestNautobotPrefix(TransactionTestCase):  # pylint: disable=too-many-insta
 
 
 @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"enable_meraki": True}})
-class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-instance-attributes
+class TestNautobotIPAddress(TestCase):  # pylint: disable=too-many-instance-attributes
     """Test the NautobotIPAddress class."""
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Configure common variables and objects for tests."""
-        super().setUp()
-        self.status_active = Status.objects.get(name="Active")
+        super().setUpTestData()
+        populate_status_choices()
+        cls.status_active = Status.objects.get(name="Active")
         site_lt = LocationType.objects.get_or_create(name="Site")[0]
         site_lt.content_types.add(ContentType.objects.get_for_model(Prefix))
-        self.test_site = Location.objects.get_or_create(name="Test", location_type=site_lt, status=self.status_active)[
-            0
-        ]
-        self.update_site = Location.objects.get_or_create(
-            name="Update", location_type=site_lt, status=self.status_active
+        cls.test_site = Location.objects.get_or_create(name="Test", location_type=site_lt, status=cls.status_active)[0]
+        cls.update_site = Location.objects.get_or_create(
+            name="Update", location_type=site_lt, status=cls.status_active
         )[0]
-        self.test_tenant = Tenant.objects.get_or_create(name="Test")[0]
-        self.update_tenant = Tenant.objects.get_or_create(name="Update")[0]
-        self.test_ns = Namespace.objects.get_or_create(name="Test")[0]
-        self.prefix = Prefix(
-            prefix="10.0.0.0/24", namespace=self.test_ns, status=self.status_active, tenant=self.test_tenant
+        cls.test_tenant = Tenant.objects.get_or_create(name="Test")[0]
+        cls.update_tenant = Tenant.objects.get_or_create(name="Update")[0]
+        cls.test_ns = Namespace.objects.get_or_create(name="Test")[0]
+        cls.prefix = Prefix(
+            prefix="10.0.0.0/24", namespace=cls.test_ns, status=cls.status_active, tenant=cls.test_tenant
         )
-        self.adapter = Adapter()
-        self.adapter.job = MagicMock()
-        self.adapter.job.debug = True
-        self.adapter.job.logger = MagicMock()
-        self.adapter.job.logger.debug = MagicMock()
-        self.adapter.job.logger.error = MagicMock()
-        self.adapter.namespace_map = {"Test": self.test_ns.id, "Update": self.update_site.id}
-        self.adapter.site_map = {"Test": self.test_site, "Update": self.update_site}
-        self.adapter.tenant_map = {"Test": self.test_tenant.id, "Update": self.update_tenant.id}
-        self.adapter.status_map = {"Active": self.status_active.id}
-        self.adapter.ipaddr_map = {}
-        self.adapter.prefix_map = {"10.0.0.0/24": self.prefix.id}
-        self.adapter.objects_to_create = {"ipaddrs": [], "ipaddrs-to-prefixes": [], "prefixes": []}
-        self.adapter.objects_to_delete = {"ipaddrs": []}
-        self.test_ipaddr = IPAddress(
-            address="10.0.0.1/24", parent=self.prefix, status=self.status_active, tenant=self.test_tenant
+        cls.adapter = Adapter()
+        cls.adapter.job = MagicMock()
+        cls.adapter.job.debug = True
+        cls.adapter.job.logger = MagicMock()
+        cls.adapter.job.logger.debug = MagicMock()
+        cls.adapter.job.logger.error = MagicMock()
+        cls.adapter.namespace_map = {"Test": cls.test_ns.id, "Update": cls.update_site.id}
+        cls.adapter.site_map = {"Test": cls.test_site, "Update": cls.update_site}
+        cls.adapter.tenant_map = {"Test": cls.test_tenant.id, "Update": cls.update_tenant.id}
+        cls.adapter.status_map = {"Active": cls.status_active.id}
+        cls.adapter.ipaddr_map = {}
+        cls.adapter.prefix_map = {"10.0.0.0/24": cls.prefix.id}
+        cls.adapter.objects_to_create = {"ipaddrs": [], "ipaddrs-to-prefixes": [], "prefixes": []}
+        cls.adapter.objects_to_delete = {"ipaddrs": []}
+        cls.test_ipaddr = IPAddress(
+            address="10.0.0.1/24", parent=cls.prefix, status=cls.status_active, tenant=cls.test_tenant
         )
-        self.test_ip = NautobotIPAddress(
+        cls.test_ip = NautobotIPAddress(
             host="10.0.0.1",
             mask_length=24,
             prefix="10.0.0.0/24",
             tenant="Test",
-            uuid=self.test_ipaddr.id,
+            uuid=cls.test_ipaddr.id,
         )
-        self.test_ip.adapter = self.adapter
+        cls.test_ip.adapter = cls.adapter
 
     def test_create(self):
         """Validate the NautobotAddress create() method creates an IPAddress."""

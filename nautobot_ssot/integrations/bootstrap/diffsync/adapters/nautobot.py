@@ -1437,70 +1437,17 @@ class NautobotAdapter(Adapter):
 
     def load(self):
         """Load data from Nautobot into DiffSync models."""
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tenant_group"]:
-            self.load_tenant_group()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tenant"]:
-            self.load_tenant()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["role"]:
-            self.load_role()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["manufacturer"]:
-            self.load_manufacturer()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["platform"]:
-            self.load_platform()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["location_type"]:
-            self.load_location_type()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["location"]:
-            self.load_location()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["team"]:
-            self.load_team()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["contact"]:
-            self.load_contact()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["provider"]:
-            self.load_provider()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["provider_network"]:
-            self.load_provider_network()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["circuit_type"]:
-            self.load_circuit_type()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["circuit"]:
-            self.load_circuit()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["circuit_termination"]:
-            self.load_circuit_termination()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["namespace"]:
-            self.load_namespace()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["rir"]:
-            self.load_rir()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["vlan_group"]:
-            self.load_vlan_group()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["vlan"]:
-            self.load_vlan()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["vrf"]:
-            self.load_vrf()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["prefix"]:
-            self.load_prefix()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["secret"]:
-            self.load_secret()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["secrets_group"]:
-            self.load_secrets_group()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["git_repository"]:
-            self.load_git_repository()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["dynamic_group"]:
-            self.load_dynamic_group()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["computed_field"]:
-            self.load_computed_field()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["tag"]:
-            self.load_tag()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["graph_ql_query"]:
-            self.load_graph_ql_query()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["scheduled_job"]:
-            self.load_scheduled_job()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["custom_field"]:
-            self.load_custom_field()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["external_integration"]:
-            self.load_external_integration()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software"]:
-            self.load_software()
-        if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["software_image"]:
-            self.load_software_image()
-        if validate_dlm_installed():
-            if settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_models_to_sync"]["validated_software"]:
-                self.load_validated_software()
+        for model, is_synced in (
+            settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("bootstrap_models_to_sync", {}).items()
+        ):
+            if not is_synced or (model == "validated_software" and not validate_dlm_installed()):
+                continue
+            try:
+                getattr(self, f"load_{model}")()
+            except AttributeError:
+                # Ignore missing attributes here. Many come up.
+                self.job.logger.warning(
+                    f"Method `load_{model}` not found in `nautobot_ssot.integrations.bootsrap.diffsync.adapters.nautobot.NautobotAdapter`."
+                    " Skipping model load."
+                )
+                continue

@@ -83,8 +83,10 @@ markdown_extensions:
           class: "mermaid"
           format: !!python/name:pymdownx.superfences.fence_code_format
   - "footnotes"
+  - "meta"
 plugins:
   - "search"
+  - "glightbox"
   - "mkdocstrings":
       default_handler: "python"
       handlers:
@@ -111,6 +113,7 @@ nav:
           - "user/integrations/index.md"
           - Cisco ACI: "user/integrations/aci.md"
           - Bootstrap: "user/integrations/bootstrap.md"
+          - Cisco SD-WAN: "user/integrations/cisco_sdwan.md"
           - Citrix ADM: "user/integrations/citrix_adm.md"
           - Arista CloudVision: "user/integrations/aristacv.md"
           - Device42: "user/integrations/device42.md"
@@ -133,6 +136,7 @@ nav:
       - Integrations Installation:
           - "admin/integrations/index.md"
           - Cisco ACI: "admin/integrations/aci_setup.md"
+          - Cisco SD-WAN: "admin/integrations/cisco_sdwan_setup.md"
           - Citrix ADM: "admin/integrations/citrix_adm_setup.md"
           - Bootstrap: "admin/integrations/bootstrap_setup.md"
           - Arista CloudVision: "admin/integrations/aristacv_setup.md"
@@ -152,8 +156,13 @@ nav:
       - Compatibility Matrix: "admin/compatibility_matrix.md"
       - Release Notes:
           - "admin/release_notes/index.md"
+          - v4.5: "admin/release_notes/version_4.5.md"
+          - v4.4: "admin/release_notes/version_4.4.md"
+          - v4.3: "admin/release_notes/version_4.3.md"
+          - v4.2: "admin/release_notes/version_4.2.md"
           - v4.1: "admin/release_notes/version_4.1.md"
           - v4.0: "admin/release_notes/version_4.0.md"
+          - v3.12: "admin/release_notes/version_3.12.md"
           - v3.11: "admin/release_notes/version_3.11.md"
           - v3.10: "admin/release_notes/version_3.10.md"
           - v3.9: "admin/release_notes/version_3.9.md"
@@ -185,6 +194,7 @@ nav:
   - Developer Guide:
       - Upgrading from SSoT 2.x to 3.x: "dev/upgrade.md"
       - Extending the App: "dev/extending.md"
+      - ObjectMetadata-Backed Fields: "dev/contrib_object_metadata.md"
       - Developing Jobs: "dev/jobs.md"
       - Debugging Jobs: "dev/debugging.md"
       - Contributing to the App: "dev/contributing.md"

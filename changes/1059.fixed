@@ -1,1 +1,0 @@
-Fixed a bug in the Meraki integration that was causing the sync job to fail when a Meraki MX WAN port is configured as PPPoE port.

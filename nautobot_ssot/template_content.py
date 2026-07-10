@@ -25,20 +25,19 @@ class JobResultSyncLink(TemplateExtension):
 
     def buttons(self):
         """Inject a custom button into the JobResult detail view, if applicable."""
-        try:
-            sync = Sync.objects.get(job_result=self.context["object"])
-            url = _sync_detail_url(sync.pk)
-            if not url:
-                return ""
-            return f"""
-                <div class="btn-group">
-                    <a href="{url}" class="btn btn-primary">
-                        <span class="mdi mdi-database-sync-outline"></span> SSoT Sync Details
-                    </a>
-                </div>
-            """
-        except Sync.DoesNotExist:
+        sync_objects = Sync.objects.filter(job_result=self.context["object"])
+        if not sync_objects.exists():
             return ""
+        url = _sync_detail_url(sync_objects.first().pk)
+        if not url:
+            return ""
+        return f"""
+            <div class="btn-group">
+                <a href="{url}" class="btn btn-primary">
+                    <span class="mdi mdi-database-sync-outline"></span> SSoT Sync Details
+                </a>
+            </div>
+        """
 
 
 template_extensions = [JobResultSyncLink]

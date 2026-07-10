@@ -4,28 +4,17 @@
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import Optional
 
-
-class SortType(Enum):
-    """Enum for identifying sortable field types when sorting SSoT fields.
-
-    Enum used for future extension if required.
-    """
-
-    DICT = 1
+from nautobot_ssot.contrib.enums import RelationshipSideEnum
 
 
-class RelationshipSideEnum(Enum):
-    """This details which side of a custom relationship the model it's defined on is on."""
-
-    SOURCE = "SOURCE"
-    DESTINATION = "DESTINATION"
+class CustomAnnotation:
+    """Base class used to identify custom annotations in SSoT operations."""
 
 
 @dataclass
-class CustomRelationshipAnnotation:
+class CustomRelationshipAnnotation(CustomAnnotation):
     """Map a model field to an arbitrary custom relationship.
 
     For usage with `typing.Annotated`.
@@ -56,7 +45,7 @@ class CustomRelationshipAnnotation:
 
 
 @dataclass
-class CustomFieldAnnotation:
+class CustomFieldAnnotation(CustomAnnotation):
     """Map a model field to an arbitrary custom field name.
 
     For usage with `typing.Annotated`.
@@ -98,3 +87,28 @@ class CustomFieldAnnotation:
                 self.key = self.name
             else:
                 raise ValueError("The 'key' field on CustomFieldAnnotation needs to be set.")
+
+
+@dataclass
+class ObjectMetadataAnnotation(CustomAnnotation):
+    """Mark a DiffSync model field as backed by Nautobot ObjectMetadata.
+
+    Fields annotated with this type are read from / written to `ObjectMetadata`
+    (keyed by `metadata_type_name`) instead of a regular model field or custom field.
+    The backing `MetadataType` must already exist and have the model's content type
+    attached; this annotation does not create it.
+
+    Attributes:
+        metadata_type_name: The `MetadataType.name` to read/write.
+        data_type: Informational `MetadataTypeDataTypeChoices` value; defaults to `"text"`.
+
+    Example:
+        ```python
+        external_id: Annotated[
+            Optional[str], ObjectMetadataAnnotation(metadata_type_name="External System ID")
+        ] = None
+        ```
+    """
+
+    metadata_type_name: str
+    data_type: str = "text"

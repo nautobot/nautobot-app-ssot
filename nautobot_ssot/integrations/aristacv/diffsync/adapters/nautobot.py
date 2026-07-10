@@ -3,6 +3,7 @@
 from collections import defaultdict
 
 from diffsync import Adapter
+from diffsync.enum import DiffSyncModelFlags
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import ProtectedError
@@ -12,6 +13,8 @@ from nautobot.extras.models import Relationship as OrmRelationship
 from nautobot.extras.models import RelationshipAssociation as OrmRelationshipAssociation
 from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import IPAddressToInterface
+from nautobot.ipam.models import Namespace as OrmNamespace
+from nautobot.ipam.models import Prefix as OrmPrefix
 
 from nautobot_ssot.integrations.aristacv.diffsync.models.nautobot import (
     NautobotCustomField,
@@ -80,7 +83,7 @@ class NautobotAdapter(Adapter):
 
     def load_interfaces(self):
         """Add Nautobot Interface objects as DiffSync Port models."""
-        for intf in OrmInterface.objects.filter(device__device_type__manufacturer__name="Arista"):
+        for intf in OrmInterface.objects.filter(device__device_type__manufacturer__name="Arista").select_related("lag"):
             new_port = self.port(
                 name=intf.name,
                 device=intf.device.name,
@@ -91,6 +94,7 @@ class NautobotAdapter(Adapter):
                 mtu=intf.mtu,
                 port_type=intf.type,
                 status=intf.status.name,
+                lag=intf.lag.name if intf.lag else None,
                 uuid=intf.id,
             )
             self.add(new_port)
@@ -102,39 +106,44 @@ class NautobotAdapter(Adapter):
                     f"Unable to find Device {intf.device.name} in diff to assign to port {intf.name}. {err}"
                 )
 
+    def load_namespaces(self):
+        """Add Nautobot Namespace objects as DiffSync Namespace models."""
+        for ns in OrmNamespace.objects.all():
+            new_ns = self.namespace(
+                name=ns.name,
+                uuid=ns.id,
+            )
+            if not self.job.app_config.delete_namespaces_on_sync:
+                new_ns.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+            self.add(new_ns)
+
+    def load_prefixes(self):
+        """Add Nautobot Prefix objects as DiffSync Prefix models."""
+        for pf in OrmPrefix.objects.all():
+            new_pf = self.prefix(
+                prefix=str(pf.prefix),
+                namespace=pf.namespace.name,
+                uuid=pf.id,
+            )
+            if not self.job.app_config.delete_prefixes_on_sync:
+                new_pf.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+            self.add(new_pf)
+
     def load_ip_addresses(self):
         """Add Nautobot IPAddress objects as DiffSync IPAddress models."""
-        for ipaddr in OrmIPAddress.objects.filter(
-            interfaces__device__device_type__manufacturer__name__in=["Arista"]
-        ).distinct():
-            try:
-                self.get(self.namespace, ipaddr.parent.namespace.name)
-            except ObjectNotFound:
-                new_ns = self.namespace(
-                    name=ipaddr.parent.namespace.name,
-                    uuid=ipaddr.parent.namespace.id,
-                )
-                self.add(new_ns)
-            try:
-                self.get(self.prefix, {"prefix": str(ipaddr.parent.prefix), "namespace": ipaddr.parent.namespace.name})
-            except ObjectNotFound:
-                new_pf = self.prefix(
-                    prefix=str(ipaddr.parent.prefix),
-                    namespace=ipaddr.parent.namespace.name,
-                    uuid=ipaddr.parent.id,
-                )
-                self.add(new_pf)
+        for ipaddr in OrmIPAddress.objects.all():
             new_ip = self.ipaddr(
                 address=str(ipaddr.address),
                 prefix=str(ipaddr.parent.prefix),
                 namespace=ipaddr.parent.namespace.name,
                 uuid=ipaddr.id,
             )
-            try:
-                self.add(new_ip)
-            except ObjectAlreadyExists as err:
-                self.job.logger.warning(f"Unable to load {ipaddr.address}. IPAddress already in diffsync store. {err}")
-            ip_to_intfs = IPAddressToInterface.objects.filter(ip_address=ipaddr)
+            if not self.job.app_config.delete_ipaddresses_on_sync:
+                new_ip.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
+            self.add(new_ip)
+            ip_to_intfs = IPAddressToInterface.objects.filter(
+                ip_address=ipaddr, interface__device__device_type__manufacturer__name="Arista"
+            )
             for mapping in ip_to_intfs:
                 new_map = self.ipassignment(
                     address=str(ipaddr.address),
@@ -209,4 +218,6 @@ class NautobotAdapter(Adapter):
         """Load Nautobot models into DiffSync models."""
         self.load_devices()
         self.load_interfaces()
+        self.load_namespaces()
+        self.load_prefixes()
         self.load_ip_addresses()

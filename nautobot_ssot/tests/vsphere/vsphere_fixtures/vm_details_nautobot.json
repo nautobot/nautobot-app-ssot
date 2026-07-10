@@ -9,6 +9,12 @@
         "disks": [
             {
                 "value": {
+                    "label": "CD/DVD drive 1"
+                },
+                "key": "1000"
+            },
+            {
+                "value": {
                     "scsi": {
                         "bus": 0,
                         "unit": 0

@@ -1,0 +1,781 @@
+[
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": "seconds: 1777925084, nanos: 277431845",
+                "deletes": [],
+                "updates": {
+                    "mtu": 1500,
+                    "addr": "00:00:00:00:00:00",
+                    "mode": {
+                        "Name": "lagModeOn",
+                        "Value": 1
+                    },
+                    "name": "Recirc-Channel1",
+                    "l2Mru": 0,
+                    "l2Mtu": 0,
+                    "intfId": "Recirc-Channel1",
+                    "fallback": {
+                        "Name": "fallbackNone",
+                        "Value": 0
+                    },
+                    "maxLinks": null,
+                    "minLinks": 0,
+                    "minSpeed": {
+                        "speedUnit": {
+                            "Name": "speedUnitGbps",
+                            "Value": 1
+                        },
+                        "speedValue": {
+                            "value": 0
+                        }
+                    },
+                    "requestor": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "lag",
+                        "intfConfig",
+                        "Recirc-Channel1",
+                        "requestor"
+                    ],
+                    "lagFeature": {
+                        "Name": "lagFeatureLag",
+                        "Value": 1
+                    },
+                    "mixedSpeed": false,
+                    "description": "",
+                    "loadInterval": {
+                        "val": 300.0,
+                        "useDefault": true
+                    },
+                    "defaultConfig": [],
+                    "recircFeature": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "lag",
+                        "intfConfig",
+                        "Recirc-Channel1",
+                        "recircFeature"
+                    ],
+                    "timestampMode": {
+                        "Name": "timestampModeDisabled",
+                        "Value": 0
+                    },
+                    "enabledDefault": true,
+                    "lacpLoopEnable": false,
+                    "fallbackTimeout": {
+                        "value": 90.0
+                    },
+                    "l3MtuConfigured": false,
+                    "priorityEnforced": false,
+                    "enabledStateLocal": {
+                        "Name": "enabled",
+                        "Value": 1
+                    },
+                    "linkStatusLogging": {
+                        "Name": "useGlobal",
+                        "Value": 2
+                    },
+                    "enabledStateReason": "",
+                    "routerMacConfigured": false,
+                    "adminShutdownDelayed": false,
+                    "linkUpDebouncePeriod": 0,
+                    "adminEnabledStateLocal": {
+                        "Name": "enabled",
+                        "Value": 1
+                    },
+                    "adminShutdownDelayable": false,
+                    "linkDownDebouncePeriod": 0,
+                    "poStatusMaxLinksDelayTime": 6.0
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "config",
+                    "eth",
+                    "lag",
+                    "intfConfig",
+                    "Recirc-Channel1"
+                ]
+            }
+        ]
+    },
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": "seconds: 1777925092, nanos: 969237779",
+                "deletes": [],
+                "updates": {
+                    "mtu": 1500,
+                    "name": "Loopback0",
+                    "intfId": "Loopback0",
+                    "requestor": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "loopback",
+                        "intf",
+                        "intfConfig",
+                        "Loopback0",
+                        "requestor"
+                    ],
+                    "description": "hello!",
+                    "loadInterval": {
+                        "val": 300.0,
+                        "useDefault": true
+                    },
+                    "defaultConfig": [],
+                    "enabledDefault": true,
+                    "hwFwdIdEnabled": false,
+                    "l3MtuConfigured": false,
+                    "enabledStateLocal": {
+                        "Name": "unknownEnabledState",
+                        "Value": 0
+                    },
+                    "linkStatusLogging": {
+                        "Name": "useGlobal",
+                        "Value": 2
+                    },
+                    "enabledStateReason": "",
+                    "adminShutdownDelayed": false,
+                    "adminEnabledStateLocal": {
+                        "Name": "unknownEnabledState",
+                        "Value": 0
+                    },
+                    "adminShutdownDelayable": false
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "config",
+                    "loopback",
+                    "intf",
+                    "intfConfig",
+                    "Loopback0"
+                ]
+            }
+        ]
+    },
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": "seconds: 1777925097, nanos: 409577649",
+                "deletes": [],
+                "updates": {
+                    "mtu": 1500,
+                    "addr": "00:00:00:00:00:00",
+                    "name": "Vlan132",
+                    "l2Mru": 0,
+                    "l2Mtu": 0,
+                    "intfId": "Vlan132",
+                    "source": "cli",
+                    "dynamic": false,
+                    "autoState": true,
+                    "requestor": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "vlan",
+                        "intfConfig",
+                        "Vlan132",
+                        "requestor"
+                    ],
+                    "description": "",
+                    "loadInterval": {
+                        "val": 300.0,
+                        "useDefault": true
+                    },
+                    "defaultConfig": [],
+                    "timestampMode": {
+                        "Name": "timestampModeDisabled",
+                        "Value": 0
+                    },
+                    "enabledDefault": true,
+                    "l3MtuConfigured": false,
+                    "enabledStateLocal": {
+                        "Name": "unknownEnabledState",
+                        "Value": 0
+                    },
+                    "linkStatusLogging": {
+                        "Name": "useGlobal",
+                        "Value": 2
+                    },
+                    "enabledStateReason": "",
+                    "routerMacConfigured": false,
+                    "adminShutdownDelayed": false,
+                    "linkUpDebouncePeriod": 0,
+                    "adminEnabledStateLocal": {
+                        "Name": "unknownEnabledState",
+                        "Value": 0
+                    },
+                    "adminShutdownDelayable": false,
+                    "autoStateExcludedIntfs": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "vlan",
+                        "intfConfig",
+                        "Vlan132",
+                        "autoStateExcludedIntfs"
+                    ],
+                    "linkDownDebouncePeriod": 0
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "config",
+                    "eth",
+                    "vlan",
+                    "intfConfig",
+                    "Vlan132"
+                ]
+            }
+        ]
+    },
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": "seconds: 1777925084, nanos: 276468061",
+                "deletes": [],
+                "updates": {
+                    "mtu": 1500,
+                    "addr": "00:00:00:00:00:00",
+                    "mode": {
+                        "Name": "lagModeLacp",
+                        "Value": 2
+                    },
+                    "name": "Port-Channel1000",
+                    "l2Mru": 0,
+                    "l2Mtu": 0,
+                    "intfId": "Port-Channel1000",
+                    "fallback": {
+                        "Name": "fallbackNone",
+                        "Value": 0
+                    },
+                    "maxLinks": null,
+                    "minLinks": 0,
+                    "minSpeed": {
+                        "speedUnit": {
+                            "Name": "speedUnitGbps",
+                            "Value": 1
+                        },
+                        "speedValue": {
+                            "value": 0
+                        }
+                    },
+                    "requestor": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "lag",
+                        "intfConfig",
+                        "Port-Channel1000",
+                        "requestor"
+                    ],
+                    "lagFeature": {
+                        "Name": "lagFeatureLag",
+                        "Value": 1
+                    },
+                    "mixedSpeed": false,
+                    "description": "",
+                    "loadInterval": {
+                        "val": 300.0,
+                        "useDefault": true
+                    },
+                    "defaultConfig": [],
+                    "recircFeature": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "lag",
+                        "intfConfig",
+                        "Port-Channel1000",
+                        "recircFeature"
+                    ],
+                    "timestampMode": {
+                        "Name": "timestampModeDisabled",
+                        "Value": 0
+                    },
+                    "enabledDefault": true,
+                    "lacpLoopEnable": false,
+                    "fallbackTimeout": {
+                        "value": 90.0
+                    },
+                    "l3MtuConfigured": false,
+                    "priorityEnforced": false,
+                    "enabledStateLocal": {
+                        "Name": "enabled",
+                        "Value": 1
+                    },
+                    "linkStatusLogging": {
+                        "Name": "useGlobal",
+                        "Value": 2
+                    },
+                    "enabledStateReason": "",
+                    "routerMacConfigured": false,
+                    "adminShutdownDelayed": false,
+                    "linkUpDebouncePeriod": 0,
+                    "adminEnabledStateLocal": {
+                        "Name": "enabled",
+                        "Value": 1
+                    },
+                    "adminShutdownDelayable": false,
+                    "linkDownDebouncePeriod": 0,
+                    "poStatusMaxLinksDelayTime": 6.0
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "config",
+                    "eth",
+                    "lag",
+                    "intfConfig",
+                    "Port-Channel1000"
+                ]
+            }
+        ]
+    },
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": "seconds: 1777925097, nanos: 407066035",
+                "deletes": [],
+                "updates": {
+                    "mtu": 1500,
+                    "addr": "00:00:00:00:00:00",
+                    "name": "Vlan10",
+                    "l2Mru": 0,
+                    "l2Mtu": 0,
+                    "intfId": "Vlan10",
+                    "source": "cli",
+                    "dynamic": false,
+                    "autoState": true,
+                    "requestor": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "vlan",
+                        "intfConfig",
+                        "Vlan10",
+                        "requestor"
+                    ],
+                    "description": "",
+                    "loadInterval": {
+                        "val": 300.0,
+                        "useDefault": true
+                    },
+                    "defaultConfig": [],
+                    "timestampMode": {
+                        "Name": "timestampModeDisabled",
+                        "Value": 0
+                    },
+                    "enabledDefault": true,
+                    "l3MtuConfigured": false,
+                    "enabledStateLocal": {
+                        "Name": "unknownEnabledState",
+                        "Value": 0
+                    },
+                    "linkStatusLogging": {
+                        "Name": "useGlobal",
+                        "Value": 2
+                    },
+                    "enabledStateReason": "",
+                    "routerMacConfigured": false,
+                    "adminShutdownDelayed": false,
+                    "linkUpDebouncePeriod": 0,
+                    "adminEnabledStateLocal": {
+                        "Name": "unknownEnabledState",
+                        "Value": 0
+                    },
+                    "adminShutdownDelayable": false,
+                    "autoStateExcludedIntfs": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "vlan",
+                        "intfConfig",
+                        "Vlan10",
+                        "autoStateExcludedIntfs"
+                    ],
+                    "linkDownDebouncePeriod": 0
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "config",
+                    "eth",
+                    "vlan",
+                    "intfConfig",
+                    "Vlan10"
+                ]
+            }
+        ]
+    },
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": "seconds: 1777925097, nanos: 407943727",
+                "deletes": [],
+                "updates": {
+                    "mtu": 1500,
+                    "addr": "00:00:00:00:00:00",
+                    "name": "Vlan1024",
+                    "l2Mru": 0,
+                    "l2Mtu": 0,
+                    "intfId": "Vlan1024",
+                    "source": "cli",
+                    "dynamic": false,
+                    "autoState": true,
+                    "requestor": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "vlan",
+                        "intfConfig",
+                        "Vlan1024",
+                        "requestor"
+                    ],
+                    "description": "",
+                    "loadInterval": {
+                        "val": 300.0,
+                        "useDefault": true
+                    },
+                    "defaultConfig": [],
+                    "timestampMode": {
+                        "Name": "timestampModeDisabled",
+                        "Value": 0
+                    },
+                    "enabledDefault": true,
+                    "l3MtuConfigured": false,
+                    "enabledStateLocal": {
+                        "Name": "unknownEnabledState",
+                        "Value": 0
+                    },
+                    "linkStatusLogging": {
+                        "Name": "useGlobal",
+                        "Value": 2
+                    },
+                    "enabledStateReason": "",
+                    "routerMacConfigured": false,
+                    "adminShutdownDelayed": false,
+                    "linkUpDebouncePeriod": 0,
+                    "adminEnabledStateLocal": {
+                        "Name": "unknownEnabledState",
+                        "Value": 0
+                    },
+                    "adminShutdownDelayable": false,
+                    "autoStateExcludedIntfs": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "vlan",
+                        "intfConfig",
+                        "Vlan1024",
+                        "autoStateExcludedIntfs"
+                    ],
+                    "linkDownDebouncePeriod": 0
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "config",
+                    "eth",
+                    "vlan",
+                    "intfConfig",
+                    "Vlan1024"
+                ]
+            }
+        ]
+    },
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": "seconds: 1777925097, nanos: 408839728",
+                "deletes": [],
+                "updates": {
+                    "mtu": 1500,
+                    "addr": "00:00:00:00:00:00",
+                    "name": "Vlan1320",
+                    "l2Mru": 0,
+                    "l2Mtu": 0,
+                    "intfId": "Vlan1320",
+                    "source": "cli",
+                    "dynamic": false,
+                    "autoState": true,
+                    "requestor": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "vlan",
+                        "intfConfig",
+                        "Vlan1320",
+                        "requestor"
+                    ],
+                    "description": "",
+                    "loadInterval": {
+                        "val": 300.0,
+                        "useDefault": true
+                    },
+                    "defaultConfig": [],
+                    "timestampMode": {
+                        "Name": "timestampModeDisabled",
+                        "Value": 0
+                    },
+                    "enabledDefault": true,
+                    "l3MtuConfigured": false,
+                    "enabledStateLocal": {
+                        "Name": "unknownEnabledState",
+                        "Value": 0
+                    },
+                    "linkStatusLogging": {
+                        "Name": "useGlobal",
+                        "Value": 2
+                    },
+                    "enabledStateReason": "",
+                    "routerMacConfigured": false,
+                    "adminShutdownDelayed": false,
+                    "linkUpDebouncePeriod": 0,
+                    "adminEnabledStateLocal": {
+                        "Name": "unknownEnabledState",
+                        "Value": 0
+                    },
+                    "adminShutdownDelayable": false,
+                    "autoStateExcludedIntfs": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "vlan",
+                        "intfConfig",
+                        "Vlan1320",
+                        "autoStateExcludedIntfs"
+                    ],
+                    "linkDownDebouncePeriod": 0
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "config",
+                    "eth",
+                    "vlan",
+                    "intfConfig",
+                    "Vlan1320"
+                ]
+            }
+        ]
+    },
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": "seconds: 1777925097, nanos: 406595782",
+                "deletes": [],
+                "updates": {
+                    "mtu": 1500,
+                    "addr": "00:00:00:00:00:00",
+                    "name": "Vlan4094",
+                    "l2Mru": 0,
+                    "l2Mtu": 0,
+                    "intfId": "Vlan4094",
+                    "source": "cli",
+                    "dynamic": false,
+                    "autoState": true,
+                    "requestor": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "vlan",
+                        "intfConfig",
+                        "Vlan4094",
+                        "requestor"
+                    ],
+                    "description": "",
+                    "loadInterval": {
+                        "val": 300.0,
+                        "useDefault": true
+                    },
+                    "defaultConfig": [],
+                    "timestampMode": {
+                        "Name": "timestampModeDisabled",
+                        "Value": 0
+                    },
+                    "enabledDefault": true,
+                    "l3MtuConfigured": false,
+                    "enabledStateLocal": {
+                        "Name": "unknownEnabledState",
+                        "Value": 0
+                    },
+                    "linkStatusLogging": {
+                        "Name": "useGlobal",
+                        "Value": 2
+                    },
+                    "enabledStateReason": "",
+                    "routerMacConfigured": false,
+                    "adminShutdownDelayed": false,
+                    "linkUpDebouncePeriod": 0,
+                    "adminEnabledStateLocal": {
+                        "Name": "unknownEnabledState",
+                        "Value": 0
+                    },
+                    "adminShutdownDelayable": false,
+                    "autoStateExcludedIntfs": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "vlan",
+                        "intfConfig",
+                        "Vlan4094",
+                        "autoStateExcludedIntfs"
+                    ],
+                    "linkDownDebouncePeriod": 0
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "config",
+                    "eth",
+                    "vlan",
+                    "intfConfig",
+                    "Vlan4094"
+                ]
+            }
+        ]
+    },
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": "seconds: 1777925097, nanos: 406856126",
+                "deletes": [],
+                "updates": {
+                    "mtu": 1500,
+                    "addr": "00:00:00:00:00:00",
+                    "name": "Vlan135",
+                    "l2Mru": 0,
+                    "l2Mtu": 0,
+                    "intfId": "Vlan135",
+                    "source": "cli",
+                    "dynamic": false,
+                    "autoState": true,
+                    "requestor": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "vlan",
+                        "intfConfig",
+                        "Vlan135",
+                        "requestor"
+                    ],
+                    "description": "",
+                    "loadInterval": {
+                        "val": 300.0,
+                        "useDefault": true
+                    },
+                    "defaultConfig": [],
+                    "timestampMode": {
+                        "Name": "timestampModeDisabled",
+                        "Value": 0
+                    },
+                    "enabledDefault": true,
+                    "l3MtuConfigured": false,
+                    "enabledStateLocal": {
+                        "Name": "unknownEnabledState",
+                        "Value": 0
+                    },
+                    "linkStatusLogging": {
+                        "Name": "useGlobal",
+                        "Value": 2
+                    },
+                    "enabledStateReason": "",
+                    "routerMacConfigured": false,
+                    "adminShutdownDelayed": false,
+                    "linkUpDebouncePeriod": 0,
+                    "adminEnabledStateLocal": {
+                        "Name": "unknownEnabledState",
+                        "Value": 0
+                    },
+                    "adminShutdownDelayable": false,
+                    "autoStateExcludedIntfs": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "vlan",
+                        "intfConfig",
+                        "Vlan135",
+                        "autoStateExcludedIntfs"
+                    ],
+                    "linkDownDebouncePeriod": 0
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "config",
+                    "eth",
+                    "vlan",
+                    "intfConfig",
+                    "Vlan135"
+                ]
+            }
+        ]
+    }
+]

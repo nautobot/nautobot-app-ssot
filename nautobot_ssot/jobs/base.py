@@ -1,6 +1,7 @@
 # pylint: disable=protected-access
 """Base Job classes for sync workers."""
 
+import functools
 import logging
 import threading
 import traceback
@@ -28,7 +29,40 @@ from nautobot.extras.models import JobLogEntry, JobResult
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices
 from nautobot_ssot.contrib.adapter import NautobotAdapter
+from nautobot_ssot.contrib.component_creation import SkipAutoComponentCreation
 from nautobot_ssot.models import BaseModel, Sync, SyncLogEntry
+
+
+def _maybe_suppress_auto_component_creation(func):
+    """Wrap a ``sync_data``-style method to honour the ``skip_auto_component_creation`` opt-in.
+
+    The wrapped method runs inside a :class:`SkipAutoComponentCreation` context when either:
+
+    * the instance's ``skip_auto_component_creation`` class attribute is ``True``, or
+    * ``PLUGINS_CONFIG["nautobot_ssot"]["skip_auto_component_creation"]`` is ``True``.
+
+    Either source set to ``True`` opts in (OR semantics). When neither is set the wrapped method
+    runs unchanged, preserving historical behaviour. When the upstream
+    :class:`nautobot.apps.dcim.SkipAutoComponentCreation` extension point is unavailable in this
+    Nautobot installation the context manager logs a one-shot warning and is a no-op.
+    """
+
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        suppress = bool(getattr(self, "skip_auto_component_creation", False)) or settings.PLUGINS_CONFIG.get(
+            "nautobot_ssot", {}
+        ).get("skip_auto_component_creation", False)
+        if suppress:
+            self.logger.info(
+                "skip_auto_component_creation=True: Nautobot Device/Module automatic component "
+                "instantiation will be suppressed for the duration of this sync."
+            )
+            with SkipAutoComponentCreation():
+                return func(self, *args, **kwargs)
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
 
 DataMapping = namedtuple("DataMapping", ["source_name", "source_url", "target_name", "target_url"])
 """Entry in the list returned by a job's data_mappings() API.
@@ -103,11 +137,26 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
     Works mostly as per the BaseJob API, with the following changes:
 
     - Concrete subclasses are responsible for implementing `self.sync_data()` (or related hooks), **not** `self.run()`.
+    - The `run()` method uses `*args` and `**kwargs` in its signature to minimize impact when additional Job
+      variables are added to the base class in future releases. Subclasses that override `run()` to add their own
+      job variables should pull any needed arguments from the `kwargs` dictionary, then pass `*args` and
+      `**kwargs` through to `super().run()`.
     - Subclasses may optionally define any Meta field supported by Jobs, as well as the following:
       - `dryrun_default` - defaults to True if unspecified
       - `data_source` and `data_target` as labels (by default, will use the `name` and/or "Nautobot" as appropriate)
       - `data_source_icon` and `data_target_icon`
+      - `skip_auto_component_creation` - if True, Nautobot's automatic Device/Module component
+        instantiation is suppressed for the duration of `sync_data()`. Defaults to False. Can
+        also be enabled globally via `PLUGINS_CONFIG["nautobot_ssot"]["skip_auto_component_creation"]`;
+        either source set to True opts in. Requires a Nautobot version that ships
+        `nautobot.apps.dcim.SkipAutoComponentCreation`; on older Nautobot versions the opt-in
+        is a no-op and a one-shot warning is logged.
     """
+
+    # Opt-in: suppress Nautobot's automatic Device/Module component instantiation during sync_data().
+    # Resolved together with the PLUGINS_CONFIG setting of the same name (OR semantics) by the
+    # _maybe_suppress_auto_component_creation decorator applied to sync_data().
+    skip_auto_component_creation: bool = False
 
     dryrun = DryRunVar(
         description="Perform a dry-run, making no actual changes to Nautobot data.",
@@ -277,13 +326,20 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
                 # Include exception information if present
                 message += "\n" + "".join(traceback.format_exception(*record.exc_info))
 
-            # Create JobLogEntry object with grouping set to adapter type
+            # Use the custom grouping from the log record's extra dict if present,
+            # falling back to adapter_type ("source"/"target") when not set.
+            custom_grouping = record.__dict__.get("grouping")
+            if custom_grouping:
+                grouping = f"{custom_grouping} ({adapter_type})"
+            else:
+                grouping = adapter_type
+
             # Note: JobLogEntry fields may vary by Nautobot version, using common fields
             JobLogEntry.objects.create(
                 job_result=job_result,
                 log_level=log_level,
                 message=message,
-                grouping=adapter_type,  # Group by source or target adapter
+                grouping=grouping,
             )
 
         # Merge source and target logs by timestamp to show interleaved execution
@@ -331,6 +387,7 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
 
         return source_adapter, target_adapter, source_duration, target_duration
 
+    @_maybe_suppress_auto_component_creation
     def sync_data(self, memory_profiling):  # pylint: disable=too-many-statements,too-many-locals,too-many-branches
         """Method to load data from adapters, calculate diffs and sync (if not dry-run).
 
@@ -455,10 +512,6 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         # Sorting relationships must be done before calculating diffs.
         # NOTE: Disabled for the time being due to ongoing issues.
         # sort_relationships(self.source_adapter, self.target_adapter)
-
-        # Calculate the time after adapter loading for diff calculation
-        if adapter_load_end_time is None:
-            adapter_load_end_time = datetime.now()
 
         self.logger.info("Calculating diffs...")
         self.calculate_diff()
@@ -613,7 +666,12 @@ class DataSyncBaseJob(Job):  # pylint: disable=too-many-instance-attributes
         return getattr(cls.Meta, "data_target_icon", None)
 
     def run(self, *args, **kwargs):
-        """Job entry point from Nautobot - do not override!"""
+        """Job entry point from Nautobot - do not override!
+
+        Uses *args and **kwargs to accept all Job variables passed by Nautobot, including any that may be
+        added to this base class in future releases. This minimizes breakage for subclasses when new
+        variables (e.g., dryrun, memory_profiling, parallel_loading) are introduced.
+        """
         self.dryrun = kwargs.get("dryrun", True)
         self.memory_profiling = kwargs.get("memory_profiling", False)
         self.parallel_loading = kwargs.get("parallel_loading", False)

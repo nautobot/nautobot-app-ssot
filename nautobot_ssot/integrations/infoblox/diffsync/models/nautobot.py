@@ -206,8 +206,8 @@ class NautobotNetwork(Network):
         # Only attempt associating to VLANs if they were actually loaded
         if attrs.get("vlans") and adapter.vlan_map:
             relation = adapter.relationship_map["Prefix -> VLAN"]
+            index = 0
             for _, _vlan in attrs["vlans"].items():
-                index = 0
                 try:
                     found_vlan = adapter.vlan_map[_vlan["group"]][_vlan["vid"]]
                     if found_vlan:
@@ -255,7 +255,7 @@ class NautobotNetwork(Network):
                     try:
                         vlan = OrmVlan.objects.get(vid=item["vid"], name=item["name"], vlan_group__name=item["group"])
                         if vlan not in current_vlans:
-                            if self.adapter.job.get("debug"):
+                            if self.adapter.job.debug:
                                 self.adapter.job.logger.debug(f"Adding VLAN {vlan.vid} to {_pf.prefix}.")
                             OrmRelationshipAssociation.objects.get_or_create(
                                 relationship_id=self.adapter.relationship_map["Prefix -> VLAN"],
@@ -269,7 +269,7 @@ class NautobotNetwork(Network):
                             self.adapter.job.logger.debug(
                                 f"Unable to find VLAN {item['vid']} {item['name']} in {item['group']} to assign to prefix {_pf.prefix}."
                             )
-                            continue
+                        continue
             else:
                 for vlan in current_vlans:
                     if vlan.vid not in attrs["vlans"]:

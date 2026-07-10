@@ -1,14 +1,19 @@
-"""Unit tests for the Nautoobt DiffSync adapter class."""
+"""Unit tests for the Nautobot DiffSync adapter class."""
 
-from nautobot.core.testing import TransactionTestCase
+from diffsync.enum import DiffSyncModelFlags
+from django.test import override_settings
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer
 from nautobot.extras.models import JobResult, Role, Status
+from nautobot.ipam.models import IPAddress as OrmIPAddress
+from nautobot.ipam.models import Namespace as OrmNamespace
+from nautobot.ipam.models import Prefix as OrmPrefix
 
 from nautobot_ssot.integrations.aristacv.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.aristacv.jobs import CloudVisionDataSource
 
 
-class NautobotAdapterTestCase(TransactionTestCase):
+class NautobotAdapterTestCase(TestCase):
     """Test the NautobotAdapter class."""
 
     job_class = CloudVisionDataSource
@@ -17,7 +22,8 @@ class NautobotAdapterTestCase(TransactionTestCase):
         "job_logs",
     )
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Create Nautobot objects to test with."""
         status_active, _ = Status.objects.get_or_create(name="Active")
         arista_manu, _ = Manufacturer.objects.get_or_create(name="Arista")
@@ -43,11 +49,9 @@ class NautobotAdapterTestCase(TransactionTestCase):
             location=hq_site,
         )
 
-        self.job = self.job_class()
-        self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, task_name="fake task", worker="default"
-        )
-        self.nb_adapter = NautobotAdapter(job=self.job)
+        cls.job = cls.job_class()
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
+        cls.nb_adapter = NautobotAdapter(job=cls.job)
 
     def test_load_devices(self):
         """Test the load_devices() function."""
@@ -56,3 +60,143 @@ class NautobotAdapterTestCase(TransactionTestCase):
             {dev.name for dev in Device.objects.filter(device_type__manufacturer__name="Arista")},
             {dev.get_unique_id() for dev in self.nb_adapter.get_all("device")},
         )
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvaas_url": "https://www.arista.io",
+                "aristacv_cvp_user": "admin",
+            },
+        },
+    )
+    def test_load_namespaces(self):
+        """Test load_namespaces() loads namespaces and sets SKIP_UNMATCHED_DST when delete_namespaces_on_sync is False."""
+        ns, _ = OrmNamespace.objects.get_or_create(name="TestNS")
+        self.nb_adapter.load_namespaces()
+        loaded = self.nb_adapter.get_all("namespace")
+        self.assertIn(ns.name, {n.get_unique_id() for n in loaded})
+        for model in loaded:
+            self.assertEqual(model.model_flags, DiffSyncModelFlags.SKIP_UNMATCHED_DST)
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvaas_url": "https://www.arista.io",
+                "aristacv_cvp_user": "admin",
+                "aristacv_delete_namespaces_on_sync": True,
+            },
+        },
+    )
+    def test_load_namespaces_delete_on_sync(self):
+        """Test load_namespaces() does not set SKIP_UNMATCHED_DST when delete_namespaces_on_sync is True."""
+        ns, _ = OrmNamespace.objects.get_or_create(name="TestNSDelete")
+        self.job.app_config = self.job.app_config._replace(delete_namespaces_on_sync=True)
+        self.nb_adapter.load_namespaces()
+        loaded = self.nb_adapter.get_all("namespace")
+        self.assertIn(ns.name, {n.get_unique_id() for n in loaded})
+        for model in loaded:
+            self.assertNotEqual(model.model_flags, DiffSyncModelFlags.SKIP_UNMATCHED_DST)
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvaas_url": "https://www.arista.io",
+                "aristacv_cvp_user": "admin",
+            },
+        },
+    )
+    def test_load_prefixes(self):
+        """Test load_prefixes() loads prefixes and sets SKIP_UNMATCHED_DST when delete_prefixes_on_sync is False."""
+        ns, _ = OrmNamespace.objects.get_or_create(name="PrefixNS")
+        status_active = Status.objects.get(name="Active")
+        pf = OrmPrefix.objects.create(prefix="10.1.0.0/24", namespace=ns, status=status_active)
+        self.nb_adapter.load_prefixes()
+        loaded = self.nb_adapter.get_all("prefix")
+        expected_id = f"{pf.prefix}__{pf.namespace.name}"
+        self.assertIn(expected_id, {p.get_unique_id() for p in loaded})
+        for model in loaded:
+            self.assertEqual(model.model_flags, DiffSyncModelFlags.SKIP_UNMATCHED_DST)
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvaas_url": "https://www.arista.io",
+                "aristacv_cvp_user": "admin",
+                "aristacv_delete_prefixes_on_sync": True,
+            },
+        },
+    )
+    def test_load_prefixes_delete_on_sync(self):
+        """Test load_prefixes() does not set SKIP_UNMATCHED_DST when delete_prefixes_on_sync is True."""
+        ns, _ = OrmNamespace.objects.get_or_create(name="PrefixNSDelete")
+        status_active = Status.objects.get(name="Active")
+        OrmPrefix.objects.create(prefix="10.2.0.0/24", namespace=ns, status=status_active)
+        self.job.app_config = self.job.app_config._replace(delete_prefixes_on_sync=True)
+        self.nb_adapter.load_prefixes()
+        loaded = self.nb_adapter.get_all("prefix")
+        expected_id = "10.2.0.0/24__PrefixNSDelete"
+        our_prefix = next(p for p in loaded if p.get_unique_id() == expected_id)
+        self.assertNotEqual(our_prefix.model_flags, DiffSyncModelFlags.SKIP_UNMATCHED_DST)
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvaas_url": "https://www.arista.io",
+                "aristacv_cvp_user": "admin",
+            },
+        },
+    )
+    def test_load_ip_addresses(self):
+        """Test load_ip_addresses() loads IPs not attached to Arista devices and sets SKIP_UNMATCHED_DST when delete_ipaddresses_on_sync is False."""
+        ns, _ = OrmNamespace.objects.get_or_create(name="IPNS")
+        status_active = Status.objects.get(name="Active")
+        OrmPrefix.objects.create(prefix="10.4.0.0/24", namespace=ns, status=status_active)
+        ipaddr = OrmIPAddress.objects.create(address="10.4.0.1/24", namespace=ns, status=status_active)
+        self.nb_adapter.load_ip_addresses()
+        loaded = self.nb_adapter.get_all("ipaddr")
+        expected_id = f"{ipaddr.address}__10.4.0.0/24__{ns.name}"
+        self.assertIn(expected_id, {ip.get_unique_id() for ip in loaded})
+        for model in loaded:
+            self.assertEqual(model.model_flags, DiffSyncModelFlags.SKIP_UNMATCHED_DST)
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvaas_url": "https://www.arista.io",
+                "aristacv_cvp_user": "admin",
+                "aristacv_delete_ipaddresses_on_sync": True,
+            },
+        },
+    )
+    def test_load_ip_addresses_delete_on_sync(self):
+        """Test load_ip_addresses() does not set SKIP_UNMATCHED_DST when delete_ipaddresses_on_sync is True."""
+        ns, _ = OrmNamespace.objects.get_or_create(name="IPNSDelete")
+        status_active = Status.objects.get(name="Active")
+        OrmPrefix.objects.create(prefix="10.5.0.0/24", namespace=ns, status=status_active)
+        OrmIPAddress.objects.create(address="10.5.0.1/24", namespace=ns, status=status_active)
+        self.job.app_config = self.job.app_config._replace(delete_ipaddresses_on_sync=True)
+        self.nb_adapter.load_ip_addresses()
+        loaded = self.nb_adapter.get_all("ipaddr")
+        expected_id = f"10.5.0.1/24__10.5.0.0/24__{ns.name}"
+        our_ip = next(ip for ip in loaded if ip.get_unique_id() == expected_id)
+        self.assertNotEqual(our_ip.model_flags, DiffSyncModelFlags.SKIP_UNMATCHED_DST)
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvaas_url": "https://www.arista.io",
+                "aristacv_cvp_user": "admin",
+            },
+        },
+    )
+    def test_load_includes_namespaces_and_prefixes(self):
+        """Test load() populates namespaces, prefixes, and IP addresses."""
+        OrmNamespace.objects.get_or_create(name="LoadTestNS")
+        ns, _ = OrmNamespace.objects.get_or_create(name="LoadTestPrefixNS")
+        status_active = Status.objects.get(name="Active")
+        OrmPrefix.objects.create(prefix="10.3.0.0/24", namespace=ns, status=status_active)
+        OrmIPAddress.objects.create(address="10.3.0.1/24", namespace=ns, status=status_active)
+        self.nb_adapter.load()
+        self.assertGreater(len(self.nb_adapter.get_all("namespace")), 0)
+        self.assertGreater(len(self.nb_adapter.get_all("prefix")), 0)
+        self.assertGreater(len(self.nb_adapter.get_all("ipaddr")), 0)

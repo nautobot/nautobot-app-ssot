@@ -5,6 +5,7 @@ from unittest import TestCase
 from unittest.mock import AsyncMock, MagicMock
 
 from nautobot.dcim.models import LocationType
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import JobResult
 from nautobot.ipam.models import Namespace
 from slurpit.models.device import Device
@@ -40,6 +41,7 @@ class SlurpitDiffSyncTestCase(TestCase):
     """Test the SlurpitDiffSync adapter class."""
 
     def setUp(self):
+        populate_status_choices()
         slurpit_client = AsyncMock()
         slurpit_client.site.get_sites = AsyncMock(return_value=SITE_FIXTURE)
         slurpit_client.device.get_devices = AsyncMock(return_value=DEVICE_FIXTURE)

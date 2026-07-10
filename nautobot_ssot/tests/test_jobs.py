@@ -1,23 +1,27 @@
 """Test the Job classes in nautobot_ssot."""
 
+import datetime
 import logging
 import os.path
+import threading
 import time
-from unittest.mock import Mock, call, patch
+from unittest.mock import MagicMock, Mock, call, patch
 
+import structlog
+from django.conf import settings
 from django.db.utils import IntegrityError, OperationalError
 from django.test import override_settings
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase, TransactionTestCase
 from nautobot.extras.models import JobLogEntry, JobResult
 
 from nautobot_ssot.choices import SyncLogEntryActionChoices, SyncLogEntryStatusChoices
+from nautobot_ssot.contrib.adapter import NautobotAdapter
 from nautobot_ssot.models import SyncLogEntry
 from nautobot_ssot.tests.jobs import DataSource, DataSyncBaseJob, DataTarget
 
 
-@override_settings(JOBS_ROOT=os.path.join(os.path.dirname(__file__), "jobs"))
-class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-methods
-    """Test the DataSyncBaseJob class."""
+class _JobTestSetupMixin:
+    """Shared setup for the data-sync job test cases."""
 
     job_class = DataSyncBaseJob
     databases = (
@@ -25,8 +29,13 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         "job_logs",
     )
 
-    def setUp(self):
+    def setUp(self):  # pylint: disable=invalid-name
         """Per-test setup."""
+        # run() reconfigures structlog process-wide with a processor bound to the job instance.
+        # Capture the current configuration so tearDown can restore it; otherwise that processor
+        # leaks into later tests and writes SyncLogEntry rows referencing this test's rolled-back
+        # Sync, tripping a foreign-key constraint check on teardown of a subsequent TestCase.
+        self._structlog_config = structlog.get_config()
         super().setUp()
         self.job = self.job_class()
 
@@ -39,12 +48,27 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         self.job.load_source_adapter = lambda *x, **y: None
         self.job.load_target_adapter = lambda *x, **y: None
 
+    def tearDown(self):  # pylint: disable=invalid-name
+        """Undo the global structlog reconfiguration performed by run()."""
+        structlog.reset_defaults()
+        structlog.configure(**self._structlog_config)
+        super().tearDown()
+
     def _create_mock_diff(self):
         """Helper method to create a properly configured mock Diff object."""
         mock_diff = Mock()
         mock_diff.summary.return_value = "{'create': 0, 'update': 0, 'delete': 0, 'no-change': 0, 'skip': 0}"
         mock_diff.dict.return_value = {}
         return mock_diff
+
+
+@override_settings(JOBS_ROOT=os.path.join(os.path.dirname(__file__), "jobs"))
+class JobBehaviorTestCase(_JobTestSetupMixin, TestCase):  # pylint: disable=too-many-public-methods
+    """Test the non-threaded behavior of the DataSyncBaseJob class.
+
+    These tests run sequentially (or with the parallel loader patched out), so they need no real
+    threads and use TestCase for transaction isolation.
+    """
 
     def test_sync_log(self):
         """Test the sync_log() method."""
@@ -183,6 +207,185 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         with self.assertRaises(IntegrityError):
             self.job.calculate_diff()
 
+    def test_parallel_loading_disabled(self):
+        """Test that sequential loading works when parallel_loading is False."""
+        mock_diff = self._create_mock_diff()
+
+        def load_source():
+            """Load source adapter."""
+            source_adapter = Mock()
+            source_adapter.diff_to.return_value = mock_diff
+            self.job.source_adapter = source_adapter
+
+        def load_target():
+            """Load target adapter."""
+            self.job.target_adapter = Mock()
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=False)
+        # Both adapters should be loaded
+        self.assertIsNotNone(self.job.source_adapter)
+        self.assertIsNotNone(self.job.target_adapter)
+        # Timing should be recorded for both
+        self.assertIsNotNone(self.job.sync.source_load_time)
+        self.assertIsNotNone(self.job.sync.target_load_time)
+
+    def test_sequential_loading_timing_information(self):
+        """Test that timing information is correctly recorded for sequential loading."""
+        mock_diff = self._create_mock_diff()
+
+        def load_source():
+            """Simulate source adapter loading with delay."""
+            time.sleep(0.05)
+            source_adapter = Mock()
+            source_adapter.diff_to.return_value = mock_diff
+            self.job.source_adapter = source_adapter
+
+        def load_target():
+            """Simulate target adapter loading with delay."""
+            time.sleep(0.05)
+            self.job.target_adapter = Mock()
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=False)
+
+        # Timing should be recorded
+        self.assertIsNotNone(self.job.sync.source_load_time)
+        self.assertIsNotNone(self.job.sync.target_load_time)
+
+        # In sequential mode, target time should be after source time
+        source_duration = self.job.sync.source_load_time.total_seconds()
+        target_duration = self.job.sync.target_load_time.total_seconds()
+
+        # Each load slept ~0.05s, so each recorded duration should be at least that. We assert only
+        # the lower bound (guaranteed by sleep); upper bounds on wall-clock time are flaky on busy CI.
+        self.assertGreaterEqual(source_duration, 0.04)
+        self.assertGreaterEqual(target_duration, 0.04)
+
+    def test_sync_data_no_sync_returns_early(self):
+        """sync_data() returns immediately when no Sync record is present."""
+        self.job.sync = None
+        # Should not raise despite no adapters/sync being configured.
+        self.job.sync_data(memory_profiling=False)
+        self.assertIsNone(self.job.sync)
+
+    def test_sync_log_with_synced_object(self):
+        """sync_log() derives object_repr from the synced object when not provided."""
+        self.job.run(dryrun=True, memory_profiling=False)
+        self.job.sync_log(
+            action=SyncLogEntryActionChoices.ACTION_CREATE,
+            status=SyncLogEntryStatusChoices.STATUS_SUCCESS,
+            synced_object=self.job.sync,
+        )
+        entry = SyncLogEntry.objects.filter(synced_object_id=self.job.sync.id).first()
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry.object_repr, repr(self.job.sync))
+
+    def test_structlog_to_sync_log_entry(self):
+        """A complete DiffSync structlog event is recorded as a SyncLogEntry."""
+        self.job.run(dryrun=True, memory_profiling=False)
+        event_dict = {
+            "src": "source",
+            "dst": "dest",
+            "action": SyncLogEntryActionChoices.ACTION_CREATE,
+            "model": "device",
+            "unique_id": "device-1",
+            "diffs": {"+": {"name": "x"}},
+            "status": SyncLogEntryStatusChoices.STATUS_SUCCESS,
+            "event": "Created device-1",
+        }
+        result = self.job._structlog_to_sync_log_entry(None, None, dict(event_dict))  # pylint: disable=protected-access
+        self.assertEqual(result["event"], "Created device-1")
+        self.assertTrue(SyncLogEntry.objects.filter(message="Created device-1").exists())
+
+        # An event missing the required keys is passed through unchanged with no entry created.
+        partial = {"event": "no-op"}
+        passthrough = self.job._structlog_to_sync_log_entry(None, None, partial)  # pylint: disable=protected-access
+        self.assertEqual(passthrough, partial)
+
+    def test_sync_data_memory_profiling_formats_sizes(self):
+        """Memory profiling records traced memory and formats KiB-scale sizes."""
+        with (
+            patch("tracemalloc.start"),
+            patch("tracemalloc.clear_traces"),
+            patch("tracemalloc.get_traced_memory", return_value=(51200, 51200)),
+        ):
+            self.job.run(dryrun=True, memory_profiling=True, parallel_loading=False)
+        self.assertEqual(self.job.sync.source_load_memory_final, 51200)
+
+    def test_parallel_loading_only_source_duration(self):
+        """When only a source duration is reported, both load times take that value."""
+        mock_diff = self._create_mock_diff()
+        source_adapter = Mock()
+        source_adapter.diff_to.return_value = mock_diff
+        target_adapter = Mock()
+
+        def fake_parallel():
+            """Stand in for the parallel loader, reporting only a source duration."""
+            self.job.source_adapter = source_adapter
+            self.job.target_adapter = target_adapter
+            return (source_adapter, target_adapter, datetime.timedelta(seconds=1), None)
+
+        self.job._load_adapters_parallel = fake_parallel  # pylint: disable=protected-access
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+        self.assertEqual(self.job.sync.source_load_time, datetime.timedelta(seconds=1))
+        self.assertEqual(self.job.sync.target_load_time, datetime.timedelta(seconds=1))
+
+    def test_parallel_loading_only_target_duration(self):
+        """When only a target duration is reported, both load times take that value."""
+        mock_diff = self._create_mock_diff()
+        source_adapter = Mock()
+        source_adapter.diff_to.return_value = mock_diff
+        target_adapter = Mock()
+
+        def fake_parallel():
+            """Stand in for the parallel loader, reporting only a target duration."""
+            self.job.source_adapter = source_adapter
+            self.job.target_adapter = target_adapter
+            return (source_adapter, target_adapter, None, datetime.timedelta(seconds=2))
+
+        self.job._load_adapters_parallel = fake_parallel  # pylint: disable=protected-access
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+        self.assertEqual(self.job.sync.source_load_time, datetime.timedelta(seconds=2))
+        self.assertEqual(self.job.sync.target_load_time, datetime.timedelta(seconds=2))
+
+    def test_sync_data_creates_metadatatype_when_enabled(self):
+        """When enabled via config and the target is a NautobotAdapter, the metadata type is created."""
+        mock_diff = self._create_mock_diff()
+        target_adapter = MagicMock(spec=NautobotAdapter)
+        source_adapter = Mock()
+        source_adapter.diff_to.return_value = mock_diff
+
+        def load_source():
+            """Load the mocked source adapter."""
+            self.job.source_adapter = source_adapter
+
+        def load_target():
+            """Load the NautobotAdapter-spec target adapter."""
+            self.job.target_adapter = target_adapter
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+        with patch.dict(
+            settings.PLUGINS_CONFIG["nautobot_ssot"],
+            {"enable_metadata_for": [self.job.__class__.__name__]},
+        ):
+            self.job.run(dryrun=True, memory_profiling=False, parallel_loading=False)
+        target_adapter.get_or_create_metadatatype.assert_called_once()
+
+
+@override_settings(JOBS_ROOT=os.path.join(os.path.dirname(__file__), "jobs"))
+class ParallelLoadingTestCase(_JobTestSetupMixin, TransactionTestCase):  # pylint: disable=too-many-public-methods
+    """Test the threaded parallel-loading path of DataSyncBaseJob.
+
+    These tests run a real ThreadPoolExecutor (which calls ``connections.close_all()`` from worker
+    threads), so they require TransactionTestCase rather than TestCase.
+    """
+
     def test_parallel_loading_enabled_default(self):
         """Test that parallel loading is enabled by default."""
         mock_diff = self._create_mock_diff()
@@ -210,63 +413,38 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         # In parallel mode, both times should be the same (total parallel time)
         self.assertEqual(self.job.sync.source_load_time, self.job.sync.target_load_time)
 
-    def test_parallel_loading_disabled(self):
-        """Test that sequential loading works when parallel_loading is False."""
-        mock_diff = self._create_mock_diff()
+    def test_parallel_loading_runs_concurrently(self):
+        """Parallel loading runs the two loaders concurrently, proven via a thread barrier.
 
-        def load_source():
-            """Load source adapter."""
-            source_adapter = Mock()
-            source_adapter.diff_to.return_value = mock_diff
-            self.job.source_adapter = source_adapter
-
-        def load_target():
-            """Load target adapter."""
-            self.job.target_adapter = Mock()
-
-        self.job.load_source_adapter = load_source
-        self.job.load_target_adapter = load_target
-
-        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=False)
-        # Both adapters should be loaded
-        self.assertIsNotNone(self.job.source_adapter)
-        self.assertIsNotNone(self.job.target_adapter)
-        # Timing should be recorded for both
-        self.assertIsNotNone(self.job.sync.source_load_time)
-        self.assertIsNotNone(self.job.sync.target_load_time)
-
-    def test_parallel_loading_with_mock_adapters(self):
-        """Test parallel loading with mock adapters that simulate work."""
+        Using a barrier instead of wall-clock timing keeps this deterministic on busy CI runners:
+        if the loaders ran sequentially the first would block at the barrier until it timed out
+        (raising BrokenBarrierError and failing the run), so reaching completion proves concurrency.
+        """
         mock_diff = self._create_mock_diff()
         source_adapter = Mock()
-        source_adapter.__str__ = Mock(return_value="SourceAdapter")
         source_adapter.diff_to.return_value = mock_diff
         target_adapter = Mock()
-        target_adapter.__str__ = Mock(return_value="TargetAdapter")
+        barrier = threading.Barrier(2, timeout=10)
 
         def load_source():
-            """Simulate source adapter loading with delay."""
-            time.sleep(0.1)  # Simulate some work
+            """Rendezvous with the target loader at the barrier, then load the source adapter."""
+            barrier.wait()
             self.job.source_adapter = source_adapter
 
         def load_target():
-            """Simulate target adapter loading with delay."""
-            time.sleep(0.1)  # Simulate some work
+            """Rendezvous with the source loader at the barrier, then load the target adapter."""
+            barrier.wait()
             self.job.target_adapter = target_adapter
 
         self.job.load_source_adapter = load_source
         self.job.load_target_adapter = load_target
 
-        start_time = time.time()
+        # Completes only if both loaders reach the barrier simultaneously (i.e. ran concurrently).
         self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
-        end_time = time.time()
 
         # Both adapters should be loaded
         self.assertEqual(self.job.source_adapter, source_adapter)
         self.assertEqual(self.job.target_adapter, target_adapter)
-        # Parallel execution should be faster than sequential (which would take ~0.2s)
-        # Allow some margin for test execution overhead
-        self.assertLess(end_time - start_time, 0.15)
 
     def test_parallel_loading_source_error(self):
         """Test parallel loading when source adapter raises an error."""
@@ -374,6 +552,64 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         self.assertIn("Source adapter loading completed", log_messages)
         self.assertIn("Target adapter loading completed", log_messages)
 
+    def test_parallel_loading_preserves_custom_groupings(self):
+        """Test that custom log groupings from extra dict are preserved in parallel mode.
+
+        Regression test: previously, create_job_log_entry() hardcoded grouping=adapter_type
+        ("source"/"target"), discarding the custom grouping set via extra={"grouping": ...}.
+        """
+        mock_diff = self._create_mock_diff()
+
+        def load_source():
+            """Simulate source adapter loading with custom log groupings."""
+            logger = logging.getLogger(f"nautobot.extras.jobs.run_job[{self.job.job_result.id}]")
+            logger.info("Loading locations from ServiceNow", extra={"grouping": "Loading ServiceNow Data"})
+            logger.warning("Bad record skipped", extra={"grouping": "Data Quality Issues"})
+            source_adapter = Mock()
+            source_adapter.diff_to.return_value = mock_diff
+            self.job.source_adapter = source_adapter
+
+        def load_target():
+            """Simulate target adapter loading with custom log groupings."""
+            logger = logging.getLogger(f"nautobot.extras.jobs.run_job[{self.job.job_result.id}]")
+            logger.info("Loading devices from Nautobot", extra={"grouping": "Loading Nautobot Data"})
+            self.job.target_adapter = Mock()
+
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
+
+        log_entries = JobLogEntry.objects.filter(job_result=self.job.job_result)
+
+        # Custom groupings should be preserved, not collapsed to "source"/"target"
+
+        sn_data_logs = log_entries.filter(grouping="Loading ServiceNow Data (source)")
+        self.assertGreater(
+            sn_data_logs.count(), 0, "Custom grouping 'Loading ServiceNow Data (source)' should be preserved"
+        )
+
+        dq_logs = log_entries.filter(grouping="Data Quality Issues (source)")
+        self.assertGreater(dq_logs.count(), 0, "Custom grouping 'Data Quality Issues (source)' should be preserved")
+
+        nb_data_logs = log_entries.filter(grouping="Loading Nautobot Data (target)")
+        self.assertGreater(
+            nb_data_logs.count(), 0, "Custom grouping 'Loading Nautobot Data (target)' should be preserved"
+        )
+
+        # Verify the actual messages landed under the correct groupings
+        sn_messages = [e.message for e in sn_data_logs]
+        self.assertTrue(
+            any("Loading locations" in m for m in sn_messages),
+            f"Expected 'Loading locations' in ServiceNow Data logs, got: {sn_messages}",
+        )
+
+        dq_messages = [e.message for e in dq_logs]
+        self.assertTrue(
+            any("Bad record" in m for m in dq_messages),
+            f"Expected 'Bad record' in Data Quality Issues logs, got: {dq_messages}",
+        )
+
     def test_parallel_loading_timing_information(self):
         """Test that timing information is correctly recorded for parallel loading."""
         mock_diff = self._create_mock_diff()
@@ -399,49 +635,9 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         self.assertIsNotNone(self.job.sync.source_load_time)
         self.assertIsNotNone(self.job.sync.target_load_time)
 
-        # In parallel mode, both should have the same duration (total parallel time)
-        # which should be approximately the max of the two, not the sum
+        # In parallel mode, both should have the same duration (total parallel time),
+        # which is the max of the two individual durations, not the sum.
         self.assertEqual(self.job.sync.source_load_time, self.job.sync.target_load_time)
-
-        # The parallel time should be less than sequential time would be
-        # (sequential would be ~0.1s, parallel should be ~0.05s)
-        parallel_duration = self.job.sync.source_load_time.total_seconds()
-        self.assertLess(parallel_duration, 0.08)  # Allow some margin
-
-    def test_sequential_loading_timing_information(self):
-        """Test that timing information is correctly recorded for sequential loading."""
-        mock_diff = self._create_mock_diff()
-
-        def load_source():
-            """Simulate source adapter loading with delay."""
-            time.sleep(0.05)
-            source_adapter = Mock()
-            source_adapter.diff_to.return_value = mock_diff
-            self.job.source_adapter = source_adapter
-
-        def load_target():
-            """Simulate target adapter loading with delay."""
-            time.sleep(0.05)
-            self.job.target_adapter = Mock()
-
-        self.job.load_source_adapter = load_source
-        self.job.load_target_adapter = load_target
-
-        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=False)
-
-        # Timing should be recorded
-        self.assertIsNotNone(self.job.sync.source_load_time)
-        self.assertIsNotNone(self.job.sync.target_load_time)
-
-        # In sequential mode, target time should be after source time
-        source_duration = self.job.sync.source_load_time.total_seconds()
-        target_duration = self.job.sync.target_load_time.total_seconds()
-
-        # Both should be approximately 0.05s
-        self.assertGreaterEqual(source_duration, 0.04)
-        self.assertLessEqual(source_duration, 0.08)
-        self.assertGreaterEqual(target_duration, 0.04)
-        self.assertLessEqual(target_duration, 0.08)
 
     def test_parallel_loading_thread_isolation(self):
         """Test that database connections are properly isolated between threads."""
@@ -508,92 +704,95 @@ class BaseJobTestCase(TransactionTestCase):  # pylint: disable=too-many-public-m
         duplicate_count = log_messages.count("Duplicate message")
         self.assertGreaterEqual(duplicate_count, 1)
 
-    def test_parallel_loading_vs_sequential_performance(self):
-        """Test that parallel loading is faster than sequential for slow adapters."""
+    def test_parallel_loading_captures_all_log_levels(self):
+        """Error, debug, and exception log records from threads are all persisted as JobLogEntry rows."""
         mock_diff = self._create_mock_diff()
 
-        # Test parallel loading
-        parallel_job = DataSyncBaseJob()
-        parallel_job.job_result = JobResult.objects.create(
-            name="parallel job",
-            task_name="parallel job",
-            worker="default",
-        )
-
-        def parallel_load_source():
-            """Simulate slow source adapter loading for parallel job."""
-            time.sleep(0.1)
+        def load_source():
+            """Emit log records at several levels, including one with traceback info."""
+            logger = logging.getLogger(f"nautobot.extras.jobs.run_job[{self.job.job_result.id}]")
+            logger.error("an error occurred")
+            logger.debug("a debug detail")
+            try:
+                raise ValueError("boom")
+            except ValueError:
+                logger.error("error with traceback", exc_info=True)
             source_adapter = Mock()
             source_adapter.diff_to.return_value = mock_diff
-            parallel_job.source_adapter = source_adapter
+            self.job.source_adapter = source_adapter
 
-        def parallel_load_target():
-            """Simulate slow target adapter loading for parallel job."""
-            time.sleep(0.1)
-            parallel_job.target_adapter = Mock()
+        def load_target():
+            """Load a minimal target adapter."""
+            self.job.target_adapter = Mock()
 
-        parallel_job.load_source_adapter = parallel_load_source
-        parallel_job.load_target_adapter = parallel_load_target
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+        self.job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
 
-        parallel_start = time.time()
-        parallel_job.run(dryrun=True, memory_profiling=False, parallel_loading=True)
-        parallel_duration = time.time() - parallel_start
+        levels = {entry.log_level for entry in JobLogEntry.objects.filter(job_result=self.job.job_result)}
+        self.assertIn("error", levels)
+        self.assertIn("debug", levels)
 
-        # Test sequential loading
-        sequential_job = DataSyncBaseJob()
-        sequential_job.job_result = JobResult.objects.create(
-            name="sequential job",
-            task_name="sequential job",
-            worker="default",
-        )
+    def test_parallel_loading_with_memory_profiling(self):
+        """Parallel loading with memory profiling records a parallel-load memory trace."""
+        mock_diff = self._create_mock_diff()
 
-        def sequential_load_source():
-            """Simulate slow source adapter loading for sequential job."""
-            time.sleep(0.1)
+        def load_source():
+            """Load a source adapter exposing a diff."""
             source_adapter = Mock()
             source_adapter.diff_to.return_value = mock_diff
-            sequential_job.source_adapter = source_adapter
+            self.job.source_adapter = source_adapter
 
-        def sequential_load_target():
-            """Simulate slow target adapter loading for sequential job."""
-            time.sleep(0.1)
-            sequential_job.target_adapter = Mock()
+        def load_target():
+            """Load a minimal target adapter."""
+            self.job.target_adapter = Mock()
 
-        sequential_job.load_source_adapter = sequential_load_source
-        sequential_job.load_target_adapter = sequential_load_target
-
-        sequential_start = time.time()
-        sequential_job.run(dryrun=True, memory_profiling=False, parallel_loading=False)
-        sequential_duration = time.time() - sequential_start
-
-        # Parallel should be faster (approximately half the time for equal delays)
-        # Allow some margin for test execution overhead
-        self.assertLess(parallel_duration, sequential_duration * 0.7)
+        self.job.load_source_adapter = load_source
+        self.job.load_target_adapter = load_target
+        with (
+            patch("tracemalloc.start"),
+            patch("tracemalloc.clear_traces"),
+            patch("tracemalloc.get_traced_memory", return_value=(2048, 4096)),
+        ):
+            self.job.run(dryrun=True, memory_profiling=True, parallel_loading=True)
+        self.assertIsNotNone(self.job.sync.source_load_time)
 
 
-class DataSourceTestCase(BaseJobTestCase):
-    """Test the DataSource class."""
-
-    job_class = DataSource
-
-    def test_data_target(self):
-        """Test the override of the data_target property."""
-        self.assertEqual(self.job.data_target, "Nautobot")
-
-    def test_data_target_icon(self):
-        """Test the override of the data_target_icon property."""
-        self.assertEqual(self.job.data_target_icon, "/static/img/nautobot_logo.png")
-
-
-class DataTargetTestCase(BaseJobTestCase):
-    """Test the DataTarget class."""
-
-    job_class = DataTarget
+class DataSourceJobTestCase(TestCase):
+    """Property overrides for the DataSource base job."""
 
     def test_data_source(self):
-        """Test the override of the data_source property."""
-        self.assertEqual(self.job.data_source, "Nautobot")
+        """data_source defaults to the job class name."""
+        self.assertEqual(DataSource().data_source, DataSource.__name__)
+
+    def test_data_target(self):
+        """A DataSource always targets Nautobot."""
+        self.assertEqual(DataSource().data_target, "Nautobot")
 
     def test_data_source_icon(self):
-        """Test the override of the data_source_icon property."""
-        self.assertEqual(self.job.data_source_icon, "/static/img/nautobot_logo.png")
+        """A DataSource has no source icon by default."""
+        self.assertIsNone(DataSource().data_source_icon)
+
+    def test_data_target_icon(self):
+        """A DataSource uses the Nautobot logo as its target icon."""
+        self.assertEqual(DataSource().data_target_icon, "/static/img/nautobot_logo.png")
+
+
+class DataTargetJobTestCase(TestCase):
+    """Property overrides for the DataTarget base job."""
+
+    def test_data_target(self):
+        """data_target defaults to the job class name."""
+        self.assertEqual(DataTarget().data_target, DataTarget.__name__)
+
+    def test_data_source(self):
+        """A DataTarget always sources from Nautobot."""
+        self.assertEqual(DataTarget().data_source, "Nautobot")
+
+    def test_data_target_icon(self):
+        """A DataTarget has no target icon by default."""
+        self.assertIsNone(DataTarget().data_target_icon)
+
+    def test_data_source_icon(self):
+        """A DataTarget uses the Nautobot logo as its source icon."""
+        self.assertEqual(DataTarget().data_source_icon, "/static/img/nautobot_logo.png")

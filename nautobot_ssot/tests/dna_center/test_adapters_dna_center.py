@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 from django.contrib.contenttypes.models import ContentType
 from django.test import override_settings
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TransactionTestCase
 from nautobot.dcim.models import (
     Controller,
     ControllerManagedDeviceGroup,
@@ -74,7 +74,9 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.status_active = Status.objects.get(name="Active")
         self.reg_loc_type = LocationType.objects.get_or_create(name="Region", nestable=True)[0]
         self.hq_area = Location.objects.create(name="NY", location_type=self.reg_loc_type, status=self.status_active)
-        self.site_loc_type = LocationType.objects.get_or_create(name="Site", parent=self.reg_loc_type)[0]
+        self.site_loc_type, _ = LocationType.objects.update_or_create(
+            name="Site", defaults={"parent": self.reg_loc_type}
+        )
         self.site_loc_type.content_types.add(ContentType.objects.get_for_model(Device))
         self.hq_site = Location.objects.create(
             name="HQ", parent=self.hq_area, location_type=self.site_loc_type, status=self.status_active
@@ -288,10 +290,10 @@ class TestDnaCenterAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
                         "attributes": {
                             "country": "United States",
                             "address": "123 Broadway, New York City, New York 12345, United States",
-                            "latitude": "40.758746",
+                            "latitude": 40.758746,
                             "addressInheritedFrom": "2",
                             "type": "building",
-                            "longitude": "-73.978660",
+                            "longitude": -73.978660,
                         },
                     }
                 ],

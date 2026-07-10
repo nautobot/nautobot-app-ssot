@@ -116,14 +116,14 @@ class NautobotOSVersion(OSVersion):
     def delete(self):
         """Delete SoftwareVersion in Nautobot from NautobotOSVersion object."""
         osversion = SoftwareVersion.objects.get(id=self.uuid)
+        super().delete()
         if hasattr(osversion, "validatedsoftwarelcm_set"):
             if osversion.validatedsoftwarelcm_set.count() != 0:
                 self.adapter.job.logger.warning(
                     f"SoftwareVersion {osversion.version} for {osversion.platform.name} is used with a ValidatedSoftware so won't be deleted."
                 )
-        else:
-            super().delete()
-            osversion.delete()
+                return self
+        osversion.delete()
         return self
 
 
@@ -320,9 +320,14 @@ class NautobotPrefixLocation(PrefixLocation):
 
     def delete(self):
         """Delete Prefix in Nautobot from NautobotPrefix object."""
-        del_pf = PrefixLocationAssignment.objects.get(id=self.uuid)
         super().delete()
-        del_pf.delete()
+        try:
+            del_pf = PrefixLocationAssignment.objects.get(id=self.uuid)
+            del_pf.delete()
+        except PrefixLocationAssignment.DoesNotExist:
+            self.adapter.job.logger.debug(
+                f"Prefix {self.prefix} from location {self.location} has already been deleted."
+            )
         return self
 
 
@@ -339,7 +344,8 @@ class NautobotIPAddress(IPAddress):
             status_id=adapter.status_map["Active"],
             tenant_id=adapter.tenant_map[ids["tenant"]] if ids.get("tenant") else None,
         )
-        adapter.objects_to_create["ipaddrs-to-prefixes"].append((new_ip, adapter.prefix_map[attrs["prefix"]]))
+        if attrs["prefix"]:  # Check if a specific prefix has been defined for this IPAddress
+            adapter.objects_to_create["ipaddrs-to-prefixes"].append((new_ip, adapter.prefix_map[attrs["prefix"]]))
         new_ip.custom_field_data["system_of_record"] = "Meraki SSoT"
         new_ip.custom_field_data["last_synced_from_sor"] = datetime.today().date().isoformat()
         adapter.objects_to_create["ipaddrs"].append(new_ip)

@@ -4,12 +4,14 @@ import datetime
 import time
 import uuid
 
-from django.test import TestCase
 from django.utils.timezone import now
+from nautobot.apps.testing import TestCase
 from nautobot.extras.choices import JobResultStatusChoices
-from nautobot.extras.models import Job, JobResult
+from nautobot.extras.models import JobResult
 
+from nautobot_ssot.jobs.examples import ExampleDataSource, ExampleDataTarget
 from nautobot_ssot.models import Sync
+from nautobot_ssot.tests.utils.job_helpers import get_test_job_model
 
 
 class SyncTestCase(TestCase):
@@ -64,15 +66,17 @@ class SyncTestCase(TestCase):
         self.assertIsNone(self.target_sync.get_source_url())
         self.assertIsNone(self.source_sync.get_target_url())
 
+        source_job_model = get_test_job_model(ExampleDataSource)
+        target_job_model = get_test_job_model(ExampleDataTarget)
         self.source_sync.job_result = JobResult(
             name="ExampleDataSource",
-            job_model=Job.objects.get(module_name="nautobot_ssot.jobs.examples", job_class_name="ExampleDataSource"),
+            job_model=source_job_model,
             task_name="nautobot_ssot.jobs.examples.ExampleDataSource",
             worker="default",
         )
         self.target_sync.job_result = JobResult(
             name="ExampleDataTarget",
-            job_model=Job.objects.get(module_name="nautobot_ssot.jobs.examples", job_class_name="ExampleDataTarget"),
+            job_model=target_job_model,
             task_name="nautobot_ssot.jobs.examples.ExampleDataTarget",
             worker="default",
         )
@@ -101,3 +105,47 @@ class SyncTestCase(TestCase):
         self.source_sync.refresh_from_db()
         actual = self.source_sync.diff["uuid"]
         self.assertEqual(actual, expected)
+
+    def test_diff_with_set(self):
+        """Test set objects in diff are serialized via the custom encoder."""
+        self.source_sync.diff = {"items": {42}}
+        self.source_sync.validated_save()
+        self.source_sync.refresh_from_db()
+        self.assertEqual(self.source_sync.diff["items"], "[42]")
+
+    def test_end_time(self):
+        """Test the end_time property."""
+        # No JobResult -> no end time
+        self.assertIsNone(self.source_sync.end_time)
+        job_result = JobResult.objects.create(
+            name="ExampleDataSource",
+            task_name="nautobot_ssot.jobs.examples.ExampleDataSource",
+            worker="default",
+        )
+        job_result.date_done = now()
+        job_result.save()
+        self.source_sync.job_result = job_result
+        self.assertEqual(self.source_sync.end_time, job_result.date_done)
+
+    def test_get_source_display_plain(self):
+        """get_source_display() returns plain text when there is no source URL."""
+        # No JobResult -> get_source_url() is None -> plain source string
+        self.assertEqual(self.source_sync.get_source_display(), "Some other system")
+
+    def test_get_target_display_plain(self):
+        """get_target_display() returns plain text when there is no target URL."""
+        # No JobResult -> get_target_url() is None -> plain target string
+        self.assertEqual(self.target_sync.get_target_display(), "Another system")
+
+    def test_get_target_display_with_link(self):
+        """get_target_display() renders an HTML link when a target URL is available."""
+        target_job_model = get_test_job_model(ExampleDataTarget)
+        self.target_sync.job_result = JobResult(
+            name="ExampleDataTarget",
+            job_model=target_job_model,
+            task_name="nautobot_ssot.jobs.examples.ExampleDataTarget",
+            worker="default",
+        )
+        result = self.target_sync.get_target_display()
+        self.assertIn("<a href", result)
+        self.assertIn("Another system", result)

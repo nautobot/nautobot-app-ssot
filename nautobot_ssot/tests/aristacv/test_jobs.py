@@ -1,8 +1,11 @@
 """Test CloudVision Jobs."""
 
+from unittest.mock import Mock, patch
+
 from django.test import override_settings
 from django.urls import reverse
-from nautobot.core.testing import TestCase
+from nautobot.apps.testing import TestCase
+from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.aristacv import jobs
 
@@ -108,6 +111,9 @@ class CloudVisionDataSourceJobTest(TestCase):
                 "aristacv_cvp_user": "admin",
                 "aristacv_verify": True,
                 "aristacv_delete_devices_on_sync": True,
+                "aristacv_delete_ipaddresses_on_sync": True,
+                "aristacv_delete_namespaces_on_sync": True,
+                "aristacv_delete_prefixes_on_sync": True,
                 "aristacv_from_cloudvision_default_site": "HQ",
                 "aristacv_from_cloudvision_default_device_role": "Router",
                 "aristacv_from_cloudvision_default_device_role_color": "ff0000",
@@ -125,6 +131,9 @@ class CloudVisionDataSourceJobTest(TestCase):
         self.assertEqual(config_information["Verify SSL"], "True")
         self.assertEqual(config_information["User Name"], "admin")
         self.assertEqual(config_information["Delete Devices On Sync"], True)
+        self.assertEqual(config_information["Delete IP Addresses On Sync"], True)
+        self.assertEqual(config_information["Delete Namespaces On Sync"], True)
+        self.assertEqual(config_information["Delete Prefixes On Sync"], True)
         self.assertEqual(config_information["New Device Default Site"], "HQ")
         self.assertEqual(config_information["New Device Default Role"], "Router")
         self.assertEqual(config_information["New Device Default Role Color"], "ff0000")
@@ -166,3 +175,53 @@ class CloudVisionDataTargetJobTest(TestCase):
         self.assertEqual(reverse("extras:tag_list"), mappings[0].source_url)
         self.assertEqual("Device Tags", mappings[0].target_name)
         self.assertIsNone(mappings[0].target_url)
+
+
+class CloudVisionAdapterLoadingTest(TestCase):
+    """Test the debug logging emitted while loading the CloudVision adapters."""
+
+    databases = ("default", "job_logs")
+
+    IP_WARNING = "IP Addresses not present in CloudVision but present in Nautobot%s will be deleted from Nautobot."
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvaas_url": "https://www.arista.io",
+                "aristacv_cvp_user": "admin",
+                "aristacv_from_cloudvision_default_site": "HQ",
+                "aristacv_from_cloudvision_default_device_role": "Router",
+                "aristacv_delete_ipaddresses_on_sync": True,
+            },
+        },
+    )
+    @patch("nautobot_ssot.integrations.aristacv.jobs.CloudvisionAdapter")
+    @patch("nautobot_ssot.integrations.aristacv.jobs.CloudvisionApi")
+    def test_load_source_adapter_logs_ipaddress_deletion_warning(self, _mock_api, _mock_adapter):
+        """DataSource.load_source_adapter() warns about IP address deletion when debug is enabled."""
+        job = jobs.CloudVisionDataSource()
+        job.job_result = JobResult.objects.create(name="fake job", task_name="fake job", worker="default")
+        job.debug = True
+        job.logger.warning = Mock()
+        job.load_source_adapter()
+        job.logger.warning.assert_any_call(self.IP_WARNING, "")
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvaas_url": "https://www.arista.io",
+                "aristacv_cvp_user": "admin",
+                "aristacv_delete_ipaddresses_on_sync": True,
+            },
+        },
+    )
+    @patch("nautobot_ssot.integrations.aristacv.jobs.CloudvisionAdapter")
+    @patch("nautobot_ssot.integrations.aristacv.jobs.CloudvisionApi")
+    def test_load_target_adapter_logs_ipaddress_deletion_warning(self, _mock_api, _mock_adapter):
+        """DataTarget.load_target_adapter() warns about IP address deletion when debug is enabled."""
+        job = jobs.CloudVisionDataTarget()
+        job.job_result = JobResult.objects.create(name="fake job", task_name="fake job", worker="default")
+        job.debug = True
+        job.logger.warning = Mock()
+        job.load_target_adapter()
+        job.logger.warning.assert_any_call(self.IP_WARNING, "")

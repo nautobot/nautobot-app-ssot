@@ -163,6 +163,15 @@ Regardless of which direction you are synchronizing data in, you need to write t
 
 Develop a Job class, derived from either the `nautobot_ssot.jobs.base.DataSource` or `nautobot_ssot.jobs.base.DataTarget` classes provided by this Nautobot app, and implement the methods to populate the `self.source_adapter` and `self.target_adapter` attributes that are used by the built-in implementation of `sync_data`. This `sync_data` method is an opinionated way of running the process including some performance data (more about this in the next section), but you could overwrite it completely or any of the key hooks that it calls.
 
+**The `run()` method:** The base `DataSyncBaseJob.run()` method uses `*args` and `**kwargs` in its signature. This design minimizes impact when additional Job variables are added to the base class in future releases, as has been occurring (e.g., `dryrun`, `memory_profiling`, `parallel_loading`). You should **not** override `run()` unless your Job defines additional job variables. If you must override it (e.g., to capture custom variables before delegating), pull any needed arguments from the `kwargs` dictionary, then pass `*args` and `**kwargs` through to `super().run()`:
+
+```python
+def run(self, *args, **kwargs):
+    """Override to capture custom job variables before delegating to base."""
+    self.my_custom_var = kwargs.get("my_custom_var", "default_value")
+    super().run(*args, **kwargs)
+```
+
 The methods [`calculate_diff`][nautobot_ssot.jobs.base.DataSyncBaseJob.calculate_diff] and [`execute_sync`][nautobot_ssot.jobs.base.DataSyncBaseJob.execute_sync] are both implemented by default, using the data that is loaded into the adapters through the respective methods. Note that `execute_sync` will _only_ execute when dry-run is set to false.
 
 Optionally, on your Job class, also implement the [`lookup_object`][nautobot_ssot.jobs.base.DataSyncBaseJob.lookup_object], [`data_mapping`][nautobot_ssot.jobs.base.DataSyncBaseJob.data_mappings], and/or [`config_information`][nautobot_ssot.jobs.base.DataSyncBaseJob.config_information] APIs (to provide more information to the end user about the details of this Job), as well as the various metadata properties on your Job's Meta inner class. Refer to the example Jobs provided in this Nautobot app for examples and further details.

@@ -4,8 +4,8 @@ import json
 from collections import defaultdict
 from unittest.mock import MagicMock, patch
 
-from django.test import TestCase
 from ipfabric.models.device import Device
+from nautobot.apps.testing import TestCase
 from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
@@ -36,7 +36,7 @@ class IPFabricDiffSyncTestCase(TestCase):
         ipfabric_client.inventory.sites.all.return_value = SITE_FIXTURE
         ipfabric_client.devices.by_site = defaultdict(list)
         for dev in DEVICE_INVENTORY_FIXTURE:
-            ipfabric_client.devices.by_site[dev["siteName"]].append(Device(**dev))
+            ipfabric_client.devices.by_site[dev["siteName"]].append(Device(**dev))  # pylint: disable=no-member
         ipfabric_client.fetch_all = MagicMock(
             side_effect=(lambda x: VLAN_FIXTURE if x == "tables/vlan/site-summary" else "")
         )
@@ -60,9 +60,15 @@ class IPFabricDiffSyncTestCase(TestCase):
             {dev.get_unique_id() for dev in self.ipfabric.get_all("device") if dev.location_name != "stack"},
         )
         self.assertEqual(
-            {f"{vlan['vlanName']}__{vlan['siteName']}" for vlan in VLAN_FIXTURE},
+            {f"{vlan['vlanName']}__{vlan['siteName']}" for vlan in VLAN_FIXTURE if "badvlan" not in vlan["vlanName"]},
             {vlan.get_unique_id() for vlan in self.ipfabric.get_all("vlan")},
         )
+
+        # Assert invalid VLANs were not loaded
+        all_vlans = {vlan.get_unique_id() for vlan in self.ipfabric.get_all("vlan")}
+        self.assertEqual(len(all_vlans), 13)
+        self.assertNotIn("badvlan0001__JCY-SPINE-01.INFRA.NTC.COM_1", all_vlans)
+        self.assertNotIn("badvlan0002__JCY-SPINE-01.INFRA.NTC.COM_1", all_vlans)
 
         # Assert each site has a device tied to it.
         for site in self.ipfabric.get_all("location"):

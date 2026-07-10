@@ -1,6 +1,7 @@
 """Nautobot Adapter for DNA Center SSoT plugin."""
 
 from collections import defaultdict
+from decimal import Decimal
 from typing import Optional
 
 from diffsync import Adapter
@@ -128,8 +129,8 @@ class NautobotAdapter(Adapter):
                     address=building.physical_address,
                     area=building.parent.name if building.parent else "",
                     area_parent=building.parent.parent.name if building.parent and building.parent.parent else None,
-                    latitude=str(building.latitude).rstrip("0"),
-                    longitude=str(building.longitude).rstrip("0"),
+                    latitude=float(round(Decimal(building.latitude), 9)) if building.latitude else None,
+                    longitude=float(round(Decimal(building.longitude), 7)) if building.longitude else None,
                     tenant=building.tenant.name if building.tenant else None,
                     uuid=building.id,
                 )
@@ -230,7 +231,7 @@ class NautobotAdapter(Adapter):
                 port_type=port.type,
                 port_mode=port.mode,
                 mac_addr=str(port.mac_address) if getattr(port, "mac_address") else None,
-                mtu=port.mtu if port.mtu else 1500,
+                mtu=port.mtu if port.mtu and port.mtu != 0 else None,
                 status=port.status.name,
                 uuid=port.id,
             )

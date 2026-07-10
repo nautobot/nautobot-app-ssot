@@ -1,0 +1,149 @@
+[
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": "seconds: 1777925093, nanos: 527420233",
+                "deletes": [],
+                "updates": {
+                    "lag": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "lag",
+                        "intfConfig",
+                        "Port-Channel1000"
+                    ],
+                    "mode": {
+                        "Name": "lacpModeActive",
+                        "Value": 2
+                    },
+                    "name": "Ethernet53/1",
+                    "intfId": "Ethernet53/1",
+                    "portId": 0,
+                    "timeout": {
+                        "Name": "lacpLongTimeout",
+                        "Value": 1
+                    },
+                    "priority": 32768,
+                    "timeoutMult": {
+                        "value": 3
+                    },
+                    "fwdTxEnabled": true
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "lag",
+                    "input",
+                    "config",
+                    "cli",
+                    "phyIntf",
+                    "Ethernet53/1"
+                ]
+            }
+        ]
+    },
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": "seconds: 1777925093, nanos: 527600265",
+                "deletes": [],
+                "updates": {
+                    "lag": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "lag",
+                        "intfConfig",
+                        "Port-Channel1000"
+                    ],
+                    "mode": {
+                        "Name": "lacpModeActive",
+                        "Value": 2
+                    },
+                    "name": "Ethernet54/1",
+                    "intfId": "Ethernet54/1",
+                    "portId": 0,
+                    "timeout": {
+                        "Name": "lacpLongTimeout",
+                        "Value": 1
+                    },
+                    "priority": 32768,
+                    "timeoutMult": {
+                        "value": 3
+                    },
+                    "fwdTxEnabled": true
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "lag",
+                    "input",
+                    "config",
+                    "cli",
+                    "phyIntf",
+                    "Ethernet54/1"
+                ]
+            }
+        ]
+    },
+    {
+        "dataset": {
+            "name": "JPE12345678",
+            "type": "device"
+        },
+        "notifications": [
+            {
+                "timestamp": "seconds: 1777925093, nanos: 527509915",
+                "deletes": [],
+                "updates": {
+                    "lag": [
+                        "Sysdb",
+                        "interface",
+                        "config",
+                        "eth",
+                        "lag",
+                        "intfConfig",
+                        "Recirc-Channel1"
+                    ],
+                    "mode": {
+                        "Name": "lacpModeOff",
+                        "Value": 0
+                    },
+                    "name": "Ethernet6",
+                    "intfId": "Ethernet6",
+                    "portId": 0,
+                    "timeout": {
+                        "Name": "lacpLongTimeout",
+                        "Value": 1
+                    },
+                    "priority": 32768,
+                    "timeoutMult": {
+                        "value": 3
+                    },
+                    "fwdTxEnabled": true
+                },
+                "retracts": [],
+                "path_elements": [
+                    "Sysdb",
+                    "lag",
+                    "input",
+                    "config",
+                    "cli",
+                    "phyIntf",
+                    "Ethernet6"
+                ]
+            }
+        ]
+    }
+]

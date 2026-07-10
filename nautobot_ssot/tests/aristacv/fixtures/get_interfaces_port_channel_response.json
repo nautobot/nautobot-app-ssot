@@ -1,0 +1,10 @@
+[
+    {
+        "interface": "Port-Channel100",
+        "link_status": "up",
+        "oper_status": "up",
+        "enabled": true,
+        "mac_addr": "c4:ca:2b:6a:52:f0",
+        "mtu": 9214
+    }
+]

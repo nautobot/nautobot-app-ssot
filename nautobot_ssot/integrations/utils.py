@@ -13,7 +13,7 @@ logger = logging.getLogger("nautobot.ssot")
 
 def each_enabled_integration() -> Generator[str, None, None]:
     """Return all enabled integrations."""
-    config = settings.PLUGINS_CONFIG["nautobot_ssot"]
+    config = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
 
     for path in Path(__file__).parent.iterdir():
         if config.get(f"enable_{path.name}", False):

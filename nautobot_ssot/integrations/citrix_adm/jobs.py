@@ -126,21 +126,20 @@ class CitrixAdmDataSource(DataSource, Job):  # pylint: disable=too-many-instance
             )
             raise JobException(message=f"Parent Location is required for {self.dc_loctype.name} LocationType.")
 
-    def run(  # pylint: disable=arguments-differ, too-many-arguments
-        self, dryrun, memory_profiling, instances, tenant, debug, *args, **kwargs
-    ):
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.instances = instances
-        self.tenant = tenant
-        self.debug = debug
-        self.dryrun = dryrun
-        self.dc_loctype = kwargs["dc_loctype"]
-        self.parent_location = kwargs["parent_location"]
-        self.location_map = kwargs["location_map"]
-        self.hostname_mapping = literal_eval(kwargs["hostname_mapping"])
+        self.instances = kwargs.get("instances")
+        self.tenant = kwargs.get("tenant")
+        self.debug = kwargs.get("debug")
+        self.dryrun = kwargs.get("dryrun")
+        self.dc_loctype = kwargs.get("dc_loctype")
+        self.parent_location = kwargs.get("parent_location")
+        self.location_map = kwargs.get("location_map")
+        self.hostname_mapping = literal_eval(kwargs.get("hostname_mapping"))
         self.validate_job_settings()
-        self.memory_profiling = memory_profiling
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
 
 class CitrixAdmDataTarget(DataTarget, Job):

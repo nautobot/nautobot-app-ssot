@@ -4,7 +4,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import LocationType
 from nautobot.extras.models import JobResult
 from parameterized import parameterized
@@ -45,54 +45,53 @@ IPADDRESS_FIXTURE = load_json("./nautobot_ssot/tests/device42/fixtures/get_ip_ad
 IPADDRESS_CF_FIXTURE = load_json("./nautobot_ssot/tests/device42/fixtures/get_ipaddr_custom_fields_recv.json")
 
 
-class Device42AdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-public-methods
+class Device42AdapterTestCase(TestCase):  # pylint: disable=too-many-public-methods
     """Test the Device42Adapter class."""
 
     job_class = Device42DataSource
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Method to initialize test case."""
         # Create a mock client
-        self.d42_client = MagicMock()
-        self.d42_client.get_buildings.return_value = BUILDING_FIXTURE
-        self.d42_client.get_rooms.return_value = ROOM_FIXTURE
-        self.d42_client.get_racks.return_value = RACK_FIXTURE
-        self.d42_client.get_vendors.return_value = VENDOR_FIXTURE
-        self.d42_client.get_hardware_models.return_value = HARDWARE_FIXTURE
-        self.d42_client.get_vrfgroups.return_value = VRFGROUP_FIXTURE
-        self.d42_client.get_vlans_with_location.return_value = VLAN_FIXTURE
-        self.d42_client.get_subnet_default_custom_fields.return_value = SUBNET_DEFAULT_CFS_FIXTURE
-        self.d42_client.get_subnet_custom_fields.return_value = SUBNET_CFS_FIXTURE
-        self.d42_client.get_subnets.return_value = SUBNET_FIXTURE
-        self.d42_client.get_devices.return_value = DEVICE_FIXTURE
-        self.d42_client.get_cluster_members.return_value = CLUSTER_MEMBER_FIXTURE
-        self.d42_client.get_ports_with_vlans.return_value = PORTS_W_VLANS_FIXTURE
-        self.d42_client.get_ports_wo_vlans.return_value = PORTS_WO_VLANS_FIXTURE
-        self.d42_client.get_port_custom_fields.return_value = PORT_CUSTOM_FIELDS
-        self.d42_client.get_ip_addrs.return_value = IPADDRESS_FIXTURE
-        self.d42_client.get_ipaddr_custom_fields.return_value = IPADDRESS_CF_FIXTURE
-        self.d42_client.get_port_default_custom_fields.return_value = {}
-        self.d42_client.get_ipaddr_default_custom_fields.return_value = {}
+        cls.d42_client = MagicMock()
+        cls.d42_client.get_buildings.return_value = BUILDING_FIXTURE
+        cls.d42_client.get_rooms.return_value = ROOM_FIXTURE
+        cls.d42_client.get_racks.return_value = RACK_FIXTURE
+        cls.d42_client.get_vendors.return_value = VENDOR_FIXTURE
+        cls.d42_client.get_hardware_models.return_value = HARDWARE_FIXTURE
+        cls.d42_client.get_vrfgroups.return_value = VRFGROUP_FIXTURE
+        cls.d42_client.get_vlans_with_location.return_value = VLAN_FIXTURE
+        cls.d42_client.get_subnet_default_custom_fields.return_value = SUBNET_DEFAULT_CFS_FIXTURE
+        cls.d42_client.get_subnet_custom_fields.return_value = SUBNET_CFS_FIXTURE
+        cls.d42_client.get_subnets.return_value = SUBNET_FIXTURE
+        cls.d42_client.get_devices.return_value = DEVICE_FIXTURE
+        cls.d42_client.get_cluster_members.return_value = CLUSTER_MEMBER_FIXTURE
+        cls.d42_client.get_ports_with_vlans.return_value = PORTS_W_VLANS_FIXTURE
+        cls.d42_client.get_ports_wo_vlans.return_value = PORTS_WO_VLANS_FIXTURE
+        cls.d42_client.get_port_custom_fields.return_value = PORT_CUSTOM_FIELDS
+        cls.d42_client.get_ip_addrs.return_value = IPADDRESS_FIXTURE
+        cls.d42_client.get_ipaddr_custom_fields.return_value = IPADDRESS_CF_FIXTURE
+        cls.d42_client.get_port_default_custom_fields.return_value = {}
+        cls.d42_client.get_ipaddr_default_custom_fields.return_value = {}
 
-        self.job = self.job_class()
-        self.job.building_loctype = LocationType.objects.get_or_create(name="Site")[0]
-        self.job.logger = MagicMock()
-        self.job.logger.info = MagicMock()
-        self.job.logger.warning = MagicMock()
-        self.job.debug = True
-        self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, task_name="fake task", worker="default"
-        )
-        self.device42 = Device42Adapter(job=self.job, sync=None, client=self.d42_client)
-        self.mock_device = MagicMock()
-        self.mock_device.name = "cluster1 - Switch 1"
-        self.mock_device.os_version = "1.0"
-        self.cluster_dev = MagicMock()
-        self.cluster_dev.name = "cluster1"
-        self.master_dev = MagicMock()
-        self.master_dev.name = "cluster1"
-        self.master_dev.os_version = ""
+        cls.job = cls.job_class()
+        cls.job.building_loctype = LocationType.objects.get_or_create(name="Site")[0]
+        cls.job.logger = MagicMock()
+        cls.job.logger.info = MagicMock()
+        cls.job.logger.warning = MagicMock()
+        cls.job.debug = True
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
+        cls.device42 = Device42Adapter(job=cls.job, sync=None, client=cls.d42_client)
+        cls.mock_device = MagicMock()
+        cls.mock_device.name = "cluster1 - Switch 1"
+        cls.mock_device.os_version = "1.0"
+        cls.cluster_dev = MagicMock()
+        cls.cluster_dev.name = "cluster1"
+        cls.master_dev = MagicMock()
+        cls.master_dev.name = "cluster1"
+        cls.master_dev.os_version = ""
 
     @patch(
         "nautobot_ssot.integrations.device42.utils.device42.PLUGIN_CFG",

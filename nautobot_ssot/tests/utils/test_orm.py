@@ -3,16 +3,18 @@
 from typing import Optional
 
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.circuits.models import Provider
 from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.choices import RelationshipTypeChoices
-from nautobot.extras.models import Relationship, RelationshipAssociation, Status
+from nautobot.extras.management import populate_status_choices
+from nautobot.extras.models import CustomField, Relationship, RelationshipAssociation, Status
 from typing_extensions import TypedDict
 
 from nautobot_ssot.contrib.types import RelationshipSideEnum
 from nautobot_ssot.utils.orm import (
     get_custom_relationship_association_parameters,
+    get_custom_relationship_associations,
     get_orm_attribute,
     load_typed_dict,
     orm_attribute_lookup,
@@ -24,6 +26,7 @@ class BaseTestCase(TestCase):
 
     def setUp(self):
         """Set up the unittests."""
+        populate_status_choices()
         status = Status.objects.get(name="Active")
         self.location_type_1 = LocationType.objects.create(
             name="Location Type 1",
@@ -81,6 +84,14 @@ class TestGetORMAttribute(BaseTestCase):
         """Test getting a null attribute."""
         result = get_orm_attribute(self.location_1, "latitude")
         self.assertIsNone(result)
+
+    def test_generic_foreign_key_app_label(self):
+        """`app_label` is not a real field, so it resolves via the object's ContentType."""
+        self.assertEqual(get_orm_attribute(self.location_1, "app_label"), "dcim")
+
+    def test_generic_foreign_key_model(self):
+        """`model` is not a real field, so it resolves via the object's ContentType."""
+        self.assertEqual(get_orm_attribute(self.location_1, "model"), "location")
 
 
 class TestORMAttributeLookup(BaseTestCase):
@@ -200,6 +211,50 @@ class TestORMAttributeLookup(BaseTestCase):
         """Test multi level lookup where final attribute is None."""
         result = orm_attribute_lookup(self.location_2, "parent__location_type__description")
         self.assertEqual(result, "")
+
+
+class TestORMAttributeLookupCustomFields(TestCase):
+    """Regression tests for issue #753 — accessing custom field values through FK chains."""
+
+    def setUp(self):
+        """Create a CustomField, attach it to LocationType, and populate it on two related Locations."""
+        populate_status_choices()
+        status = Status.objects.get(name="Active")
+
+        self.cf_label = "netvs_gpk"
+        cf_content_type = ContentType.objects.get_for_model(Location)
+        self.custom_field = CustomField.objects.create(label=self.cf_label, key=self.cf_label, type="text")
+        self.custom_field.content_types.add(cf_content_type)
+
+        self.location_type = LocationType.objects.create(name="Loc Type 753")
+        self.parent_location = Location.objects.create(
+            name="Parent Location 753",
+            location_type=self.location_type,
+            status=status,
+            _custom_field_data={self.cf_label: "parent-value"},
+        )
+        self.child_location = Location.objects.create(
+            name="Child Location 753",
+            location_type=self.location_type,
+            parent=self.parent_location,
+            status=status,
+            _custom_field_data={self.cf_label: "child-value"},
+        )
+
+    def test_direct_custom_field_lookup(self):
+        """`_custom_field_data__<key>` on the root object resolves to the stored value."""
+        result = orm_attribute_lookup(self.child_location, f"_custom_field_data__{self.cf_label}")
+        self.assertEqual(result, "child-value")
+
+    def test_foreign_custom_field_lookup(self):
+        """`<fk>___custom_field_data__<key>` resolves the custom field on the related object (#753)."""
+        result = orm_attribute_lookup(self.child_location, f"parent___custom_field_data__{self.cf_label}")
+        self.assertEqual(result, "parent-value")
+
+    def test_foreign_custom_field_lookup_missing_key(self):
+        """Missing custom field key returns None rather than raising."""
+        result = orm_attribute_lookup(self.child_location, "parent___custom_field_data__does_not_exist")
+        self.assertIsNone(result)
 
 
 class TestLoadTypedDict(BaseTestCase):
@@ -363,3 +418,59 @@ class TestGetCustomRelationshipAssociationParameters(BaseTestCase):
         self.assertEqual(result["destination_type"], self.location_type)
         self.assertEqual(result["destination_id"], self.location_1.id)
         self.assertTrue("source_id" not in result.keys())
+
+    def test_invalid_relationship_side(self):
+        """An unrecognized relationship side raises ValueError."""
+        with self.assertRaises(ValueError):
+            get_custom_relationship_association_parameters(
+                self.relationship_1,
+                self.provider_1.id,
+                "not-a-valid-side",
+            )
+
+
+class TestGetCustomRelationshipAssociations(BaseTestCase):
+    """Tests for the `get_custom_relationship_associations` function."""
+
+    def setUp(self):
+        super().setUp()
+
+        self.location_type_ct = ContentType.objects.get_for_model(Location)
+        self.provider_type_ct = ContentType.objects.get_for_model(Provider)
+        self.relationship = Relationship.objects.create(
+            label="Test Relationship Assoc",
+            type=RelationshipTypeChoices.TYPE_ONE_TO_ONE,
+            source_type=self.provider_type_ct,
+            destination_type=self.location_type_ct,
+        )
+        self.provider = Provider.objects.create(name="Provider Assoc")
+        RelationshipAssociation.objects.create(
+            relationship=self.relationship,
+            source=self.provider,
+            destination=self.location_1,
+        )
+
+    def test_invalid_relationship_type(self):
+        """A non-`Relationship` first argument raises TypeError."""
+        with self.assertRaises(TypeError):
+            get_custom_relationship_associations("not-a-relationship", self.provider, RelationshipSideEnum.SOURCE)
+
+    def test_invalid_db_obj_type(self):
+        """A `db_obj` that is not a Nautobot BaseModel raises TypeError."""
+        with self.assertRaises(TypeError):
+            get_custom_relationship_associations(self.relationship, "not-a-model", RelationshipSideEnum.SOURCE)
+
+    def test_invalid_relationship_side(self):
+        """A `relationship_side` that is not a RelationshipSideEnum raises TypeError."""
+        with self.assertRaises(TypeError):
+            get_custom_relationship_associations(self.relationship, self.provider, "not-an-enum")
+
+    def test_returns_associations_and_count(self):
+        """A valid lookup returns the association queryset and its count."""
+        associations, count = get_custom_relationship_associations(
+            self.relationship,
+            self.provider,
+            RelationshipSideEnum.SOURCE,
+        )
+        self.assertEqual(count, 1)
+        self.assertEqual(associations.count(), 1)

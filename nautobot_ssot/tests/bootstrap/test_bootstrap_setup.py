@@ -4,10 +4,12 @@
 import json
 import os
 from unittest.mock import MagicMock
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-import pytz
 import yaml
+from django.apps import apps
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import ProtectedError
 from django.utils.text import slugify
 from nautobot.circuits.models import (
     Circuit,
@@ -158,12 +160,12 @@ MODELS_TO_TEST = [
 ]
 
 
-def is_valid_timezone(timezone):
-    """Return whether timezone passed is a valid timezone in pytz."""
+def is_valid_timezone(tz_name):
+    """Return whether timezone passed is a valid timezone."""
     try:
-        pytz.timezone(timezone)
+        ZoneInfo(tz_name)
         return True
-    except pytz.UnknownTimeZoneError:
+    except (ZoneInfoNotFoundError, TypeError, ValueError):
         return False
 
 
@@ -199,44 +201,20 @@ class NautobotTestSetup:
 
     def _empty_database(self):
         """Empty the database before trying to populate data."""
-        for model in (
-            Circuit,
-            CircuitTermination,
-            CircuitType,
-            ComputedField,
-            Contact,
-            CustomField,
-            Device,
-            DeviceType,
-            DynamicGroup,
-            ExternalIntegration,
-            GitRepository,
-            GraphQLQuery,
-            InventoryItem,
-            JobResult,
-            Location,
-            LocationType,
-            Manufacturer,
-            Namespace,
-            Platform,
-            Prefix,
-            Provider,
-            ProviderNetwork,
-            RIR,
-            Role,
-            ScheduledJob,
-            Secret,
-            SecretsGroup,
-            Status,
-            Tag,
-            Team,
-            Tenant,
-            TenantGroup,
-            VLAN,
-            VLANGroup,
-            VRF,
-        ):
-            model.objects.all().delete()
+        database_empty = False
+        recursion_limit = 10
+        while not database_empty:
+            recursion_limit -= 1
+            if recursion_limit == 0:
+                raise RuntimeError("Unable to empty database")
+            database_empty = True
+            for model in apps.get_models():
+                if model._meta.label_lower in ("extras.job", "extras.jobqueue", "contenttypes.contenttype"):
+                    continue
+                try:
+                    model.objects.all().delete()
+                except ProtectedError:
+                    database_empty = False
 
     def _initialize_data(self):
         self._setup_tags()

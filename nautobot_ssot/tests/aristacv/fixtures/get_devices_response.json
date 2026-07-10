@@ -1,20 +1,20 @@
 [
     {
-        "device_id": "JPE12345678",
-        "hostname": "ams01-edge-01.ntc.com",
-        "fqdn": "ams01-edge-01.ntc.com",
+        "device_id": "ABC1234567890",
+        "hostname": "LAB-MGMT-48ZC2",
+        "fqdn": "LAB-MGMT-48ZC2.example.com",
+        "sw_ver": "4.34.5M",
+        "model": "CCS-720XP-48ZC2",
         "status": "Active",
-        "sw_ver": "4.26.5M",
-        "model": "DCS-7280CR2-60",
-        "system_mac_address": "12:34:56:78:ab:cd"
+        "system_mac_address": "12:34:56:78:90:AB"
     },
     {
-        "device_id": "JPE12345679",
-        "hostname": "ams01-edge-02.ntc.com",
-        "fqdn": "ams01-edge-02.ntc.com",
+        "device_id": "28FCF2E73732A192AEBD7892E03F7A4A",
+        "hostname": "LEAF1",
+        "fqdn": "LEAF1",
+        "sw_ver": "4.34.2.1F",
+        "model": "cEOSLab",
         "status": "Active",
-        "sw_ver": "4.26.5M",
-        "model": "DCS-7280CR2-60",
-        "system_mac_address": "12:34:56:78:ab:ce"
+        "system_mac_address": "00:1c:73:8f:bd:3c"
     }
 ]

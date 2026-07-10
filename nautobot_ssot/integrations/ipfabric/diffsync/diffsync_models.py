@@ -10,24 +10,18 @@ from uuid import UUID
 from diffsync import DiffSyncModel
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
-from django.db.models import Q
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import (
     Device as NautobotDevice,
 )
-from nautobot.dcim.models import (
-    DeviceType,
-    Manufacturer,
-    VirtualChassis,
-)
+from nautobot.dcim.models import DeviceType, Manufacturer
 from nautobot.dcim.models import (
     Interface as NautobotInterface,
 )
 from nautobot.dcim.models import (
     Location as NautobotLocation,
 )
-from nautobot.extras.models import Role, Tag
-from nautobot.extras.models.statuses import Status
+from nautobot.extras.models import Tag
 from nautobot.ipam.models import VLAN, IPAddress
 from netutils.ip import netmask_to_cidr
 
@@ -55,7 +49,12 @@ class DiffSyncExtras(DiffSyncModel):
 
     safe_delete_mode: ClassVar[bool] = True
 
-    def safe_delete(self, nautobot_object: Any, safe_delete_status: Optional[str] = None):
+    def safe_delete(
+        self,
+        nautobot_object: Any,
+        safe_delete_status: Optional[str] = None,
+        safe_delete_tag: Optional[Tag] = None,
+    ):
         """Safe delete an object, by adding tags or changing it's default status.
 
         Args:
@@ -71,7 +70,9 @@ class DiffSyncExtras(DiffSyncModel):
             super().delete()
         else:
             if safe_delete_status:
-                safe_delete_status = Status.objects.get(name=safe_delete_status.capitalize())
+                safe_delete_status = tonb_nbutils.get_or_create_status_object(
+                    safe_delete_status.capitalize(), ColorChoices.COLOR_RED
+                )
                 if hasattr(nautobot_object, "status"):
                     if not nautobot_object.status == safe_delete_status:
                         nautobot_object.status = safe_delete_status
@@ -80,25 +81,15 @@ class DiffSyncExtras(DiffSyncModel):
                 else:
                     # Not everything has a status. This may come in handy once more models are synced.
                     logger.warning(f"{nautobot_object} has no Status attribute.")
-            if hasattr(nautobot_object, "tags"):
-                ssot_safe_tag, _ = Tag.objects.get_or_create(
-                    name="SSoT Safe Delete",
-                    defaults={
-                        "description": "Safe Delete Mode tag to flag an object, but not delete from Nautobot.",
-                        "color": ColorChoices.COLOR_RED,
-                    },
-                )
-                object_tags = nautobot_object.tags.all()
-                # No exception raised for empty iterator, safe to do this any
-                if not any(obj_tag for obj_tag in object_tags if obj_tag.name == ssot_safe_tag.name):
-                    nautobot_object.tags.add(ssot_safe_tag)
+            if hasattr(nautobot_object, "tags") and safe_delete_tag:
+                if not nautobot_object.tags.filter(id=safe_delete_tag.id).exists():
+                    nautobot_object.tags.add(safe_delete_tag)
                     logger.warning(f"Tagging {nautobot_object} with `SSoT Safe Delete`.")
                     update = True
+                else:
+                    logger.warning(f"{nautobot_object} has previously been tagged with `SSoT Safe Delete`. Skipping...")
             if update:
                 tonb_nbutils.tag_object(nautobot_object=nautobot_object, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-            else:
-                logger.warning(f"{nautobot_object} has previously been tagged with `SSoT Safe Delete`. Skipping...")
-
         return self
 
 
@@ -119,7 +110,7 @@ class Location(DiffSyncExtras):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Location in Nautobot."""
-        location = tonb_nbutils.create_location(
+        location = tonb_nbutils.get_or_create_location_object(
             location_name=ids["name"],
             location_id=attrs["site_id"],
             logger=adapter.job.logger,
@@ -142,6 +133,7 @@ class Location(DiffSyncExtras):
             self.safe_delete(
                 location,
                 SAFE_DELETE_LOCATION_STATUS,
+                self.adapter.safe_delete_tag,
             )
             return super().delete()
         return None
@@ -162,12 +154,9 @@ class Location(DiffSyncExtras):
                 location.custom_field_data["ipfabric_site_id"] = site_id
             active_status = attrs.get("status")
             if active_status == "Active":
-                safe_delete_tag, _ = Tag.objects.get_or_create(name="SSoT Safe Delete")
                 if location.status != active_status:
-                    location.status = Status.objects.get(name=active_status)
-                device_tags = location.tags.filter(pk=safe_delete_tag.pk)
-                if device_tags.exists():
-                    location.tags.remove(safe_delete_tag)
+                    location.status = tonb_nbutils.get_or_create_status_object(active_status, ColorChoices.COLOR_GREEN)
+                location.tags.remove(self.adapter.safe_delete_tag)
             try:
                 # Calls validated_save() on the object
                 tonb_nbutils.tag_object(nautobot_object=location, custom_field=LAST_SYNCHRONIZED_CF_NAME)
@@ -222,11 +211,10 @@ class Device(DiffSyncExtras):
         device_name = ids["name"]
         device_type_name = attrs["model"]
         device_type_filter = DeviceType.objects.filter(model=device_type_name)
-        if device_type_filter.exists():
-            device_type_object = device_type_filter.first()
-        else:
+        device_type_object = device_type_filter.first()
+        if not device_type_object:
             vendor_name = attrs["vendor"]
-            device_type_object = tonb_nbutils.create_device_type_object(
+            device_type_object = tonb_nbutils.get_or_create_device_type_object(
                 device_type=device_type_name,
                 vendor_name=vendor_name,
                 logger=adapter.job.logger,
@@ -239,7 +227,7 @@ class Device(DiffSyncExtras):
         # Get Platform
         platform = attrs.get("platform")
         if platform and device_type_object:
-            platform_object = tonb_nbutils.create_platform_object(
+            platform_object = tonb_nbutils.get_or_create_platform_object(
                 platform=platform,
                 manufacturer_obj=device_type_object.manufacturer,
                 logger=adapter.job.logger,
@@ -259,54 +247,44 @@ class Device(DiffSyncExtras):
 
         # Get Role, update if missing cf and create otherwise
         role_name = attrs.get("role") or DEFAULT_DEVICE_ROLE
-        device_role_filter = Role.objects.filter(name=role_name)
-        if device_role_filter.exists():
-            device_role_object = device_role_filter.first()
-            device_role_object.cf["ipfabric_type"] = role_name
-            try:
-                device_role_object.validated_save()
-            except (DjangoBaseDBError, ValidationError):
-                adapter.job.logger.error(
-                    f"Unable to perform a validated_save() on Role {role_name} with an ID of {device_role_object.id}"
-                )
+        device_role_object = tonb_nbutils.get_or_create_device_role_object(
+            role_name=role_name,
+            role_color=DEFAULT_DEVICE_ROLE_COLOR,
+            logger=adapter.job.logger,
+        )
+        if device_role_object:
+            if device_role_object.cf.get("ipfabric_type") != role_name:
+                device_role_object.cf["ipfabric_type"] = role_name
+                try:
+                    device_role_object.validated_save()
+                except (DjangoBaseDBError, ValidationError):
+                    adapter.job.logger.error(
+                        f"Unable to perform a validated_save() on Role {role_name} with an ID of {device_role_object.id}"
+                    )
         else:
-            device_role_object = tonb_nbutils.get_or_create_device_role_object(
-                role_name=role_name,
-                role_color=DEFAULT_DEVICE_ROLE_COLOR,
-                logger=adapter.job.logger,
+            adapter.job.logger.warning(
+                f"Unable to create a Device with the name {device_name} because of a failure "
+                f"to get or create a Role named {role_name}"
             )
-            if not device_role_object:
-                adapter.job.logger.warning(
-                    f"Unable to create a Device with the name {device_name} because of a failure "
-                    f"to get or create a Role named {role_name}"
-                )
         # Get Status
-        device_status_filter = Status.objects.filter(name=DEFAULT_DEVICE_STATUS)
-        if device_status_filter.exists():
-            device_status_object = device_status_filter.first()
-        else:
-            device_status_object = tonb_nbutils.create_status(
-                DEFAULT_DEVICE_STATUS,
-                DEFAULT_DEVICE_STATUS_COLOR,
-                logger=adapter.job.logger,
+        device_status_object = tonb_nbutils.get_or_create_status_object(
+            DEFAULT_DEVICE_STATUS,
+            DEFAULT_DEVICE_STATUS_COLOR,
+            logger=adapter.job.logger,
+        )
+        if not device_status_object:
+            adapter.job.logger.warning(
+                f"Unable to create a Device with the name {device_name} because of a failure "
+                f"to get or create a Status named {DEFAULT_DEVICE_STATUS}"
             )
-            if not device_status_object:
-                adapter.job.logger.warning(
-                    f"Unable to create a Device with the name {device_name} because of a failure "
-                    f"to get or create a Status named {DEFAULT_DEVICE_STATUS}"
-                )
         # Get Location
         location_name = attrs["location_name"]
-        location_object_filter = NautobotLocation.objects.filter(name=location_name)
-        if location_object_filter.exists():
-            location_object = location_object_filter.first()
-        else:
-            location_object = tonb_nbutils.create_location(location_name, logger=adapter.job.logger)
-            if not location_object:
-                adapter.job.logger.warning(
-                    f"Unable to create Device with name {device_name} because of a failure "
-                    f"to get or create a Location named {location_name}"
-                )
+        location_object = tonb_nbutils.get_or_create_location_object(location_name, logger=adapter.job.logger)
+        if not location_object:
+            adapter.job.logger.warning(
+                f"Unable to create Device with name {device_name} because of a failure "
+                f"to get or create a Location named {location_name}"
+            )
 
         if device_type_object and location_object and device_role_object and device_status_object:
             try:
@@ -342,17 +320,18 @@ class Device(DiffSyncExtras):
 
                 vc_name = attrs.get("vc_name")
                 if vc_name:
-                    vc_master = attrs.get("vc_master", False)
-                    vc_position = attrs.get("vc_position")
-                    vc_priority = attrs.get("vc_priority")
                     try:
-                        cls._get_or_create_virtual_chassis(
-                            vc_name, new_device, adapter.job.logger, vc_master, vc_position, vc_priority
-                        )
+                        vc = tonb_nbutils.get_or_create_virtual_chassis_object(vc_name, logger=adapter.job.logger)
+                        if vc:
+                            tonb_nbutils.assign_device_to_virtual_chassis(
+                                new_device,
+                                vc,
+                                master=attrs.get("vc_master", False),
+                                position=attrs.get("vc_position"),
+                                priority=attrs.get("vc_priority"),
+                            )
                     except (DjangoBaseDBError, ValidationError):
-                        adapter.job.logger.error(
-                            f"Unable to update Device {device_name} with an ID of {new_device.id} with VirtualChassis data"
-                        )
+                        adapter.job.logger.error(f"Unable to update Device {device_name} with VirtualChassis data")
                 return super().create(ids=ids, adapter=adapter, attrs=attrs)
         return None
 
@@ -370,6 +349,7 @@ class Device(DiffSyncExtras):
             self.safe_delete(
                 device_object,
                 SAFE_DELETE_DEVICE_STATUS,
+                self.adapter.safe_delete_tag,
             )
             return super().delete()
         return None
@@ -387,17 +367,14 @@ class Device(DiffSyncExtras):
         else:
             return_super = True
             if attrs.get("status") == "Active":
-                safe_delete_tag, _ = Tag.objects.get_or_create(name="SSoT Safe Delete")
-                if not _device.status == "Active":
-                    _device.status = Status.objects.get(name="Active")
-                device_tags = _device.tags.filter(pk=safe_delete_tag.pk)
-                if device_tags.exists():
-                    _device.tags.remove(safe_delete_tag)
+                if not _device.status.name == "Active":
+                    _device.status = tonb_nbutils.get_or_create_status_object("Active", ColorChoices.COLOR_GREEN)
+                _device.tags.remove(self.adapter.safe_delete_tag)
 
             vendor_name = attrs.get("vendor") or self.vendor
             device_type_name = attrs.get("model")
             if device_type_name:
-                device_type_object = tonb_nbutils.create_device_type_object(
+                device_type_object = tonb_nbutils.get_or_create_device_type_object(
                     device_type=device_type_name,
                     vendor_name=vendor_name,
                     logger=self.adapter.job.logger,
@@ -426,7 +403,7 @@ class Device(DiffSyncExtras):
                     )
                     return_super = False
                 else:
-                    platform_object = tonb_nbutils.create_platform_object(
+                    platform_object = tonb_nbutils.get_or_create_platform_object(
                         platform=platform_name,
                         manufacturer_obj=manufacturer_object,
                         logger=self.adapter.job.logger,
@@ -441,7 +418,7 @@ class Device(DiffSyncExtras):
 
             location_name = attrs.get("location_name")
             if location_name:
-                location = tonb_nbutils.create_location(location_name, logger=self.adapter.job.logger)
+                location = tonb_nbutils.get_or_create_location_object(location_name, logger=self.adapter.job.logger)
                 if location:
                     _device.location = location
                 else:
@@ -473,62 +450,25 @@ class Device(DiffSyncExtras):
                 )
                 return_super = False
 
-            vc_name = attrs.get("vc_name")
-            vc_master = attrs.get("vc_master", False)
-            vc_position = attrs.get("vc_position")
-            vc_priority = attrs.get("vc_priority")
-            if vc_name or vc_master or vc_position or vc_priority:
-                if not vc_name:
-                    vc_name = self.vc_name
+            vc_name = attrs.get("vc_name") or self.vc_name
+            vc_attrs_present = any(k in attrs for k in ("vc_name", "vc_master", "vc_position", "vc_priority"))
+            if vc_attrs_present and vc_name:
                 try:
-                    self._get_or_create_virtual_chassis(
-                        vc_name, _device, self.adapter.job.logger, vc_master, vc_position, vc_priority
-                    )
+                    vc = tonb_nbutils.get_or_create_virtual_chassis_object(vc_name, logger=self.adapter.job.logger)
+                    if vc:
+                        tonb_nbutils.assign_device_to_virtual_chassis(
+                            _device,
+                            vc,
+                            master=attrs.get("vc_master", False),
+                            position=attrs.get("vc_position"),
+                            priority=attrs.get("vc_priority"),
+                        )
                 except (DjangoBaseDBError, ValidationError):
                     self.adapter.job.logger.error(f"Unable to update VirtualChassis {vc_name} for Device {self.name}")
                     return_super = False
             if return_super:
                 return super().update(attrs)
         return None
-
-    @staticmethod
-    def _get_or_create_virtual_chassis(  # pylint: disable=too-many-arguments
-        name: str,
-        device: NautobotDevice,
-        job_logger: logging.Logger,
-        master: bool = False,
-        position: Optional[int] = None,
-        priority: Optional[int] = None,
-    ) -> VirtualChassis:
-        virtual_chassis, _ = VirtualChassis.objects.get_or_create(name=name)
-        device.virtual_chassis = virtual_chassis
-        if position:
-            device.vc_position = position
-        if priority and device.vc_position:  # An update might already have vc_position assigned
-            device.vc_priority = priority
-        elif priority:
-            job_logger.warning(
-                f"Device {device.name} assigned to VirtualChassis {name} has a "
-                f"priority of {priority}, but this cannot be set without a vc_position"
-            )
-        try:
-            device.validated_save()
-        except (DjangoBaseDBError, ValidationError) as error:
-            job_logger.error(f"Unable to perform validated_save() on Device named {device.name}")
-            raise error
-
-        if master:
-            virtual_chassis.master = device
-            try:
-                virtual_chassis.validated_save()
-            except (DjangoBaseDBError, ValidationError) as error:
-                job_logger.error(
-                    f"Unable to perform validated_save() on VirtualChassis {name}, "
-                    "the VirtualChassis will not have a Device designated as master"
-                )
-                raise error
-
-        return virtual_chassis
 
 
 class Interface(DiffSyncExtras):
@@ -573,9 +513,7 @@ class Interface(DiffSyncExtras):
         interface_name = ids["name"]
         ip_address = attrs["ip_address"]
         subnet_mask = attrs["subnet_mask"]  # TODO: switch to cidr notation since both APIs use that format
-        ssot_tag, _ = Tag.objects.get_or_create(name="SSoT Synced from IPFabric")
-        device_obj = NautobotDevice.objects.filter(Q(name=device_name) & Q(tags__name=ssot_tag.name)).first()
-
+        device_obj = tonb_nbutils.get_tagged_device(device_name)
         if device_obj:
             return_super = True
             if not attrs.get("mac_address"):
@@ -586,8 +524,7 @@ class Interface(DiffSyncExtras):
                 logger=adapter.job.logger,
             )
             if interface_obj and ip_address:
-                if interface_obj.ip_addresses.exists():
-                    interface_obj.ip_addresses.all().delete()
+                interface_obj.ip_addresses.set([])
                 ip_address_obj = tonb_nbutils.create_ip(
                     ip_address=ip_address,
                     subnet_mask=subnet_mask,
@@ -601,7 +538,7 @@ class Interface(DiffSyncExtras):
                         if ip_address_obj.ip_version == 4:
                             device_obj.primary_ip4 = ip_address_obj
                             device_obj.save()
-                        if ip_address_obj.ip_version == 6:
+                        elif ip_address_obj.ip_version == 6:
                             device_obj.primary_ip6 = ip_address_obj
                             device_obj.save()
                 else:
@@ -639,12 +576,11 @@ class Interface(DiffSyncExtras):
 
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete Interface Object."""
-        ssot_tag, _ = Tag.objects.get_or_create(name="SSoT Synced from IPFabric")
-        device = NautobotDevice.objects.filter(Q(name=self.device_name) & Q(tags__name=ssot_tag.name)).first()
+        device = tonb_nbutils.get_tagged_device(self.device_name)
         if device:
             return_super = True
             try:
-                interface = device.interfaces.get(name=self.name)
+                interface = device.interfaces.prefetch_related("ip_addresses__interfaces").get(name=self.name)
             except NautobotInterface.MultipleObjectsReturned:
                 self.adapter.job.logger.error(
                     f"Multiple Interfaces found with the name {self.name}, on Device named {self.device_name} "
@@ -658,11 +594,14 @@ class Interface(DiffSyncExtras):
                 return_super = False
             else:
                 # Access the addr within an interface, change the status if necessary
-                if interface.ip_addresses.first():
-                    self.safe_delete(interface.ip_addresses.first(), SAFE_DELETE_IPADDRESS_STATUS)
+                for ip_address in interface.ip_addresses.all():
+                    if not ip_address.interfaces.exclude(id=interface.id).exists():
+                        # IP's can be associated to multiple Interfaces.
+                        # Only mark IPs with no other interface associtations as safe to delete.
+                        self.safe_delete(ip_address, SAFE_DELETE_IPADDRESS_STATUS, self.adapter.safe_delete_tag)
                 # Then do the parent interface
                 # Attached interfaces do not have a status to update.
-                self.safe_delete(interface)
+                self.safe_delete(interface, None, self.adapter.safe_delete_tag)
             if return_super:
                 return super().delete()
         else:
@@ -676,12 +615,11 @@ class Interface(DiffSyncExtras):
 
     def update(self, attrs):  # pylint: disable=too-many-branches
         """Update Interface object in Nautobot."""
-        ssot_tag, _ = Tag.objects.get_or_create(name="SSoT Synced from IPFabric")
-        device = NautobotDevice.objects.filter(Q(name=self.device_name) & Q(tags__name=ssot_tag.name)).first()
+        device = tonb_nbutils.get_tagged_device(self.device_name)
         if device:  # pylint: disable=too-many-nested-blocks
             return_super = True
             try:
-                interface = device.interfaces.get(name=self.name)
+                interface = device.interfaces.prefetch_related("ip_addresses").get(name=self.name)
             except NautobotInterface.MultipleObjectsReturned:
                 self.adapter.job.logger.error(
                     f"Multiple Interfaces found with the name {self.name} on Device named {device.name} "
@@ -713,9 +651,9 @@ class Interface(DiffSyncExtras):
                 ip_address = attrs.get("ip_address")
                 subnet_mask = attrs.get("subnet_mask", "255.255.255.255")
                 if ip_address:
-                    if interface.ip_addresses.all().exists():
+                    if interface.ip_addresses.all():
                         logger.info(f"Replacing IP from interface {self.name} on {device.name}")
-                        interface.ip_addresses.all().delete()
+                        interface.ip_addresses.set([])
                     ip_address_obj = tonb_nbutils.create_ip(
                         ip_address=ip_address,
                         subnet_mask=subnet_mask,
@@ -764,7 +702,7 @@ class Interface(DiffSyncExtras):
                             if interface_obj.ip_version == 4:
                                 device.primary_ip4 = interface_obj
                                 device.save()
-                            if interface_obj.ip_version == 6:
+                            elif interface_obj.ip_version == 6:
                                 device.primary_ip6 = interface_obj
                                 device.save()
                         except (DjangoBaseDBError, ValidationError):
@@ -820,7 +758,7 @@ class Vlan(DiffSyncExtras):
         status = attrs["status"].lower().capitalize()
         location_name = ids["location"]
         vlan_id = attrs["vid"]
-        vlan_name = ids["name"] if ids["name"] else f"VLAN{vlan_id}"
+        vlan_name = ids["name"]
         try:
             location = NautobotLocation.objects.get(name=ids["location"])
         except NautobotLocation.MultipleObjectsReturned:
@@ -865,6 +803,7 @@ class Vlan(DiffSyncExtras):
             self.safe_delete(
                 vlan,
                 SAFE_DELETE_VLAN_STATUS,
+                self.adapter.safe_delete_tag,
             )
             return super().delete()
         return None
@@ -878,47 +817,41 @@ class Vlan(DiffSyncExtras):
                 f"Multiple Locations found with the name {self.location}, unable to "
                 f"Retrieve the VLAN named {self.name} to perform updates"
             )
+            return None
         except NautobotLocation.DoesNotExist:
             self.adapter.job.logger.error(
                 f"Could not find a Location with the name {self.location}, unable to "
                 f"Retrieve the VLAN named {self.name} to perform updates"
             )
-        else:
-            return_super = True
-            try:
-                vlan = VLAN.objects.get(name=self.name, vid=self.vid, location=location_obj)
-            except VLAN.MultipleObjectsReturned:
-                self.adapter.job.logger.error(
-                    f"Multiple VLANs found with a name {self.name} and VLAN ID {self.vid} "
-                    f"at a Location named {self.location}, unable to perform updates"
-                )
-                return_super = False
-            except VLAN.DoesNotExist:
-                self.adapter.job.logger.error(
-                    f"Could not find a VLAN named {self.name} and VLAN ID {self.vid} "
-                    f"at a Location named {self.location}, unable to perform updates"
-                )
-                return_super = False
-            else:
-                if attrs.get("status") == "Active":
-                    safe_delete_tag, _ = Tag.objects.get_or_create(name="SSoT Safe Delete")
-                    if not vlan.status == "Active":
-                        vlan.status = Status.objects.get(name="Active")
-                    device_tags = vlan.tags.filter(pk=safe_delete_tag.pk)
-                    if device_tags.exists():
-                        vlan.tags.remove(safe_delete_tag)
-                if attrs.get("description"):
-                    vlan.description = vlan.description
-            try:
-                tonb_nbutils.tag_object(nautobot_object=vlan, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-            except (DjangoBaseDBError, ValidationError):
-                self.adapter.job.logger.warning(
-                    f"Unable to perform a validated_save() on VLAN {self.name} with an ID of {vlan.id}"
-                )
-                return_super = False
-            if return_super:
-                return super().update(attrs)
-        return None
+            return None
+        try:
+            vlan = VLAN.objects.get(name=self.name, vid=self.vid, location=location_obj)
+        except VLAN.MultipleObjectsReturned:
+            self.adapter.job.logger.error(
+                f"Multiple VLANs found with a name {self.name} and VLAN ID {self.vid} "
+                f"at a Location named {self.location}, unable to perform updates"
+            )
+            return None
+        except VLAN.DoesNotExist:
+            self.adapter.job.logger.error(
+                f"Could not find a VLAN named {self.name} and VLAN ID {self.vid} "
+                f"at a Location named {self.location}, unable to perform updates"
+            )
+            return None
+        if attrs.get("status") == "Active":
+            if not vlan.status == "Active":
+                vlan.status = tonb_nbutils.get_or_create_status_object("Active", ColorChoices.COLOR_GREEN)
+            vlan.tags.remove(self.adapter.safe_delete_tag)
+        if attrs.get("description"):
+            vlan.description = attrs.get("description")
+        try:
+            tonb_nbutils.tag_object(nautobot_object=vlan, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        except (DjangoBaseDBError, ValidationError):
+            self.adapter.job.logger.warning(
+                f"Unable to perform a validated_save() on VLAN {self.name} with an ID of {vlan.id}"
+            )
+            return None
+        return super().update(attrs)
 
 
 Location.model_rebuild()

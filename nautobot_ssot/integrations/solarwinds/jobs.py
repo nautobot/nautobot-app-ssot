@@ -229,41 +229,30 @@ class SolarWindsDataSource(DataSource):  # pylint: disable=too-many-instance-att
         self.target_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync)
         self.target_adapter.load()
 
-    def run(  # pylint: disable=arguments-differ, too-many-arguments
-        self,
-        integration,
-        containers,
-        top_container,
-        dryrun,
-        location_type,
-        parent,
-        tenant,
-        role_map,
-        role_choice,
-        default_role,
-        memory_profiling,
-        debug,
-        *args,
-        **kwargs,
-    ):
+    def run(self, *args, **kwargs):
         """Perform data synchronization."""
-        self.integration = integration
-        self.custom_property = kwargs["custom_property"]
-        self.location_override = kwargs["location_override"]
-        self.containers = containers
-        self.top_container = top_container
+        self.integration = kwargs.get("integration")
+        self.custom_property = kwargs.get("custom_property")
+        self.location_override = kwargs.get("location_override")
+        self.containers = kwargs.get("containers")
+        self.top_container = kwargs.get("top_container")
         self.location_type = (
-            location_type if location_type else self.location_override.location_type if self.location_override else None
+            kwargs["location_type"]
+            if kwargs.get("location_type")
+            else self.location_override.location_type
+            if self.location_override
+            else None
         )
-        self.parent = parent
-        self.tenant = tenant
-        self.role_map = role_map
-        self.role_choice = role_choice
-        self.default_role = default_role
-        self.debug = debug
-        self.dryrun = dryrun
-        self.memory_profiling = memory_profiling
-        super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
+        self.parent = kwargs.get("parent")
+        self.tenant = kwargs.get("tenant")
+        self.role_map = kwargs.get("role_map")
+        self.role_choice = kwargs.get("role_choice")
+        self.default_role = kwargs.get("default_role")
+        self.debug = kwargs.get("debug")
+        self.dryrun = kwargs.get("dryrun")
+        self.memory_profiling = kwargs.get("memory_profiling")
+        self.parallel_loading = kwargs.get("parallel_loading")
+        super().run(*args, **kwargs)
 
 
 jobs = [SolarWindsDataSource]

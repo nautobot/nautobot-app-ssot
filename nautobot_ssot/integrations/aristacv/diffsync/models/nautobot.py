@@ -7,7 +7,6 @@ from nautobot.core.settings_funcs import is_truthy
 from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import Interface as OrmInterface
 from nautobot.dcim.models import Platform as OrmPlatform
-from nautobot.dcim.models import SoftwareVersion
 from nautobot.extras.models import Status as OrmStatus
 from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import IPAddressToInterface
@@ -76,6 +75,9 @@ class NautobotDevice(Device):
             platform = OrmPlatform.objects.get(name=ARISTA_PLATFORM)
 
         device_type_object = nautobot.verify_device_type_object(attrs["device_model"])
+        software_version_object = (
+            nautobot.verify_software_version_object(attrs["version"], platform) if attrs.get("version") else None
+        )
 
         new_device = OrmDevice(
             status=OrmStatus.objects.get(name=attrs["status"]),
@@ -85,6 +87,7 @@ class NautobotDevice(Device):
             location=site,
             name=ids["name"],
             serial=attrs["serial"] if attrs.get("serial") else "",
+            software_version=software_version_object,
         )
 
         if config.apply_import_tag:
@@ -109,11 +112,13 @@ class NautobotDevice(Device):
             dev.device_type = nautobot.verify_device_type_object(attrs["device_model"])
         if "serial" in attrs:
             dev.serial = attrs["serial"]
-        if "version" in attrs:
-            dev.software_version = SoftwareVersion.objects.get_or_create(
-                version=attrs["version"],
-                platform=dev.platform,
-            )[0]
+        if attrs.get("version"):
+            dev.software_version = nautobot.verify_software_version_object(attrs["version"], dev.platform)
+        # If version is in attrs, but didn't trigger the condition directly above, it must be changing to None
+        elif "version" in attrs and dev.software_version:
+            dev.software_version = None
+        if "status" in attrs:
+            dev.status = OrmStatus.objects.get(name=attrs["status"])
         try:
             dev.validated_save()
             return super().update(attrs)
@@ -150,6 +155,8 @@ class NautobotPort(Port):
             status=OrmStatus.objects.get(name=attrs["status"]),
             type=attrs["port_type"],
         )
+        if attrs.get("lag"):
+            new_port.lag = OrmInterface.objects.get(name=attrs["lag"], device=device)
         try:
             new_port.validated_save()
             return super().create(ids=ids, adapter=adapter, attrs=attrs)
@@ -177,6 +184,11 @@ class NautobotPort(Port):
             _port.status = OrmStatus.objects.get(name=attrs["status"])
         if "port_type" in attrs:
             _port.type = attrs["port_type"]
+        if "lag" in attrs:
+            if attrs["lag"]:
+                _port.lag = OrmInterface.objects.get(name=attrs["lag"], device=_port.device)
+            else:
+                _port.lag = None
         try:
             _port.validated_save()
             return super().update(attrs)
@@ -197,11 +209,11 @@ class NautobotPort(Port):
 
 
 class NautobotNamespace(Namespace):
-    """Nautobot Prefix model."""
+    """Nautobot Namespace model."""
 
     @classmethod
     def create(cls, adapter, ids, attrs):
-        """Create Prefix in Nautobot from NautobotPrefix objects."""
+        """Create Namespace in Nautobot from NautobotNamespace objects."""
         if adapter.job.debug:
             adapter.job.logger.info(f"Creating Namespace {ids['name']}.")
         _ns = OrmNamespace(
@@ -212,9 +224,12 @@ class NautobotNamespace(Namespace):
 
     def delete(self):
         """Delete Namespace in Nautobot."""
-        super().delete()
-        _ns = OrmNamespace.objects.get(id=self.uuid)
-        self.adapter.objects_to_delete["namespaces"].append(_ns)
+        if self.adapter.job.app_config.delete_namespaces_on_sync:
+            super().delete()
+            if self.adapter.job.debug:
+                self.adapter.job.logger.warning(f"Namespace {self.name} will be deleted per app settings.")
+            _ns = OrmNamespace.objects.get(id=self.uuid)
+            self.adapter.objects_to_delete["namespaces"].append(_ns)
         return self
 
 
@@ -236,9 +251,12 @@ class NautobotPrefix(Prefix):
 
     def delete(self):
         """Delete Prefix in Nautobot."""
-        super().delete()
-        _pf = OrmPrefix.objects.get(id=self.uuid)
-        self.adapter.objects_to_delete["prefixes"].append(_pf)
+        if self.adapter.job.app_config.delete_prefixes_on_sync:
+            super().delete()
+            if self.adapter.job.debug:
+                self.adapter.job.logger.warning(f"Prefix {self.name} will be deleted per app settings.")
+            _pf = OrmPrefix.objects.get(id=self.uuid)
+            self.adapter.objects_to_delete["prefixes"].append(_pf)
         return self
 
 
@@ -260,9 +278,12 @@ class NautobotIPAddress(IPAddress):
 
     def delete(self):
         """Delete IPAddress in Nautobot."""
-        super().delete()
-        ipaddr = OrmIPAddress.objects.get(id=self.uuid)
-        self.adapter.objects_to_delete["ipaddresses"].append(ipaddr)
+        if self.adapter.job.app_config.delete_ipaddresses_on_sync:
+            super().delete()
+            if self.adapter.job.debug:
+                self.adapter.job.logger.warning(f"IPAddress {self.address} will be deleted per app settings.")
+            ipaddr = OrmIPAddress.objects.get(id=self.uuid)
+            self.adapter.objects_to_delete["ipaddresses"].append(ipaddr)
         return self
 
 
@@ -296,7 +317,7 @@ class NautobotIPAssignment(IPAssignment):
         """Update IPAddressToInterface in Nautobot."""
         map = IPAddressToInterface.objects.get(id=self.uuid)
         if attrs.get("primary"):
-            if ":" in map.ip_address.address:
+            if ":" in str(map.ip_address.address):
                 map.interface.device.primary_ip6 = map.ip_address
             else:
                 map.interface.device.primary_ip4 = map.ip_address

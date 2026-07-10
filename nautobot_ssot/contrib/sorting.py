@@ -5,8 +5,8 @@ import sys
 from diffsync import Adapter, DiffSyncModel
 from typing_extensions import get_type_hints
 
+from nautobot_ssot.contrib.enums import SortType
 from nautobot_ssot.contrib.typeddicts import SortKey
-from nautobot_ssot.contrib.types import SortType
 
 
 def _is_sortable_field(attribute_type_hints) -> bool:

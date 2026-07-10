@@ -1,0 +1,18 @@
+{
+   "value":[
+      {
+         "memory_size_MiB":4096,
+         "vm":"vm-100",
+         "name":"DuplicateNamedVM",
+         "power_state":"POWERED_ON",
+         "cpu_count":2
+      },
+      {
+         "memory_size_MiB":4096,
+         "vm":"vm-200",
+         "name":"DuplicateNamedVM",
+         "power_state":"POWERED_ON",
+         "cpu_count":2
+      }
+   ]
+}

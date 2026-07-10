@@ -12,8 +12,8 @@ from pydantic import field_serializer
 from typing_extensions import TypedDict  # pylint: disable=C0412
 
 from nautobot_ssot.contrib import CustomFieldAnnotation, NautobotModel
+from nautobot_ssot.contrib.typeddicts import ContentTypeDict, TagDict
 from nautobot_ssot.integrations.slurpit import constants
-from nautobot_ssot.tests.contrib_base_classes import ContentTypeDict, TagDict
 
 
 class ModelQuerySetMixin:
@@ -392,7 +392,7 @@ class IPAddressToInterfaceModel(ModelQuerySetMixin, NautobotModel):
     interface__device__primary_ip6__host: Optional[str] = None
 
 
-class NautobotIPAddressToInterfaceModel(IPAddressToInterfaceModel):
+class NautobotIPAddressToInterfaceModel(IPAddressToInterfaceModel):  # pylint: disable=too-many-ancestors
     """IPAddressToInterface model for Nautobot."""
 
     @classmethod

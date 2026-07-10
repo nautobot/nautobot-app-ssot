@@ -42,7 +42,7 @@ from rest_framework.response import Response
 
 from nautobot_ssot.api import serializers
 from nautobot_ssot.integrations import utils
-from nautobot_ssot.templatetags.render_diff import render_diff
+from nautobot_ssot.templatetags.render_diff import render_diff, render_diff_paginated
 
 from .filters import SyncFilterSet, SyncLogEntryFilterSet
 from .forms import SyncBulkEditForm, SyncFilterForm, SyncForm, SyncLogEntryFilterForm
@@ -135,6 +135,9 @@ class DiffPanel(ObjectTextPanel):
     def get_value(self, context):
         """Render the value for the diff."""
         obj = get_obj_from_context(context, "object")
+        request = context.get("request")
+        if request is not None:
+            return render_diff_paginated(obj.diff, request)
         return render_diff(obj.diff)
 
 

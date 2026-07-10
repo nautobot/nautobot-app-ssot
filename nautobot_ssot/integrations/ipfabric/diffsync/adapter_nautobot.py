@@ -18,6 +18,7 @@ from nautobot.ipam.models import VLAN, Interface
 from netutils.ip import cidr_to_netmask
 from netutils.mac import mac_to_format
 
+import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_utils
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_MAC,
     DEFAULT_INTERFACE_MTU,
@@ -53,6 +54,22 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         self.sync = sync
         self.sync_ipfabric_tagged_only = sync_ipfabric_tagged_only
         self.location_filter = location_filter
+        self.ssot_tag = tonb_utils.get_or_create_tag_object(
+            tag_name="SSoT Synced from IPFabric",
+            tag_color=ColorChoices.COLOR_LIGHT_GREEN,
+            description="Object synced at some point from IPFabric to Nautobot",
+            app_label="dcim",
+            model="device",
+            logger=self.job.logger,
+        )
+        self.safe_delete_tag = tonb_utils.get_or_create_tag_object(
+            tag_name="SSoT Safe Delete",
+            tag_color=ColorChoices.COLOR_RED,
+            description="Safe Delete Mode tag to flag an object, but not delete from Nautobot.",
+            app_label="dcim",
+            model="device",
+            logger=self.job.logger,
+        )
 
     def sync_complete(self, source: Adapter, *args, **kwargs):
         """Clean up function for DiffSync sync.
@@ -91,11 +108,14 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             device_primary_ip = device_record.primary_ip6
 
         for interface_record in device_record.interfaces.all():
-            ip_address_obj = interface_record.ip_addresses.first()
-            if ip_address_obj:
+            # Avoid .first() to preserve prefetch cache
+            ip_addresses = interface_record.ip_addresses.all()
+            if ip_addresses:
+                ip_address_obj = ip_addresses[0]
                 ip_address = ip_address_obj.host
                 subnet_mask = cidr_to_netmask(ip_address_obj.mask_length)
             else:
+                ip_address_obj = None
                 ip_address = None
                 subnet_mask = None
             interface = self.interface(
@@ -122,14 +142,26 @@ class NautobotDiffSync(DiffSyncModelAdapters):
 
     def load_device(self, filtered_devices: List, location):
         """Load Devices from Nautobot."""
-        for device_record in filtered_devices:
+        optimized_query = (
+            filtered_devices.select_related(
+                "location",
+                "device_type__manufacturer",
+                "primary_ip4",
+                "primary_ip6",
+                "role",
+                "status",
+                "platform",
+                "virtual_chassis",
+                "virtual_chassis__master",
+            )
+            .prefetch_related("interfaces__ip_addresses")
+            .iterator(1000)
+        )
+        for device_record in optimized_query:
             if self.job.debug:
                 logger.debug("Loading Nautobot Device: %s", device_record.name)
-            device_role = (
-                str(device_record.role.cf.get("ipfabric_type"))
-                if device_record.role.cf.get("ipfabric_type")
-                else device_record.role.name
-            )
+            ipfabric_type = device_record.role.cf.get("ipfabric_type")
+            device_role = str(ipfabric_type) if ipfabric_type else device_record.role.name
             device = self.device(
                 name=device_record.name,
                 model=str(device_record.device_type),
@@ -155,15 +187,13 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             location.add_child(device)
             self.load_interfaces(device_record=device_record, diffsync_device=device)
 
-    def load_vlans(self, filtered_vlans: List, location):
+    def load_vlans(self, filtered_vlans: List, location, location_record):
         """Add Nautobot VLAN objects as DiffSync VLAN models."""
         for vlan_record in filtered_vlans:
-            if not vlan_record:
-                continue
             vlan = self.vlan(
                 name=vlan_record.name,
-                location=vlan_record.location.name,
-                status=vlan_record.status.name if vlan_record.status else "Active",
+                location=location_record.name,
+                status=vlan_record.status.name,
                 vid=vlan_record.vid,
                 vlan_pk=vlan_record.pk,
                 description=vlan_record.description,
@@ -185,9 +215,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         if self.sync_ipfabric_tagged_only:
             location_objects = Location.objects.filter(tags__name=ssot_tag.name)
             if self.location_filter:
-                location_objects = Location.objects.filter(
-                    Q(name=self.location_filter.name) & Q(tags__name=ssot_tag.name)
-                )
+                location_objects = location_objects.filter(name=self.location_filter.name)
                 if not location_objects:
                     logger.warning(
                         f"{self.location_filter.name} was used to filter, alongside SSoT Tag. {self.location_filter.name} is not tagged."
@@ -197,22 +225,15 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 location_objects = Location.objects.filter(name=self.location_filter.name)
             else:
                 location_objects = Location.objects.all()
-        return location_objects
+        return location_objects.select_related("status")
 
     @transaction.atomic
     def load_data(self):
         """Add Nautobot Location objects as DiffSync Location models."""
-        ssot_tag, _ = Tag.objects.get_or_create(
-            name="SSoT Synced from IPFabric",
-            defaults={
-                "description": "Object synced at some point from IPFabric to Nautobot",
-                "color": ColorChoices.COLOR_LIGHT_GREEN,
-            },
-        )
-        location_objects = self.get_initial_location(ssot_tag)
+        location_objects = self.get_initial_location(self.ssot_tag)
         # The parent object that stores all children, is the Location.
         if self.job.debug:
-            logger.debug("Found %s Nautobot Location objects to start sync from", location_objects.count())
+            logger.debug("Found %s Nautobot Location objects to start sync from", len(location_objects))
 
         if location_objects:
             for location_record in location_objects:
@@ -232,18 +253,19 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     # Load Location's Children - Devices with Interfaces, if any.
                     if self.sync_ipfabric_tagged_only:
                         nautobot_location_devices = Device.objects.filter(
-                            Q(location=location_record) & Q(tags__name=ssot_tag.name)
+                            Q(location=location_record) & Q(tags=self.ssot_tag)
                         )
                     else:
                         nautobot_location_devices = Device.objects.filter(location=location_record)
-                    if nautobot_location_devices.exists():
-                        self.load_device(nautobot_location_devices, location)
+                    self.load_device(nautobot_location_devices, location)
 
                     # Load Location Children - Vlans, if any.
-                    nautobot_location_vlans = VLAN.objects.filter(location=location_record)
-                    if not nautobot_location_vlans.exists():
-                        continue
-                    self.load_vlans(nautobot_location_vlans, location)
+                    nautobot_location_vlans = (
+                        VLAN.objects.filter(location=location_record)
+                        .select_related("status")
+                        .prefetch_related("locations")
+                    )
+                    self.load_vlans(nautobot_location_vlans, location, location_record)
                 except Location.DoesNotExist:
                     logger.error("Unable to find Location, %s.", location_record)
         else:
