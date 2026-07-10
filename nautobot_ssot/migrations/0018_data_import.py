@@ -9,7 +9,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("nautobot_ssot", "0019_ssotendpoint_normalize_config"),
+        ("nautobot_ssot", "0017_ssotvsphereconfig_sync_vsphere_tags"),
         ("extras", "0102_set_null_objectchange_contenttype"),
     ]
 

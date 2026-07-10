@@ -109,7 +109,6 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "enable_slurpit": False,
         "enable_solarwinds": False,
         "enable_itential": False,
-        "enable_generic_ssot": False,
         "enable_data_import": False,
         "enable_vsphere": False,
         "hide_example_jobs": True,
