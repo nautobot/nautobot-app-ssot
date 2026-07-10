@@ -356,7 +356,7 @@ class NautobotDevice(Device):
             device.status = Status.objects.get_or_create(name=attrs["status"])[0]
         if "role" in attrs:
             device.role = ensure_role(role_name=attrs["role"], content_type=ORMDevice)
-        if "location" in attrs:
+        if "location" in attrs and self.adapter.job.sync_locations:
             # Get location data from the device attributes
             location_name = attrs["location"]
             parent_location_name = attrs.get("parent_location")
