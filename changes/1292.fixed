@@ -1,0 +1,1 @@
+Fixed LibreNMS device sync overwriting a device's location on every run regardless of the sync_locations setting.
