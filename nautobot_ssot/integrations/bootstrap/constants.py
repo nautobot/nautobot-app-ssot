@@ -116,7 +116,6 @@ SCOPED_FIELDS_MAPPING = {
         "crontab",
         "job_vars",
         "profile",
-        "approval_required",
         "enabled",
         "kwargs",
         "celery_kwargs",
