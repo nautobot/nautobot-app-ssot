@@ -56,6 +56,7 @@ Configuration instance contains the below settings:
 | Infoblox Sync Filters                         | `[{"network_view": "default"}]`                      | Filters control what data is loaded from the source and target systems and considered for sync.      |
 | Infoblox Network View to DNS Mapping          | `{}`                                                 | Map specifying Infoblox DNS View for each Network View where DNS records need to be created.         |
 | Extensible Attributes/Custom Fields to Ignore | `{"custom_fields": [], "extensible_attributes": []}` | Specifies Nautobot custom fields and Infoblox extensible attributes that are excluded from the sync. |
+| Infoblox Location Extensibility Attribute     | `""` (blank)                                         | Name of the Infoblox Extensibility Attribute whose value maps to a Nautobot Location. When set, only that attribute maps to a Location and the built-in `site`/`facility`/`location` names become ordinary custom fields. Leave blank to use the built-in names. |
 
 
 Each Infoblox configuration must be linked to an External Integration describing the Infoblox instance. The following External Integration fields must be defined for integration to work correctly:

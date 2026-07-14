@@ -139,6 +139,7 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
             cf_fields_ignore={"extensible_attributes": ["aws_id"], "custom_fields": ["po_no"]},
             fixed_address_type=FixedAddressTypeChoices.MAC_ADDRESS,
             dns_record_type=DNSRecordTypeChoices.A_RECORD,
+            infoblox_location_ext_attr="region_site",
         )
         inf_cfg.validated_save()
 
@@ -162,6 +163,7 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
         self.assertEqual(inf_cfg_db.import_ipv6, True)
         self.assertEqual(inf_cfg_db.fixed_address_type, FixedAddressTypeChoices.MAC_ADDRESS)
         self.assertEqual(inf_cfg_db.dns_record_type, DNSRecordTypeChoices.A_RECORD)
+        self.assertEqual(inf_cfg_db.infoblox_location_ext_attr, "region_site")
         self.assertEqual(inf_cfg_db.job_enabled, True)
 
     def test_infoblox_sync_filters_must_be_a_list(self):
@@ -384,6 +386,34 @@ class SSOTInfobloxConfigTestCase(TestCase):  # pylint: disable=too-many-public-m
             failure_exception.exception.messages[0],
             "`infoblox_dns_view_mapping` must be a dictionary mapping network view names to dns view names.",
         )
+
+    def test_infoblox_location_ext_attr_rejects_reserved_name(self):
+        """infoblox_location_ext_attr cannot be a name already mapped to another Nautobot field."""
+        for reserved, target in (("vrf", "VRF"), ("tenant", "Tenant"), ("dept", "Tenant"), ("DEPARTMENT", "Tenant")):
+            inf_dict = deepcopy(self.infoblox_config_dict)
+            inf_dict["infoblox_location_ext_attr"] = reserved
+            infoblox_config = SSOTInfobloxConfig(**inf_dict)
+            with self.assertRaises(ValidationError) as failure_exception:
+                infoblox_config.full_clean()
+            self.assertIn("infoblox_location_ext_attr", failure_exception.exception.error_dict)
+            self.assertIn(target, failure_exception.exception.messages[0])
+
+    def test_infoblox_location_ext_attr_rejects_names_containing_role(self):
+        """infoblox_location_ext_attr cannot contain `role`, which is matched as a substring."""
+        inf_dict = deepcopy(self.infoblox_config_dict)
+        inf_dict["infoblox_location_ext_attr"] = "site_role"
+        infoblox_config = SSOTInfobloxConfig(**inf_dict)
+        with self.assertRaises(ValidationError) as failure_exception:
+            infoblox_config.full_clean()
+        self.assertIn("infoblox_location_ext_attr", failure_exception.exception.error_dict)
+        self.assertIn("role", failure_exception.exception.messages[0])
+
+    def test_infoblox_location_ext_attr_accepts_custom_name(self):
+        """A non-reserved infoblox_location_ext_attr name passes validation."""
+        inf_dict = deepcopy(self.infoblox_config_dict)
+        inf_dict["infoblox_location_ext_attr"] = "region_site"
+        infoblox_config = SSOTInfobloxConfig(**inf_dict)
+        infoblox_config.full_clean()
 
     def test_infoblox_infoblox_cf_fields_ignore_must_be_dict(self):
         """Value of `cf_fields_ignore` key must be a dict."""
