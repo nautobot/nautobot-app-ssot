@@ -409,15 +409,22 @@ class TestInfobloxAdapter(unittest.TestCase):
                 },
             ]
         ]
-        infoblox_adapter.conn.get_fixed_address_by_ref.return_value = {
-            "_ref": "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjIuMi4u:10.0.0.2/dev",
-            "ipv4addr": "10.0.0.2",
-            "extattrs": {},
-            "name": "fa-server1",
-            "comment": "fa server",
-            "network": "10.0.0.0/24",
-            "network_view": "dev",
+        records_by_type = {
+            "fixedaddress": {
+                "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjIuMi4u:10.0.0.2/dev": {
+                    "_ref": "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjIuMi4u:10.0.0.2/dev",
+                    "ipv4addr": "10.0.0.2",
+                    "extattrs": {},
+                    "name": "fa-server1",
+                    "comment": "fa server",
+                    "network": "10.0.0.0/24",
+                    "network_view": "dev",
+                }
+            },
         }
+        infoblox_adapter.conn.get_all_records_by_type.side_effect = (
+            lambda record_type, *args, **kwargs: records_by_type.get(record_type, {})
+        )
         network_view_to_namespace_map = {"default": "Global"}
         infoblox_adapter.load_ipaddresses(network_view_to_namespace_map=network_view_to_namespace_map)
         ip_address = infoblox_adapter.get(
@@ -489,31 +496,42 @@ class TestInfobloxAdapter(unittest.TestCase):
                 }
             ]
         ]
-        infoblox_adapter.conn.get_fixed_address_by_ref.return_value = {
-            "_ref": "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjIuMi4u:10.0.0.4/dev",
-            "ipv4addr": "10.0.0.4",
-            "extattrs": {},
-            "name": "fa-server1",
-            "comment": "fa server",
-            "network": "10.0.0.0/24",
-            "network_view": "dev",
+        records_by_type = {
+            "fixedaddress": {
+                "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjIuMi4u:10.0.0.4/dev": {
+                    "_ref": "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjIuMi4u:10.0.0.4/dev",
+                    "ipv4addr": "10.0.0.4",
+                    "extattrs": {},
+                    "name": "fa-server1",
+                    "comment": "fa server",
+                    "network": "10.0.0.0/24",
+                    "network_view": "dev",
+                }
+            },
+            "record:a": {
+                "record:a/ZG5zLmJpbmRfYSQuMi50ZXN0LmxvY2FsLm5hdXRvYm90LHNlcnZlcjExLDEwLjAuMC40:server11.nautobot.local.test/default.dev": {
+                    "_ref": "record:a/ZG5zLmJpbmRfYSQuMi50ZXN0LmxvY2FsLm5hdXRvYm90LHNlcnZlcjExLDEwLjAuMC40:server11.nautobot.local.test/default.dev",
+                    "ipv4addr": "10.0.0.4",
+                    "name": "server11.nautobot.local.test",
+                    "comment": "a record comment",
+                    "view": "default",
+                }
+            },
+            "record:ptr": {
+                "record:ptr/ZG5zLmJpbmRfcHRyJC4yLmFycGEuaW4tYWRkci4xMC4wLjAuNC5zZXJ2ZXIxMS5uYXV0b2JvdC5sb2NhbC50ZXN0:4.0.0.10.in-addr.arpa/default.dev": {
+                    "_ref": "record:ptr/ZG5zLmJpbmRfcHRyJC4yLmFycGEuaW4tYWRkci4xMC4wLjAuNC5zZXJ2ZXIxMS5uYXV0b2JvdC5sb2NhbC50ZXN0:4.0.0.10.in-addr.arpa/default.dev",
+                    "ipv4addr": "10.0.0.4",
+                    "ipv6addr": "",
+                    "name": "4.0.0.10.in-addr.arpa",
+                    "ptrdname": "server11.nautobot.local.test",
+                    "comment": "ptr record comment",
+                    "view": "default.dev",
+                }
+            },
         }
-        infoblox_adapter.conn.get_a_record_by_ref.return_value = {
-            "_ref": "record:a/ZG5zLmJpbmRfYSQuMi50ZXN0LmxvY2FsLm5hdXRvYm90LHNlcnZlcjExLDEwLjAuMC40:server11.nautobot.local.test/default.dev",
-            "ipv4addr": "10.0.0.4",
-            "name": "server11.nautobot.local.test",
-            "comment": "a record comment",
-            "view": "default",
-        }
-        infoblox_adapter.conn.get_ptr_record_by_ref.return_value = {
-            "_ref": "record:ptr/ZG5zLmJpbmRfcHRyJC4yLmFycGEuaW4tYWRkci4xMC4wLjAuNC5zZXJ2ZXIxMS5uYXV0b2JvdC5sb2NhbC50ZXN0:4.0.0.10.in-addr.arpa/default.dev",
-            "ipv4addr": "10.0.0.4",
-            "ipv6addr": "",
-            "name": "4.0.0.10.in-addr.arpa",
-            "ptrdname": "server11.nautobot.local.test",
-            "comment": "ptr record comment",
-            "view": "default.dev",
-        }
+        infoblox_adapter.conn.get_all_records_by_type.side_effect = (
+            lambda record_type, *args, **kwargs: records_by_type.get(record_type, {})
+        )
         network_view_to_namespace_map = {"default": "Global"}
         infoblox_adapter.load_ipaddresses(network_view_to_namespace_map=network_view_to_namespace_map)
         ip_address = infoblox_adapter.get(
@@ -628,31 +646,40 @@ class TestInfobloxAdapter(unittest.TestCase):
                 }
             ]
         ]
-        infoblox_adapter.conn.get_fixed_address_by_ref.return_value = {
-            "_ref": "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjQuMi4u:10.0.0.4/dev",
-            "ipv4addr": "10.0.0.4",
-            "extattrs": {},
-            "name": "fa-server1",
-            "comment": "fa server",
-            "network": "10.0.0.0/24",
-            "network_view": "dev",
-        }
-        infoblox_adapter.conn.get_host_record_by_ref.return_value = {
-            "_ref": "record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice1.test/default",
-            "ipv4addr": "10.0.0.4",
-            "ipv4addrs": [
-                {
-                    "_ref": "record:host/ZG5zLmhvc3QkLjIudGVzdC5sb2NhbC5uYXV0b2JvdC5zZXJ2ZXIx:server1.nautobot.local.test/default.dev",
-                    "configure_for_dhcp": "true",
-                    "host": "server1.nautobot.local.test",
+        records_by_type = {
+            "fixedaddress": {
+                "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjQuMi4u:10.0.0.4/dev": {
+                    "_ref": "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjQuMi4u:10.0.0.4/dev",
                     "ipv4addr": "10.0.0.4",
-                    "mac": "",
+                    "extattrs": {},
+                    "name": "fa-server1",
+                    "comment": "fa server",
+                    "network": "10.0.0.0/24",
+                    "network_view": "dev",
                 }
-            ],
-            "name": "server1.nautobot.local.test",
-            "view": "default",
-            "comment": "host record comment",
+            },
+            "record:host": {
+                "record:host/ZG5zLmhvc3QkLjIudGVzdC5sb2NhbC5uYXV0b2JvdC5zZXJ2ZXIx:server1.nautobot.local.test/default.dev": {
+                    "_ref": "record:host/ZG5zLmhvc3QkLjIudGVzdC5sb2NhbC5uYXV0b2JvdC5zZXJ2ZXIx:server1.nautobot.local.test/default.dev",
+                    "ipv4addr": "10.0.0.4",
+                    "ipv4addrs": [
+                        {
+                            "_ref": "record:host/ZG5zLmhvc3QkLjIudGVzdC5sb2NhbC5uYXV0b2JvdC5zZXJ2ZXIx:server1.nautobot.local.test/default.dev",
+                            "configure_for_dhcp": "true",
+                            "host": "server1.nautobot.local.test",
+                            "ipv4addr": "10.0.0.4",
+                            "mac": "",
+                        }
+                    ],
+                    "name": "server1.nautobot.local.test",
+                    "view": "default",
+                    "comment": "host record comment",
+                }
+            },
         }
+        infoblox_adapter.conn.get_all_records_by_type.side_effect = (
+            lambda record_type, *args, **kwargs: records_by_type.get(record_type, {})
+        )
         network_view_to_namespace_map = {"default": "Global"}
         infoblox_adapter.load_ipaddresses(network_view_to_namespace_map=network_view_to_namespace_map)
         ip_address = infoblox_adapter.get(
@@ -698,3 +725,89 @@ class TestInfobloxAdapter(unittest.TestCase):
 
         mock_default_extra_attrs.assert_called_once()
         self.assertEqual(mock_extra_attr_dict.call_count, 2)
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox.get_default_ext_attrs",
+        autospec=True,
+        return_value={},
+    )
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox.get_ext_attr_dict",
+        autospec=True,
+        return_value={},
+    )
+    def test_load_ip_addresses_dns_record_missing_from_bulk_is_skipped(
+        self,
+        mock_extra_attr_dict,  # pylint: disable=unused-argument
+        mock_default_extra_attrs,  # pylint: disable=unused-argument
+    ):
+        """A DNS record referenced by an IP but absent from the bulk fetch is skipped with a warning, not a crash.
+
+        Reproduces the "dynamic and expired" case: the ipv4address scan references a Host record ref, but the
+        bulk 'record:host' fetch does not contain it (e.g. the record expired between the scan and the fetch).
+        The load must warn and continue.
+        """
+        job = unittest.mock.Mock()
+        self.config.fixed_address_type = FixedAddressTypeChoices.RESERVED
+        with unittest.mock.patch(
+            "nautobot_ssot.integrations.infoblox.utils.client.InfobloxApi", autospec=True
+        ) as mock_client:
+            infoblox_adapter = InfobloxAdapter(
+                job=job,
+                sync=unittest.mock.Mock(),
+                conn=mock_client,
+                config=self.config,
+            )
+        fixed_ref = "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjQuMi4u:10.0.0.4/dev"
+        host_ref = (
+            "record:host/ZG5zLmhvc3QkLjIudGVzdC5sb2NhbC5uYXV0b2JvdC5zZXJ2ZXIx:server1.nautobot.local.test/default.dev"
+        )
+        infoblox_adapter.conn.get_ipaddr_status.return_value = "Active"
+        infoblox_adapter.conn.get_all_ipv4address_networks.side_effect = [
+            [
+                {
+                    "_ref": "ipv4address/Li5pcHY0X2FkZHJlc3MkMTAuMC4wLjMvMg:10.0.0.4/dev",
+                    "ip_address": "10.0.0.4",
+                    "is_conflict": "false",
+                    "mac_address": "",
+                    "names": ["server1.nautobot.local.test"],
+                    "network": "10.0.0.0/24",
+                    "network_view": "dev",
+                    "objects": [fixed_ref, host_ref],
+                    "status": "USED",
+                    "types": ["HOST", "RESERVATION"],
+                    "usage": ["DHCP", "DNS"],
+                }
+            ]
+        ]
+        # The fixed address is present in the bulk fetch, but 'record:host' is empty -- the referenced host
+        # ref is absent (expired), so get_all_records_by_type('record:host').get(host_ref) returns None.
+        records_by_type = {
+            "fixedaddress": {
+                fixed_ref: {
+                    "_ref": fixed_ref,
+                    "ipv4addr": "10.0.0.4",
+                    "extattrs": {},
+                    "name": "fa-server1",
+                    "comment": "fa server",
+                    "network": "10.0.0.0/24",
+                    "network_view": "dev",
+                }
+            },
+            "record:host": {},
+        }
+        infoblox_adapter.conn.get_all_records_by_type.side_effect = (
+            lambda record_type, *args, **kwargs: records_by_type.get(record_type, {})
+        )
+        network_view_to_namespace_map = {"default": "Global"}
+        infoblox_adapter.load_ipaddresses(network_view_to_namespace_map=network_view_to_namespace_map)
+
+        # The IP itself is still loaded (the sync continued past the missing record).
+        ip_address = infoblox_adapter.get(
+            "ipaddress",
+            {"address": "10.0.0.4", "prefix": "10.0.0.0/24", "prefix_length": 24, "namespace": "dev"},
+        )
+        self.assertEqual("10.0.0.4", ip_address.address)
+        self.assertEqual("fa-server1", ip_address.description)
+        self.assertEqual([], infoblox_adapter.get_all("dnshostrecord"))
+        job.logger.warning.assert_any_call(f"Host record {host_ref} not found, likely dynamic and expired.")
