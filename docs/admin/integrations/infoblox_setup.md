@@ -186,25 +186,28 @@ The Infoblox Integration requires the following Nautobot custom fields, tags, an
 
 ### Custom Fields
 
-`dhcp_ranges` - Records DHCP ranges associated with a network. This applies to the following models: `Prefix`.
-`ssot_synced_to_infoblox` - Records the date the Nautobot object was last synchronized to Infoblox. This applies to the following models: `IPAddress`, `Prefix`, `VLAN`, and `VLANGroup`.
-`mac_address` - Records MAC address associated with an IP Address. This is required when creating an Infoblox Fixed Address of type MAC from Nautobot IP Address objects. This applies to the following model: `IPAddress`.
-`fixed_address_comment` - Records comment for the corresponding Fixed Address record in Infoblox. This applies to the following model: `IPAddress`.
-`dns_a_record_comment_custom_field` - Records comment for the corresponding DNS A record in Infoblox. This applies to the following model: `IPAddress`.
-`dns_host_record_comment_custom_field` - Records comment for the corresponding DNS Host record in Infoblox. This applies to the following model: `IPAddress`.
-`dns_ptr_record_comment_custom_field` - Records comment for the corresponding DNS PTR record in Infoblox. This applies to the following model: `IPAddress`.
-
+| Custom Field key | Label (in UI) | Type | Applies to | Purpose |
+| --- | --- | --- | --- | --- |
+| `ssot_synced_to_infoblox` | Last synced to Infoblox on | Date | `IPAddress`, `Prefix`, `VLAN`, `VLANGroup` | Date the object was last synchronized to Infoblox. |
+| `dhcp_ranges` | DHCP Ranges | Text | `Prefix` | DHCP ranges associated with a network. |
+| `mac_address` | MAC Address | Text | `IPAddress` | MAC address associated with an IP Address. Required to create an Infoblox Fixed Address of type MAC from a Nautobot IP Address. |
+| `fixed_address_comment` | Fixed Address Comment | Text | `IPAddress` | Comment for the corresponding Fixed Address record in Infoblox. |
+| `dns_a_record_comment` | DNS A Record Comment | Text | `IPAddress` | Comment for the corresponding DNS A record in Infoblox. |
+| `dns_host_record_comment` | DNS Host Record Comment | Text | `IPAddress` | Comment for the corresponding DNS Host record in Infoblox. |
+| `dns_ptr_record_comment` | DNS PTR Record Comment | Text | `IPAddress` | Comment for the corresponding DNS PTR record in Infoblox. |
 
 ### Tags
 
-`SSoT Synced from Infoblox` - Used to tag Nautobot objects that were synchronized from Infoblox. This applies to the following models: `IPAddress`, `Namespace`, `Prefix`, and `VLAN`.
-`SSoT Synced to Infoblox` - Used to tag Nautobot objects that were synchronized to Infoblox.
-This applies to the following models: `IPAddress`, `Prefix`, and `VLAN`.
-
+| Tag | Applies to | Purpose |
+| --- | --- | --- |
+| `SSoT Synced from Infoblox` | `IPAddress`, `Namespace`, `Prefix`, `VLAN` | Tags Nautobot objects that were synchronized from Infoblox. |
+| `SSoT Synced to Infoblox` | `IPAddress`, `Prefix`, `VLAN` | Tags Nautobot objects that were synchronized to Infoblox. |
 
 ### Relationships
 
-`prefix_to_vlan` - Used to link Nautobot Prefix to a Nautobot VLAN. This corresponds to an Infoblox Network to VLAN relationship.
+| Relationship key | Label | Links | Purpose |
+| --- | --- | --- | --- |
+| `prefix_to_vlan` | Prefix -> VLAN | `Prefix` → `VLAN` | Links a Nautobot Prefix to a Nautobot VLAN. Corresponds to an Infoblox Network to VLAN relationship. |
 
 ### Usage Notes
 
