@@ -377,8 +377,8 @@ class NautobotDevice(Device):
             device.platform = _platform
         if "os_version" in attrs:
             _software_version = ensure_software_version(
-                platform=_platform,
-                manufacturer=self.manufacturer.name,
+                platform=device.platform,
+                manufacturer=self.manufacturer,
                 version=attrs["os_version"],
                 device_type=device.device_type,
             )

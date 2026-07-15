@@ -8,6 +8,7 @@ from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device as ORMDevice
 from nautobot.dcim.models import DeviceType, LocationType, Manufacturer
 from nautobot.dcim.models import Location as ORMLocation
+from nautobot.dcim.models import Platform as ORMPlatform
 from nautobot.extras.models import Role, Status
 
 from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import NautobotDevice
@@ -105,3 +106,64 @@ class TestNautobotDeviceLocationSync(TestCase):
 
         new_orm_device = ORMDevice.objects.get(name="new-device")
         self.assertEqual(new_orm_device.location, self.catch_all)
+
+
+class TestNautobotDeviceUpdatePlatform(TestCase):
+    """Test that NautobotDevice.update() can update os_version without a platform change (issue #1153)."""
+
+    databases = ("default", "job_logs")
+
+    def setUp(self):
+        """Set up a Nautobot Device that already has a Platform assigned."""
+        super().setUp()
+        self.active_status, _ = Status.objects.get_or_create(name="Active")
+        self.active_status.content_types.add(ContentType.objects.get_for_model(ORMDevice))
+
+        self.site_type, _ = LocationType.objects.get_or_create(name="Site")
+        self.site_type.content_types.add(ContentType.objects.get_for_model(ORMDevice))
+
+        self.chicago = ORMLocation.objects.create(
+            name="Chicago", location_type=self.site_type, status=self.active_status
+        )
+
+        manufacturer, _ = Manufacturer.objects.get_or_create(name="Generic")
+        device_type, _ = DeviceType.objects.get_or_create(model="Test Device Type", manufacturer=manufacturer)
+        role, _ = Role.objects.get_or_create(name="Test Role")
+        role.content_types.add(ContentType.objects.get_for_model(ORMDevice))
+        self.platform, _ = ORMPlatform.objects.get_or_create(name="linux", defaults={"manufacturer": manufacturer})
+
+        self.orm_device = ORMDevice.objects.create(
+            name="test-device",
+            device_type=device_type,
+            status=self.active_status,
+            role=role,
+            location=self.chicago,
+            platform=self.platform,
+        )
+
+        self.adapter = MagicMock(spec=Adapter)
+        self.adapter.job = MagicMock()
+        self.adapter.job.debug = False
+        self.adapter.job.sync_locations = False
+        self.adapter.tenant = None
+
+        self.diffsync_device = NautobotDevice(
+            name="test-device",
+            location="Chicago",
+            status="Active",
+            device_type="Test Device Type",
+            manufacturer="Generic",
+            system_of_record="LibreNMS",
+            uuid=self.orm_device.id,
+        )
+        self.diffsync_device.adapter = self.adapter
+
+    def test_update_os_version_without_platform_does_not_raise(self):
+        """Updating os_version alone must not raise UnboundLocalError for _platform."""
+        self.diffsync_device.update(attrs={"os_version": "2.0"})
+
+        self.orm_device.refresh_from_db()
+        software_version = self.orm_device.software_version
+        self.assertIsNotNone(software_version)
+        self.assertEqual(software_version.platform, self.platform)
+        self.assertEqual(software_version.version, "2.0")
