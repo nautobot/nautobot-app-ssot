@@ -1,0 +1,1 @@
+Fixed `NautobotModel.create`/`update` raising `FieldDoesNotExist` for generic-foreign-key-style fields that are implemented as plain Python properties rather than model fields (e.g. `Cable.termination_a`/`termination_b` on Nautobot's `next` branch).

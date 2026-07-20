@@ -9,7 +9,7 @@ from datetime import datetime
 from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException, ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
 from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import MultipleObjectsReturned, ValidationError
+from django.core.exceptions import FieldDoesNotExist, MultipleObjectsReturned, ValidationError
 from django.db.models import ProtectedError, QuerySet
 from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
@@ -168,10 +168,19 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
                 )
             # Normal foreign keys
             else:
-                django_field = cls._model._meta.get_field(related_model)
+                try:
+                    # For generic foreign keys (i.e. `GenericForeignKey` fields), `related_model` is `None` here;
+                    # the concrete model class is resolved from the `<field>__app_label` / `<field>__model` values
+                    # in `_lookup_and_set_foreign_keys` instead.
+                    related_model_class = cls._model._meta.get_field(related_model).related_model
+                except FieldDoesNotExist:
+                    # Some generic foreign keys are plain Python properties rather than `GenericForeignKey` fields
+                    # (e.g. `Cable.termination_a`/`termination_b` on Nautobot's `next` branch) and thus aren't
+                    # registered in the model's `_meta` at all. Treat them the same as generic foreign keys.
+                    related_model_class = None
                 relationship_fields["foreign_keys"][related_model][lookup] = value
                 # Add a special key to the dictionary to point to the related model's class
-                relationship_fields["foreign_keys"][related_model]["_model_class"] = django_field.related_model
+                relationship_fields["foreign_keys"][related_model]["_model_class"] = related_model_class
             return
 
         # Prepare handling of custom relationship many-to-many fields.

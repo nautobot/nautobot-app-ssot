@@ -1,0 +1,1 @@
+Fixed nondeterministic cable termination ordering in `NautobotAdapterGenericRelationTests` that caused intermittent failures against Nautobot's `next` branch.
