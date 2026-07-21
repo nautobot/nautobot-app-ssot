@@ -733,6 +733,77 @@ class TestCloudvisionUtils(TestCase):
             )
         self.assertEqual(results, "")
 
+    def test_get_routed_interface_description_split_notifications(self):
+        """Test get_routed_interface_description merges frames when the description omits intfId.
+
+        Regression: CloudVision streams an interface's attributes across multiple frames. The
+        identity frame carries intfId while a later frame carries the description and omits intfId,
+        identifying the interface only via path_elements. Matching on updates["intfId"] dropped that
+        frame, so the description was never returned.
+        """
+        path = ["Sysdb", "interface", "config", "loopback", "intf", "intfConfig", "Loopback0"]
+        batches = [
+            {
+                "notifications": [
+                    {"path_elements": path, "updates": {"intfId": "Loopback0", "mtu": 1500}},
+                    {"path_elements": path, "updates": {"description": "router id"}},
+                ]
+            }
+        ]
+        with patch("cloudvision.Connector.grpc_client.grpcClient.create_query", MagicMock()):
+            self.client.get = MagicMock(return_value=batches)
+            results = cloudvision.get_routed_interface_description(
+                client=self.client, dId="JPE12345678", interface="Loopback0"
+            )
+        self.assertEqual(results, "router id")
+
+    def test_get_all_interface_descriptions_split_notifications(self):
+        """Test get_all_interface_descriptions merges frames when the description omits intfId.
+
+        Regression: CloudVision streams an interface's attributes across multiple frames. A frame
+        carrying the description may omit intfId, identifying the interface only via path_elements.
+        Keying on updates["intfId"] dropped that frame, so the interface's description was lost.
+        """
+        physical_batch = [
+            {
+                "notifications": [
+                    {
+                        "path_elements": [
+                            "Sysdb",
+                            "interface",
+                            "config",
+                            "eth",
+                            "phy",
+                            "slice",
+                            "1",
+                            "intfConfig",
+                            "Ethernet1",
+                        ],
+                        "updates": {"intfId": "Ethernet1", "mtu": 1500},
+                    },
+                    {
+                        "path_elements": [
+                            "Sysdb",
+                            "interface",
+                            "config",
+                            "eth",
+                            "phy",
+                            "slice",
+                            "1",
+                            "intfConfig",
+                            "Ethernet1",
+                        ],
+                        "updates": {"description": "uplink to spine"},
+                    },
+                ]
+            }
+        ]
+        non_physical_batch = [{"notifications": []}]
+        with patch("cloudvision.Connector.grpc_client.grpcClient.create_query", MagicMock()):
+            self.client.get = MagicMock(side_effect=[physical_batch, non_physical_batch])
+            results = cloudvision.get_all_interface_descriptions(client=self.client, dId="JPE12345678")
+        self.assertEqual(results, {"Ethernet1": "uplink to spine"})
+
     def test_get_ip_interfaces(self):
         """Test the get_ip_interfaces method."""
         mock_query = MagicMock()
