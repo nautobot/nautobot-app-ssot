@@ -7,6 +7,7 @@ import ipaddress
 import json
 import logging
 import os
+from typing import Optional
 
 from constance import config as constance_name
 from django.conf import settings
@@ -59,6 +60,40 @@ def hostname_is_ip_address(hostname_str):
         return True
     except ValueError:
         return False
+
+
+def build_device_unique_id(tenant: Optional[str], device_id: Optional[int], name: str) -> str:
+    """Tenant-scoped diffsync identifier for a Device.
+
+    Uses the stable LibreNMS device_id when known, so renames don't cause delete+recreate.
+    Falls back to a tenant-scoped name key when no device_id is known yet (e.g. a brand-new
+    device being pushed from Nautobot to LibreNMS, or a Nautobot device with no LibreNMS
+    counterpart at all) so such devices never collide with each other on a shared `None` key.
+    """
+    tenant_key = tenant or "GLOBAL"
+    if device_id is not None:
+        return f"{tenant_key}::id::{device_id}"
+    return f"{tenant_key}::name::{name}"
+
+
+def backfill_librenms_device_ids(nautobot_devices, hostname_to_device_id, job):
+    """Stamp librenms_device_id onto Nautobot Devices synced under the old name-keyed scheme.
+
+    Matches by normalized hostname against the already-loaded LibreNMS source devices.
+    Idempotent: no-ops for devices that already have the custom field set, or that don't match.
+    """
+    matched = 0
+    for nb_device in nautobot_devices:
+        if nb_device.custom_field_data.get("librenms_device_id"):
+            continue
+        device_id = hostname_to_device_id.get(nb_device.name)
+        if device_id is not None:
+            nb_device.custom_field_data["librenms_device_id"] = device_id
+            nb_device.validated_save()
+            matched += 1
+    if matched:
+        job.logger.info(f"Backfilled librenms_device_id for {matched} device(s) matched by hostname.")
+    return matched
 
 
 def has_required_values(device, job):

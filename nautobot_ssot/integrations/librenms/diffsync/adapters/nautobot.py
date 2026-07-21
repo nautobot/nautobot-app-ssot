@@ -9,11 +9,14 @@ from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import Location as OrmLocation
 from nautobot.tenancy.models import Tenant
 
+from nautobot_ssot.integrations.librenms.diffsync.adapters.librenms import LibrenmsAdapter
 from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import (
     NautobotDevice,
     NautobotLocation,
 )
 from nautobot_ssot.integrations.librenms.utils import (
+    backfill_librenms_device_ids,
+    build_device_unique_id,
     check_sor_field,
     get_sor_field_nautobot_object,
 )
@@ -75,6 +78,11 @@ class NautobotAdapter(Adapter):
             devices = OrmDevice.objects.filter(tenant=self.tenant)
         else:
             devices = OrmDevice.objects.all()
+
+        if isinstance(getattr(self.job, "source_adapter", None), LibrenmsAdapter):
+            hostname_to_device_id = {d.name: d.device_id for d in self.job.source_adapter.get_all("device")}
+            backfill_librenms_device_ids(devices, hostname_to_device_id, self.job)
+
         for nb_device in devices:
             if nb_device.platform is None:
                 self.job.logger.warning(
@@ -89,8 +97,13 @@ class NautobotAdapter(Adapter):
                 self.job.logger.debug(
                     f"Nautobot Adapter Manufacturer for {nb_device.name}: {nb_device.device_type.manufacturer.name}"
                 )
+            _device_id = None
+            if nb_device.custom_field_data.get("librenms_device_id"):
+                _device_id = nb_device.custom_field_data.get("librenms_device_id")
+            _tenant = nb_device.tenant.name if nb_device.tenant else None
+            unique_id = build_device_unique_id(_tenant, _device_id, nb_device.name)
             try:
-                self.get(self.device, nb_device.name)
+                self.get(self.device, {"unique_id": unique_id})
             except ObjectNotFound:
                 try:
                     _software_version = nb_device.software_version.version
@@ -102,16 +115,14 @@ class NautobotAdapter(Adapter):
                 except AttributeError:
                     _ip_address = None
                     _ip_prefix = None
-                _device_id = None
-                if nb_device.custom_field_data.get("librenms_device_id"):
-                    _device_id = nb_device.custom_field_data.get("librenms_device_id")
                 if nb_device.custom_field_data.get("snmp_location"):
                     _snmp_location = nb_device.custom_field_data.get("snmp_location")
                 else:
                     _snmp_location = None
                 new_device = NautobotDevice(
+                    unique_id=unique_id,
                     name=nb_device.name,
-                    tenant=nb_device.tenant.name if nb_device.tenant else None,
+                    tenant=_tenant,
                     device_id=_device_id,
                     location=nb_device.location.name,
                     parent_location=nb_device.location.parent.name if nb_device.location.parent else None,

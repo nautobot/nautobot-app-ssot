@@ -20,6 +20,7 @@ from nautobot_ssot.integrations.librenms.diffsync.models.librenms import (
     LibrenmsLocation,
 )
 from nautobot_ssot.integrations.librenms.utils import (
+    build_device_unique_id,
     has_required_values,
     normalize_device_hostname,
     normalize_gps_coordinates,
@@ -49,6 +50,7 @@ class LibrenmsAdapter(Adapter):
         self.sync = sync
         self.lnms_api = librenms_api
         self.failed_import_devices = []
+        self._tenant = None
 
     def load_location(self, location: dict):
         """Load Location objects from LibreNMS into DiffSync models."""
@@ -200,8 +202,10 @@ class LibrenmsAdapter(Adapter):
                     self.failed_import_devices.append(failed_device)
                     return
 
+                unique_id = build_device_unique_id(self._tenant, device["device_id"], normalized_name)
+
                 try:
-                    self.get(self.device, {"name": normalized_name})
+                    self.get(self.device, {"unique_id": unique_id})
                 except ObjectNotFound:
                     if device["disabled"] == 1:
                         _status = "Offline"
@@ -218,6 +222,7 @@ class LibrenmsAdapter(Adapter):
 
                         try:
                             new_device = self.device(
+                                unique_id=unique_id,
                                 name=normalized_name,
                                 device_id=device["device_id"],
                                 location=location_data["name"],
@@ -230,7 +235,7 @@ class LibrenmsAdapter(Adapter):
                                 device_type=device["hardware"],
                                 platform=normalized_platform_name,
                                 os_version=device["version"] if device["version"] is not None else "Unknown",
-                                tenant=str(self.job.tenant) if self.job.tenant else None,
+                                tenant=self._tenant,
                                 ip_address=str(ip_info["address"]) if ip_info and ip_info.get("address") else None,
                                 ip_prefix=str(ip_info["network"]) if ip_info and ip_info.get("network") else None,
                                 system_of_record=os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS"),
@@ -252,6 +257,8 @@ class LibrenmsAdapter(Adapter):
 
     def load(self):
         """Load data from LibreNMS into DiffSync models."""
+        self._tenant = str(self.job.tenant) if self.job.tenant else None
+
         all_devices = self.lnms_api.get_librenms_devices()
 
         self.job.logger.info(f'Loading {all_devices["count"]} Devices from LibreNMS.')

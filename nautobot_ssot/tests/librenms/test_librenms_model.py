@@ -9,6 +9,7 @@ from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacture
 from nautobot.extras.models import Role, Status
 
 from nautobot_ssot.integrations.librenms.diffsync.models.librenms import LibrenmsDevice, LibrenmsLocation
+from nautobot_ssot.integrations.librenms.utils import build_device_unique_id
 from nautobot_ssot.tests.librenms.fixtures import (
     ADD_LIBRENMS_DEVICE_FAILURE,
     ADD_LIBRENMS_DEVICE_PING_FALLBACK,
@@ -149,8 +150,9 @@ class TestLibrenmsDevice(TestCase):
     def test_create_device_success(self, mock_device_get):  # pylint: disable=W0613
         """Test creating a device with valid data."""
         device_name = "test-device"
-        ids = {"name": device_name}
+        ids = {"unique_id": build_device_unique_id(None, None, device_name)}
         attrs = {
+            "name": device_name,
             "ip_address": "192.168.1.1",
             "location": "City Hall",
             "device_type": "Generic Device",
@@ -158,8 +160,6 @@ class TestLibrenmsDevice(TestCase):
             "system_of_record": "LibreNMS",
             "status": "Active",
         }
-
-        self.adapter.job.source_adapter.dict.return_value = {"device": {device_name: attrs}}
 
         LibrenmsDevice.create(self.adapter, ids, attrs)
 
@@ -176,8 +176,9 @@ class TestLibrenmsDevice(TestCase):
     def test_create_device_default(self):
         """Test creating a device with default settings."""
         device_name = "LIBRENMSDEV"
-        ids = {"name": device_name}
+        ids = {"unique_id": build_device_unique_id(None, None, device_name)}
         attrs = {
+            "name": device_name,
             "ip_address": "192.168.1.2",
             "location": "City Hall",
             "device_type": "Generic Device",
@@ -197,8 +198,6 @@ class TestLibrenmsDevice(TestCase):
             },
         )
 
-        self.adapter.job.source_adapter.dict.return_value = {"device": {device_name: attrs}}
-
         self.adapter.lnms_api.create_librenms_device.return_value = self.responses["success"]
 
         device = LibrenmsDevice.create(self.adapter, ids, attrs)
@@ -217,8 +216,10 @@ class TestLibrenmsDevice(TestCase):
 
     def test_create_device_with_ping_fallback(self):
         """Test creating a device with ping_fallback enabled."""
-        ids = {"name": "test-device"}
+        device_name = "test-device"
+        ids = {"unique_id": build_device_unique_id(None, "123", device_name)}
         attrs = {
+            "name": device_name,
             "ip_address": "192.168.1.1",
             "location": "City Hall",
             "device_type": "Generic Device",
@@ -235,15 +236,15 @@ class TestLibrenmsDevice(TestCase):
         mock_adapter = MagicMock(spec=Adapter)
         mock_adapter.job = MagicMock()
         mock_adapter.lnms_api = MagicMock()
-        mock_adapter.dict.return_value = {"device": {"test-device": attrs}}
 
         LibrenmsDevice.create(mock_adapter, ids, attrs)
 
     def test_create_device_failure_no_ping(self):
         """Test creating a device with ping failure."""
         device_name = "test-device-no-ping"
-        ids = {"name": device_name}
+        ids = {"unique_id": build_device_unique_id(None, None, device_name)}
         attrs = {
+            "name": device_name,
             "ip_address": "192.168.1.3",
             "location": "City Hall",
             "device_type": "Generic Device",
@@ -251,8 +252,6 @@ class TestLibrenmsDevice(TestCase):
             "system_of_record": "LibreNMS",
             "status": "Active",
         }
-
-        self.adapter.job.source_adapter.dict.return_value = {"device": {device_name: attrs}}
 
         self.adapter.lnms_api.create_librenms_device.side_effect = Exception(
             self.responses["failure"]["no_ping"]["message"]
@@ -266,8 +265,9 @@ class TestLibrenmsDevice(TestCase):
     def test_create_device_failure_no_snmp(self):
         """Test creating a device with SNMP failure."""
         device_name = "test-device-no-snmp"
-        ids = {"name": device_name}
+        ids = {"unique_id": build_device_unique_id(None, None, device_name)}
         attrs = {
+            "name": device_name,
             "ip_address": "192.168.1.4",
             "location": "City Hall",
             "device_type": "Generic Device",
@@ -275,8 +275,6 @@ class TestLibrenmsDevice(TestCase):
             "system_of_record": "LibreNMS",
             "status": "Active",
         }
-
-        self.adapter.job.source_adapter.dict.return_value = {"device": {device_name: attrs}}
 
         self.adapter.lnms_api.create_librenms_device.side_effect = Exception(
             self.responses["failure"]["no_snmp"]["message"]
@@ -289,15 +287,15 @@ class TestLibrenmsDevice(TestCase):
 
     def test_create_device_no_ip(self):
         """Test creating a device without an IP address."""
-        ids = {"name": "test-device"}
+        ids = {"unique_id": build_device_unique_id(None, None, "test-device")}
         attrs = {
+            "name": "test-device",
             "status": "Active",
             "location": "City Hall",
             "device_type": "Linux",
             "manufacturer": "Generic",
             "system_of_record": "LibreNMS",
         }
-        self.adapter.job.source_adapter.dict.return_value = {"device": {"test-device": {"ip_address": None}}}
 
         LibrenmsDevice.create(self.adapter, ids, attrs)
 
@@ -306,8 +304,9 @@ class TestLibrenmsDevice(TestCase):
 
     def test_create_device_inactive(self):
         """Test creating an inactive device."""
-        ids = {"name": "test-device"}
+        ids = {"unique_id": build_device_unique_id(None, None, "test-device")}
         attrs = {
+            "name": "test-device",
             "status": "Offline",
             "location": "City Hall",
             "device_type": "Linux",

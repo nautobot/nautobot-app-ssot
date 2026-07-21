@@ -54,11 +54,10 @@ class LibrenmsDevice(Device):
     def create(cls, adapter, ids, attrs):
         """Create Device in LibreNMS from LibrenmsDevice object."""
         if attrs["status"] == "Active" or attrs["status"] == "Staged":
-            device_data = adapter.job.source_adapter.dict()["device"][ids["name"]]
-            if device_data.get("ip_address"):
+            if attrs.get("ip_address"):
                 device = {
-                    "hostname": device_data["ip_address"],
-                    "display": ids["name"],
+                    "hostname": attrs["ip_address"],
+                    "display": attrs["name"],
                     "location": attrs["location"],
                 }
                 if adapter.job.force_add:
@@ -72,16 +71,16 @@ class LibrenmsDevice(Device):
                 elif response.get("status") == "ok" and response.get("devices"):
                     # Get the device ID from the first device in the devices array
                     librenms_device_id = response["devices"][0]["device_id"]
-                    nautobot_device = NautobotDevice.objects.get(name=ids["name"])
+                    nautobot_device = NautobotDevice.objects.get(name=attrs["name"])
                     nautobot_device.custom_field_data["librenms_device_id"] = librenms_device_id
                     nautobot_device.save()
             else:
                 if adapter.job.debug:
                     adapter.job.logger.debug(
-                        f"Skipping device in LibreNMS: {ids['name']}. No Primary IP address found."
+                        f"Skipping device in LibreNMS: {attrs['name']}. No Primary IP address found."
                     )
         else:
-            adapter.job.logger.info(f"Skipping device in LibreNMS: {ids['name']}. Status is not Active or Staged.")
+            adapter.job.logger.info(f"Skipping device in LibreNMS: {attrs['name']}. Status is not Active or Staged.")
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):

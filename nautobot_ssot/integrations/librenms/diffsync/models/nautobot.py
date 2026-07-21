@@ -269,14 +269,14 @@ class NautobotDevice(Device):
     def create(cls, adapter, ids, attrs):
         """Create Device in Nautobot from NautobotDevice object."""
         if adapter.job.debug:
-            adapter.job.logger.debug(f'Creating Nautobot Device {ids["name"]}')
+            adapter.job.logger.debug(f'Creating Nautobot Device {attrs["name"]}')
             adapter.job.logger.debug(f"N_Model ids: {ids}")
         manufacturer_name = os_manufacturer_map.get(
             LIBRENMS_LIB_MAPPER_REVERSE.get(ANSIBLE_LIB_MAPPER.get(attrs["platform"], attrs["platform"])),
             attrs["platform"],
         )
         if manufacturer_name is None:
-            raise ValueError(f"Manufacturer is required for device {ids['name']}")
+            raise ValueError(f"Manufacturer is required for device {attrs['name']}")
         _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
         _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
         adapter.job.logger.debug(f"Platform: {_platform}")
@@ -300,7 +300,7 @@ class NautobotDevice(Device):
 
         try:
             new_device = ORMDevice(
-                name=ids["name"],
+                name=attrs["name"],
                 device_type=_device_type,
                 status=Status.objects.get(name=attrs["status"]),
                 role=ensure_role(role_name=attrs["role"], content_type=ORMDevice),
@@ -316,7 +316,7 @@ class NautobotDevice(Device):
                 ),
             )
         except ORMLocation.DoesNotExist:
-            adapter.job.logger.error(f"Location {attrs['location']} does not exist. Skipping device {ids['name']}.")
+            adapter.job.logger.error(f"Location {attrs['location']} does not exist. Skipping device {attrs['name']}.")
             return None
         custom_fields = {
             "librenms_device_id": attrs["device_id"],
@@ -341,15 +341,14 @@ class NautobotDevice(Device):
             new_device.primary_ip4 = _ipaddress
             new_device.validated_save()
 
-        # Remove tenant from attrs since we've already handled it
-        attrs_copy = attrs.copy()
-        attrs_copy.pop("tenant", None)
-        return super().create(adapter=adapter, ids=ids, attrs=attrs_copy)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
     def update(self, attrs):
         """Update Device in Nautobot from NautobotDevice object."""
         self.adapter.job.logger.debug(f"Updating Nautobot Device {self.name} with {attrs}")
         device = ORMDevice.objects.get(id=self.uuid)
+        if "name" in attrs:
+            device.name = attrs["name"]
         if "device_id" in attrs:
             device.custom_field_data["librenms_device_id"] = attrs["device_id"]
         if "status" in attrs:

@@ -38,13 +38,13 @@ class Device(DiffSyncModel):
     """DiffSync Model for LibreNMS Device."""
 
     _modelname = "device"
-    _identifiers = ("name",)
+    _identifiers = ("unique_id",)
     _attributes = (
+        "name",
         "device_id",
         "location",
         "parent_location",
         "snmp_location",
-        "tenant",
         "status",
         "device_type",
         "ip_address",
@@ -59,6 +59,7 @@ class Device(DiffSyncModel):
     )
     _children = {"port": "interfaces"}
 
+    unique_id: str
     name: str
     device_id: Optional[int] = None
     location: str

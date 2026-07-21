@@ -12,6 +12,7 @@ from nautobot.dcim.models import Platform as ORMPlatform
 from nautobot.extras.models import Role, Status
 
 from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import NautobotDevice
+from nautobot_ssot.integrations.librenms.utils import build_device_unique_id
 
 
 class TestNautobotDeviceLocationSync(TestCase):
@@ -55,6 +56,7 @@ class TestNautobotDeviceLocationSync(TestCase):
         self.adapter.tenant = None
 
         self.diffsync_device = NautobotDevice(
+            unique_id=build_device_unique_id(None, None, "test-device"),
             name="test-device",
             location="Chicago",
             status="Active",
@@ -87,8 +89,9 @@ class TestNautobotDeviceLocationSync(TestCase):
         """A brand-new device must still get a location even when sync_locations is False."""
         self.adapter.job.sync_locations = False
 
-        ids = {"name": "new-device"}
+        ids = {"unique_id": build_device_unique_id(None, 1, "new-device")}
         attrs = {
+            "name": "new-device",
             "location": "Catch-All",
             "parent_location": None,
             "status": "Active",
@@ -148,6 +151,7 @@ class TestNautobotDeviceUpdatePlatform(TestCase):
         self.adapter.tenant = None
 
         self.diffsync_device = NautobotDevice(
+            unique_id=build_device_unique_id(None, None, "test-device"),
             name="test-device",
             location="Chicago",
             status="Active",
