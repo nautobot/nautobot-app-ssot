@@ -1,6 +1,7 @@
 """Base classes for contrib testing."""
 
 from typing import Annotated, List, Optional
+from unittest import skipIf
 from unittest.mock import MagicMock
 
 import nautobot.circuits.models as circuits_models
@@ -19,6 +20,19 @@ from nautobot_ssot.contrib import (
     NautobotAdapter,
     NautobotModel,
     RelationshipSideEnum,
+)
+
+# Nautobot 3.2 replaced the Cable.termination_a/termination_b GenericForeignKeys with a
+# `terminations` to-many relation, so contrib models expressing terminations as generic
+# foreign keys (like NautobotCable below) can no longer be created against those versions:
+# NautobotModel.create() resolves each `foo__bar` field via Cable._meta.get_field("foo"),
+# which now raises FieldDoesNotExist. Only tests relying on that reflection are gated —
+# reading such fields and direct ORM writes (Cable.objects.create(termination_a=...)) still
+# work through Nautobot's backward-compat shims.
+CABLE_HAS_TERMINATION_GFKS = any(field.name == "termination_a" for field in dcim_models.Cable._meta.get_fields())
+SKIP_IF_NO_CABLE_TERMINATION_GFKS = skipIf(
+    not CABLE_HAS_TERMINATION_GFKS,
+    "Cable.termination_a/termination_b GenericForeignKeys were removed in Nautobot 3.2",
 )
 
 
