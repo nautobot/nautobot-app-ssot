@@ -1,1 +1,1 @@
-[Meraki] Check if ip address is primary for the synced device only
+Fixed Meraki IP address sync incorrectly marking an address as primary when it was primary for a different device rather than the device being synced.
