@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 """Tests of CloudVision utility methods."""
 
 from unittest.mock import MagicMock, patch
