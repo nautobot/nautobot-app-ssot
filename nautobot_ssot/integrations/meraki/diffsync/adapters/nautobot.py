@@ -258,11 +258,10 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     f"Loading IPAssignment {ipassignment.ip_address.host} on {ipassignment.interface.device.name} "
                     f"port {ipassignment.interface.name} in Namespace {ipassignment.ip_address.parent.namespace.name}"
                 )
-            primary=ipassignment.ip_address.primary_ip4_for.filter(
-                id=ipassignment.interface.device.id
-            ).exists() or ipassignment.ip_address.primary_ip6_for.filter(
-                id=ipassignment.interface.device.id
-            ).exists()
+            primary = (
+                ipassignment.ip_address.primary_ip4_for.filter(id=ipassignment.interface.device.id).exists()
+                or ipassignment.ip_address.primary_ip6_for.filter(id=ipassignment.interface.device.id).exists()
+            )
 
             new_map = self.ipassignment(
                 address=str(ipassignment.ip_address.host),
