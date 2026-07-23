@@ -1,1 +1,1 @@
-Fixed Nautobot Upstream Monitor test failures against Nautobot 3.2, where the `Cable.termination_a`/`termination_b` GenericForeignKeys were replaced by the `terminations` relation, by skipping the contrib Cable generic-foreign-key creation tests on affected versions and making the adapter cable test's interface selection deterministic.
+Fixed Nautobot Upstream Monitor test failures against Nautobot 3.2.
