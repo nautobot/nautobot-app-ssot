@@ -130,9 +130,12 @@ class NautobotAdapterGenericRelationTests(TestCaseWithDeviceData):
     """Testing the generic relation capability of the 'NautobotAdapter' class."""
 
     def setUp(self):
+        # Select the interfaces explicitly per device — Interface's default ordering is not
+        # name-deterministic on all Nautobot versions (3.2 orders by device_id, a UUID), so
+        # `.first()`/`.last()` would assign the cable ends to arbitrary devices.
         dcim_models.Cable.objects.create(
-            termination_a=dcim_models.Interface.objects.all().filter(name="Ethernet1").first(),
-            termination_b=dcim_models.Interface.objects.all().filter(name="Ethernet1").last(),
+            termination_a=dcim_models.Interface.objects.get(device__name="sw01", name="Ethernet1"),
+            termination_b=dcim_models.Interface.objects.get(device__name="sw02", name="Ethernet1"),
             status=extras_models.Status.objects.get(name="Active"),
         )
         super().setUp()
