@@ -1,1 +1,0 @@
-Fixed LibreNMS device sync raising UnboundLocalError when updating a device's os_version without also updating its platform.
