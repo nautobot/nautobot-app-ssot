@@ -1,0 +1,56 @@
+{
+    "record:a": {
+        "result": [
+            {
+                "_ref": "record:a/ZG5zLmJpbmRfYSQuX2RlZmF1bHQudGVzdC5uYXV0b2JvdCx0ZXN0ZG5zbmFtZSwxMC4wLjAuMQ:testdnsname.nautobot.test/default",
+                "ipv4addr": "10.0.0.1",
+                "name": "testdnsname.nautobot.test",
+                "view": "default"
+            }
+        ]
+    },
+    "record:host": {
+        "result": [
+            {
+                "_ref": "record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice1.test/default",
+                "ipv4addr": "10.220.0.101",
+                "ipv4addrs": [
+                    {
+                        "_ref": "record:host_ipv4addr/ZG5zLmhvc3RfYWRkcmVzcyQuX2RlZmF1bHQudGVzdC50ZXN0ZGV2aWNlMS4xMC4yMjAuMC4xMDEu:10.220.0.101/testdevice1.test/default",
+                        "configure_for_dhcp": true,
+                        "host": "testdevice1.test",
+                        "ipv4addr": "10.220.0.101",
+                        "mac": "11:11:11:11:11:11"
+                    }
+                ],
+                "name": "testdevice1.test",
+                "view": "default"
+            }
+        ]
+    },
+    "record:ptr": {
+        "result": [
+            {
+                "_ref": "record:ptr/ZG5zLmJpbmRfcHRyJC4yLmFycGEuaW4tYWRkci4xMC4wLjAuMS5ob3N0MS5uYXV0b2JvdC5sb2NhbC50ZXN0:1.0.0.10.in-addr.arpa/default.dev",
+                "ipv4addr": "10.0.0.1",
+                "ipv6addr": "",
+                "name": "1.0.0.10.in-addr.arpa",
+                "ptrdname": "host1.nautobot.local.test",
+                "view": "default.dev"
+            }
+        ]
+    },
+    "fixedaddress": {
+        "result": [
+            {
+                "_ref": "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjIuMi4u:10.0.0.2/dev",
+                "extattrs": {},
+                "ipv4addr": "10.0.0.2",
+                "mac": "52:1f:83:d4:9a:2e",
+                "name": "host-fixed1",
+                "network": "10.0.0.0/24",
+                "network_view": "dev"
+            }
+        ]
+    }
+}

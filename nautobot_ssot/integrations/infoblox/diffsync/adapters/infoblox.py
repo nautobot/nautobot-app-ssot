@@ -227,6 +227,12 @@ class InfobloxAdapter(Adapter):
             self.job.logger.error(f"Error while loading IP addresses: {str(err)}")
             raise AdapterLoadException(str(err)) from err
 
+        # Bulk-fetch all DNS and fixed-address records once before loading.
+        a_records = self.conn.get_all_records_by_type("record:a")
+        host_records = self.conn.get_all_records_by_type("record:host")
+        ptr_records = self.conn.get_all_records_by_type("record:ptr")
+        fixed_addresses = self.conn.get_all_records_by_type("fixedaddress")
+
         default_ext_attrs = get_default_ext_attrs(review_list=ipaddrs, excluded_attrs=self.excluded_attrs)
         for _ip in ipaddrs:
             _, prefix_length = _ip["network"].split("/")
@@ -277,7 +283,7 @@ class InfobloxAdapter(Adapter):
 
             # We use Nautobot IP Address description for Infoblox Fixed Address name
             if new_ip.has_fixed_address:
-                fixed_address = self.conn.get_fixed_address_by_ref(new_ip.fixed_address_ref)
+                fixed_address = fixed_addresses.get(new_ip.fixed_address_ref) or {}
                 new_ip.description = fixed_address.get("name") or ""
                 new_ip.fixed_address_comment = fixed_address.get("comment") or ""
 
@@ -288,26 +294,41 @@ class InfobloxAdapter(Adapter):
             ):
                 new_ip.ip_addr_type = "dhcp"
 
-            # Load individual DNS records
+            # Load individual DNS records from the pre-fetched record maps
             if new_ip.has_a_record and a_record_ref:
-                self._load_dns_a_record_for_ip(ref=a_record_ref, ip_record=new_ip, namespace=namespace)
+                self._load_dns_a_record_for_ip(
+                    a_record=a_records.get(a_record_ref), ref=a_record_ref, ip_record=new_ip, namespace=namespace
+                )
             if new_ip.has_host_record and host_record_ref:
-                self._load_dns_host_record_for_ip(ref=host_record_ref, ip_record=new_ip, namespace=namespace)
+                self._load_dns_host_record_for_ip(
+                    host_record=host_records.get(host_record_ref),
+                    ref=host_record_ref,
+                    ip_record=new_ip,
+                    namespace=namespace,
+                )
             if new_ip.has_ptr_record and ptr_record_ref:
-                self._load_dns_ptr_record_for_ip(ref=ptr_record_ref, ip_record=new_ip, namespace=namespace)
+                self._load_dns_ptr_record_for_ip(
+                    ptr_record=ptr_records.get(ptr_record_ref),
+                    ref=ptr_record_ref,
+                    ip_record=new_ip,
+                    namespace=namespace,
+                )
 
             if new_ip.has_fixed_address or new_ip.has_a_record or new_ip.has_host_record:
                 self.add(new_ip)
 
-    def _load_dns_host_record_for_ip(self, ref: str, ip_record: object, namespace: str):
+    def _load_dns_host_record_for_ip(self, host_record: dict, ref: str, ip_record: object, namespace: str):
         """Load the DNS Host record.
 
         Args:
+            host_record (dict): Pre-fetched Host record dict, or None if not present in the bulk fetch
             ref (list): Host record reference
             ip_record (object): Parent IP Address record
             namespace (str): Namespace of this record
         """
-        host_record = self.conn.get_host_record_by_ref(ref)
+        if not host_record:
+            self.job.logger.warning(f"Host record {ref} not found, likely dynamic and expired.")
+            return
         record_ext_attrs = get_ext_attr_dict(
             extattrs=host_record.get("extattrs", {}), excluded_attrs=self.excluded_attrs
         )
@@ -327,21 +348,18 @@ class InfobloxAdapter(Adapter):
 
         self.add(new_host_record)
 
-    def _load_dns_a_record_for_ip(self, ref: str, ip_record: object, namespace: str):
+    def _load_dns_a_record_for_ip(self, a_record: dict, ref: str, ip_record: object, namespace: str):
         """Load the DNS A record.
 
         Args:
+            a_record (dict): Pre-fetched A record dict, or None if not present in the bulk fetch
             ref (list): A record reference
             ip_record (object): Parent IP Address record
             namespace (str): Namespace of this record
         """
-        try:
-            a_record = self.conn.get_a_record_by_ref(ref)
-        except requests.exceptions.HTTPError as exc:
-            if exc.response.status_code == 404:
-                self.job.logger.warning(f"A record {ref} not found, likely dynamic and expired.")
-                return
-            raise
+        if not a_record:
+            self.job.logger.warning(f"A record {ref} not found, likely dynamic and expired.")
+            return
         record_ext_attrs = get_ext_attr_dict(extattrs=a_record.get("extattrs", {}), excluded_attrs=self.excluded_attrs)
 
         new_a_record = self.dnsarecord(
@@ -359,21 +377,18 @@ class InfobloxAdapter(Adapter):
 
         self.add(new_a_record)
 
-    def _load_dns_ptr_record_for_ip(self, ref: str, ip_record: object, namespace: str):
+    def _load_dns_ptr_record_for_ip(self, ptr_record: dict, ref: str, ip_record: object, namespace: str):
         """Load the DNS PTR record.
 
         Args:
+            ptr_record (dict): Pre-fetched PTR record dict, or None if not present in the bulk fetch
             ref (list): PTR record reference
             ip_record (object): Parent IP Address record
             namespace (str): Namespace of this record
         """
-        try:
-            ptr_record = self.conn.get_ptr_record_by_ref(ref)
-        except requests.exceptions.HTTPError as exc:
-            if exc.response.status_code == 404:
-                self.job.logger.warning(f"PTR record {ref} not found, likely dynamic and expired.")
-                return
-            raise
+        if not ptr_record:
+            self.job.logger.warning(f"PTR record {ref} not found, likely dynamic and expired.")
+            return
         record_ext_attrs = get_ext_attr_dict(
             extattrs=ptr_record.get("extattrs", {}), excluded_attrs=self.excluded_attrs
         )
