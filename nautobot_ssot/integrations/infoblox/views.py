@@ -79,6 +79,7 @@ class SSOTInfobloxConfigUIViewSet(
                     "import_ipv6",
                     "fixed_address_type",
                     "dns_record_type",
+                    "infoblox_location_ext_attr",
                     "infoblox_deletable_models",
                     "nautobot_deletable_models",
                 ],
