@@ -1,0 +1,10 @@
+{
+    "name": "web01",
+    "cores": 2,
+    "sockets": 2,
+    "memory": 4096,
+    "ostype": "l26",
+    "agent": "1",
+    "scsi0": "local-lvm:vm-100-disk-0,size=32G",
+    "net0": "virtio=AA:BB:CC:DD:EE:01,bridge=vmbr0,tag=10"
+}
