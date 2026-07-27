@@ -176,9 +176,9 @@ The default value of this setting is:
 
 That is, by default, all of the extensible attributes and custom fields will be synchronized, except the custom fields used internally by the Infoblox integration.
 
-To exclude Infoblox extensible attributes from being synchronized to Nautobot add the attribute names to the list `extensible_attributes`  list.
+To exclude Infoblox extensible attributes from being synchronized to Nautobot add the attribute names to the `extensible_attributes` list.
 
-To exclude Infoblox custom fields from being synchronized to Infoblox add the custom field names to the list `custom_fields`  list.
+To exclude Infoblox custom fields from being synchronized to Infoblox add the custom field names to the `custom_fields` list.
 
 ## Custom Fields, Tags, and Relationships Used by The Infoblox Integration
 
