@@ -1,1 +1,0 @@
-Added Cisco SD-WAN integration, synchronizing Devices, DeviceTypes, SoftwareVersions, Interfaces, IP Addresses, and VRFs from a Cisco Catalyst SD-WAN Manager (vManage) into Nautobot.
