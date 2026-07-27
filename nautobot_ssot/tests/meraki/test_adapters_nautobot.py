@@ -146,3 +146,55 @@ class NautobotDiffSyncTestCase(TestCase):
             {"10.0.0.1__Lab01__Test__wan1"},
             {map.get_unique_id() for map in self.nb_adapter.get_all("ipassignment")},
         )
+
+    def test_ipassignment_primary_for_synced_device(self):
+        """Validate an IP marked primary for the synced device loads as primary."""
+        lab01 = Device.objects.get(name="Lab01")
+        lab01_mgmt_ip = IPAddress.objects.get(host="10.0.0.1")
+        lab01.primary_ip4 = lab01_mgmt_ip
+        lab01.validated_save()
+
+        self.nb_adapter.load()
+
+        assignment = self.nb_adapter.get("ipassignment", "10.0.0.1__Lab01__Test__wan1")
+        self.assertTrue(assignment.primary)
+
+    def test_ipassignment_primary_for_other_device(self):
+        """Validate an IP primary for a different device is not marked primary for the synced device."""
+        lab01_mgmt_ip = IPAddress.objects.get(host="10.0.0.1")
+        lab01 = Device.objects.get(name="Lab01")
+
+        # Assign the same IP to a second device and make it that device's primary.
+        lab02 = Device.objects.create(
+            name="Lab02",
+            serial="DEF-456-789",
+            status=self.status_active,
+            role=lab01.role,
+            device_type=lab01.device_type,
+            platform=lab01.platform,
+            location=lab01.location,
+        )
+        lab02.custom_field_data["system_of_record"] = "Meraki SSoT"
+        lab02.validated_save()
+        lab02_mgmt = Interface.objects.create(
+            name="wan1",
+            device=lab02,
+            enabled=True,
+            mode="access",
+            mgmt_only=True,
+            type="1000base-t",
+            status=self.status_active,
+        )
+        lab02_mgmt.custom_field_data["system_of_record"] = "Meraki SSoT"
+        lab02_mgmt.validated_save()
+        IPAddressToInterface.objects.create(ip_address=lab01_mgmt_ip, interface=lab02_mgmt)
+        lab02.primary_ip4 = lab01_mgmt_ip
+        lab02.validated_save()
+
+        self.nb_adapter.load()
+
+        # The IP is only primary for Lab02, so the Lab01 assignment must not be flagged primary.
+        lab01_assignment = self.nb_adapter.get("ipassignment", "10.0.0.1__Lab01__Test__wan1")
+        self.assertFalse(lab01_assignment.primary)
+        lab02_assignment = self.nb_adapter.get("ipassignment", "10.0.0.1__Lab02__Test__wan1")
+        self.assertTrue(lab02_assignment.primary)
