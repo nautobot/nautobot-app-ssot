@@ -1,0 +1,2 @@
+Fixed Arista CloudVision SSoT failing to load on Python 3.12 when `setuptools` is not installed.
+Fixed DNA Center sync failing to import Devices on Nautobot v3.2.
