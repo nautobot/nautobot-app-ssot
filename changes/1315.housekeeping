@@ -1,1 +1,0 @@
-Fixed failing Device42 unit test caused by changed Interface ordering in Nautobot v3.2.
