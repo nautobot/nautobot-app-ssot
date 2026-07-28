@@ -79,6 +79,18 @@ class TestSSoTUtils(unittest.TestCase):
         result = parse_hostname_for_location(location_map=location_map, device_hostname="sw01", device_location="HQ")
         self.assertEqual(result, {"name": "Switchville", "parent": "Region 1"})
 
+    def test_parse_hostname_for_location_dict_first_match_wins(self):
+        """When multiple dict patterns match, the first one (insertion order) wins, regardless of key order."""
+        location_map = {"^sw": {"Name": "Switchville", "Parent": "Region 1"}, ".*": {"Name": "Catch-All"}}
+        result = parse_hostname_for_location(location_map=location_map, device_hostname="sw01", device_location="HQ")
+        self.assertEqual(result, {"name": "Switchville", "parent": "Region 1"})
+
+        reversed_map = {".*": {"Name": "Catch-All"}, "^sw": {"Name": "Switchville", "Parent": "Region 1"}}
+        reversed_result = parse_hostname_for_location(
+            location_map=reversed_map, device_hostname="sw01", device_location="HQ"
+        )
+        self.assertEqual(reversed_result, {"name": "Catch-All", "parent": None})
+
     def test_parse_hostname_for_role_json_string(self):
         """A JSON-string hostname_map is decoded before matching."""
         result = parse_hostname_for_role(

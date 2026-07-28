@@ -96,6 +96,16 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         default=_get_network_view_to_namespace_map, encoder=DjangoJSONEncoder
     )
     infoblox_dns_view_mapping = models.JSONField(default=dict, encoder=DjangoJSONEncoder, blank=True)
+    infoblox_location_ext_attr = models.CharField(
+        max_length=CHARFIELD_MAX_LENGTH,
+        blank=True,
+        default="",
+        verbose_name="Infoblox Location Extensibility Attribute",
+        help_text=(
+            "Name of the Infoblox Extensibility Attribute whose value maps to a Nautobot Location. "
+            "Leave blank to use the built-in names: site, facility, location."
+        ),
+    )
     cf_fields_ignore = models.JSONField(default=_get_default_cf_fields_ignore, encoder=DjangoJSONEncoder, blank=True)
     import_ipv4 = models.BooleanField(
         default=True,
@@ -277,6 +287,32 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
                 }
             )
 
+    def _clean_infoblox_location_ext_attr(self):
+        """Performs validation of the infoblox_location_ext_attr field.
+
+        The configured name must not collide with an Extensibility Attribute name that
+        'process_ext_attrs' already routes to a different Nautobot field, otherwise the same
+        attribute would be applied as both a Location and (e.g.) a Tenant during sync.
+        """
+        location_ext_attr = (self.infoblox_location_ext_attr or "").lower()
+        if not location_ext_attr:
+            return
+        if "role" in location_ext_attr:
+            raise ValidationError(
+                {
+                    "infoblox_location_ext_attr": "`infoblox_location_ext_attr` cannot contain `role`, which is "
+                    "already used to map to a Nautobot Role.",
+                },
+            )
+        reserved = {"vrf": "VRF", "tenant": "Tenant", "dept": "Tenant", "department": "Tenant"}
+        if location_ext_attr in reserved:
+            raise ValidationError(
+                {
+                    "infoblox_location_ext_attr": f"`infoblox_location_ext_attr` cannot be `{location_ext_attr}`, "
+                    f"which is already used to map to a Nautobot {reserved[location_ext_attr]}.",
+                },
+            )
+
     def _clean_infoblox_dns_view_mapping(self):
         """Performs validation of the infoblox_dns_view_mapping field."""
         if not isinstance(self.infoblox_dns_view_mapping, dict):
@@ -338,5 +374,6 @@ class SSOTInfobloxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         self._clean_infoblox_instance()
         self._clean_import_ip()
         self._clean_infoblox_dns_view_mapping()
+        self._clean_infoblox_location_ext_attr()
         self._clean_cf_fields_ignore()
         self._clean_deletable_model_types()

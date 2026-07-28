@@ -1,6 +1,6 @@
 """Unit tests for Infoblox client."""
 
-# pylint: disable=protected-access
+# pylint: disable=protected-access,too-many-lines
 # pylint: disable=too-many-public-methods
 import unittest
 from collections import namedtuple
@@ -21,7 +21,6 @@ from .fixtures_infoblox import (
     find_next_available_ip,
     get_a_record_by_ip,
     get_a_record_by_name,
-    get_a_record_by_ref,
     get_all_dns_views,
     get_all_ipv4address_networks,
     get_all_ipv4address_networks_bulk,
@@ -29,22 +28,20 @@ from .fixtures_infoblox import (
     get_all_ipv4address_networks_medium,
     get_all_network_views,
     get_all_ranges,
+    get_all_records_by_type,
     get_all_subnets_page_1,
     get_all_subnets_page_2,
     get_authoritative_zone,
     get_authoritative_zones_for_dns_view,
     get_dhcp_lease_from_hostname,
     get_dhcp_lease_from_ipv4,
-    get_fixed_address_by_ref,
     get_host_by_ip,
-    get_host_by_ref,
     get_host_record_by_name,
     get_network_containers,
     get_network_containers_ipv6,
     get_network_view,
     get_ptr_record_by_ip,
     get_ptr_record_by_name,
-    get_ptr_record_by_ref,
     localhost_client_infoblox,
     search_ipv4_address,
 )
@@ -168,21 +165,75 @@ class TestInfobloxTest(unittest.TestCase):
         self.assertEqual(resp, expected)
 
     def test_get_all_ipv4_address_networks_large_data_success(self):
-        """Test get_all_ipv4_address_networks success with large data set."""
+        """Test get_all_ipv4_address_networks success with large data set.
+
+        A prefix larger than 1000 hosts is fetched via a paged GET on the 'ipv4address'
+        endpoint, while smaller prefixes are still batched through the 'request' endpoint.
+        """
         prefixes = [("10.0.0.0/22", "default"), ("10.220.0.100/31", "default")]
 
-        mock_response = [
-            {"json": get_all_ipv4address_networks_large(), "status_code": 201},
-            {"json": get_all_ipv4address_networks(), "status_code": 201},
-        ]
-        mock_uri = "request"
-
         with requests_mock.Mocker() as req:
-            req.post(f"{LOCALHOST}/{mock_uri}", mock_response)
+            # /22 (> 1000 hosts) is paged directly from the ipv4address endpoint
+            req.get(
+                f"{LOCALHOST}/ipv4address",
+                json={"result": get_all_ipv4address_networks_large()[0]},
+                status_code=200,
+            )
+            # /31 (<= 1000 hosts) is batched through the request endpoint
+            req.post(
+                f"{LOCALHOST}/request",
+                json=get_all_ipv4address_networks(),
+                status_code=201,
+            )
             resp = self.infoblox_client.get_all_ipv4address_networks(prefixes=prefixes)
 
         expected = get_all_ipv4address_networks_large()[0] + get_all_ipv4address_networks()[0]
         self.assertEqual(resp, expected)
+
+    def test_get_all_ipv4_address_networks_large_prefix_pages(self):
+        """Test that a single large prefix is fetched across multiple pages via the ipv4address endpoint."""
+        prefixes = [("10.0.0.0/22", "default")]
+        page_one = {
+            "result": [
+                {
+                    "ip_address": "10.0.0.1",
+                    "network": "10.0.0.0/22",
+                    "network_view": "default",
+                    "objects": [],
+                    "status": "USED",
+                    "types": [],
+                    "usage": [],
+                    "mac_address": "",
+                    "names": [],
+                },
+            ],
+            "next_page_id": "page-2",
+        }
+        page_two = {
+            "result": [
+                {
+                    "ip_address": "10.0.0.2",
+                    "network": "10.0.0.0/22",
+                    "network_view": "default",
+                    "objects": [],
+                    "status": "USED",
+                    "types": [],
+                    "usage": [],
+                    "mac_address": "",
+                    "names": [],
+                },
+            ],
+        }
+        with requests_mock.Mocker() as req:
+            req.get(
+                f"{LOCALHOST}/ipv4address",
+                [
+                    {"json": page_one, "status_code": 200},
+                    {"json": page_two, "status_code": 200},
+                ],
+            )
+            resp = self.infoblox_client.get_all_ipv4address_networks(prefixes=prefixes)
+        self.assertEqual(resp, page_one["result"] + page_two["result"])
 
     def test_get_all_ipv4_address_networks_bulk_data_success(self):
         """Test get_all_ipv4_address_networks success with a bulk data set that exceeds 1k results."""
@@ -199,28 +250,66 @@ class TestInfobloxTest(unittest.TestCase):
             resp = self.infoblox_client.get_all_ipv4address_networks(prefixes=prefixes)
         self.assertEqual(resp, get_all_ipv4address_networks_bulk()[0])
 
-    def test_get_fixed_address_by_ref_success(self):
-        """Test get_fixed_address_by_ref success."""
-        mock_ref = "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjIuMi4u:10.0.0.2/dev"
-        mock_response = get_fixed_address_by_ref()
-
+    def test_get_all_records_by_type_paged_success(self):
+        """Test get_all_records_by_type aggregates paged results keyed by '_ref'."""
+        mock_uri = "record:a"
+        page_one = {
+            "result": [
+                {"_ref": "record:a/abc:host1.test/default", "name": "host1.test", "ipv4addr": "10.0.0.1"},
+            ],
+            "next_page_id": "page-2",
+        }
+        page_two = {
+            "result": [
+                {"_ref": "record:a/def:host2.test/default", "name": "host2.test", "ipv4addr": "10.0.0.2"},
+            ],
+        }
         with requests_mock.Mocker() as req:
-            req.get(f"{LOCALHOST}/{mock_ref}", json=mock_response, status_code=200)
-            resp = self.infoblox_client.get_fixed_address_by_ref(mock_ref)
+            req.get(
+                f"{LOCALHOST}/{mock_uri}",
+                [
+                    {"json": page_one, "status_code": 200},
+                    {"json": page_two, "status_code": 200},
+                ],
+            )
+            resp = self.infoblox_client.get_all_records_by_type("record:a", "name,ipv4addr")
 
-        self.assertEqual(resp, mock_response)
+        self.assertEqual(
+            resp,
+            {
+                "record:a/abc:host1.test/default": {
+                    "_ref": "record:a/abc:host1.test/default",
+                    "name": "host1.test",
+                    "ipv4addr": "10.0.0.1",
+                },
+                "record:a/def:host2.test/default": {
+                    "_ref": "record:a/def:host2.test/default",
+                    "name": "host2.test",
+                    "ipv4addr": "10.0.0.2",
+                },
+            },
+        )
 
-    def test_get_fixed_address_by_ref_fail(self):
-        """Test get_fixed_address_by_ref fail."""
-        mock_ref = "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjIuMi4u:10.0.0.2/dev"
-        mock_response = ""
-
+    def test_get_all_records_by_type_failure_returns_empty(self):
+        """Test get_all_records_by_type returns an empty dict on HTTP error."""
+        mock_uri = "record:a"
         with requests_mock.Mocker() as req:
-            req.get(f"{LOCALHOST}/{mock_ref}", json=mock_response, status_code=404)
-            with self.assertRaises(HTTPError) as context:
-                self.infoblox_client.get_fixed_address_by_ref(mock_ref)
+            req.get(f"{LOCALHOST}/{mock_uri}", json="", status_code=404)
+            resp = self.infoblox_client.get_all_records_by_type("record:a", "name,ipv4addr")
+        self.assertEqual(resp, {})
 
-        self.assertEqual(context.exception.response.status_code, 404)
+    def test_get_all_records_by_type_aggregates_records(self):
+        """Test get_all_records_by_type keys realistic records by '_ref' for each WAPI object type."""
+        responses_by_type = get_all_records_by_type()
+
+        for record_type, mock_response in responses_by_type.items():
+            with self.subTest(record_type=record_type):
+                with requests_mock.Mocker() as req:
+                    req.get(f"{LOCALHOST}/{record_type}", json=mock_response, status_code=200)
+                    resp = self.infoblox_client.get_all_records_by_type(record_type, "name,ipv4addr")
+
+                expected = {record["_ref"]: record for record in mock_response["result"]}
+                self.assertEqual(resp, expected)
 
     def test_get_host_record_by_name_success(self):
         """Test get_host_by_record success."""
@@ -272,29 +361,6 @@ class TestInfobloxTest(unittest.TestCase):
 
         self.assertEqual(context.exception.response.status_code, 404)
 
-    def test_get_host_record_by_ref_success(self):
-        """Test get_host_record_by_ref success."""
-        mock_ref = "record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice1.test/default"
-        mock_response = get_host_by_ref()
-
-        with requests_mock.Mocker() as req:
-            req.get(f"{LOCALHOST}/{mock_ref}", json=mock_response, status_code=200)
-            resp = self.infoblox_client.get_host_record_by_ref(mock_ref)
-
-        self.assertEqual(resp, mock_response)
-
-    def test_get_host_record_by_ref_fail(self):
-        """Test get_host_record_by_ref fail."""
-        mock_ref = "record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice1.test/default"
-        mock_response = ""
-
-        with requests_mock.Mocker() as req:
-            req.get(f"{LOCALHOST}/{mock_ref}", json=mock_response, status_code=404)
-            with self.assertRaises(HTTPError) as context:
-                self.infoblox_client.get_host_record_by_ref(mock_ref)
-
-        self.assertEqual(context.exception.response.status_code, 404)
-
     def test_get_a_record_by_name_success(self):
         """Test get_a_record_by_name success."""
         mock_fqdn = "test.fqdn.com"
@@ -342,33 +408,6 @@ class TestInfobloxTest(unittest.TestCase):
             req.get(f"{LOCALHOST}/{mock_uri}", json=mock_response, status_code=404)
             with self.assertRaises(HTTPError) as context:
                 self.infoblox_client.get_a_record_by_ip(mock_ip)
-
-        self.assertEqual(context.exception.response.status_code, 404)
-
-    def test_get_a_record_by_ref_success(self):
-        """Test get_a_record_by_ref success."""
-        mock_ref = (
-            "record:a/ZG5zLmJpbmRfYSQuX2RlZmF1bHQudGVzdCx0ZXN0ZGV2aWNlMSwxMC4yMjAuMC4xMDE:testdevice1.test/default"
-        )
-        mock_response = get_a_record_by_ref()
-
-        with requests_mock.Mocker() as req:
-            req.get(f"{LOCALHOST}/{mock_ref}", json=mock_response, status_code=200)
-            resp = self.infoblox_client.get_a_record_by_ref(mock_ref)
-
-        self.assertEqual(resp, mock_response)
-
-    def test_get_a_record_by_ref_fail(self):
-        """Test get_a_record_by_ref fail."""
-        mock_ref = (
-            "record:a/aG5zLmJpbmRfYSQuX2RlZmF1bHQudGVzdCx0ZXN0ZGV2aWNlMSwxMC4yMjAuMC4xMDE:testdevice1.test/default"
-        )
-        mock_response = ""
-
-        with requests_mock.Mocker() as req:
-            req.get(f"{LOCALHOST}/{mock_ref}", json=mock_response, status_code=404)
-            with self.assertRaises(HTTPError) as context:
-                self.infoblox_client.get_a_record_by_ref(mock_ref)
 
         self.assertEqual(context.exception.response.status_code, 404)
 
@@ -779,33 +818,6 @@ class TestInfobloxTest(unittest.TestCase):
 
         self.assertEqual(context.exception.response.status_code, 404)
 
-    def test_get_ptr_record_by_ref_success(self):
-        """Test get_ptr_record_by_ref success."""
-        mock_ref = (
-            "record:a/ZG5zLmJpbmRfYSQuX2RlZmF1bHQudGVzdCx0ZXN0ZGV2aWNlMSwxMC4yMjAuMC4xMDE:testdevice1.test/default"
-        )
-        mock_response = get_ptr_record_by_ref()
-
-        with requests_mock.Mocker() as req:
-            req.get(f"{LOCALHOST}/{mock_ref}", json=mock_response, status_code=200)
-            resp = self.infoblox_client.get_ptr_record_by_ref(mock_ref)
-
-        self.assertEqual(resp, mock_response)
-
-    def test_get_ptr_record_by_ref_fail(self):
-        """Test get_ptr_record_by_ref fail."""
-        mock_ref = (
-            "record:a/aG5zLmJpbmRfYSQuX2RlZmF1bHQudGVzdCx0ZXN0ZGV2aWNlMSwxMC4yMjAuMC4xMDE:testdevice1.test/default"
-        )
-        mock_response = ""
-
-        with requests_mock.Mocker() as req:
-            req.get(f"{LOCALHOST}/{mock_ref}", json=mock_response, status_code=404)
-            with self.assertRaises(HTTPError) as context:
-                self.infoblox_client.get_ptr_record_by_ref(mock_ref)
-
-        self.assertEqual(context.exception.response.status_code, 404)
-
     def test_search_ipv4_address_success(self):
         """Test search_ipv4_address success."""
         mock_ip = "10.223.0.42"
@@ -877,7 +889,7 @@ class TestInfobloxTest(unittest.TestCase):
         self.assertEqual(resp, mock_response)
 
     def test_get_network_view_fail(self):
-        """Test get_ptr_record_by_ref fail."""
+        """Test get_network_view fail."""
         mock_name = "dev"
         mock_response = ""
         mock_uri = "networkview"

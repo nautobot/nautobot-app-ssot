@@ -30,6 +30,7 @@ from nautobot_ssot.tests.contrib.adapter.test_adapter import (
     CustomRelationShipTestAdapterSource,
 )
 from nautobot_ssot.tests.contrib.base import (
+    SKIP_IF_NO_CABLE_TERMINATION_GFKS,
     MockNautobotAdapter,
     NautobotCable,
     NautobotTenant,
@@ -116,6 +117,7 @@ class BaseModelCustomRelationshipOneToManyTest(TestCase):
 class BaseModelCustomRelationshipTestWithDeviceData(TestCaseWithDeviceData):
     """Tests for NautobotModel with custom relationships and including device data."""
 
+    @SKIP_IF_NO_CABLE_TERMINATION_GFKS
     def test_create_with_custom_relationship(self):
         """Test that NautobotModel.create works as expected with custom relationships."""
 
@@ -490,6 +492,7 @@ class BaseModelCustomRelationshipBranchTests(TestCase):
 class BaseModelGenericForeignKeyBranchTests(TestCaseWithDeviceData):
     """Cover the generic-foreign-key bad-content-type branch via a Cable model."""
 
+    @SKIP_IF_NO_CABLE_TERMINATION_GFKS
     def test_generic_foreign_key_unknown_content_type_raises(self):
         """A generic FK pointing at a non-existent content type raises ObjectNotCreated.
 

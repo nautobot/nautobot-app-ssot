@@ -48,30 +48,34 @@ def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=
         obj (object): The object that's being created or updated and needs processing.
         extattrs (dict): The Extensibility Attributes to be analyzed and applied to passed `prefix`.
     """
+    location_ext_attr = (getattr(adapter.config, "infoblox_location_ext_attr", "") or "").lower()
+    location_attr_names = [location_ext_attr] if location_ext_attr else ["site", "facility", "location"]
+
     for attr, attr_value in extattrs.items():  # pylint: disable=too-many-nested-blocks
         if attr_value:
-            if attr.lower() in ["site", "facility", "location"]:
-                if version.parse(settings.VERSION) < version.parse("2.2.0"):
-                    try:
-                        obj.location = adapter.location_map[attr_value]
-                    except KeyError as err:
-                        adapter.job.logger.warning(
-                            f"Unable to find Location {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
-                        )
-                    except TypeError as err:
-                        adapter.job.logger.warning(
-                            f"Cannot set location values {attr_value} for {obj}. Multiple locations are assigned "
-                            f"in Extensibility Attributes '{attr}', but multiple location assignments are not "
-                            f"supported by Nautobot. {err}"
-                        )
+            if attr.lower() in location_attr_names:
+                if isinstance(attr_value, list):
+                    adapter.job.logger.warning(
+                        f"Cannot set location values {attr_value} for {obj}. Multiple locations are assigned "
+                        f"in Extensibility Attributes '{attr}', but multiple location assignments are not "
+                        f"supported by Nautobot."
+                    )
                 else:
-                    try:
-                        location_object = adapter.location_map[attr_value]
-                        transaction.on_commit(functools.partial(obj.locations.add, location_object))
-                    except KeyError as err:
+                    location_entry = adapter.location_map.get(str(attr_value).lower())
+                    if not location_entry:
                         adapter.job.logger.warning(
-                            f"Unable to find Location {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
+                            f"Unable to find Location {attr_value} for {obj} found in Extensibility Attributes '{attr}'."
                         )
+                    elif obj._meta.model_name not in location_entry["content_types"]:
+                        adapter.job.logger.warning(
+                            f"Location {attr_value} (LocationType '{location_entry['location_type']}') is not "
+                            f"permitted to contain {obj._meta.verbose_name} objects; skipping location assignment "
+                            f"for {obj} found in Extensibility Attributes '{attr}'."
+                        )
+                    elif version.parse(settings.VERSION) < version.parse("2.2.0"):
+                        obj.location_id = location_entry["id"]
+                    else:
+                        transaction.on_commit(functools.partial(obj.locations.add, location_entry["id"]))
             if attr.lower() == "vrf":
                 if isinstance(attr_value, list):
                     for vrf in attr_value:

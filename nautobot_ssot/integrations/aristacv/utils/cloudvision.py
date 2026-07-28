@@ -854,10 +854,10 @@ def get_all_interface_descriptions(client: CloudvisionApi, dId: str) -> dict:
     for pathElts in paths:
         for batch in clean_query_results(pathElts, client, dId):
             for notif in batch["notifications"]:
-                updates = notif["updates"]
-                intf = updates.get("intfId")
-                description = updates.get("description")
-                if intf and description:
+                # Anchor on the wildcarded interface name from the path so frames that omit name still merge.
+                intf = notif["path_elements"][-1]
+                description = notif["updates"].get("description")
+                if description:
                     descriptions[intf] = description
     return descriptions
 
@@ -877,9 +877,11 @@ def get_routed_interface_description(client: CloudvisionApi, dId: str, interface
 
     for batch in clean_query_results(pathElts, client, dId):
         for notif in batch["notifications"]:
-            updates = notif["updates"]
-            if updates.get("intfId") == interface:
-                return updates.get("description") or ""
+            # Anchor on the wildcarded interface name from the path so frames that omit name still merge.
+            if notif["path_elements"][-1] == interface:
+                description = notif["updates"].get("description")
+                if description:
+                    return description
     return ""
 
 

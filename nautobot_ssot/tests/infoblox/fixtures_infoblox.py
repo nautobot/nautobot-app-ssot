@@ -165,19 +165,9 @@ def create_host_record():
     return _json_read_fixture("create_host_record.json")
 
 
-def get_fixed_address_by_ref():
-    """Return a get Fixed Address by ref response."""
-    return _json_read_fixture("get_fixed_address_by_ref.json")
-
-
 def get_host_by_ip():
     """Return a get Host by IP response."""
     return _json_read_fixture("get_host_by_ip.json")
-
-
-def get_host_by_ref():
-    """Return a get Host by ref response."""
-    return _json_read_fixture("get_host_by_ref.json")
 
 
 def get_a_record_by_ip():
@@ -190,11 +180,6 @@ def get_a_record_by_name():
     return _json_read_fixture("get_a_record_by_name.json")
 
 
-def get_a_record_by_ref():
-    """Return a get A record by ref response."""
-    return _json_read_fixture("get_a_record_by_ref.json")
-
-
 def get_host_record_by_name():
     """Return a get Host record by name response."""
     return _json_read_fixture("get_host_record_by_name.json")
@@ -203,6 +188,11 @@ def get_host_record_by_name():
 def get_all_dns_views():
     """Return a get all DNS views response."""
     return _json_read_fixture("get_all_dns_views.json")
+
+
+def get_all_records_by_type():
+    """Return per-type paged responses (keyed by WAPI object type) for get_all_records_by_type."""
+    return _json_read_fixture("get_all_records_by_type.json")
 
 
 def get_dhcp_lease_from_ipv4():
@@ -248,11 +238,6 @@ def get_ptr_record_by_ip():
 def get_ptr_record_by_name():
     """Return a get PTR record by name response."""
     return _json_read_fixture("get_ptr_record_by_name.json")
-
-
-def get_ptr_record_by_ref():
-    """Return a get PTR record by ref response."""
-    return _json_read_fixture("get_ptr_record_by_ref.json")
 
 
 def find_next_available_ip():

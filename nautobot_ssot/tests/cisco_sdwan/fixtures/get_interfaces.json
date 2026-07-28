@@ -1,0 +1,75 @@
+{
+    "10.255.1.1": [
+        {
+            "ifname": "GigabitEthernet1",
+            "ip-address": "192.0.2.10",
+            "ipv4-subnet-mask": "255.255.255.0",
+            "vpn-id": "0",
+            "mtu": "1500",
+            "description": "WAN uplink",
+            "if-admin-status": "if-state-up",
+            "if-oper-status": "if-oper-state-ready",
+            "vdevice-name": "10.255.1.1"
+        },
+        {
+            "ifname": "GigabitEthernet2",
+            "ip-address": "198.51.100.5",
+            "ipv4-subnet-mask": "255.255.255.252",
+            "vpn-id": "10",
+            "mtu": "0",
+            "description": "LAN segment",
+            "if-admin-status": "down",
+            "if-oper-status": "if-oper-state-down",
+            "vdevice-name": "10.255.1.1"
+        },
+        {
+            "ifname": "Loopback65528",
+            "ip-address": "192.168.1.1",
+            "ipv4-subnet-mask": "255.255.255.255",
+            "vpn-id": "65528",
+            "mtu": "1500",
+            "if-admin-status": "if-state-up",
+            "vdevice-name": "10.255.1.1"
+        },
+        {
+            "ifname": "Tunnel1",
+            "ip-address": "169.254.10.1",
+            "ipv4-subnet-mask": "255.255.255.0",
+            "vpn-id": "0",
+            "mtu": "1400",
+            "if-admin-status": "if-state-up",
+            "vdevice-name": "10.255.1.1"
+        },
+        {
+            "ifname": "system",
+            "ip-address": "10.255.1.1",
+            "ipv4-subnet-mask": "255.255.255.255",
+            "vpn-id": "0",
+            "mtu": "0",
+            "if-admin-status": "up",
+            "vdevice-name": "10.255.1.1"
+        }
+    ],
+    "10.255.1.2": [
+        {
+            "ifname": "GigabitEthernet0/0/0",
+            "ip-address": "-",
+            "ipv4-subnet-mask": "",
+            "vpn-id": "0",
+            "mtu": "1500",
+            "if-admin-status": "if-state-up",
+            "vdevice-name": "10.255.1.2"
+        },
+        {
+            "ifname": "GigabitEthernet0/0/1",
+            "ip-address": "203.0.113.9",
+            "ipv4-subnet-mask": "255.255.255.248",
+            "vpn-id": "0",
+            "mtu": "1500",
+            "description": "Transport",
+            "if-admin-status": "if-state-up",
+            "vdevice-name": "10.255.1.2"
+        }
+    ],
+    "10.255.0.1": []
+}
