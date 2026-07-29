@@ -80,6 +80,20 @@ In addition, there are two methods provided to assign Roles to your imported Dev
 
 - Finally there is an option to specify a Tenant to be assigned to the imported Devices, Prefixes, and IPAddreses. This is handy for cases where you have multiple Meraki instances that are used by differing business units.
 
+## Interface Descriptions
+
+Imported Interfaces have their `description` field populated from the closest equivalent label in Meraki, as the Meraki Dashboard API has no dedicated interface description field:
+
+| Nautobot Interface        | Meraki source                                             |
+| ------------------------- | --------------------------------------------------------- |
+| SVIs on MX/MG/Z devices   | The VLAN `name` from `getNetworkApplianceVlans`           |
+| Switchports on MS devices | The port `name` from `getOrganizationSwitchPortsBySwitch` |
+
+SVIs are only imported when the `Sync Firewall LAN SVIs` toggle is enabled. When VLANs are disabled on an MX/MG/Z device, the single LAN interface is described as `Single LAN (VLANs disabled in Meraki)`.
+
+!!! warning
+    Meraki is authoritative for the Interface `description` field. Interface types that have no corresponding label in Meraki - WAN uplinks, management interfaces, and MX LAN ports - are synchronized with an empty description, and any description entered manually in Nautobot on a Meraki-managed Interface will be overwritten on the next sync.
+
 Running this Job will redirect you to a `Nautobot Job Result` view.
 
 ![JobResult View](../../images/meraki_jobresult.png)

@@ -99,6 +99,7 @@ class NautobotDiffSyncTestCase(TestCase):
         lab01_mgmt = Interface.objects.create(
             name="wan1",
             device=lab01,
+            description="Primary WAN uplink",
             enabled=True,
             mode="access",
             mgmt_only=True,
@@ -143,6 +144,9 @@ class NautobotDiffSyncTestCase(TestCase):
             {dev.get_unique_id() for dev in self.nb_adapter.get_all("device")},
         )
         self.assertEqual({"wan1__Lab01"}, {port.get_unique_id() for port in self.nb_adapter.get_all("port")})
+        self.assertEqual(
+            "Primary WAN uplink", self.nb_adapter.get("port", {"name": "wan1", "device": "Lab01"}).description
+        )
         self.assertEqual(
             {f"{pf.prefix}__{pf.namespace.name}" for pf in Prefix.objects.all()},
             {pf.get_unique_id() for pf in self.nb_adapter.get_all("prefix")},

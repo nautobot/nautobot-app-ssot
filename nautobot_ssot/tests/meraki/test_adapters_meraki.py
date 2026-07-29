@@ -367,6 +367,9 @@ class TestMerakiAdapterTestCase(TestCase):
         ports = {port.get_unique_id() for port in self.meraki.get_all("port")}
         self.assertIn("Vlan1234__HQ01", ports)
 
+        svi = self.meraki.get("port", {"name": "Vlan1234", "device": "HQ01"})
+        self.assertEqual("My VLAN", svi.description)
+
         prefixes = {pf.get_unique_id() for pf in self.meraki.get_all("prefix")}
         self.assertIn("192.168.1.0/24__Global", prefixes)
 
@@ -406,6 +409,9 @@ class TestMerakiAdapterTestCase(TestCase):
         ports = {port.get_unique_id() for port in self.meraki.get_all("port")}
         self.assertIn("Vlan1__HQ01", ports)
 
+        svi = self.meraki.get("port", {"name": "Vlan1", "device": "HQ01"})
+        self.assertEqual("Single LAN (VLANs disabled in Meraki)", svi.description)
+
         prefixes = {pf.get_unique_id() for pf in self.meraki.get_all("prefix")}
         self.assertIn("192.168.50.0/24__Global", prefixes)
 
@@ -417,6 +423,54 @@ class TestMerakiAdapterTestCase(TestCase):
             {"address": "192.168.50.2", "device": "HQ01", "namespace": "Global", "port": "Vlan1"},
         )
         self.assertFalse(ipassignment.primary)
+
+    def test_load_firewall_ports_vlan_svi_without_name(self):
+        """SVI description falls back to an empty string when the Meraki VLAN has no name."""
+        mock_device = MagicMock()
+        mock_device.name = "HQ01"
+
+        self.job.sync_firewall_lan_ips = True
+        self.meraki.device_map = {"HQ01": fix.GET_ORG_DEVICES_FIXTURE[1]}
+
+        self.meraki_client.get_appliance_vlans_settings.return_value = fix.GET_APPLIANCE_VLANS_SETTINGS_TRUE_FIXTURE
+        self.meraki_client.get_appliance_vlans.return_value = [
+            {"id": "1234", "name": None, "subnet": "192.168.1.0/24", "applianceIp": "192.168.1.2"}
+        ]
+
+        self.meraki_client.get_management_ports.return_value = {}
+        self.meraki_client.get_uplink_settings.return_value = {}
+        self.meraki_client.get_appliance_switchports.return_value = []
+
+        self.meraki.load_firewall_ports(
+            device=mock_device,
+            serial="V4GD-ABDP-YVCK",
+            network_id="L_165471703274884707",
+            lan_ip=None,
+        )
+
+        svi = self.meraki.get("port", {"name": "Vlan1234", "device": "HQ01"})
+        self.assertEqual("", svi.description)
+
+    @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"meraki_allow_dhcp_mgmt_ips": False}})
+    def test_load_switch_ports_description_from_port_name(self):
+        """Switchport descriptions are sourced from the Meraki port name, defaulting to an empty string."""
+        mock_device = MagicMock()
+        mock_device.name = "Lab Switch"
+
+        self.meraki.device_map = {"Lab Switch": fix.GET_ORG_DEVICES_FIXTURE[2]}
+        self.meraki_client.get_management_ports.return_value = {}
+
+        self.meraki.load_switch_ports(
+            device=mock_device,
+            org_switchports=fix.GET_ORG_SWITCHPORTS_RECV_FIXTURE,
+            serial="N0BA-AWBF-DCWP",
+            lan_ip=None,
+        )
+
+        # Port 25 carries a name in the fixture, port 1 has an empty name, and port 3 has a null name.
+        self.assertEqual("Uplink to Core", self.meraki.get("port", {"name": "25", "device": "Lab Switch"}).description)
+        self.assertEqual("", self.meraki.get("port", {"name": "1", "device": "Lab Switch"}).description)
+        self.assertEqual("", self.meraki.get("port", {"name": "3", "device": "Lab Switch"}).description)
 
     @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"meraki_allow_dhcp_mgmt_ips": True}})
     def test_load_switch_with_dhcp_mgmt_ip(self):
