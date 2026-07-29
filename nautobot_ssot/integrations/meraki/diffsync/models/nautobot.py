@@ -123,7 +123,9 @@ class NautobotOSVersion(OSVersion):
                     f"SoftwareVersion {osversion.version} for {osversion.platform.name} is used with a ValidatedSoftware so won't be deleted."
                 )
                 return self
-        osversion.delete()
+        # Deletion is deferred to sync_complete so Devices are repointed to their new SoftwareVersion first. Deleting
+        # here raises a ProtectedError because DiffSync processes osversion deletions before Device updates.
+        self.adapter.objects_to_delete["osversions"].append(osversion)
         return self
 
 
