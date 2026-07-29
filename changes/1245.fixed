@@ -1,1 +1,0 @@
-Fixed the remaining methods in Arista CloudVision SSoT sync when attributes are streamed in multiple gRPC notification frames.
