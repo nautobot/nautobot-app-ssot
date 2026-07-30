@@ -343,7 +343,10 @@ class NautobotDevice(Device):
             new_device.primary_ip4 = _ipaddress
             new_device.validated_save()
 
-        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+        # Remove tenant from attrs since we've already handled it
+        attrs_copy = attrs.copy()
+        attrs_copy.pop("tenant", None)
+        return super().create(adapter=adapter, ids=ids, attrs=attrs_copy)
 
     def update(self, attrs):
         """Update Device in Nautobot from NautobotDevice object."""

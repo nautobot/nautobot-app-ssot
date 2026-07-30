@@ -11,11 +11,10 @@ class Location(DiffSyncModel):
 
     _modelname = "location"
     _identifiers = ("name",)
-    # "tenant" is intentionally not a synced attribute; it is assigned at create
-    # time from the job's optional Tenant Filter and must not generate diffs.
     _attributes = (
         "status",
         "location_type",
+        "tenant",
         "parent",
         "latitude",
         "longitude",
@@ -40,13 +39,12 @@ class Device(DiffSyncModel):
 
     _modelname = "device"
     _identifiers = ("name",)
-    # "tenant" is intentionally not a synced attribute; it is assigned at create
-    # time from the job's optional Tenant Filter and must not generate diffs.
     _attributes = (
         "device_id",
         "location",
         "parent_location",
         "snmp_location",
+        "tenant",
         "status",
         "device_type",
         "ip_address",

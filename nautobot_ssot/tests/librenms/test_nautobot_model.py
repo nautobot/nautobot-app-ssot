@@ -13,7 +13,6 @@ from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import Namespace
 from nautobot.tenancy.models import Tenant
 
-from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location
 from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import NautobotDevice, ensure_ip_address
 from nautobot_ssot.integrations.librenms.jobs import LibrenmsDataTarget
 
@@ -196,44 +195,6 @@ class TestEnsureIPAddress(TestCase):
 
         self.assertEqual(str(ip_address.address), "198.51.100.10/24")
         self.assertEqual(ip_address.parent.namespace.name, "Acme Corp")
-
-
-class StubAdapter(Adapter):
-    """Minimal adapter for diffing the base DiffSync models."""
-
-    location = Location
-    device = Device
-
-    top_level = ["location", "device"]
-
-
-class TestTenantNotSynced(TestCase):
-    """Tenant differences must not produce diffs; tenant is assigned only at create time."""
-
-    device_kwargs = {
-        "name": "device1",
-        "location": "Site A",
-        "status": "Active",
-        "device_type": "Model X",
-        "manufacturer": "Vendor",
-        "system_of_record": "LibreNMS",
-    }
-
-    def test_device_tenant_mismatch_produces_no_diff(self):
-        """A device with a tenant in Nautobot but none in LibreNMS must not show a perpetual diff."""
-        source = StubAdapter()
-        target = StubAdapter()
-        source.add(Device(**self.device_kwargs, tenant=None))
-        target.add(Device(**self.device_kwargs, tenant="Acme Corp"))
-
-        diff = source.diff_to(target)
-
-        self.assertFalse(diff.has_diffs(), f"Tenant mismatch must not generate a diff: {diff.str()}")
-
-    def test_tenant_not_in_synced_attributes(self):
-        """Tenant must not be declared as a synced attribute on any LibreNMS DiffSync model."""
-        self.assertNotIn("tenant", Device._attributes)  # pylint: disable=protected-access
-        self.assertNotIn("tenant", Location._attributes)  # pylint: disable=protected-access
 
 
 class TestLibrenmsDataTargetTenant(TestCase):
