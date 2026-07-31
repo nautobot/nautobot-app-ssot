@@ -1,0 +1,1 @@
+Fixed a ProtectedError crash in the Meraki integration when a SoftwareVersion that was still assigned to a Device was deleted, by deferring SoftwareVersion deletion until after Devices have been updated.

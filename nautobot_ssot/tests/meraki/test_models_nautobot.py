@@ -1,18 +1,31 @@
 """Unit tests for Nautobot IPAM model CRUD functions."""
 
+from collections import defaultdict
 from unittest.mock import MagicMock, patch
 
 from diffsync import Adapter
 from django.contrib.contenttypes.models import ContentType
 from django.test import override_settings
 from nautobot.apps.testing import TestCase
-from nautobot.dcim.models import Location, LocationType
+from nautobot.dcim.models import (
+    Device,
+    DeviceType,
+    Location,
+    LocationType,
+    Manufacturer,
+    Platform,
+    SoftwareVersion,
+)
 from nautobot.extras.management import populate_status_choices
-from nautobot.extras.models import Status
+from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
-from nautobot_ssot.integrations.meraki.diffsync.models.nautobot import NautobotIPAddress, NautobotPrefix
+from nautobot_ssot.integrations.meraki.diffsync.models.nautobot import (
+    NautobotIPAddress,
+    NautobotOSVersion,
+    NautobotPrefix,
+)
 
 
 @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"enable_meraki": True}})
@@ -235,3 +248,73 @@ class TestNautobotIPAddress(TestCase):  # pylint: disable=too-many-instance-attr
         actual = NautobotIPAddress.update(self=self.test_ip, attrs=update_attrs)
         self.assertIsNone(actual)
         self.adapter.job.logger.error.assert_called_once_with("Prefix 10.100.0.0/8 not found in Nautobot.")
+
+
+@override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"enable_meraki": True}})
+class TestNautobotOSVersion(TestCase):  # pylint: disable=too-many-instance-attributes
+    """Test the NautobotOSVersion class."""
+
+    databases = ("default", "job_logs")
+
+    @classmethod
+    def setUpTestData(cls):
+        """Configure common variables and objects for tests."""
+        super().setUpTestData()
+        populate_status_choices()
+        cls.status_active = Status.objects.get(name="Active")
+        site_lt = LocationType.objects.get_or_create(name="Site")[0]
+        site_lt.content_types.add(ContentType.objects.get_for_model(Device))
+        cls.test_site = Location.objects.get_or_create(name="Test", location_type=site_lt, status=cls.status_active)[0]
+        manufacturer = Manufacturer.objects.get_or_create(name="Cisco Meraki")[0]
+        cls.platform = Platform.objects.get_or_create(name="Cisco Meraki", manufacturer=manufacturer)[0]
+        devicetype = DeviceType.objects.get_or_create(model="MX84", manufacturer=manufacturer)[0]
+        role = Role.objects.get_or_create(name="Firewall")[0]
+        role.content_types.add(ContentType.objects.get_for_model(Device))
+        cls.old_version = SoftwareVersion.objects.create(
+            version="15.42", platform=cls.platform, status=cls.status_active
+        )
+        # A Device still referencing the SoftwareVersion is what makes an immediate delete raise ProtectedError.
+        cls.device = Device.objects.create(
+            name="HQ01",
+            device_type=devicetype,
+            role=role,
+            location=cls.test_site,
+            status=cls.status_active,
+            software_version=cls.old_version,
+        )
+        cls.adapter = Adapter()
+        cls.adapter.job = MagicMock()
+        cls.adapter.objects_to_delete = defaultdict(list)
+
+    def _build_osversion(self):
+        """Build a NautobotOSVersion for the old SoftwareVersion, bound to the test adapter."""
+        osversion = NautobotOSVersion(version="15.42", uuid=self.old_version.id)
+        osversion.adapter = self.adapter
+        return osversion
+
+    def test_delete_defers_removal(self):
+        """Validate delete() queues the SoftwareVersion instead of removing it while a Device still references it."""
+        osversion = self._build_osversion()
+
+        actual = osversion.delete()
+
+        self.assertEqual(actual, osversion)
+        self.assertEqual([self.old_version.id], [ver.id for ver in self.adapter.objects_to_delete["osversions"]])
+        # Deleting inline here is what raised ProtectedError, so the record must survive the delete() call.
+        self.assertTrue(SoftwareVersion.objects.filter(id=self.old_version.id).exists())
+
+    @patch("nautobot_ssot.integrations.meraki.diffsync.models.nautobot.SoftwareVersion.objects.get")
+    def test_delete_skips_validated_software(self, mock_get):
+        """Validate delete() does not queue a SoftwareVersion that is used by a ValidatedSoftware."""
+        mock_version = MagicMock()
+        mock_version.version = "15.42"
+        mock_version.platform.name = "Cisco Meraki"
+        mock_version.validatedsoftwarelcm_set.count.return_value = 1
+        mock_get.return_value = mock_version
+
+        self._build_osversion().delete()
+
+        self.assertEqual([], self.adapter.objects_to_delete["osversions"])
+        self.adapter.job.logger.warning.assert_called_once_with(
+            "SoftwareVersion 15.42 for Cisco Meraki is used with a ValidatedSoftware so won't be deleted."
+        )

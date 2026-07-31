@@ -292,6 +292,7 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
             "ports",
             "devices",
             "devicetypes",
+            "osversions",
         ):
             for nautobot_object in self.objects_to_delete[grouping]:
                 try:
