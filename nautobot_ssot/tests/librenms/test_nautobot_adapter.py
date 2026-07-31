@@ -9,6 +9,7 @@ from nautobot.dcim.models import Device as ORMDevice
 from nautobot.dcim.models import DeviceType, LocationType, Manufacturer, Platform
 from nautobot.dcim.models import Location as ORMLocation
 from nautobot.extras.models import JobResult, Role, Status
+from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.librenms.constants import (
     librenms_status_map,
@@ -123,6 +124,54 @@ class TestNautobotAdapterTestCase(TestCase):
         )
         self.nautobot_adapter.job.logger.warning.assert_called_once_with(
             "Skipping device passive-patch-panel-01: no Platform assigned, cannot be synced with LibreNMS."
+        )
+
+    def test_load_devices_with_tenant_filter(self):
+        """Test that a tenant filter loads only that tenant's devices, with the tenant populated."""
+        tenant = Tenant.objects.create(name="Filter Tenant")
+        device = ORMDevice.objects.get(name=DEVICE_FIXTURE[0]["sysName"])
+        device.tenant = tenant
+        device.validated_save()
+
+        # A second device outside the tenant that would otherwise load fine.
+        ORMDevice.objects.create(
+            name="untenanted-device",
+            device_type=device.device_type,
+            role=device.role,
+            location=device.location,
+            status=device.status,
+            platform=device.platform,
+        )
+
+        adapter = NautobotAdapter(job=self.job, sync=None, tenant=tenant)
+        adapter.load_device()
+
+        loaded_devices = {loaded.get_unique_id() for loaded in adapter.get_all("device")}
+        self.assertEqual(loaded_devices, {device.name}, "Only devices in the selected tenant should be loaded.")
+        self.assertEqual(adapter.get("device", {"name": device.name}).tenant, "Filter Tenant")
+
+    def test_load_devices_without_tenant_filter_loads_all(self):
+        """Test that omitting the tenant filter loads devices with and without a tenant."""
+        tenant = Tenant.objects.create(name="Some Tenant")
+        device = ORMDevice.objects.get(name=DEVICE_FIXTURE[0]["sysName"])
+        tenanted_device = ORMDevice.objects.create(
+            name="tenanted-device",
+            device_type=device.device_type,
+            role=device.role,
+            location=device.location,
+            status=device.status,
+            platform=device.platform,
+            tenant=tenant,
+        )
+
+        adapter = NautobotAdapter(job=self.job, sync=None)
+        adapter.load_device()
+
+        loaded_devices = {loaded.get_unique_id() for loaded in adapter.get_all("device")}
+        self.assertEqual(
+            loaded_devices,
+            {device.name, tenanted_device.name},
+            "Without a tenant filter, all devices should be loaded.",
         )
 
     def test_load_locations(self):

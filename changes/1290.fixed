@@ -1,0 +1,2 @@
+Fixed LibreNMS sync failing with an `AttributeError` when no Tenant Filter was selected; IP addresses are now placed in the Global namespace when no tenant is set.
+Fixed the Tenant Filter being silently ignored by the Nautobot to LibreNMS job.

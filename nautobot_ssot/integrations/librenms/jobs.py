@@ -241,7 +241,7 @@ class LibrenmsDataTarget(DataTarget):  # pylint: disable=too-many-instance-attri
 
     def load_source_adapter(self):
         """Load data from Nautobot into DiffSync models."""
-        self.source_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync)
+        self.source_adapter = nautobot.NautobotAdapter(job=self, sync=self.sync, tenant=self.tenant)
         self.source_adapter.load()
 
     def load_target_adapter(self):
