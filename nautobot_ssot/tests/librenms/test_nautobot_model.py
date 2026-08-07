@@ -175,6 +175,22 @@ class TestNautobotDeviceUpdatePlatform(TestCase):
         self.assertEqual(software_version.version, "2.0")
 
 
+DEVICE_CREATE_IDS = {"name": "new-device"}
+DEVICE_CREATE_ATTRS = {
+    "location": "Chicago",
+    "parent_location": None,
+    "status": "Active",
+    "device_type": "Test Device Type",
+    "manufacturer": "Linux",
+    "platform": "linux",
+    "role": "Test Role",
+    "serial_no": "SN123",
+    "os_version": "1.0",
+    "device_id": 1,
+    "system_of_record": "LibreNMS",
+}
+
+
 class TestNautobotDeviceSecretsGroup(TestCase):
     """Test that NautobotDevice assigns the device_secrets_group job var without clobbering existing groups."""
 
@@ -183,15 +199,13 @@ class TestNautobotDeviceSecretsGroup(TestCase):
     def setUp(self):
         """Set up a Nautobot Device with no Secrets Group, plus two Secrets Groups to assign."""
         super().setUp()
-        self.active_status, _ = Status.objects.get_or_create(name="Active")
-        self.active_status.content_types.add(ContentType.objects.get_for_model(ORMDevice))
+        active_status, _ = Status.objects.get_or_create(name="Active")
+        active_status.content_types.add(ContentType.objects.get_for_model(ORMDevice))
 
-        self.site_type, _ = LocationType.objects.get_or_create(name="Site")
-        self.site_type.content_types.add(ContentType.objects.get_for_model(ORMDevice))
+        site_type, _ = LocationType.objects.get_or_create(name="Site")
+        site_type.content_types.add(ContentType.objects.get_for_model(ORMDevice))
 
-        self.chicago = ORMLocation.objects.create(
-            name="Chicago", location_type=self.site_type, status=self.active_status
-        )
+        chicago = ORMLocation.objects.create(name="Chicago", location_type=site_type, status=active_status)
 
         manufacturer, _ = Manufacturer.objects.get_or_create(name="Generic")
         device_type, _ = DeviceType.objects.get_or_create(model="Test Device Type", manufacturer=manufacturer)
@@ -204,14 +218,14 @@ class TestNautobotDeviceSecretsGroup(TestCase):
         self.orm_device = ORMDevice.objects.create(
             name="test-device",
             device_type=device_type,
-            status=self.active_status,
+            status=active_status,
             role=role,
-            location=self.chicago,
+            location=chicago,
         )
 
         self.adapter = MagicMock(spec=Adapter)
         self.adapter.job = MagicMock()
-        self.adapter.job.location_type = self.site_type
+        self.adapter.job.location_type = site_type
         self.adapter.job.debug = False
         self.adapter.job.sync_locations = False
         self.adapter.job.device_secrets_group = None
@@ -228,26 +242,11 @@ class TestNautobotDeviceSecretsGroup(TestCase):
         )
         self.diffsync_device.adapter = self.adapter
 
-        self.create_ids = {"name": "new-device"}
-        self.create_attrs = {
-            "location": "Chicago",
-            "parent_location": None,
-            "status": "Active",
-            "device_type": "Test Device Type",
-            "manufacturer": "Linux",
-            "platform": "linux",
-            "role": "Test Role",
-            "serial_no": "SN123",
-            "os_version": "1.0",
-            "device_id": 1,
-            "system_of_record": "LibreNMS",
-        }
-
     def test_create_assigns_secrets_group(self):
         """A created Device gets the Secrets Group selected on the job form."""
         self.adapter.job.device_secrets_group = self.job_secrets_group
 
-        NautobotDevice.create(self.adapter, self.create_ids, self.create_attrs)
+        NautobotDevice.create(self.adapter, DEVICE_CREATE_IDS.copy(), DEVICE_CREATE_ATTRS.copy())
 
         new_orm_device = ORMDevice.objects.get(name="new-device")
         self.assertEqual(new_orm_device.secrets_group, self.job_secrets_group)
@@ -256,7 +255,7 @@ class TestNautobotDeviceSecretsGroup(TestCase):
         """Leaving the Secrets Group field blank must still create the Device."""
         self.adapter.job.device_secrets_group = None
 
-        NautobotDevice.create(self.adapter, self.create_ids, self.create_attrs)
+        NautobotDevice.create(self.adapter, DEVICE_CREATE_IDS.copy(), DEVICE_CREATE_ATTRS.copy())
 
         new_orm_device = ORMDevice.objects.get(name="new-device")
         self.assertIsNone(new_orm_device.secrets_group)
