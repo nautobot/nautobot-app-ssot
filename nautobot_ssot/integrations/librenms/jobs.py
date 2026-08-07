@@ -12,7 +12,7 @@ from nautobot.extras.choices import (
     SecretsGroupAccessTypeChoices,
     SecretsGroupSecretTypeChoices,
 )
-from nautobot.extras.models import ExternalIntegration, Role
+from nautobot.extras.models import ExternalIntegration, Role, SecretsGroup
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.librenms.diffsync.adapters import librenms, nautobot
@@ -61,6 +61,14 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         required=False,
         label="Default Role",
         description="Default Role to use for devices that do not have a role in the hostname map.",
+        default=None,
+    )
+    device_secrets_group = ObjectVar(
+        model=SecretsGroup,
+        display_field="display",
+        required=False,
+        label="Device Secrets Group",
+        description="Secrets Group to assign to Devices created from LibreNMS. Existing Device Secrets Group assignments are never overwritten.",
         default=None,
     )
     unpermitted_values = StringVar(
@@ -162,9 +170,10 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         default_role,
         unpermitted_values,
         tenant,
+        device_secrets_group=None,
         *args,
         **kwargs,
-    ):  # pylint: disable=arguments-differ
+    ):  # pylint: disable=arguments-differ, keyword-arg-before-vararg
         """Perform data synchronization."""
         self.librenms_server = librenms_server
         self.hostname_field = hostname_field
@@ -177,6 +186,7 @@ class LibrenmsDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         self.location_map = location_map
         self.hostname_map = hostname_map
         self.default_role = default_role
+        self.device_secrets_group = device_secrets_group
         self.unpermitted_values = literal_eval(unpermitted_values)
         super().run(dryrun=self.dryrun, memory_profiling=self.memory_profiling, *args, **kwargs)
 

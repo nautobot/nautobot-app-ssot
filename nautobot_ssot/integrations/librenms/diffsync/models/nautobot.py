@@ -299,6 +299,7 @@ class NautobotDevice(Device):
             adapter.job.logger.debug(f'Device Location {attrs["location"]}')
 
         _tenant = adapter.tenant
+        _secrets_group = getattr(adapter.job, "device_secrets_group", None)
 
         try:
             new_device = ORMDevice(
@@ -307,6 +308,7 @@ class NautobotDevice(Device):
                 status=Status.objects.get(name=attrs["status"]),
                 role=ensure_role(role_name=attrs["role"], content_type=ORMDevice),
                 tenant=_tenant,
+                secrets_group=_secrets_group,
                 location=_location,
                 platform=_platform,
                 serial=attrs["serial_no"],
@@ -395,6 +397,13 @@ class NautobotDevice(Device):
                 ip_address=_ipaddress, interface=_interface, defaults={"vm_interface": None}
             )
             device.primary_ip4 = _ipaddress
+
+        # Only backfill the Secrets Group, never overwrite one assigned by hand or by another job.
+        if not device.secrets_group:
+            _secrets_group = getattr(self.adapter.job, "device_secrets_group", None)
+            if _secrets_group:
+                device.secrets_group = _secrets_group
+
         custom_fields = {"last_synced_from_sor": datetime.today().date().isoformat()}
         if not check_sor_field(device):
             custom_fields["system_of_record"] = os.getenv("NAUTOBOT_SSOT_LIBRENMS_SYSTEM_OF_RECORD", "LibreNMS")
