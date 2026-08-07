@@ -27,7 +27,9 @@ from nautobot_ssot.integrations.librenms.utils import check_sor_field
 
 def ensure_ip_address(ip_address: str, ip_prefix: str, adapter: object):
     """Safely returns an IPAddress."""
-    _namespace = Namespace.objects.get_or_create(name=adapter.job.tenant.name)[0]
+    # Tenant is optional; without one, IPs live in the default Global namespace.
+    _namespace_name = adapter.job.tenant.name if adapter.job.tenant else "Global"
+    _namespace = Namespace.objects.get_or_create(name=_namespace_name)[0]
     _namespace.validated_save()
     _prefix = Prefix.objects.get_or_create(
         prefix=ip_prefix, namespace=_namespace, status=Status.objects.get(name="Active")

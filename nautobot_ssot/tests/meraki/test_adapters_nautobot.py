@@ -5,7 +5,16 @@ from unittest.mock import MagicMock
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.testing import TestCase
-from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
+from nautobot.dcim.models import (
+    Device,
+    DeviceType,
+    Interface,
+    Location,
+    LocationType,
+    Manufacturer,
+    Platform,
+    SoftwareVersion,
+)
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import JobResult, Note, Role, Status
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
@@ -198,3 +207,60 @@ class NautobotDiffSyncTestCase(TestCase):
         self.assertFalse(lab01_assignment.primary)
         lab02_assignment = self.nb_adapter.get("ipassignment", "10.0.0.1__Lab02__Test__wan1")
         self.assertTrue(lab02_assignment.primary)
+
+    def test_sync_complete_deletes_deferred_osversion(self):
+        """Validate a deferred SoftwareVersion is deleted once the Device has moved to the new version."""
+        self.nb_adapter.job.debug = False
+        lab01 = Device.objects.get(name="Lab01")
+        old_version = SoftwareVersion.objects.create(
+            version="15.42", platform=lab01.platform, status=self.status_active
+        )
+        new_version = SoftwareVersion.objects.create(
+            version="16.00", platform=lab01.platform, status=self.status_active
+        )
+        lab01.software_version = old_version
+        lab01.validated_save()
+
+        # NautobotDevice.update() repoints the Device during the sync, before sync_complete runs.
+        lab01.software_version = new_version
+        lab01.validated_save()
+        self.nb_adapter.objects_to_delete["osversions"].append(old_version)
+
+        self.nb_adapter.sync_complete(source=MagicMock(), diff=MagicMock())
+
+        self.assertFalse(SoftwareVersion.objects.filter(version="15.42").exists())
+        self.assertEqual([], self.nb_adapter.objects_to_delete["osversions"])
+
+    def test_sync_complete_warns_on_still_referenced_osversion(self):
+        """Validate a SoftwareVersion still in use logs a warning instead of raising ProtectedError."""
+        self.nb_adapter.job.debug = False
+        lab01 = Device.objects.get(name="Lab01")
+        old_version = SoftwareVersion.objects.create(
+            version="15.42", platform=lab01.platform, status=self.status_active
+        )
+        lab01.software_version = old_version
+        lab01.validated_save()
+        self.nb_adapter.objects_to_delete["osversions"].append(old_version)
+
+        self.nb_adapter.sync_complete(source=MagicMock(), diff=MagicMock())
+
+        self.nb_adapter.job.logger.warning.assert_called_once_with(f"Deletion failed protected object: {old_version}")
+        self.assertTrue(SoftwareVersion.objects.filter(version="15.42").exists())
+
+    def test_sync_complete_deletes_device_before_osversion(self):
+        """Validate a Device queued for deletion is removed before its SoftwareVersion, releasing the protected FK."""
+        self.nb_adapter.job.debug = False
+        lab01 = Device.objects.get(name="Lab01")
+        old_version = SoftwareVersion.objects.create(
+            version="15.42", platform=lab01.platform, status=self.status_active
+        )
+        lab01.software_version = old_version
+        lab01.validated_save()
+        self.nb_adapter.objects_to_delete["devices"].append(lab01)
+        self.nb_adapter.objects_to_delete["osversions"].append(old_version)
+
+        self.nb_adapter.sync_complete(source=MagicMock(), diff=MagicMock())
+
+        # Had the SoftwareVersion been processed before the Device, the protected FK would have blocked its deletion.
+        self.assertFalse(Device.objects.filter(name="Lab01").exists())
+        self.assertFalse(SoftwareVersion.objects.filter(version="15.42").exists())
