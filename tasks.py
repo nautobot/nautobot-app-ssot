@@ -904,15 +904,6 @@ def pylint(context, target=None, recursive=False):
                 break
 
     if migrations_dir.is_dir():
-<<<<<<< HEAD
-        migrations_pylint_command = (
-            f"{base_pylint_command} --load-plugins=pylint_django.checkers.migrations"
-            " --disable=all --enable=fatal,missing-backwards-migration-callable"
-            " nautobot_ssot.migrations"
-        )
-        if not run_command(context, migrations_pylint_command, warn=True):
-            exit_code = 1
-=======
         if run_migrations_check:
             migrations_pylint_command = (
                 f"{base_pylint_command} --load-plugins=pylint_django.checkers.migrations"
@@ -921,7 +912,6 @@ def pylint(context, target=None, recursive=False):
             )
             if not run_command(context, migrations_pylint_command, warn=True):
                 exit_code = 1
->>>>>>> db0aa63 (Cookie updated targeting develop by NetworkToCode Cookie Drift Manager Tool)
     else:
         print("No migrations directory found, skipping migrations checks.")
 
@@ -1180,17 +1170,7 @@ def tests(context, failfast=False, keepdb=False, no_input=False, lint_only=False
     validate_app_config(context)
     if not lint_only:
         print("Running unit tests...")
-<<<<<<< HEAD
-        unittest(
-            context,
-            failfast=failfast,
-            keepdb=keepdb,
-            coverage=True,
-            skip_docs_build=True,
-        )
-=======
         unittest(context, failfast=failfast, keepdb=keepdb, no_input=no_input, coverage=True, skip_docs_build=True)
->>>>>>> db0aa63 (Cookie updated targeting develop by NetworkToCode Cookie Drift Manager Tool)
         unittest_coverage(context)
         coverage_lcov(context)
     print("All tests have passed!")

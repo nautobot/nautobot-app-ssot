@@ -310,10 +310,8 @@ public
 /dump.sql
 .service_ports.json
 /nautobot_ssot/static/nautobot_ssot/docs
-<<<<<<< HEAD
 # Avoid accidental commit of analytics template override generated via ./docs/insert-analytics.sh
 docs/assets/overrides/main.html
-=======
 
 # Claude Code local settings
 .claude/settings.local.json
@@ -340,4 +338,3 @@ GEMINI.md
 .ollama/
 # https://github.com/kirodotdev/Kiro
 .kiro/
->>>>>>> db0aa63 (Cookie updated targeting develop by NetworkToCode Cookie Drift Manager Tool)

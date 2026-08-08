@@ -210,11 +210,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-<<<<<<< HEAD
-        python-version: ["3.10"] # 3.13 stable is tested in unittest_report stage.
-=======
         python-version: ["3.10"]  # 3.14 stable is tested in unittest_report stage.
->>>>>>> db0aa63 (Cookie updated targeting develop by NetworkToCode Cookie Drift Manager Tool)
         db-backend: ["postgresql"]
         nautobot-version: ["stable"]
         include:

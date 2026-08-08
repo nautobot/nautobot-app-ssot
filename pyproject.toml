@@ -30,8 +30,7 @@ include = [
 [tool.poetry.dependencies]
 python = ">=3.10,<3.15"
 # Used for local development
-<<<<<<< HEAD
-nautobot = ">=3.0.0,<4.0.0"
+nautobot = ">=3.1.0,<4.0.0"
 diffsync = "^2.0.0"
 Jinja2 = { version = ">=2.11.3", optional = true }
 Markdown = "!=3.3.5"
@@ -59,9 +58,6 @@ cisco-sdwan = { version = "^1.26", optional = true }
 dnacentersdk = { version = "^2.5.6", optional = true }
 meraki = { version = "^1.37.2,<1.46.0", optional = true }
 slurpit-sdk = { version = "0.9.107", optional = true }  # Pinned to 0.9.107 due to significant changes being made to the sdk's api
-=======
-nautobot = ">=3.1.0,<4.0.0"
->>>>>>> db0aa63 (Cookie updated targeting develop by NetworkToCode Cookie Drift Manager Tool)
 
 [tool.poetry.group.dev.dependencies]
 coverage = "*"
@@ -75,11 +71,6 @@ pylint-django = ">=2.5.4"
 pylint-nautobot = ">=0.3.1"
 ruff = "0.5.5"
 yamllint = "*"
-<<<<<<< HEAD
-markdown-include = "*"
-toml = "*"
-=======
->>>>>>> db0aa63 (Cookie updated targeting develop by NetworkToCode Cookie Drift Manager Tool)
 # Python implementation of markdownlint
 pymarkdownlnt = "~0.9.30"
 Markdown = "*"
@@ -239,11 +230,7 @@ min-similarity-lines = 7
 
 [tool.ruff]
 line-length = 120
-<<<<<<< HEAD
-target-version = "py39"
-=======
 target-version = "py310"
->>>>>>> db0aa63 (Cookie updated targeting develop by NetworkToCode Cookie Drift Manager Tool)
 
 [tool.ruff.lint]
 select = [
