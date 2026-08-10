@@ -810,23 +810,11 @@ def pylint(context, target=None, recursive=False):
     if target is not None:
         for target_item in target:
             target_item_normalized = Path(target_item).resolve()
-            if (
-                target_item_normalized in (app_dir, migrations_dir)
-                or target_item == migrations_target_module
-            ):
+            if target_item_normalized in (app_dir, migrations_dir) or target_item == migrations_target_module:
                 run_migrations_check = True
                 break
 
     if migrations_dir.is_dir():
-<<<<<<< HEAD
-        migrations_pylint_command = (
-            f"{base_pylint_command} --load-plugins=pylint_django.checkers.migrations"
-            " --disable=all --enable=fatal,missing-backwards-migration-callable"
-            " nautobot_ssot.migrations"
-        )
-        if not run_command(context, migrations_pylint_command, warn=True):
-            exit_code = 1
-=======
         if run_migrations_check:
             migrations_pylint_command = (
                 f"{base_pylint_command} --load-plugins=pylint_django.checkers.migrations"
@@ -835,7 +823,6 @@ def pylint(context, target=None, recursive=False):
             )
             if not run_command(context, migrations_pylint_command, warn=True):
                 exit_code = 1
->>>>>>> 9565115 (Cookie updated targeting ltm-2.4 by NetworkToCode Cookie Drift Manager Tool)
     else:
         print("No migrations directory found, skipping migrations checks.")
 
