@@ -2,25 +2,29 @@
 
 from diffsync import DiffSyncFlags
 from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
 from nautobot.apps.jobs import BooleanVar, MultiObjectVar, ObjectVar
-from nautobot.dcim.models import Controller, Device
-from nautobot.extras.models import MetadataType, ObjectMetadata, Status
+from nautobot.dcim.models import Controller, Device, Platform
+from nautobot.extras.models import MetadataType, ObjectMetadata, Role, Status
 
+from nautobot_ssot.exceptions import ConfigurationError
+from nautobot_ssot.integrations.panorama.constants import (
+    DEFAULT_FIREWALL_ROLE_NAME,
+    FIREWALL_MANUFACTURER_NAME,
+    FIREWALL_NETWORK_DRIVER,
+)
 from nautobot_ssot.integrations.panorama.diffsync.adapters import nautobot, panorama
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
 name = "Panorama SSoT"  # pylint: disable=invalid-name
-app_settings = settings.PLUGINS_CONFIG.get("nautobot_ssot")
 
 
 class PanoramaDataSource(DataSource):  # pylint: disable=too-many-instance-attributes
     """Panorama SSoT Data Source."""
-
-    platform_name = app_settings.get("panorama_firewall_platform_name", "paloalto_panos")
 
     debug = BooleanVar(description="Enable for more verbose debug logging", default=False)
     panorama_controller = ObjectVar(model=Controller)
@@ -34,7 +38,7 @@ class PanoramaDataSource(DataSource):  # pylint: disable=too-many-instance-attri
     devices = MultiObjectVar(
         model=Device,
         required=False,
-        query_params={"platform": platform_name},
+        query_params={"manufacturer": FIREWALL_MANUFACTURER_NAME},
         description="Device(s) to sync. If not specified, all devices from the controller will be synced.",
     )
 
@@ -42,10 +46,11 @@ class PanoramaDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         """Initialize Panorama Data Source."""
         super().__init__()
         self.diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE
-        # Used in the source adapter to load device data based on what was returned from panorama
         self.loaded_panorama_devices = set()
-        # Optionally populated with device serials from devices selected in the job form.
+        self.loaded_panorama_device_types = set()
         self.filtered_device_serials = None
+        self.firewall_platform = None
+        self.firewall_role = None
 
     class Meta:  # pylint: disable=too-few-public-methods
         """Meta data for Panorama."""
@@ -108,6 +113,36 @@ class PanoramaDataSource(DataSource):  # pylint: disable=too-many-instance-attri
         self.default_device_status = default_device_status
         self.panorama_controller = panorama_controller
         self.devices = devices
+
+        platforms = list(Platform.objects.filter(network_driver=FIREWALL_NETWORK_DRIVER).order_by("name"))
+        if not platforms:
+            raise ConfigurationError(
+                f"No platform uses network driver '{FIREWALL_NETWORK_DRIVER}'. Run "
+                "'nautobot-server post_upgrade' to create one, or set that network driver on the "
+                "platform your Palo Alto firewalls already use."
+            )
+        if len(platforms) > 1:
+            raise ConfigurationError(
+                f"{len(platforms)} platforms use network driver '{FIREWALL_NETWORK_DRIVER}': "
+                f"{', '.join(platform.name for platform in platforms)}. Devices split across them would "
+                "resync their software version assignment on every run. Remove the driver from, or "
+                "delete, the platforms you do not want."
+            )
+        self.firewall_platform = platforms[0]
+        manufacturer = self.firewall_platform.manufacturer
+        if manufacturer and manufacturer.name != FIREWALL_MANUFACTURER_NAME:
+            raise ConfigurationError(
+                f"Platform '{self.firewall_platform.name}' is assigned to manufacturer "
+                f"'{manufacturer.name}', but this integration creates Palo Alto device types under "
+                f"'{FIREWALL_MANUFACTURER_NAME}'. Reassign this platform to "
+                f"'{FIREWALL_MANUFACTURER_NAME}' and run the job again."
+            )
+
+        role_name = settings.PLUGINS_CONFIG["nautobot_ssot"].get(
+            "panorama_firewall_role_name", DEFAULT_FIREWALL_ROLE_NAME
+        )
+        self.firewall_role, _ = Role.objects.get_or_create(name=role_name)
+        self.firewall_role.content_types.add(ContentType.objects.get_for_model(Device))
 
         # Filter devices based on form input
         device_filter = {}

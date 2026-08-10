@@ -2,7 +2,6 @@
 
 from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
-from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from nautobot.dcim.models import (
     ControllerManagedDeviceGroup,
@@ -15,6 +14,7 @@ from nautobot.dcim.models import (
 from nautobot.ipam.models import IPAddress, IPAddressToInterface
 
 from nautobot_ssot.contrib import NautobotAdapter
+from nautobot_ssot.integrations.panorama.constants import FIREWALL_MANUFACTURER_NAME
 from nautobot_ssot.integrations.panorama.diffsync.models.nautobot import (
     NautobotControllerManagedDeviceGroup,
     NautobotDeviceToControllerManagedDeviceGroup,
@@ -25,14 +25,8 @@ from nautobot_ssot.integrations.panorama.diffsync.models.nautobot import (
     NautobotSoftwareVersion,
     NautobotSoftwareVersionToDevice,
     NautobotVdc,
-    NautobotVdcToControllerManagedDeviceGroup,
     NautobotVirtualDeviceContextAssociation,
 )
-from nautobot_ssot.integrations.panorama.models import (
-    VirtualDeviceContextToControllerManagedDeviceGroup,
-)
-
-app_settings = settings.PLUGINS_CONFIG.get("nautobot_ssot")
 
 
 class PanoSSoTNautobotAdapter(NautobotAdapter):
@@ -48,20 +42,18 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
     softwareversiontodevice = NautobotSoftwareVersionToDevice
     controllermanageddevicegroup = NautobotControllerManagedDeviceGroup
     devicetocontrollermanageddevicegroup = NautobotDeviceToControllerManagedDeviceGroup
-    vdctocontrollermanageddevicegroup = NautobotVdcToControllerManagedDeviceGroup
 
     top_level = [
         "device_type",
         "firewall",
         "firewall_interface",
-        "ip_address_to_interface",
-        "vdc",
-        "virtualdevicecontextassociation",
-        "softwareversion",
-        "softwareversiontodevice",
         "controllermanageddevicegroup",
         "devicetocontrollermanageddevicegroup",
-        "vdctocontrollermanageddevicegroup",
+        "vdc",
+        "virtualdevicecontextassociation",
+        "ip_address_to_interface",
+        "softwareversion",
+        "softwareversiontodevice",
     ]
 
     def __init__(self, *args, **kwargs):
@@ -121,10 +113,6 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
                 "Loading Nautobot Devices to Controller Managed Device Groups",
                 self.load_devices_to_controller_managed_device_groups,
             ),
-            "vdctocontrollermanageddevicegroup": (
-                "Loading Nautobot VDC to Controller Managed Device Group associations",
-                self.load_vdcs_to_controller_managed_device_groups,
-            ),
             "vdc": (
                 "Loading Nautobot Virtual Device Contexts",
                 self.load_virtual_device_contexts,
@@ -167,8 +155,10 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
 
     def load_device_types(self):
         """Load Nautobot DeviceType objects."""
-        manufacturer_name = app_settings.get("panorama_firewall_manufacturer_name", "Palo Alto")
-        for device_type_obj in DeviceType.objects.filter(manufacturer__name=manufacturer_name):
+        for device_type_obj in DeviceType.objects.filter(
+            manufacturer__name=FIREWALL_MANUFACTURER_NAME,
+            model__in=self.job.loaded_panorama_device_types,
+        ):
             device_type = self.device_type(
                 model=device_type_obj.model,
                 part_number=device_type_obj.part_number,
@@ -239,9 +229,15 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
         """Load Nautobot SoftwareVersionToDevice objects."""
         for device in Device.objects.filter(serial__in=self.job.loaded_panorama_devices):
             try:
+                if not device.platform:
+                    self.job.logger.warning(
+                        f"Device {device.name} has no platform assigned; treating it as "
+                        f"'{self.job.firewall_platform.name}' for software version comparison.",
+                        extra={"object": device},
+                    )
                 softwareversiontodevice = self.softwareversiontodevice(
                     device__serial=device.serial,
-                    platform__name=device.platform.name,
+                    platform__name=device.platform.name if device.platform else self.job.firewall_platform.name,
                     version=device.software_version.version if device.software_version else "",
                 )
                 self.add(softwareversiontodevice)
@@ -282,30 +278,17 @@ class PanoSSoTNautobotAdapter(NautobotAdapter):
                 self.job.logger.error(f"Error loading device to CMDG for {device_serial}, {err}")
                 continue
 
-    def load_vdcs_to_controller_managed_device_groups(self):
-        """Load Nautobot VdcToControllerManagedDeviceGroup objects."""
-        for assignment in VirtualDeviceContextToControllerManagedDeviceGroup.objects.filter(
-            virtual_device_context__device__serial__in=self.job.loaded_panorama_devices
-        ):
-            try:
-                self.add(
-                    self.vdctocontrollermanageddevicegroup(
-                        controller_managed_device_group__name=assignment.controller_managed_device_group.name,
-                        virtual_device_context__device__serial=assignment.virtual_device_context.device.serial,
-                        virtual_device_context__name=assignment.virtual_device_context.name,
-                    )
-                )
-            except Exception as err:
-                self.job.logger.error(f"Error loading VDC-to-CMDG for {assignment}, {err}")
-                continue
-
     def load_virtual_device_contexts(self):
         """Load Nautobot VirtualDeviceContext objects."""
-        for vdc_obj in VirtualDeviceContext.objects.filter(device__serial__in=self.job.loaded_panorama_devices):
+        for vdc_obj in VirtualDeviceContext.objects.filter(
+            device__serial__in=self.job.loaded_panorama_devices
+        ).select_related("device", "controller_managed_device_group"):
             try:
+                device_group = vdc_obj.controller_managed_device_group
                 vdc = self.vdc(
                     name=vdc_obj.name,
                     parent=vdc_obj.device.serial,
+                    controller_managed_device_group__name=device_group.name if device_group else None,
                 )
                 self.add(vdc)
             except ObjectAlreadyExists:

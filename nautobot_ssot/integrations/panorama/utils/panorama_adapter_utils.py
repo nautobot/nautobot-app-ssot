@@ -3,10 +3,9 @@
 from ipaddress import ip_interface
 
 from diffsync.exceptions import ObjectAlreadyExists
-from django.conf import settings
 from nautobot.dcim.choices import InterfaceTypeChoices
 
-app_settings = settings.PLUGINS_CONFIG.get("nautobot_ssot")
+from nautobot_ssot.integrations.panorama.constants import FIREWALL_MANUFACTURER_NAME
 
 
 def load_firewall_to_diffsync(adapter, firewall, firewall_system_info):  # pylint: disable=too-many-branches, too-many-statements, too-many-locals
@@ -38,12 +37,12 @@ def load_firewall_to_diffsync(adapter, firewall, firewall_system_info):  # pylin
         adapter.job.logger.debug(f"Loading {firewall} to Diffsync")
     # Add DeviceType to Diffsync store
     try:
-        manufacturer_name = app_settings.get("panorama_firewall_manufacturer_name", "Palo Alto")
         model = firewall_system_info["system"]["model"]
+        adapter.job.loaded_panorama_device_types.add(model)
         device_type = adapter.device_type(
             model=model,
             part_number=model,
-            manufacturer__name=manufacturer_name,
+            manufacturer__name=FIREWALL_MANUFACTURER_NAME,
         )
         adapter.add(device_type)
     except ObjectAlreadyExists:
@@ -56,7 +55,7 @@ def load_firewall_to_diffsync(adapter, firewall, firewall_system_info):  # pylin
     management_interface_name, management_ip = adapter.pano.firewall.get_management_interface_name_and_ip(firewall)
     if adapter.job.debug:
         adapter.job.logger.debug(
-            f"Management IP {management_ip} assgined to interface {management_interface_name} on {firewall}"
+            f"Management IP {management_ip} assigned to interface {management_interface_name} on {firewall}"
         )
     try:
         diffsync_firewall = adapter.firewall(
@@ -107,7 +106,7 @@ def load_firewall_to_diffsync(adapter, firewall, firewall_system_info):  # pylin
 
     # Add the software version to the Diffsync store
     try:
-        platform_name = app_settings.get("panorama_firewall_platform_name", "paloalto_panos")
+        platform_name = adapter.job.firewall_platform.name
         softwareversion = adapter.softwareversion(
             platform__name=platform_name,
             version=firewall_system_info["system"]["sw-version"],
@@ -123,7 +122,7 @@ def load_firewall_to_diffsync(adapter, firewall, firewall_system_info):  # pylin
 
     # Add the software version to device association to the Diffsync store
     try:
-        platform_name = app_settings.get("panorama_firewall_platform_name", "paloalto_panos")
+        platform_name = adapter.job.firewall_platform.name
         softwareversiontodevice = adapter.softwareversiontodevice(
             device__serial=firewall.serial,
             platform__name=platform_name,

@@ -5,6 +5,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 from nautobot.apps.testing import TransactionTestCase
+from nautobot.dcim.models import Manufacturer, Platform
 from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.panorama.diffsync.adapters.panorama import PanoSSoTPanoramaAdapter
@@ -14,6 +15,7 @@ from nautobot_ssot.integrations.panorama.utils.panorama_adapter_utils import (
     load_ipaddress_to_interface_to_diffsync,
     load_vdc_interface_to_diffsync,
 )
+from nautobot_ssot.tests.utils.job_helpers import get_test_job_model
 
 
 def load_json(path):
@@ -38,12 +40,22 @@ def create_panorama_adapter():
     )
     panorama_integration.name = test_panorama_name
 
+    # Register the job so a Job model row exists: the integration is disabled by default in
+    # development.env, so PanoramaDataSource is not registered by nautobot_ssot.jobs.
+    job_model = get_test_job_model(PanoramaDataSource)
     job = PanoramaDataSource()
     job.debug = False
     job.job_result = JobResult.objects.create(
-        name=job.job_model.name,
-        job_model=job.job_model,
+        name=job_model.name,
+        job_model=job_model,
         user=None,
+    )
+    # PanoramaDataSource.run() normally resolves this and the sync relies on it. These tests build
+    # the adapter directly, so stand in for that step.
+    manufacturer, _ = Manufacturer.objects.get_or_create(name="Palo Alto")
+    job.firewall_platform, _ = Platform.objects.get_or_create(
+        name="paloalto_panos",
+        defaults={"network_driver": "paloalto_panos", "manufacturer": manufacturer},
     )
     patcher = patch("nautobot_ssot.integrations.panorama.diffsync.adapters.panorama.Panorama")
     mock_panorama_class = patcher.start()

@@ -4,8 +4,10 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 from diffsync import DiffSyncFlags
+from django.contrib.contenttypes.models import ContentType
 from nautobot.core.testing import TransactionTestCase
 from nautobot.dcim.models import Controller, Device, DeviceType, Location, LocationType, Manufacturer, Platform
+from nautobot.extras.choices import MetadataTypeDataTypeChoices
 from nautobot.extras.models import JobResult, MetadataType, ObjectMetadata, Role, Status
 
 from nautobot_ssot.integrations.panorama.jobs import PanoramaDataSource
@@ -24,7 +26,10 @@ class TestPanoramaDataSource(TransactionTestCase):  # pylint: disable=too-many-i
         self.status_active, _ = Status.objects.get_or_create(name="Active")
         self.device_role, _ = Role.objects.get_or_create(name="Firewall")
         self.manufacturer, _ = Manufacturer.objects.get_or_create(name="Palo Alto")
-        self.platform, _ = Platform.objects.get_or_create(name="paloalto_panos")
+        self.platform, _ = Platform.objects.get_or_create(
+            name="paloalto_panos",
+            defaults={"network_driver": "paloalto_panos", "manufacturer": self.manufacturer},
+        )
         self.device_type, _ = DeviceType.objects.get_or_create(
             model="PA-3220",
             part_number="PAN-PA-3220",
@@ -58,8 +63,12 @@ class TestPanoramaDataSource(TransactionTestCase):  # pylint: disable=too-many-i
         )
         self.metadata_type, _ = MetadataType.objects.get_or_create(
             name="Last Panorama Sync",
-            defaults={"description": "Last sync from Panorama"},
+            defaults={
+                "description": "Last sync from Panorama",
+                "data_type": MetadataTypeDataTypeChoices.TYPE_DATETIME,
+            },
         )
+        self.metadata_type.content_types.add(ContentType.objects.get_for_model(Device))
 
     def test_job_instantiation(self):
         """Test job can be instantiated."""

@@ -3,8 +3,7 @@
 import re
 from ipaddress import ip_network
 
-from django.conf import settings
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from nautobot.apps.choices import IPAddressTypeChoices, PrefixTypeChoices
 from nautobot.dcim.models import (
     ControllerManagedDeviceGroup,
@@ -12,14 +11,13 @@ from nautobot.dcim.models import (
     DeviceType,
     Interface,
     Manufacturer,
-    Platform,
     SoftwareVersion,
     VirtualDeviceContext,
 )
-from nautobot.extras.models import Role, Status
+from nautobot.extras.models import Status
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
 
-app_settings = settings.PLUGINS_CONFIG.get("nautobot_ssot")
+from nautobot_ssot.integrations.panorama.constants import FIREWALL_MANUFACTURER_NAME
 
 
 class Nautobot:  # pylint: disable=too-many-public-methods
@@ -35,6 +33,9 @@ class Nautobot:  # pylint: disable=too-many-public-methods
             vdc = VirtualDeviceContext(
                 name=ids["name"], device=device, identifier=sysid, status=adapter.job.default_device_status
             )
+            device_group_name = attrs.get("controller_managed_device_group__name")
+            if device_group_name:
+                vdc.controller_managed_device_group = ControllerManagedDeviceGroup.objects.get(name=device_group_name)
             vdc.validated_save()
             return vdc
         except Exception as err:
@@ -43,57 +44,58 @@ class Nautobot:  # pylint: disable=too-many-public-methods
 
     def update_vdc(self, adapter, ids, attrs):
         """Updates Vdc."""
-        ...
+        if adapter.job.debug:
+            adapter.job.logger.debug(f"Updating VirtualDeviceContext (vsys) with ids: {ids} with attrs: {attrs}")
+        try:
+            vdc = VirtualDeviceContext.objects.get(name=ids["name"], device__serial=ids["parent"])
+            if "controller_managed_device_group__name" in attrs:
+                device_group_name = attrs["controller_managed_device_group__name"]
+                vdc.controller_managed_device_group = (
+                    ControllerManagedDeviceGroup.objects.get(name=device_group_name) if device_group_name else None
+                )
+                vdc.validated_save()
+            return vdc
+        except Exception as err:
+            adapter.job.logger.error(f"Unable to update Vdc: {ids}, {err}")
+            return None
 
     def create_firewall(self, adapter, ids, attrs):
         """Creates a Firewall."""
         if adapter.job.debug:
             adapter.job.logger.debug(f"Creating Firewall device with ids: {ids} and attrs: {attrs}")
+        location = adapter.job.panorama_controller.location
         try:
-            device = Device.objects.get(name=attrs["name"], location=adapter.job.panorama_controller.location)
-            if device.serial != ids["serial"]:
-                # If the device already exists but the serial number differs, log a warning
-                adapter.job.logger.warning(
-                    f"Firewall named {attrs['name']} already exists, but the serial number differs. "
-                    f"Existing device serial: {device.serial}, Incoming serial from Panorama: {ids['serial']}",
-                    extra={"object": device},
-                )
-                return device
+            existing_device = Device.objects.get(name=attrs["name"], location=location)
         except ObjectDoesNotExist:
-            pass
+            existing_device = None
+        except MultipleObjectsReturned:
+            adapter.job.logger.warning(
+                f"More than one Device is named {attrs['name']} at {location}, so the firewall with "
+                f"serial {ids['serial']} will be skipped. Rename or remove the duplicates."
+            )
+            return None
         except Exception as err:
             adapter.job.logger.error(f"Error checking for existing Nautobot Firewall {ids} {attrs}, {err}")
             return None
 
-        # TODO: Disable the warning above and re-enable this update option.
-        # Considerations: what should happen if there are many devices in Panorama with the same name?!
-        # try:
-        #     device = Device.objects.get(name=attrs["name"], location=adapter.job.panorama_controller.location)
-        #     adapter.job.logger.warning(f"Firewall named {attrs['name']} already exists. This device will be updated.")
-        #     device.serial = ids["serial"]
-        #     device.role = Role.objects.get(name="Panorama")
-        #     device.device_type = DeviceType.objects.get(model=attrs["model"])
-        #     device.platform = Platform.objects.get(name="paloalto_panos")
-        #     device.validated_save()
-        #     return device
-        # except ObjectDoesNotExist:
-        #     pass
-        # except Exception as err:
-        #     adapter.job.logger.error(f"Unable to update Firewall {ids} {attrs}, {err}")
-        #     return None
+        if existing_device:
+            adapter.job.logger.warning(
+                f"Firewall named {attrs['name']} already exists, but the serial number differs. "
+                f"Existing device serial: {existing_device.serial}, Incoming serial from Panorama: "
+                f"{ids['serial']}. This firewall will not be modified.",
+                extra={"object": existing_device},
+            )
+            return existing_device
+
         try:
-            manufacturer_name = app_settings.get("panorama_firewall_manufacturer_name", "Palo Alto")
-            manufacturer, _ = Manufacturer.objects.get_or_create(name=manufacturer_name)
-            platform_name = app_settings.get("panorama_firewall_platform_name", "paloalto_panos")
-            platform, _ = Platform.objects.get_or_create(name=platform_name, manufacturer=manufacturer)
-            role_name = app_settings.get("panorama_firewall_role_name", "Firewall")
-            role, _ = Role.objects.get_or_create(name=role_name)
+            platform = adapter.job.firewall_platform
+            role = adapter.job.firewall_role
             device = Device(
                 status=adapter.job.default_device_status,
                 serial=ids["serial"],
                 name=attrs["name"],
                 role=role,
-                device_type=DeviceType.objects.get(model=attrs["model"]),
+                device_type=DeviceType.objects.get(model=attrs["model"], manufacturer__name=FIREWALL_MANUFACTURER_NAME),
                 platform=platform,
                 location=adapter.job.panorama_controller.location,
             )
@@ -118,7 +120,9 @@ class Nautobot:  # pylint: disable=too-many-public-methods
                 device.validated_save()
             if "model" in attrs:
                 if attrs["model"]:
-                    device.device_type = DeviceType.objects.get(model=attrs["model"])
+                    device.device_type = DeviceType.objects.get(
+                        model=attrs["model"], manufacturer__name=FIREWALL_MANUFACTURER_NAME
+                    )
                     device.validated_save()
             if attrs.get("management_ip"):  # add the IP address to a map that will be used in sync_complete()
                 adapter.firewall_primary_ip_map[serial] = attrs.get("management_ip").split("/")[0]
@@ -132,8 +136,7 @@ class Nautobot:  # pylint: disable=too-many-public-methods
         if adapter.job.debug:
             adapter.job.logger.debug(f"Creating DeviceType with ids: {ids} with attrs: {attrs}")
         try:
-            manufacturer_name = app_settings.get("panorama_firewall_manufacturer_name", "Palo Alto")
-            manufacturer, _ = Manufacturer.objects.get_or_create(name=manufacturer_name)
+            manufacturer, _ = Manufacturer.objects.get_or_create(name=FIREWALL_MANUFACTURER_NAME)
             device_type = DeviceType(
                 model=ids["model"],
                 part_number=attrs["part_number"],

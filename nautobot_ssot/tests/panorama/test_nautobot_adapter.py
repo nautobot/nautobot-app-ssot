@@ -1,5 +1,6 @@
 """Test Nautobot adapter."""
 
+from unittest import skipIf
 from unittest.mock import MagicMock
 
 from nautobot.apps.testing import TransactionTestCase
@@ -23,8 +24,14 @@ from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
 
 from nautobot_ssot.integrations.panorama.diffsync.adapters.nautobot import PanoSSoTNautobotAdapter
-from nautobot_ssot.integrations.panorama.models import (
-    VirtualDeviceContextToControllerManagedDeviceGroup,
+
+# VirtualDeviceContext.controller_managed_device_group was added in Nautobot 3.2. The Panorama
+# integration requires it, but this repo still supports (and CI still tests) Nautobot 3.0, so the
+# tests covering that field are limited to 3.2+ rather than failing in older versions.
+VDC_HAS_CMDG = any(field.name == "controller_managed_device_group" for field in VirtualDeviceContext._meta.get_fields())
+SKIP_IF_NO_VDC_CMDG = skipIf(
+    not VDC_HAS_CMDG,
+    "VirtualDeviceContext.controller_managed_device_group was added in Nautobot 3.2",
 )
 
 
@@ -158,11 +165,9 @@ class TestNautobotAdapterLoads(TransactionTestCase):  # pylint: disable=too-many
             status=self.status_active,
         )
 
-        # VDC-to-CMDG association via through table
-        self.cmdg_to_vdc, _ = VirtualDeviceContextToControllerManagedDeviceGroup.objects.get_or_create(
-            controller_managed_device_group=self.device_group_cmdg,
-            virtual_device_context=self.vsys_1,
-        )
+        if VDC_HAS_CMDG:
+            self.vsys_1.controller_managed_device_group = self.device_group_cmdg
+            self.vsys_1.validated_save()
 
         self.vsys_association, _ = InterfaceVDCAssignment.objects.get_or_create(
             virtual_device_context=self.vsys_1,
@@ -176,6 +181,7 @@ class TestNautobotAdapterLoads(TransactionTestCase):  # pylint: disable=too-many
 
         self.job = MagicMock()
         self.job.loaded_panorama_devices = {"serial001", "serial002"}
+        self.job.loaded_panorama_device_types = {"PA-3220"}
         self.job.debug = False
         self.job.panorama_controller = self.controller
         self.job.logger = MagicMock()
@@ -194,6 +200,16 @@ class TestNautobotAdapterLoads(TransactionTestCase):  # pylint: disable=too-many
         stored = adapter.store.get(model="device_type", identifier=identifier)
         self.assertIsNotNone(stored)
         self.assertEqual(stored.model, self.device_type.model)
+
+    def test_load_device_types_skips_types_panorama_did_not_report(self):
+        """Test device types under the manufacturer that Panorama did not report are not loaded."""
+        adapter = self._create_adapter()
+        adapter.load_device_types()
+
+        self.assertEqual(
+            [device_type.model for device_type in adapter.get_all("device_type")],
+            [self.device_type.model],
+        )
 
     def test_load_firewalls(self):
         """Test loading firewalls from Nautobot."""
@@ -248,15 +264,6 @@ class TestNautobotAdapterLoads(TransactionTestCase):  # pylint: disable=too-many
         stored = adapter.store.get(model="devicetocontrollermanageddevicegroup", identifier=identifier)
         self.assertIsNotNone(stored)
 
-    def test_load_vdcs_to_controller_managed_device_groups(self):
-        """Test loading VDC to controller managed device group from Nautobot."""
-        adapter = self._create_adapter()
-        adapter.load_vdcs_to_controller_managed_device_groups()
-
-        identifier = f"{self.device_group_cmdg.name}__{self.vsys_1.device.serial}__{self.vsys_1.name}"
-        stored = adapter.store.get(model="vdctocontrollermanageddevicegroup", identifier=identifier)
-        self.assertIsNotNone(stored)
-
     def test_load_software_versions_to_devices(self):
         """Test loading software versions to devices from Nautobot."""
         adapter = self._create_adapter()
@@ -266,6 +273,7 @@ class TestNautobotAdapterLoads(TransactionTestCase):  # pylint: disable=too-many
         stored = adapter.store.get(model="softwareversiontodevice", identifier=identifier)
         self.assertIsNotNone(stored)
 
+    @SKIP_IF_NO_VDC_CMDG
     def test_load_virtual_device_contexts(self):
         """Test loading virtual device context objects from Nautobot."""
         adapter = self._create_adapter()
@@ -275,6 +283,18 @@ class TestNautobotAdapterLoads(TransactionTestCase):  # pylint: disable=too-many
         stored = adapter.store.get(model="vdc", identifier=identifier)
         self.assertIsNotNone(stored)
         self.assertEqual(stored.name, self.vsys_1.name)
+
+    @SKIP_IF_NO_VDC_CMDG
+    def test_load_virtual_device_contexts_controller_managed_device_group(self):
+        """Test loading the VDC to controller managed device group assignment from Nautobot."""
+        adapter = self._create_adapter()
+        adapter.load_virtual_device_contexts()
+
+        assigned = adapter.store.get(model="vdc", identifier=f"{self.vsys_1.device.serial}__{self.vsys_1.name}")
+        self.assertEqual(assigned.controller_managed_device_group__name, self.device_group_cmdg.name)
+
+        unassigned = adapter.store.get(model="vdc", identifier=f"{self.vsys_2.device.serial}__{self.vsys_2.name}")
+        self.assertIsNone(unassigned.controller_managed_device_group__name)
 
     def test_load_virtual_device_context_associations(self):
         """Test loading virtual device context associations from Nautobot."""

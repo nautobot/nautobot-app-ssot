@@ -11,9 +11,6 @@ from nautobot.dcim.models import InterfaceVDCAssignment as NBInterfaceVDCAssignm
 from nautobot.dcim.models import SoftwareVersion as NBSoftwareVersion
 
 from nautobot_ssot.contrib import NautobotModel
-from nautobot_ssot.integrations.panorama.models import (
-    VirtualDeviceContextToControllerManagedDeviceGroup as NBCmdgToVdc,
-)
 
 
 class Firewall(DiffSyncModel):
@@ -108,9 +105,11 @@ class Vdc(DiffSyncModel):
 
     _modelname = "vdc"
     _identifiers = ("parent", "name")
+    _attributes = ("controller_managed_device_group__name",)
 
     name: str
     parent: str
+    controller_managed_device_group__name: Optional[str] = None
 
 
 class VirtualDeviceContextAssociation(NautobotModel):
@@ -171,19 +170,3 @@ class DeviceToControllerManagedDeviceGroup(DiffSyncModel):
 
     device__serial: str
     controllermanageddevicegroup__name: str
-
-
-class VdcToControllerManagedDeviceGroup(NautobotModel):
-    """DiffSync model for VDC-to-CMDG association."""
-
-    _model = NBCmdgToVdc
-    _modelname = "vdctocontrollermanageddevicegroup"
-    _identifiers = (
-        "controller_managed_device_group__name",
-        "virtual_device_context__device__serial",
-        "virtual_device_context__name",
-    )
-
-    controller_managed_device_group__name: str
-    virtual_device_context__device__serial: str
-    virtual_device_context__name: str

@@ -27,7 +27,6 @@ from nautobot_ssot.integrations.panorama.diffsync.models.panorama import (
     PanoramaSoftwareVersion,
     PanoramaSoftwareVersionToDevice,
     PanoramaVdc,
-    PanoramaVdcToControllerManagedDeviceGroup,
     PanoramaVirtualDeviceContextAssociation,
 )
 from nautobot_ssot.integrations.panorama.utils.panorama import Panorama
@@ -52,20 +51,18 @@ class PanoSSoTPanoramaAdapter(Adapter):
     softwareversiontodevice = PanoramaSoftwareVersionToDevice
     controllermanageddevicegroup = PanoramaControllerManagedDeviceGroup
     devicetocontrollermanageddevicegroup = PanoramaDeviceToControllerManagedDeviceGroup
-    vdctocontrollermanageddevicegroup = PanoramaVdcToControllerManagedDeviceGroup
 
     top_level = [
         "device_type",
         "firewall",
         "firewall_interface",
+        "controllermanageddevicegroup",
+        "devicetocontrollermanageddevicegroup",
         "vdc",
         "virtualdevicecontextassociation",
         "ip_address_to_interface",
         "softwareversion",
         "softwareversiontodevice",
-        "controllermanageddevicegroup",
-        "devicetocontrollermanageddevicegroup",
-        "vdctocontrollermanageddevicegroup",
     ]
 
     def __init__(self, *args: Any, job: Job, sync: Sync, pan: Controller, **kwargs: Any) -> None:
@@ -183,6 +180,7 @@ class PanoSSoTPanoramaAdapter(Adapter):
     def load_cached_objects(self):
         """Load objects from cache."""
         self.job.loaded_panorama_devices = set()
+        self.job.loaded_panorama_device_types = set()
 
         # Add Firewalls to the Diffsync store
         for firewall in self.pano.firewall.firewalls:
@@ -240,23 +238,21 @@ class PanoSSoTPanoramaAdapter(Adapter):
                             f"Loading cached data for Vsys: {vsys.get('name')} for firewall: {vsys.get('firewall_name')}"
                         )
                     try:
-                        vdctocontrollermanageddevicegroup = self.vdctocontrollermanageddevicegroup(
-                            controller_managed_device_group__name=f"{self.job.panorama_controller.name} - {vsys['devicegroup']}",
-                            virtual_device_context__device__serial=vsys["firewall_obj"].serial,
-                            virtual_device_context__name=vsys["vsys_obj"].name,
+                        device_group = vsys.get("devicegroup")
+                        self.get_or_add(
+                            self.vdc(
+                                name=vsys["vsys_obj"].name,
+                                parent=vsys["firewall_obj"].serial,
+                                controller_managed_device_group__name=(
+                                    f"{self.job.panorama_controller.name} - {device_group}" if device_group else None
+                                ),
+                            )
                         )
-                        self.add(vdctocontrollermanageddevicegroup)
                     except Exception as err:
                         self.job.logger.error(
-                            f"Failed to load VDC to CMDG for {vsys.get('firewall_name')} - {vsys.get('name')}, {err}"
+                            f"Failed to load Vsys {vsys.get('name')} for {vsys.get('firewall_name')}, {err}"
                         )
                         continue
-                    self.get_or_add(
-                        self.vdc(
-                            name=vsys["vsys_obj"].name,
-                            parent=vsys["firewall_obj"].serial,
-                        )
-                    )
                     # Load interface data
                     interfaces = vsys["interfaces"]
                     interface_classes = (

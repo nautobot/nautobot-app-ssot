@@ -13,7 +13,6 @@ from nautobot_ssot.integrations.panorama.diffsync.models.base import (
     SoftwareVersion,
     SoftwareVersionToDevice,
     Vdc,
-    VdcToControllerManagedDeviceGroup,
     VirtualDeviceContextAssociation,
 )
 from nautobot_ssot.integrations.panorama.utils.nautobot import Nautobot
@@ -34,7 +33,7 @@ class NautobotVdc(Vdc):
 
     def update(self, attrs):
         """Update Vdc in Nautobot from NautobotVdc object."""
-        vdc = NAUTOBOT.update_vdc(self.adapter, self.name, self.parent, attrs)
+        vdc = NAUTOBOT.update_vdc(self.adapter, self.get_identifiers(), attrs)
         if not vdc:
             raise diffsync_exceptions.ObjectNotUpdated
         return super().update(attrs)
@@ -164,7 +163,3 @@ class NautobotDeviceToControllerManagedDeviceGroup(DeviceToControllerManagedDevi
             adapter=self.adapter, device_to_controller_managed_device_group=self
         )
         return self
-
-
-class NautobotVdcToControllerManagedDeviceGroup(VdcToControllerManagedDeviceGroup):
-    """Nautobot implementation of VdcToControllerManagedDeviceGroup."""

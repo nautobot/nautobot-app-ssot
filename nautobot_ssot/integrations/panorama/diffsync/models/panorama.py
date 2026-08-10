@@ -10,7 +10,6 @@ from nautobot_ssot.integrations.panorama.diffsync.models.base import (
     SoftwareVersion,
     SoftwareVersionToDevice,
     Vdc,
-    VdcToControllerManagedDeviceGroup,
     VirtualDeviceContextAssociation,
 )
 
@@ -53,7 +52,3 @@ class PanoramaControllerManagedDeviceGroup(ControllerManagedDeviceGroup):
 
 class PanoramaDeviceToControllerManagedDeviceGroup(DeviceToControllerManagedDeviceGroup):
     """Panorama implementation of DeviceToControllerManagedDeviceGroup model."""
-
-
-class PanoramaVdcToControllerManagedDeviceGroup(VdcToControllerManagedDeviceGroup):
-    """Panorama implementation of VdcToControllerManagedDeviceGroup model."""
