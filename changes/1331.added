@@ -1,0 +1,1 @@
+Added an opt-in "Sync Cables" option to the IPFabric integration that synchronizes device connections from IP Fabric's connectivity matrix to Nautobot Cables.

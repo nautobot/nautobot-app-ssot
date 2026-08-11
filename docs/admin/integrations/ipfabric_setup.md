@@ -56,10 +56,12 @@ PLUGINS_CONFIG = {
 | `ipfabric_default_interface_mac`        | The MAC used for an interface when no MAC is found in IPFabric.                                                                                                                               | `00:00:00:00:00:01` |
 | `ipfabric_default_interface_mtu`        | The MTU used for an interface when no MTU is found in IPFabric.                                                                                                                               | `1500`              |
 | `ipfabric_default_interface_type`       | The Interface type used for interfaces synced.                                                                                                                                                | `1000base-t`        |
+| `ipfabric_default_cable_status`         | The status used for Cables synced from the connectivity matrix.                                                                                                                               | `Connected`         |
 | `ipfabric_safe_delete_device_status`    | The status that is set for a Device when the `Safe Delete Mode` flag is set in the Job.                                                                                                       | `Offline`           |
 | `ipfabric_safe_delete_location_status`  | The status that is set for a Location when the `Safe Delete Mode` flag is set in the Job.                                                                                                     | `Decommissioning`   |
 | `ipfabric_safe_delete_vlan_status`      | The status that is set for a VLAN when the `Safe Delete Mode` flag is set in the Job.                                                                                                         | `Deprecated`        |
 | `ipfabric_safe_delete_ipaddress_status` | The status that is set for an IP Address when the `Safe Delete Mode` flag is set in the Job.                                                                                                  | `Deprecated`        |
+| `ipfabric_safe_delete_cable_status`     | The status that is set for a Cable when the `Safe Delete Mode` flag is set in the Job.                                                                                                        | `Decommissioning`   |
 | `ipfabric_use_canonical_interface_name` | Whether to attempt to elongate interface names as found in IP Fabric.                                                                                                                         | `False`             |
 
 
@@ -85,10 +87,12 @@ PLUGINS_CONFIG = {
         "ipfabric_default_interface_mac": os.getenv("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_MAC"),
         "ipfabric_default_interface_mtu": os.getenv("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_MTU"),
         "ipfabric_default_interface_type": os.getenv("NAUTOBOT_SSOT_IPFABRIC_INTERFACE_TYPE"),
+        "ipfabric_default_cable_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_CABLE_STATUS"),
         "ipfabric_safe_delete_device_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_DEVICE_DELETE_STATUS"),
         "ipfabric_safe_delete_location_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_LOCATION_DELETE_STATUS"),
         "ipfabric_safe_delete_vlan_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_VLAN_DELETE_STATUS"),
         "ipfabric_safe_delete_ipaddress_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_IPADDRESS_DELETE_STATUS"),
+        "ipfabric_safe_delete_cable_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_CABLE_DELETE_STATUS"),
         "ipfabric_use_canonical_interface_name": is_truthy(
             os.getenv("NAUTOBOT_SSOT_USE_CANONICAL_INTERFACE_NAME", "true")
         ),
