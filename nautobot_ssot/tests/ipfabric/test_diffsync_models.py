@@ -14,6 +14,7 @@ from django.test import SimpleTestCase
 
 from nautobot_ssot.integrations.ipfabric.diffsync import diffsync_models
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
+    Cable,
     Device,
     DiffSyncExtras,
     Interface,
@@ -27,11 +28,17 @@ from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
 
 _UNSET = object()
 _NBUTILS = "nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models.tonb_nbutils"
+_CABLES = "nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models.tonb_cables"
 
 
 def _nb_patch(name, **kwargs):
     """Patch a helper attribute on `tonb_nbutils` referenced from the model module."""
     return mock.patch(f"{_NBUTILS}.{name}", **kwargs)
+
+
+def _cable_patch(name, **kwargs):
+    """Patch a helper attribute on `tonb_cables` referenced from the model module."""
+    return mock.patch(f"{_CABLES}.{name}", **kwargs)
 
 
 def _make_adapter():
@@ -758,3 +765,228 @@ class TestVlanModel(_ModelTestBase):
         self.assertIsNone(result)
         mock_super.assert_not_called()
         self.adapter.job.logger.warning.assert_called_once()
+
+
+# ============================================================
+# Cable lifecycle
+# ============================================================
+
+
+class TestCableModel(_ModelTestBase):
+    """Test `Cable.create/update/delete` branching logic."""
+
+    IDS = {
+        "termination_a_device": "dev1",
+        "termination_a_name": "eth0",
+        "termination_b_device": "dev2",
+        "termination_b_name": "eth0",
+    }
+    ATTRS = {"status": "Connected"}
+
+    def _make_cable_diff(self):
+        """Return a Cable diffsync model bound to the mock adapter."""
+        diff_model = Cable(**self.IDS, **self.ATTRS)
+        diff_model.adapter = self.adapter
+        return diff_model
+
+    @staticmethod
+    def _uncabled_interface():
+        """Return an Interface mock that is not currently cabled."""
+        interface = mock.MagicMock()
+        interface.cable = None
+        return interface
+
+    def test_create_returns_none_when_an_interface_is_missing(self):
+        """A link cannot be created unless both of its Interfaces resolve."""
+        with (
+            _nb_patch("get_tagged_interface", side_effect=[self._uncabled_interface(), None]),
+            _cable_patch("create_cable") as mock_create_cable,
+            mock.patch.object(diffsync_models.DiffSyncModel, "create") as mock_super,
+        ):
+            result = Cable.create(adapter=self.adapter, ids=self.IDS, attrs=self.ATTRS)
+
+        self.assertIsNone(result)
+        mock_create_cable.assert_not_called()
+        mock_super.assert_not_called()
+        self._assert_log_contains(self.adapter.job.logger.warning, "dev1:eth0 <-> dev2:eth0")
+
+    def test_create_adopts_an_existing_matching_cable(self):
+        """A Cable already recording this link is updated in place, not replaced."""
+        existing = mock.MagicMock()
+        interface_a = mock.MagicMock()
+        interface_a.cable = existing
+
+        with (
+            _nb_patch("get_tagged_interface", side_effect=[interface_a, mock.MagicMock()]),
+            _cable_patch("cable_connects", return_value=True),
+            _cable_patch("update_cable_status", return_value=True) as mock_update_status,
+            _cable_patch("create_cable") as mock_create_cable,
+            mock.patch.object(diffsync_models.DiffSyncModel, "create", return_value="ok"),
+        ):
+            result = Cable.create(adapter=self.adapter, ids=self.IDS, attrs=self.ATTRS)
+
+        self.assertEqual(result, "ok")
+        mock_update_status.assert_called_once()
+        mock_create_cable.assert_not_called()
+        existing.delete.assert_not_called()
+
+    def test_create_refuses_to_displace_a_cable_in_safe_delete_mode(self):
+        """Safe delete mode never removes the Cable occupying an Interface, so the link is skipped."""
+        occupied = mock.MagicMock()
+
+        with (
+            mock.patch.object(Cable, "safe_delete_mode", True),
+            _nb_patch("get_tagged_interface", side_effect=[occupied, self._uncabled_interface()]),
+            _cable_patch("cable_connects", return_value=False),
+            _cable_patch("create_cable") as mock_create_cable,
+            mock.patch.object(diffsync_models.DiffSyncModel, "create") as mock_super,
+        ):
+            result = Cable.create(adapter=self.adapter, ids=self.IDS, attrs=self.ATTRS)
+
+        self.assertIsNone(result)
+        occupied.cable.delete.assert_not_called()
+        mock_create_cable.assert_not_called()
+        mock_super.assert_not_called()
+        self._assert_log_contains(self.adapter.job.logger.warning, "Safe Delete Mode")
+
+    def test_create_displaces_a_stale_cable_when_safe_delete_is_off(self):
+        """With safe delete off, the Cable holding the Interface is removed so the link can move."""
+        occupied = mock.MagicMock()
+        stale_cable = occupied.cable
+
+        with (
+            mock.patch.object(Cable, "safe_delete_mode", False),
+            _nb_patch("get_tagged_interface", side_effect=[occupied, self._uncabled_interface()]),
+            _cable_patch("cable_connects", return_value=False),
+            _cable_patch("create_cable", return_value=mock.MagicMock()) as mock_create_cable,
+            mock.patch.object(diffsync_models.DiffSyncModel, "create", return_value="ok"),
+        ):
+            result = Cable.create(adapter=self.adapter, ids=self.IDS, attrs=self.ATTRS)
+
+        self.assertEqual(result, "ok")
+        stale_cable.delete.assert_called_once()
+        mock_create_cable.assert_called_once()
+
+    def test_create_returns_none_when_displacing_the_stale_cable_fails(self):
+        """If the occupying Cable cannot be removed, the new link is not created."""
+        occupied = mock.MagicMock()
+        occupied.cable.delete.side_effect = diffsync_models.ProtectedError("protected", set())
+
+        with (
+            mock.patch.object(Cable, "safe_delete_mode", False),
+            _nb_patch("get_tagged_interface", side_effect=[occupied, self._uncabled_interface()]),
+            _cable_patch("cable_connects", return_value=False),
+            _cable_patch("create_cable") as mock_create_cable,
+            mock.patch.object(diffsync_models.DiffSyncModel, "create") as mock_super,
+        ):
+            result = Cable.create(adapter=self.adapter, ids=self.IDS, attrs=self.ATTRS)
+
+        self.assertIsNone(result)
+        mock_create_cable.assert_not_called()
+        mock_super.assert_not_called()
+
+    def test_delete_safe_mode_changes_status_instead_of_removing(self):
+        """Safe delete mode tags the Cable and moves it to the safe delete Status."""
+        diff_model = self._make_cable_diff()
+        nb_cable = mock.MagicMock()
+
+        with (
+            mock.patch.object(Cable, "safe_delete_mode", True),
+            mock.patch.object(Cable, "retrieve_cable", return_value=nb_cable),
+            mock.patch.object(Cable, "safe_delete") as mock_safe_delete,
+            mock.patch.object(diffsync_models.DiffSyncModel, "delete", return_value="ok"),
+        ):
+            result = diff_model.delete()
+
+        self.assertEqual(result, "ok")
+        nb_cable.delete.assert_not_called()
+        mock_safe_delete.assert_called_once_with(
+            nb_cable, diffsync_models.SAFE_DELETE_CABLE_STATUS, self.adapter.safe_delete_tag
+        )
+
+    def test_delete_removes_the_cable_immediately_when_safe_delete_is_off(self):
+        """Cables are deleted inline rather than queued, so a relocated link can claim the Interface."""
+        diff_model = self._make_cable_diff()
+        nb_cable = mock.MagicMock()
+
+        with (
+            mock.patch.object(Cable, "safe_delete_mode", False),
+            mock.patch.object(Cable, "retrieve_cable", return_value=nb_cable),
+            mock.patch.object(Cable, "safe_delete") as mock_safe_delete,
+            mock.patch.object(diffsync_models.DiffSyncModel, "delete", return_value="ok"),
+        ):
+            result = diff_model.delete()
+
+        self.assertEqual(result, "ok")
+        nb_cable.delete.assert_called_once()
+        # safe_delete is what would have queued it for `sync_complete()` instead.
+        mock_safe_delete.assert_not_called()
+
+    def test_delete_is_a_noop_when_the_cable_is_already_gone(self):
+        """A Cable removed earlier in the same sync still completes its diffsync bookkeeping."""
+        diff_model = self._make_cable_diff()
+
+        with (
+            mock.patch.object(Cable, "retrieve_cable", return_value=None),
+            mock.patch.object(diffsync_models.DiffSyncModel, "delete", return_value="ok") as mock_super,
+        ):
+            result = diff_model.delete()
+
+        self.assertEqual(result, "ok")
+        mock_super.assert_called_once()
+        self.adapter.job.logger.error.assert_not_called()
+
+    def test_update_returns_none_when_the_cable_is_missing(self):
+        """An absent Cable is an error on update, since the diff expected it to be there."""
+        diff_model = self._make_cable_diff()
+
+        with (
+            mock.patch.object(Cable, "retrieve_cable", return_value=None),
+            mock.patch.object(diffsync_models.DiffSyncModel, "update") as mock_super,
+        ):
+            result = diff_model.update({"status": "Planned"})
+
+        self.assertIsNone(result)
+        mock_super.assert_not_called()
+        self._assert_log_contains(self.adapter.job.logger.error, "dev1:eth0 <-> dev2:eth0")
+
+    def test_update_removes_safe_delete_tag_when_status_returns_to_default(self):
+        """A link seen again by IP Fabric loses the safe delete tag it picked up while absent."""
+        diff_model = self._make_cable_diff()
+        nb_cable = mock.MagicMock()
+
+        with (
+            mock.patch.object(Cable, "retrieve_cable", return_value=nb_cable),
+            _cable_patch("update_cable_status", return_value=True),
+            mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
+        ):
+            result = diff_model.update({"status": diffsync_models.DEFAULT_CABLE_STATUS})
+
+        self.assertEqual(result, "ok")
+        nb_cable.tags.remove.assert_called_once_with(self.adapter.safe_delete_tag)
+
+    def test_update_keeps_safe_delete_tag_for_a_non_default_status(self):
+        """Any other Status leaves the tag in place."""
+        diff_model = self._make_cable_diff()
+        nb_cable = mock.MagicMock()
+
+        with (
+            mock.patch.object(Cable, "retrieve_cable", return_value=nb_cable),
+            _cable_patch("update_cable_status", return_value=True),
+            mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
+        ):
+            diff_model.update({"status": "Planned"})
+
+        nb_cable.tags.remove.assert_not_called()
+
+    def test_retrieve_cable_rejects_a_cable_to_a_different_peer(self):
+        """An Interface cabled somewhere else is not this link, so nothing is returned."""
+        diff_model = self._make_cable_diff()
+        interface_a = mock.MagicMock()
+        interface_a.cable = mock.MagicMock()
+
+        with (
+            _nb_patch("get_tagged_interface", side_effect=[interface_a, mock.MagicMock()]),
+            _cable_patch("cable_connects", return_value=False),
+        ):
+            self.assertIsNone(diff_model.retrieve_cable())

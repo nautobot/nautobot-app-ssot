@@ -6,6 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.testing import TestCase
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import (
+    Cable,
     Device,
     DeviceType,
     Interface,
@@ -24,6 +25,7 @@ try:
 except ImportError:
     AssertNoRepeatedQueries = None
 
+import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 
 
@@ -252,3 +254,103 @@ class TestNautobotAdapter(TestCase):
         self.assertIsNone(loaded["eth1"].ip_address)
         self.assertIsNone(loaded["eth1"].subnet_mask)
         self.assertFalse(loaded["eth1"].ip_is_primary)
+
+    def _interface(self, device_name, interface_name):
+        """Create a cableable Interface on the named Device.
+
+        The type must be physical; Nautobot refuses to cable virtual or wireless Interfaces.
+        """
+        return Interface.objects.create(
+            name=interface_name,
+            device=Device.objects.get(name=device_name),
+            type="1000base-t",
+            status=self.active_status,
+        )
+
+    def _cable(self, interface_a, interface_b):
+        """Cable two Interfaces together."""
+        cable = Cable(
+            termination_a=interface_a,
+            termination_b=interface_b,
+            status=Status.objects.get(name="Connected"),
+        )
+        cable.validated_save()
+        return cable
+
+    def test_load_cables_orders_endpoints_independently_of_nautobot_sides(self):
+        """The A side of the loaded model is the lower endpoint, not whichever end Nautobot cabled first."""
+        int_dev1 = self._interface("dev1", "eth0")
+        int_dev2 = self._interface("dev2", "eth0")
+        # Cabled with dev2 as Nautobot's A side; the loaded model should still order dev1 first.
+        cable = self._cable(int_dev2, int_dev1)
+
+        self.nb_adapter.sync_cables = True
+        self.nb_adapter.load_data()
+
+        cables = self.nb_adapter.get_all("cable")
+        self.assertEqual(len(cables), 1)
+        self.assertEqual(cables[0].get_unique_id(), "dev1__eth0__dev2__eth0")
+        self.assertEqual(cables[0].status, "Connected")
+        # Recorded so update/delete can re-find the Cable without walking its endpoints.
+        self.assertEqual(cables[0].cable_pk, cable.pk)
+
+    def test_cable_connects_matches_terminations_in_either_order(self):
+        """`cable_connects` reads termination IDs, which must agree with the terminations themselves."""
+        int_dev1 = self._interface("dev1", "eth0")
+        int_dev2 = self._interface("dev2", "eth0")
+        int_other = self._interface("dev2", "eth1")
+        cable = self._cable(int_dev1, int_dev2)
+
+        self.assertTrue(tonb_cables.cable_connects(cable, int_dev1, int_dev2))
+        self.assertTrue(tonb_cables.cable_connects(cable, int_dev2, int_dev1))
+        self.assertFalse(tonb_cables.cable_connects(cable, int_dev1, int_other))
+
+    def test_retrieve_cable_finds_the_loaded_cable_by_pk(self):
+        """A Cable model carrying `cable_pk` resolves back to the Nautobot Cable it was loaded from."""
+        cable = self._cable(self._interface("dev1", "eth0"), self._interface("dev2", "eth0"))
+
+        self.nb_adapter.sync_cables = True
+        self.nb_adapter.load_data()
+
+        loaded = self.nb_adapter.get_all("cable")[0]
+        self.assertEqual(loaded.retrieve_cable(), cable)
+
+    def test_load_cables_skips_links_with_one_end_out_of_scope(self):
+        """A link whose far end is outside the Location filter is left alone rather than loaded."""
+        self._cable(self._interface("dev1", "eth0"), self._interface("dev3", "eth0"))
+
+        self.nb_adapter.sync_cables = True
+        self.nb_adapter.location_filter = self.site1
+        self.nb_adapter.load_data()
+
+        self.assertEqual(self.nb_adapter.get_all("cable"), [])
+
+    def test_load_cables_spanning_locations(self):
+        """A link between two in-scope Locations is loaded, since Cables are not children of one."""
+        self._cable(self._interface("dev1", "eth0"), self._interface("dev3", "eth0"))
+
+        self.nb_adapter.sync_cables = True
+        self.nb_adapter.load_data()
+
+        cables = self.nb_adapter.get_all("cable")
+        self.assertEqual(len(cables), 1)
+        self.assertEqual(cables[0].get_unique_id(), "dev1__eth0__dev3__eth0")
+
+    def test_load_cables_not_loaded_when_disabled(self):
+        """Cables are opt in, so a Cable in the database is ignored unless `sync_cables` is set."""
+        self._cable(self._interface("dev1", "eth0"), self._interface("dev2", "eth0"))
+
+        self.nb_adapter.load_data()
+
+        self.assertEqual(self.nb_adapter.get_all("cable"), [])
+
+    @unittest.skipIf(AssertNoRepeatedQueries is None, "Requires Nautobot 3.1+ (AssertNoRepeatedQueries)")
+    def test_load_cables_no_n_plus_one(self):
+        """Reading each Cable's Status must use select_related, not a query per cabled Interface."""
+        for index in range(5):
+            self._cable(self._interface("dev1", f"eth{index}"), self._interface("dev2", f"eth{index}"))
+        # Load the Interfaces into the store without loading Cables, so only `load_cables` is measured.
+        self.nb_adapter.load_data()
+
+        with AssertNoRepeatedQueries(self, threshold=1):
+            self.nb_adapter.load_cables(Device.objects.filter(location=self.site1))
