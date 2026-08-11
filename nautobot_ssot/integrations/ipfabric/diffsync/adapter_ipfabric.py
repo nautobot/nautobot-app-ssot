@@ -6,12 +6,15 @@ import logging
 from collections import defaultdict
 
 from diffsync import ObjectAlreadyExists
+from diffsync.exceptions import ObjectNotFound
+from nautobot.dcim.constants import NONCONNECTABLE_IFACE_TYPES
 from nautobot.dcim.models import Device
 from nautobot.ipam.models import VLAN
 from netutils.interface import canonical_interface_name
 from netutils.mac import mac_to_format
 
 from nautobot_ssot.integrations.ipfabric.constants import (
+    DEFAULT_CABLE_STATUS,
     DEFAULT_DEVICE_ROLE,
     DEFAULT_DEVICE_STATUS,
     DEFAULT_INTERFACE_MAC,
@@ -21,6 +24,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
+from nautobot_ssot.integrations.ipfabric.utilities.cables import canonical_endpoints
 
 try:
     from ipfabric import IPFClient
@@ -38,12 +42,13 @@ name_max_length = VLAN._meta.get_field("name").max_length
 class IPFabricDiffSync(DiffSyncModelAdapters):
     """IPFabric adapter for DiffSync."""
 
-    def __init__(self, job, sync, client: IPFClient, location_filter, *args, **kwargs):
+    def __init__(self, job, sync, client: IPFClient, location_filter, *args, sync_cables: bool = False, **kwargs):
         """Initialize the NautobotDiffSync."""
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
         self.client = client
+        self.sync_cables = sync_cables
         if location_filter:
             self.client.attribute_filters = {"siteName": ["ieq", location_filter]}
             logging.info("Applied IP Fabric Attribute Filter: %s", self.client.attribute_filters)
@@ -102,6 +107,75 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 device_model.add_child(interface)
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Interface discovered, {iface}")
+
+    @staticmethod
+    def link_endpoint(link, side):
+        """Return the "local" or "remote" side of a connectivity matrix entry as an endpoint."""
+        hostname = link.get(f"{side}Host")
+        interface_name = link.get(f"{side}Int")
+        if not hostname or not interface_name:
+            return None
+        if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
+            interface_name = canonical_interface_name(interface_name)
+        return hostname, interface_name
+
+    def endpoints_are_cableable(self, *endpoints):
+        """Determine whether a Cable can be synced between the given endpoints.
+
+        Both Interfaces must have been loaded, since a Location filter or a stack member's interfaces
+        being reported against its master can leave one end out of scope. Both must also be of a type
+        Nautobot will cable, as `Cable.clean()` rejects the virtual and wireless types that IP Fabric
+        reports tunnel links over.
+        """
+        for device_name, interface_name in endpoints:
+            try:
+                interface = self.get(self.interface, {"name": interface_name, "device_name": device_name})
+            except ObjectNotFound:
+                if self.job.debug:
+                    logger.debug(
+                        "Not syncing a Cable for %s:%s as no such Interface was loaded", device_name, interface_name
+                    )
+                return False
+            if interface.type in NONCONNECTABLE_IFACE_TYPES:
+                if self.job.debug:
+                    logger.debug(
+                        "Not syncing a Cable for %s:%s as Nautobot will not cable a %s Interface",
+                        device_name,
+                        interface_name,
+                        interface.type,
+                    )
+                return False
+        return True
+
+    def load_cables(self):
+        """Add IP Fabric connectivity matrix entries as DiffSync Cable models."""
+        for link in self.client.technology.interfaces.connectivity_matrix.all():
+            local = self.link_endpoint(link, "local")
+            remote = self.link_endpoint(link, "remote")
+            if not local or not remote:
+                if self.job.debug:
+                    logger.debug("Skipping connectivity matrix entry with an incomplete endpoint, %s", link)
+                continue
+            if local == remote:
+                logger.warning(f"Skipping connectivity matrix entry that links an Interface to itself, {link}")
+                continue
+            endpoint_a, endpoint_b = canonical_endpoints(local, remote)
+            if not self.endpoints_are_cableable(endpoint_a, endpoint_b):
+                continue
+            cable = self.cable(
+                termination_a_device=endpoint_a[0],
+                termination_a_name=endpoint_a[1],
+                termination_b_device=endpoint_b[0],
+                termination_b_name=endpoint_b[1],
+                status=DEFAULT_CABLE_STATUS,
+            )
+            try:
+                self.add(cable)
+            except ObjectAlreadyExists:
+                # Expected: the matrix reports each link from both devices, and both resolve to
+                # the same Cable.
+                if self.job.debug:
+                    logger.debug("Already loaded a Cable for %s", cable.get_unique_id())
 
     def load_data(self):
         """Load shared data from IP Fabric."""
@@ -233,6 +307,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                             )
                     except ObjectAlreadyExists:
                         logger.warning(f"Duplicate Device discovered, {device.model_dump()}")
+
+        if self.sync_cables:
+            self.load_cables()
 
 
 def pseudo_management_interface(hostname, device_interfaces, device_primary_ip):
