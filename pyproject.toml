@@ -28,7 +28,7 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.11,<3.15"
+python = ">=3.10,<3.15"
 # Used for local development
 nautobot = ">=3.0.0,<4.0.0"
 diffsync = "^2.0.0"
