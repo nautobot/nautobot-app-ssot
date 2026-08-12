@@ -358,9 +358,7 @@ class TestNautobotIPAddress(TransactionTestCase):  # pylint: disable=too-many-in
         update_attrs = {"interface": "mgmt0"}
         result = self.mock_addr.update(attrs=update_attrs)
         self.assertIsInstance(result, ipam.NautobotIPAddress)
-        self.addr.refresh_from_db()
-        self.dev2_mgmt.refresh_from_db()
-        self.assertEqual(self.addr.interfaces.first(), self.dev2_mgmt)
+        self.assertEqual(self.addr.interfaces.get(device=self.test_dev2), self.dev2_mgmt)
 
     def test_update_changing_primary(self):
         """Validate the NautobotIPAddress.update() functionality with making an IPAddress primary."""

@@ -1,12 +1,12 @@
 """DiffSync adapter for Arista CloudVision."""
 
-import distutils
 import ipaddress
 import re
 
 import arista.tag.v2 as TAG
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
+from nautobot.core.settings_funcs import is_truthy
 from pydantic import ValidationError
 
 from nautobot_ssot.integrations.aristacv.diffsync.models.cloudvision import (
@@ -253,10 +253,10 @@ class CloudvisionAdapter(Adapter):
             if tag["label"] in ["hostname", "serialnumber", "Container", "vrf"]:
                 continue
             if tag["label"] == "mpls" or tag["label"] == "ztp":
-                tag["value"] = bool(distutils.util.strtobool(tag["value"]))
+                tag["value"] = is_truthy(tag["value"])
 
             if tag["value"] in ["true", "false"]:
-                tag["value"] = bool(distutils.util.strtobool(tag["value"]))
+                tag["value"] = is_truthy(tag["value"])
 
             try:
                 new_cf = self.cf(
