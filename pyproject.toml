@@ -56,7 +56,11 @@ httpx = { version = ">=0.23.3", optional = true }
 cisco-sdwan = { version = "^1.26", optional = true }
 # used for DNA Center integration
 dnacentersdk = { version = "^2.5.6", optional = true }
-meraki = { version = "^3", optional = true }
+# meraki 3.x requires Python >=3.11. v3.0.0 and v3.0.1 include some regression bugs.
+meraki = [
+    {version = ">=1.37.2,<1.46.0", python = ">=3.10,<3.11", optional = true},
+    {version = ">=3.0.2,<4", python = ">=3.11", optional = true},
+]
 slurpit-sdk = { version = "0.9.107", optional = true }  # Pinned to 0.9.107 due to significant changes being made to the sdk's api
 
 [tool.poetry.group.dev.dependencies]
