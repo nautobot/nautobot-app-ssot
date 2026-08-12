@@ -10,6 +10,7 @@ from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import (
     Device,
     DeviceType,
+    Interface,
     Location,
     LocationType,
     Manufacturer,
@@ -24,6 +25,7 @@ from nautobot.tenancy.models import Tenant
 from nautobot_ssot.integrations.meraki.diffsync.models.nautobot import (
     NautobotIPAddress,
     NautobotOSVersion,
+    NautobotPort,
     NautobotPrefix,
 )
 
@@ -318,3 +320,118 @@ class TestNautobotOSVersion(TestCase):  # pylint: disable=too-many-instance-attr
         self.adapter.job.logger.warning.assert_called_once_with(
             "SoftwareVersion 15.42 for Cisco Meraki is used with a ValidatedSoftware so won't be deleted."
         )
+
+
+@override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"enable_meraki": True}})
+class TestNautobotPort(TestCase):  # pylint: disable=too-many-instance-attributes
+    """Test the NautobotPort class."""
+
+    databases = ("default", "job_logs")
+
+    @classmethod
+    def setUpTestData(cls):
+        """Configure common variables and objects for tests."""
+        super().setUpTestData()
+        populate_status_choices()
+        cls.status_active = Status.objects.get(name="Active")
+        site_lt = LocationType.objects.get_or_create(name="Site")[0]
+        site_lt.content_types.add(ContentType.objects.get_for_model(Device))
+        cls.test_site = Location.objects.get_or_create(name="Test", location_type=site_lt, status=cls.status_active)[0]
+        manufacturer = Manufacturer.objects.get_or_create(name="Cisco Meraki")[0]
+        devicetype = DeviceType.objects.get_or_create(model="MX84", manufacturer=manufacturer)[0]
+        role = Role.objects.get_or_create(name="Firewall")[0]
+        role.content_types.add(ContentType.objects.get_for_model(Device))
+        cls.device = Device.objects.create(
+            name="HQ01",
+            device_type=devicetype,
+            role=role,
+            location=cls.test_site,
+            status=cls.status_active,
+        )
+        cls.interface = Interface.objects.create(
+            name="Vlan1234",
+            device=cls.device,
+            description="Old description",
+            enabled=True,
+            mode="access",
+            mgmt_only=False,
+            type="virtual",
+            status=cls.status_active,
+        )
+        cls.adapter = Adapter()
+        cls.adapter.job = MagicMock()
+        cls.adapter.status_map = {"Active": cls.status_active.id}
+        cls.adapter.device_map = {"HQ01": cls.device.id}
+        cls.adapter.port_map = {"HQ01": {}}
+        cls.adapter.objects_to_create = {"ports": []}
+        cls.adapter.objects_to_delete = {"ports": []}
+
+    def test_create_with_description(self):
+        """Validate the NautobotPort create() method sets the Interface description."""
+        ids = {"name": "Vlan10", "device": "HQ01"}
+        attrs = {
+            "description": "My VLAN",
+            "management": False,
+            "enabled": True,
+            "port_type": "virtual",
+            "port_status": "Active",
+            "tagging": False,
+        }
+        result = NautobotPort.create(self.adapter, ids, attrs)
+        self.assertIsInstance(result, NautobotPort)
+        self.assertEqual(len(self.adapter.objects_to_create["ports"]), 1)
+        port = self.adapter.objects_to_create["ports"][0]
+        self.assertEqual(port.name, ids["name"])
+        self.assertEqual(port.description, attrs["description"])
+        self.assertEqual(self.adapter.port_map[ids["device"]][ids["name"]], port.id)
+
+    def test_create_without_description(self):
+        """Validate the NautobotPort create() method defaults a missing description to an empty string."""
+        ids = {"name": "Vlan20", "device": "HQ01"}
+        attrs = {
+            "description": None,
+            "management": False,
+            "enabled": True,
+            "port_type": "virtual",
+            "port_status": "Active",
+            "tagging": False,
+        }
+        NautobotPort.create(self.adapter, ids, attrs)
+        self.assertEqual(self.adapter.objects_to_create["ports"][0].description, "")
+
+    def test_update_description(self):
+        """Validate the NautobotPort update() method updates the Interface description."""
+        test_port = NautobotPort(
+            name="Vlan1234",
+            device="HQ01",
+            description="Old description",
+            management=False,
+            enabled=True,
+            port_type="virtual",
+            port_status="Active",
+            tagging=False,
+            uuid=self.interface.id,
+        )
+        test_port.adapter = self.adapter
+        actual = NautobotPort.update(self=test_port, attrs={"description": "My VLAN"})
+        self.interface.refresh_from_db()
+        self.assertEqual(self.interface.description, "My VLAN")
+        self.assertEqual(actual, test_port)
+
+    def test_update_description_to_empty(self):
+        """Validate the NautobotPort update() method clears the description when Meraki has no label."""
+        test_port = NautobotPort(
+            name="Vlan1234",
+            device="HQ01",
+            description="Old description",
+            management=False,
+            enabled=True,
+            port_type="virtual",
+            port_status="Active",
+            tagging=False,
+            uuid=self.interface.id,
+        )
+        test_port.adapter = self.adapter
+        NautobotPort.update(self=test_port, attrs={"description": None})
+        self.interface.refresh_from_db()
+        self.assertEqual(self.interface.description, "")
