@@ -10,6 +10,14 @@ This document describes all new features and changes in the release. The format 
 
 <!-- towncrier release notes start -->
 
+## [v4.6.1 (2026-08-07)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v4.6.1)
+
+### Fixed
+
+- [#1290](https://github.com/nautobot/nautobot-app-ssot/issues/1290) - Fixed LibreNMS sync failing with an `AttributeError` when no Tenant Filter was selected; IP addresses are now placed in the Global namespace when no tenant is set.
+- [#1290](https://github.com/nautobot/nautobot-app-ssot/issues/1290) - Fixed the Tenant Filter being silently ignored by the Nautobot to LibreNMS job.
+- [#1310](https://github.com/nautobot/nautobot-app-ssot/issues/1310) - Fixed a ProtectedError crash in the Meraki integration when a SoftwareVersion that was still assigned to a Device was deleted, by deferring SoftwareVersion deletion until after Devices have been updated.
+
 ## [v4.6.0 (2026-07-28)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v4.6.0)
 
 ### Added
