@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from nautobot.dcim.models import Device as ORMDevice
 from nautobot.dcim.models import DeviceType, LocationType
 from nautobot.dcim.models import Interface as ORMInterface
@@ -14,15 +15,12 @@ from nautobot.dcim.models import SoftwareImageFile as ORMSoftwareImageFile
 from nautobot.dcim.models import SoftwareVersion as ORMSoftwareVersion
 from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
-from netutils.lib_mapper import ANSIBLE_LIB_MAPPER
+from netutils.lib_mapper import ANSIBLE_LIB_MAPPER, ANSIBLE_LIB_MAPPER_REVERSE
 
-from nautobot_ssot.integrations.librenms.constants import (
-    LIBRENMS_LIB_MAPPER,
-    LIBRENMS_LIB_MAPPER_REVERSE,
-    os_manufacturer_map,
-)
+from nautobot_ssot.integrations.librenms.constants import LIBRENMS_OS_TO_NETWORK_DRIVER
 from nautobot_ssot.integrations.librenms.diffsync.models.base import Device, Location, Port
 from nautobot_ssot.integrations.librenms.utils import check_sor_field
+from nautobot_ssot.integrations.librenms.utils.nautobot import librenms_os_to_network_driver
 
 
 def ensure_ip_address(ip_address: str, ip_prefix: str, adapter: object):
@@ -61,13 +59,140 @@ def ensure_role(role_name: str, content_type):
     return role
 
 
-def ensure_platform(platform_name: str, manufacturer: str):
-    """Safely returns a Platform that support Devices."""
-    _manufacturer, _ = ORMManufacturer.objects.get_or_create(name=manufacturer)
-    _network_driver = LIBRENMS_LIB_MAPPER.get(ANSIBLE_LIB_MAPPER.get(platform_name, platform_name), platform_name)
-    _platform, _ = ORMPlatform.objects.get_or_create(
-        name=platform_name, defaults={"network_driver": _network_driver, "manufacturer": _manufacturer}
+def consolidated_platforms_enabled(adapter) -> bool:
+    """Platform-naming mode stashed on the adapter. Defaults to legacy."""
+    return bool(getattr(adapter, "consolidated_platforms", False))
+
+
+def legacy_network_driver(platform_name: str) -> str:
+    """Valid network driver for a legacy FQCN- or raw-OS-named Platform."""
+    # Derived from the name, not the raw OS: legacy naming collapses ios and iosxe onto one
+    # cisco.ios.ios row, so using the raw OS would make the driver depend on processing order.
+    return ANSIBLE_LIB_MAPPER.get(platform_name) or librenms_os_to_network_driver(platform_name)
+
+
+def _legacy_alias_names(driver: str) -> list:
+    """Platform names legacy naming would have used for this driver."""
+    names = []
+    # FQCN only counts if it maps back to this driver; else cisco_xe would steal cisco.ios.ios.
+    fqcn = ANSIBLE_LIB_MAPPER_REVERSE.get(driver)
+    if fqcn and ANSIBLE_LIB_MAPPER.get(fqcn) == driver:
+        names.append(fqcn)
+    names.extend(
+        librenms_os
+        for librenms_os, mapped in LIBRENMS_OS_TO_NETWORK_DRIVER.items()
+        if mapped == driver and librenms_os != driver
     )
+    return names
+
+
+def _platform_manufacturer_conflicts(platform, manufacturer) -> bool:
+    """Whether reusing this Platform would contradict the device's Manufacturer."""
+    return platform.manufacturer_id is not None and platform.manufacturer_id != manufacturer.pk
+
+
+def _resolve_platform_by_driver(driver: str, manufacturer, logger=None):
+    """Existing Platform for this network driver, or None."""
+    # filter() + ranking, never get(): duplicate drivers are a legitimate intermediate state.
+    candidates = list(ORMPlatform.objects.filter(network_driver__iexact=driver))
+    if not candidates:
+        return None
+
+    usable = [platform for platform in candidates if not _platform_manufacturer_conflicts(platform, manufacturer)]
+    if logger:
+        for platform in candidates:
+            if _platform_manufacturer_conflicts(platform, manufacturer):
+                logger.warning(
+                    f'Not reusing Platform "{platform.name}" for network driver "{driver}": its Manufacturer '
+                    f'"{platform.manufacturer}" conflicts with "{manufacturer.name}".'
+                )
+    if not usable:
+        return None
+
+    # Exact name, then matching manufacturer, then null; name breaks ties for determinism.
+    usable.sort(
+        key=lambda platform: (platform.name != driver, platform.manufacturer_id != manufacturer.pk, platform.name)
+    )
+    chosen = usable[0]
+    if len(usable) > 1 and logger:
+        logger.warning(
+            f'Multiple Platforms share network driver "{driver}" '
+            f"({', '.join(sorted(platform.name for platform in usable))}). Using \"{chosen.name}\". "
+            "Run the LibreNMS Platform Consolidation job to merge them."
+        )
+    return chosen
+
+
+def _adopt_legacy_platform(driver: str, manufacturer, logger=None):
+    """Adopt a legacy-named Platform for this driver, in place."""
+    # Never renames or rewrites network_driver -- that is the consolidation job's job. This is
+    # what makes enabling librenms_consolidated_platforms a non-event for existing data.
+    for name in _legacy_alias_names(driver):
+        # order_by so a case-only duplicate resolves the same way every run.
+        platform = ORMPlatform.objects.filter(name__iexact=name).order_by("name").first()
+        if platform is None:
+            continue
+        existing_driver = (platform.network_driver or "").strip()
+        # Only claim a row that nobody else has staked a driver on.
+        if existing_driver and existing_driver != platform.name:
+            continue
+        if _platform_manufacturer_conflicts(platform, manufacturer):
+            continue
+        if logger:
+            logger.info(
+                f'Adopting existing Platform "{platform.name}" for network driver "{driver}" without renaming it.'
+            )
+        return platform
+    return None
+
+
+def ensure_platform(platform_name: str, manufacturer: str, adapter=None):
+    """Safely returns a Platform that supports Devices.
+
+    Legacy mode names Platforms after the Ansible FQCN; consolidated mode after the network
+    driver, shared with device-onboarding. Both modes give new Platforms a valid network_driver.
+    Existing Platforms are never renamed, and a disagreeing driver is never overwritten.
+
+    Args:
+        platform_name (str): FQCN in legacy mode; driver, or raw OS with no driver, in consolidated.
+        manufacturer (str): Name of the device's Manufacturer.
+        adapter (object, optional): Read for the mode and the job logger.
+
+    Returns:
+        Platform: Found, adopted or created Platform.
+    """
+    _manufacturer, _ = ORMManufacturer.objects.get_or_create(name=manufacturer)
+    logger = getattr(getattr(adapter, "job", None), "logger", None)
+
+    if not consolidated_platforms_enabled(adapter):
+        _platform, _ = ORMPlatform.objects.get_or_create(
+            name=platform_name,
+            defaults={"network_driver": legacy_network_driver(platform_name), "manufacturer": _manufacturer},
+        )
+        return _platform
+
+    # Already driver-space; resolution is idempotent. "" for a raw OS with no known driver.
+    driver = librenms_os_to_network_driver(platform_name)
+
+    if driver:
+        _platform = _resolve_platform_by_driver(driver, _manufacturer, logger)
+        if _platform is not None:
+            return _platform
+        _platform = _adopt_legacy_platform(driver, _manufacturer, logger)
+        if _platform is not None:
+            return _platform
+
+    _platform, created = ORMPlatform.objects.get_or_create(
+        name=driver or platform_name,
+        defaults={"network_driver": driver, "manufacturer": _manufacturer},
+    )
+    # Self-heal an operator row named like the driver but missing it. Never overwrite a
+    # disagreeing driver -- that is the consolidation job's decision.
+    if not created and driver and not (_platform.network_driver or "").strip() and _platform.name == driver:
+        _platform.network_driver = driver
+        _platform.validated_save()
+        if logger:
+            logger.info(f'Set network driver "{driver}" on existing Platform "{_platform.name}".')
     return _platform
 
 
@@ -273,14 +398,13 @@ class NautobotDevice(Device):
         if adapter.job.debug:
             adapter.job.logger.debug(f'Creating Nautobot Device {ids["name"]}')
             adapter.job.logger.debug(f"N_Model ids: {ids}")
-        manufacturer_name = os_manufacturer_map.get(
-            LIBRENMS_LIB_MAPPER_REVERSE.get(ANSIBLE_LIB_MAPPER.get(attrs["platform"], attrs["platform"])),
-            attrs["platform"],
-        )
-        if manufacturer_name is None:
+        # Adapter already resolved this from the raw OS and has_required_values() guarantees it,
+        # so use it directly instead of round-tripping the platform name through the OS mappers.
+        manufacturer_name = attrs["manufacturer"]
+        if not manufacturer_name:
             raise ValueError(f"Manufacturer is required for device {ids['name']}")
         _manufacturer = ORMManufacturer.objects.get_or_create(name=manufacturer_name)[0]
-        _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name)
+        _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=_manufacturer.name, adapter=adapter)
         adapter.job.logger.debug(f"Platform: {_platform}")
         _device_type = DeviceType.objects.get_or_create(model=attrs["device_type"], manufacturer=_manufacturer)[0]
         # Get location data from the device attributes
@@ -331,7 +455,14 @@ class NautobotDevice(Device):
             custom_fields["snmp_location"] = attrs["snmp_location"]
 
         new_device.custom_field_data.update(custom_fields)
-        new_device.validated_save()
+        try:
+            new_device.validated_save()
+        except ValidationError as err:
+            # Consolidated mode reuses Platforms from other apps, so Device.clean()'s
+            # platform/device_type manufacturer check can fire on data we didn't create.
+            # Skip the device instead of aborting the job.
+            adapter.job.logger.error(f"Failed to create device {ids['name']}: {err}")
+            return None
 
         # Set primary IP and interface after device is created and saved
         if _ipaddress:
@@ -369,13 +500,22 @@ class NautobotDevice(Device):
             device.location = _location
         if "serial_no" in attrs:
             device.serial = attrs["serial_no"]
+        _platform_changed = False
         if "platform" in attrs:
             # Get the original OS name for manufacturer lookup
             if self.adapter.job.debug:
                 self.adapter.job.logger.debug(f"N_Model attrs: {attrs}")
             if self.adapter.job.debug:
                 self.adapter.job.logger.debug(f"N_ModelManufacturer for {self.name} from attrs: {self.manufacturer}")
-            _platform = ensure_platform(platform_name=attrs["platform"], manufacturer=self.manufacturer)
+            _platform = ensure_platform(
+                platform_name=attrs["platform"], manufacturer=self.manufacturer, adapter=self.adapter
+            )
+            _platform_changed = device.platform_id != _platform.pk
+            if _platform_changed:
+                self.adapter.job.logger.info(
+                    f"Moving device {self.name} from Platform "
+                    f'"{device.platform.name if device.platform else None}" to "{_platform.name}".'
+                )
             device.platform = _platform
         if "os_version" in attrs:
             _software_version = ensure_software_version(
@@ -385,6 +525,16 @@ class NautobotDevice(Device):
                 device_type=device.device_type,
             )
             _software_version.devices.add(device)
+        elif _platform_changed and self.os_version:
+            # Platform moved but version didn't; otherwise the device keeps pointing at a
+            # SoftwareVersion belonging to the old Platform.
+            _software_version = ensure_software_version(
+                platform=device.platform,
+                manufacturer=self.manufacturer,
+                version=self.os_version,
+                device_type=device.device_type,
+            )
+            device.software_version = _software_version
 
         ip_address = attrs.get("ip_address")
         ip_prefix = attrs.get("ip_prefix")

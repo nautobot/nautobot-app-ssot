@@ -9,6 +9,7 @@ from nautobot.dcim.models import Device as OrmDevice
 from nautobot.dcim.models import Location as OrmLocation
 from nautobot.tenancy.models import Tenant
 
+from nautobot_ssot.integrations.librenms.constants import PLUGIN_CFG
 from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import (
     NautobotDevice,
     NautobotLocation,
@@ -16,6 +17,10 @@ from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import (
 from nautobot_ssot.integrations.librenms.utils import (
     check_sor_field,
     get_sor_field_nautobot_object,
+)
+from nautobot_ssot.integrations.librenms.utils.nautobot import (
+    clear_network_driver_caches,
+    platform_to_network_driver,
 )
 
 
@@ -38,6 +43,8 @@ class NautobotAdapter(Adapter):
         self.tenant = tenant
         self.job = job
         self.sync = sync
+        # Read once per sync so both adapters and ensure_platform agree within a run.
+        self.consolidated_platforms = bool(PLUGIN_CFG.get("librenms_consolidated_platforms", False))
 
     def load_location(self):
         """Load Location objects from Nautobot into DiffSync Models."""
@@ -119,7 +126,11 @@ class NautobotAdapter(Adapter):
                     device_type=nb_device.device_type.model,
                     role=nb_device.role.name,
                     manufacturer=nb_device.device_type.manufacturer.name,
-                    platform=nb_device.platform.name,
+                    platform=(
+                        platform_to_network_driver(nb_device.platform)
+                        if self.consolidated_platforms
+                        else nb_device.platform.name
+                    ),
                     os_version=_software_version,
                     serial_no=nb_device.serial,
                     ip_address=_ip_address,
@@ -135,6 +146,8 @@ class NautobotAdapter(Adapter):
 
     def load(self):
         """Load data from Nautobot into DiffSync models."""
+        # Keep driver resolution consistent with the LibreNMS side.
+        clear_network_driver_caches()
         if self.job.sync_locations:
             if self.job.debug:
                 self.job.logger.debug("Loading Nautobot Locations")

@@ -406,3 +406,122 @@ LIBRENMS_LIB_MAPPER_REVERSE = {
     "juniper_junos": "junos",
     "applogic_procera": "procera",
 }
+
+# LibreNMS `os` | network driver
+# Separate from LIBRENMS_LIB_MAPPER, which also drives legacy naming: an entry there would
+# rename platforms (fortios -> fortinet.fortios.fortios) and move devices.
+# Values are MAIN_LIB_MAPPER keys, except applogic_procera (legacy, kept for compatibility).
+# Ambiguous OS values (dnos, asyncos, junose, extremeware, zynos, zywall, sonicwall, pfsense,
+# opnsense, vmwareesxi, aix, cumulus, axos) intentionally absent -> "". Map them via
+# librenms_network_driver_map.
+LIBRENMS_OS_TO_NETWORK_DRIVER = {
+    # Cisco
+    "ios": "cisco_ios",
+    "iosxe": "cisco_xe",
+    "iosxr": "cisco_xr",
+    "nxos": "cisco_nxos",
+    "asa": "cisco_asa",
+    "ciscosb": "cisco_s300",
+    "ciscowlc": "cisco_wlc",
+    "viptela": "cisco_viptella",
+    # Juniper
+    "junos": "juniper_junos",
+    "screenos": "juniper_screenos",
+    # Arista
+    "arista_eos": "arista_eos",
+    # Aruba
+    "arubaoscx": "aruba_aoscx",
+    "arubaos": "aruba_os",
+    "arubainstant": "aruba_os",
+    # HP
+    "procurve": "hp_procurve",
+    "comware": "hp_comware",
+    # Fortinet
+    "fortigate": "fortinet",
+    "fortios": "fortinet",
+    # Palo Alto
+    "panos": "paloalto_panos",
+    # Check Point
+    "gaia": "checkpoint_gaia",
+    # F5
+    "f5": "bigip_f5",
+    # Mikrotik
+    "routeros": "mikrotik_routeros",
+    # Huawei
+    "vrp": "huawei_vrp",
+    "smartax": "huawei_smartax",
+    "smartaxmdu": "huawei_smartax",
+    # Nokia
+    "timos": "nokia_sros",
+    # Alcatel
+    "aos": "alcatel_aos",
+    # Extreme
+    "xos": "extreme_exos",
+    # Brocade
+    "fabos": "brocade_fos",
+    "ironware": "brocade_netiron",
+    # Dell
+    "ftos": "dell_force10",
+    "powerconnect": "dell_powerconnect",
+    # Ubiquiti
+    "airos": "ubiquiti_airos",
+    "edgeos": "ubiquiti_edgerouter",
+    "edgeswitch": "ubiquiti_edgeswitch",
+    "unifi": "ubiquiti_unifiswitch",
+    # Ciena
+    "cienarls": "ciena_saos",
+    "cienasds": "ciena_saos",
+    # IP Infusion
+    "ocnos": "ipinfusion_ocnos",
+    # Eltex
+    "eltexmes23xx": "eltex",
+    "eltexmes24xx": "eltex",
+    # Allied Telesis
+    "awplus": "allied_telesis_awplus",
+    # Ruckus
+    "ruckuswirelesssz": "ruckus_smartzone",
+    # Citrix
+    "nitro": "netscaler",
+    # AppLogic -- not a netutils driver; LIBRENMS_LIB_MAPPER has always emitted it
+    "procera": "applogic_procera",
+    # Self-mappings: keep f(f(os)) == f(os); consolidated mode re-resolves driver-space values
+    "alcatel_aos": "alcatel_aos",
+    "allied_telesis_awplus": "allied_telesis_awplus",
+    "applogic_procera": "applogic_procera",
+    "aruba_aoscx": "aruba_aoscx",
+    "aruba_os": "aruba_os",
+    "bigip_f5": "bigip_f5",
+    "brocade_fos": "brocade_fos",
+    "brocade_netiron": "brocade_netiron",
+    "checkpoint_gaia": "checkpoint_gaia",
+    "ciena_saos": "ciena_saos",
+    "cisco_asa": "cisco_asa",
+    "cisco_ios": "cisco_ios",
+    "cisco_nxos": "cisco_nxos",
+    "cisco_s300": "cisco_s300",
+    "cisco_viptella": "cisco_viptella",
+    "cisco_wlc": "cisco_wlc",
+    "cisco_xe": "cisco_xe",
+    "cisco_xr": "cisco_xr",
+    "dell_force10": "dell_force10",
+    "dell_powerconnect": "dell_powerconnect",
+    "eltex": "eltex",
+    "extreme_exos": "extreme_exos",
+    "fortinet": "fortinet",
+    "hp_comware": "hp_comware",
+    "hp_procurve": "hp_procurve",
+    "huawei_smartax": "huawei_smartax",
+    "huawei_vrp": "huawei_vrp",
+    "ipinfusion_ocnos": "ipinfusion_ocnos",
+    "juniper_junos": "juniper_junos",
+    "juniper_screenos": "juniper_screenos",
+    "mikrotik_routeros": "mikrotik_routeros",
+    "netscaler": "netscaler",
+    "nokia_sros": "nokia_sros",
+    "paloalto_panos": "paloalto_panos",
+    "ruckus_smartzone": "ruckus_smartzone",
+    "ubiquiti_airos": "ubiquiti_airos",
+    "ubiquiti_edgerouter": "ubiquiti_edgerouter",
+    "ubiquiti_edgeswitch": "ubiquiti_edgeswitch",
+    "ubiquiti_unifiswitch": "ubiquiti_unifiswitch",
+}

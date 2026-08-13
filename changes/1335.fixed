@@ -1,0 +1,5 @@
+Fixed the LibreNMS integration writing an Ansible collection FQCN such as `cisco.ios.ios` into `Platform.network_driver`, where it resolved to no driver mappings and left Golden Config and Nornir dispatch with nothing. Newly created Platforms now get a valid network driver in both platform-naming modes; existing Platforms are never modified automatically.
+Fixed the LibreNMS integration creating Manufacturers named after the device OS, such as `panos` instead of `Palo Alto`. This affected 210 of the 217 mapped OS values, because the Manufacturer was resolved by round-tripping the Platform name back through the OS mappers and falling back to that name.
+Fixed a LibreNMS device sync aborting entirely when a single device failed validation, which could happen for a Platform another app created. The device is now skipped with an error logged.
+Fixed a LibreNMS device that moved to a different Platform keeping a SoftwareVersion belonging to its old Platform.
+Added the `librenms_allow_ip_hostnames`, `librenms_show_failures` and `librenms_permitted_values` keys to the app's default settings, so an install that does not set them no longer raises a KeyError.

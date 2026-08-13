@@ -1,0 +1,4 @@
+Added the `librenms_consolidated_platforms` setting to the LibreNMS integration, which names Platforms after the network driver so they are shared with nautobot-app-device-onboarding instead of duplicated.
+Added the `librenms_network_driver_map` setting to the LibreNMS integration, to override or suppress the bundled LibreNMS OS to network driver mappings.
+Added a LibreNMS Platform Consolidation job that repairs network drivers, renames legacy FQCN-named Platforms, merges duplicates, and folds Manufacturers named after the device OS back onto the real vendor, with a dry run that reports the plan as CSV.
+Added network driver mappings for around forty more LibreNMS OS values.
