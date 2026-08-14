@@ -12,6 +12,7 @@ from nautobot.extras.models import Role, Status
 
 from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
 from nautobot_ssot.integrations.ipfabric.utilities import cables
+from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 _CABLES = "nautobot_ssot.integrations.ipfabric.utilities.cables"
 
@@ -21,6 +22,11 @@ class TestCableUtilities(TestCase):
 
     def setUp(self):
         populate_status_choices()
+        # The tag and status helpers cache ORM objects for the life of a job. Left alone, an
+        # object cached inside one test's transaction outlives its row and the next test
+        # writes a dangling foreign key.
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
         self.active_status = Status.objects.get(name="Active")
         self.connected_status = Status.objects.get(name="Connected")
         device_ct = ContentType.objects.get_for_model(Device)

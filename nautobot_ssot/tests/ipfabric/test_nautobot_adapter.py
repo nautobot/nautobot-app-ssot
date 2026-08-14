@@ -28,6 +28,7 @@ except ImportError:
 
 import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
+from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 
 # pylint: disable=too-many-public-methods
@@ -36,6 +37,9 @@ class TestNautobotAdapter(TestCase):
 
     def setUp(self):
         populate_status_choices()
+        # Cached Tag lookups must not outlive a test's transaction; see test_cables.py.
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
         device_ct = ContentType.objects.get_for_model(Device)
         self.active_status = Status.objects.get(name="Active")
         self.ssot_tag, _ = Tag.objects.get_or_create(
