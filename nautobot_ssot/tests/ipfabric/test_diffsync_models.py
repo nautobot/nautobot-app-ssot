@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 """Tests for IPFabric diffsync models.
 
 Focused on the model-specific branching logic — early returns, conditional
@@ -9,6 +10,7 @@ test suites.
 import contextlib
 from types import SimpleNamespace
 from unittest import mock
+from uuid import UUID
 
 from django.test import SimpleTestCase
 
@@ -990,3 +992,96 @@ class TestCableModel(_ModelTestBase):
             _cable_patch("cable_connects", return_value=False),
         ):
             self.assertIsNone(diff_model.retrieve_cable())
+
+    def test_create_returns_none_when_adopting_an_existing_cable_fails(self):
+        """If the existing Cable's Status cannot be corrected, the link is not recorded."""
+        interface_a = mock.MagicMock()
+
+        with (
+            _nb_patch("get_tagged_interface", side_effect=[interface_a, mock.MagicMock()]),
+            _cable_patch("cable_connects", return_value=True),
+            _cable_patch("update_cable_status", return_value=False),
+            mock.patch.object(diffsync_models.DiffSyncModel, "create") as mock_super,
+        ):
+            result = Cable.create(adapter=self.adapter, ids=self.IDS, attrs=self.ATTRS)
+
+        self.assertIsNone(result)
+        mock_super.assert_not_called()
+
+    def test_create_returns_none_when_cable_creation_fails(self):
+        """A failed `create_cable` short-circuits without calling super()."""
+        with (
+            _nb_patch("get_tagged_interface", side_effect=[self._uncabled_interface(), self._uncabled_interface()]),
+            _cable_patch("cable_connects", return_value=False),
+            _cable_patch("create_cable", return_value=None),
+            mock.patch.object(diffsync_models.DiffSyncModel, "create") as mock_super,
+        ):
+            result = Cable.create(adapter=self.adapter, ids=self.IDS, attrs=self.ATTRS)
+
+        self.assertIsNone(result)
+        mock_super.assert_not_called()
+
+    def test_retrieve_cable_by_pk_skips_the_endpoint_walk(self):
+        """A model carrying `cable_pk` looks the Cable up directly."""
+        diff_model = Cable(**self.IDS, **self.ATTRS, cable_pk=UUID("00000000-0000-0000-0000-00000000abcd"))
+        diff_model.adapter = self.adapter
+        nb_cable = mock.MagicMock()
+
+        with (
+            mock.patch.object(diffsync_models.NautobotCable.objects, "filter") as mock_filter,
+            _nb_patch("get_tagged_interface") as mock_get_interface,
+        ):
+            mock_filter.return_value.select_related.return_value.first.return_value = nb_cable
+            result = diff_model.retrieve_cable()
+
+        self.assertIs(result, nb_cable)
+        mock_get_interface.assert_not_called()
+
+    def test_retrieve_cable_returns_none_when_an_interface_is_missing(self):
+        """Without `cable_pk`, an unresolvable Interface means the Cable cannot be found."""
+        diff_model = self._make_cable_diff()
+
+        with _nb_patch("get_tagged_interface", side_effect=[None, None]):
+            self.assertIsNone(diff_model.retrieve_cable())
+
+    def test_retrieve_cable_returns_the_matching_cable(self):
+        """Without `cable_pk`, the Cable on the A side is returned when it connects both ends."""
+        diff_model = self._make_cable_diff()
+        interface_a = mock.MagicMock()
+
+        with (
+            _nb_patch("get_tagged_interface", side_effect=[interface_a, mock.MagicMock()]),
+            _cable_patch("cable_connects", return_value=True),
+        ):
+            self.assertIs(diff_model.retrieve_cable(), interface_a.cable)
+
+    def test_update_returns_none_when_the_status_update_fails(self):
+        """A failed Status update leaves the diffsync model untouched."""
+        diff_model = self._make_cable_diff()
+
+        with (
+            mock.patch.object(Cable, "retrieve_cable", return_value=mock.MagicMock()),
+            _cable_patch("update_cable_status", return_value=False),
+            mock.patch.object(diffsync_models.DiffSyncModel, "update") as mock_super,
+        ):
+            result = diff_model.update({"status": "Planned"})
+
+        self.assertIsNone(result)
+        mock_super.assert_not_called()
+
+    def test_delete_returns_none_when_removal_fails(self):
+        """A Cable that cannot be removed is reported and the model is not marked deleted."""
+        diff_model = self._make_cable_diff()
+        nb_cable = mock.MagicMock()
+        nb_cable.delete.side_effect = diffsync_models.ProtectedError("protected", set())
+
+        with (
+            mock.patch.object(Cable, "safe_delete_mode", False),
+            mock.patch.object(Cable, "retrieve_cable", return_value=nb_cable),
+            mock.patch.object(diffsync_models.DiffSyncModel, "delete") as mock_super,
+        ):
+            result = diff_model.delete()
+
+        self.assertIsNone(result)
+        mock_super.assert_not_called()
+        self.adapter.job.logger.error.assert_called_once()
