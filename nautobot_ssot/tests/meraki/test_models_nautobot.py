@@ -4,6 +4,7 @@ from collections import defaultdict
 from unittest.mock import MagicMock, patch
 
 from diffsync import Adapter
+from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.test import override_settings
 from nautobot.apps.testing import TestCase
@@ -17,12 +18,14 @@ from nautobot.dcim.models import (
     SoftwareVersion,
 )
 from nautobot.extras.management import populate_status_choices
-from nautobot.extras.models import Role, Status
+from nautobot.extras.models import Note, Role, Status
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.meraki.diffsync.models.nautobot import (
+    NautobotDevice,
     NautobotIPAddress,
+    NautobotNetwork,
     NautobotOSVersion,
     NautobotPrefix,
 )
@@ -318,3 +321,145 @@ class TestNautobotOSVersion(TestCase):  # pylint: disable=too-many-instance-attr
         self.adapter.job.logger.warning.assert_called_once_with(
             "SoftwareVersion 15.42 for Cisco Meraki is used with a ValidatedSoftware so won't be deleted."
         )
+
+
+@override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"enable_meraki": True}})
+class TestNotesSync(TestCase):  # pylint: disable=too-many-instance-attributes
+    """Test that Notes on Networks and Devices track the note in Meraki."""
+
+    databases = ("default", "job_logs")
+
+    @classmethod
+    def setUpTestData(cls):
+        """Configure common variables and objects for tests."""
+        super().setUpTestData()
+        populate_status_choices()
+        cls.status_active = Status.objects.get(name="Active")
+        cls.site_lt = LocationType.objects.get_or_create(name="Site")[0]
+        cls.site_lt.content_types.add(ContentType.objects.get_for_model(Device))
+        cls.test_site = Location.objects.get_or_create(
+            name="Test", location_type=cls.site_lt, status=cls.status_active
+        )[0]
+        manufacturer = Manufacturer.objects.get_or_create(name="Cisco Meraki")[0]
+        Platform.objects.get_or_create(name="Cisco Meraki", manufacturer=manufacturer)
+        devicetype = DeviceType.objects.get_or_create(model="MX84", manufacturer=manufacturer)[0]
+        role = Role.objects.get_or_create(name="Firewall")[0]
+        role.content_types.add(ContentType.objects.get_for_model(Device))
+        cls.device = Device.objects.create(
+            name="HQ01",
+            device_type=devicetype,
+            role=role,
+            location=cls.test_site,
+            status=cls.status_active,
+        )
+        cls.location_ct = ContentType.objects.get_for_model(Location)
+        cls.device_ct = ContentType.objects.get_for_model(Device)
+        cls.user = get_user_model().objects.create(username="testuser")
+        cls.adapter = Adapter()
+        cls.adapter.job = MagicMock()
+        cls.adapter.job.user = cls.user
+        cls.adapter.contenttype_map = {"location": cls.location_ct.id, "device": cls.device_ct.id}
+        cls.adapter.tenant_map = {}
+        cls.adapter.devicerole_map = {"Firewall": role.id}
+        cls.adapter.devicetype_map = {"MX84": devicetype.id}
+        cls.adapter.status_map = {"Active": cls.status_active.id}
+        cls.adapter.version_map = {}
+
+    def _add_note(self, nautobot_object, contenttype, note="Original note"):
+        """Attach a Note to the passed object the way a prior sync would have."""
+        new_note = Note(
+            note=note,
+            user=self.user,
+            assigned_object_type=contenttype,
+            assigned_object_id=nautobot_object.id,
+        )
+        new_note.validated_save()
+        return new_note
+
+    @staticmethod
+    def _note_texts(nautobot_object, contenttype):
+        """Return the text of every Note assigned to the passed object, oldest first."""
+        return [
+            note.note
+            for note in Note.objects.filter(
+                assigned_object_type=contenttype, assigned_object_id=nautobot_object.id
+            ).order_by("created")
+        ]
+
+    def _build_network(self):
+        """Build a NautobotNetwork for the test Location, bound to the test adapter."""
+        network = NautobotNetwork(
+            name="Test", parent=None, timezone=None, notes="Original note", uuid=self.test_site.id
+        )
+        network.adapter = self.adapter
+        return network
+
+    def _build_device(self):
+        """Build a NautobotDevice for the test Device, bound to the test adapter."""
+        device = NautobotDevice(
+            name="HQ01",
+            controller_group=None,
+            notes="Original note",
+            serial="",
+            status="Active",
+            role="Firewall",
+            model="MX84",
+            network="Test",
+            tenant=None,
+            version=None,
+            uuid=self.device.id,
+        )
+        device.adapter = self.adapter
+        return device
+
+    def test_network_update_removes_note_when_cleared_in_meraki(self):
+        """Validate a Network note deleted in Meraki is removed from Nautobot instead of being re-diffed forever."""
+        self._add_note(self.test_site, self.location_ct)
+
+        self._build_network().update(attrs={"notes": ""})
+
+        self.assertEqual([], self._note_texts(self.test_site, self.location_ct))
+
+    def test_device_update_removes_note_when_cleared_in_meraki(self):
+        """Validate a Device note deleted in Meraki is removed from Nautobot instead of being re-diffed forever."""
+        self._add_note(self.device, self.device_ct)
+
+        self._build_device().update(attrs={"notes": ""})
+
+        self.assertEqual([], self._note_texts(self.device, self.device_ct))
+
+    def test_network_update_changes_note_in_place(self):
+        """Validate a changed Network note updates the existing Note rather than stacking a second one."""
+        self._add_note(self.test_site, self.location_ct)
+
+        self._build_network().update(attrs={"notes": "Updated note"})
+
+        self.assertEqual(["Updated note"], self._note_texts(self.test_site, self.location_ct))
+
+    def test_device_update_changes_note_in_place(self):
+        """Validate a changed Device note updates the existing Note rather than stacking a second one."""
+        self._add_note(self.device, self.device_ct)
+
+        self._build_device().update(attrs={"notes": "Updated note"})
+
+        self.assertEqual(["Updated note"], self._note_texts(self.device, self.device_ct))
+
+    def test_network_update_adds_note_when_missing(self):
+        """Validate a Network note added in Meraki creates a Note when Nautobot has none."""
+        self._build_network().update(attrs={"notes": "Brand new note"})
+
+        self.assertEqual(["Brand new note"], self._note_texts(self.test_site, self.location_ct))
+
+    def test_device_update_adds_note_when_missing(self):
+        """Validate a Device note added in Meraki creates a Note when Nautobot has none."""
+        self._build_device().update(attrs={"notes": "Brand new note"})
+
+        self.assertEqual(["Brand new note"], self._note_texts(self.device, self.device_ct))
+
+    def test_update_without_notes_attr_leaves_note_alone(self):
+        """Validate a Device update that doesn't involve notes leaves the existing Note untouched."""
+        self._add_note(self.device, self.device_ct)
+
+        self._build_device().update(attrs={"serial": "XYZ-987"})
+
+        self.assertEqual(["Original note"], self._note_texts(self.device, self.device_ct))
