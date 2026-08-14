@@ -44,6 +44,9 @@ The LibreNMS SSoT integration is built as part of the [Nautobot Single Source of
 #### Job Specific Options
 
 - load_type: Whether to load data from a local fixture file or from the External Integration API. File is only used for testing or trying out the integration without a connection to a LibreNMS instance.
+- device_secrets_group: Optional Secrets Group assigned to Devices created by this job. This is the Secrets Group holding the credentials used to connect to the device itself, not the LibreNMS API token on the External Integration. Devices need it for credential-dependent jobs such as nautobot-device-onboarding's `Sync Network Data From Network`, which has no credentials field of its own and reads them only from the Device's Secrets Group. See [the setup guide](../../admin/integrations/librenms_setup.md) for how to build it.
+
+    A Device that already has a Secrets Group is never overwritten, so a group assigned by hand or by another job survives later syncs. This also means Devices created before this field existed are only backfilled when the sync updates them for some other reason; to fix them all at once, filter the Devices list view and use the bulk edit button to set Secrets Group.
 
 From LibreNMS into Nautobot, the app synchronizes devices, and Locations. Here is a table showing the data mappings when syncing from LibreNMS to Nautobot.
 
