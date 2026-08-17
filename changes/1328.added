@@ -1,0 +1,1 @@
+Added an optional Device Secrets Group field to the LibreNMS to Nautobot job, assigned to Devices it creates so credential-dependent jobs such as nautobot-device-onboarding's Sync Network Data From Network can resolve credentials for them.

@@ -1,0 +1,1 @@
+Fixed Meraki notes sync not being idempotent. A note removed from a Network or Device in Meraki is now deleted from Nautobot instead of being reported as a pending change on every sync.
