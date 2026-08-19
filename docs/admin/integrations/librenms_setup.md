@@ -40,7 +40,7 @@ PLUGINS_CONFIG = {
 
 See [Platform naming and network drivers](../../user/integrations/librenms.md#platform-naming-and-network-drivers)
 for what `librenms_consolidated_platforms` changes, how existing Platforms are adopted rather than
-duplicated, and the recommended migration sequence.
+duplicated, and the recommended sequence for enabling it.
 
 ### External Integrations
 

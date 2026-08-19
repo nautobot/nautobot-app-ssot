@@ -45,9 +45,8 @@ Golden Config and Nornir dispatch can resolve.
 | Identity used for diffing | Platform name | network driver |
 | Devices moved when enabling | none | only the IOS/IOS-XE split |
 
-In both modes a newly created Platform now gets a valid `network_driver`. Previously the Ansible
-collection FQCN was written into `network_driver`, where it resolved to no driver mappings at all.
-Existing Platforms are never modified automatically in either mode.
+In both modes a newly created Platform gets a valid `network_driver`, and existing Platforms are
+never modified automatically.
 
 Enable consolidated mode when you also run device-onboarding, which names Platforms after the
 netmiko driver and looks them up by name. Without it, the two apps create two rows for the same OS
@@ -70,10 +69,10 @@ enabling it does not fork new rows for platforms you already hold:
 
 ### The IOS/IOS-XE split
 
-Legacy naming collapsed `ios` and `iosxe` onto a single `cisco.ios.ios` Platform. Consolidated mode
+Default naming maps both `ios` and `iosxe` onto a single `cisco.ios.ios` Platform. Consolidated mode
 separates them into `cisco_ios` and `cisco_xe`, which is the only device movement enabling the
-setting causes. Each move is logged, and step 4 of the migration sequence below shows you the exact
-list before anything is written. To decline the split:
+setting causes. Each move is logged, and step 3 of the sequence below shows the exact list before
+anything is written. To decline the split:
 
 ```python
 "librenms_network_driver_map": {"iosxe": "cisco_ios"},
@@ -99,23 +98,21 @@ An explicit empty string suppresses a bundled mapping, leaving the driver blank:
 "librenms_network_driver_map": {"fortios": ""},
 ```
 
-### Migration sequence
+### Enabling consolidated platforms
 
-Each step is independently reversible up to step 5.
+Each step is independently reversible up to step 4.
 
-1. Upgrade. The setting defaults to `false`, so nothing changes. Newly created Platforms start
-   getting a valid `network_driver`.
-2. Run the **LibreNMS Platform Consolidation** job in dry-run with repair only, to see the
+1. Run the **LibreNMS Platform Consolidation** job in dry-run with repair only, to see the
    landscape. The CSV it attaches lists every platform, its current driver and its intended driver.
-3. Optionally run the repair phase for real. This sets correct drivers on existing FQCN-named rows,
-   changes no names and moves no devices, and fixes Golden Config immediately. Safe with
-   `librenms_consolidated_platforms` still `false`. Enable **Repair manufacturers** in the same run
-   to fold OS-named Manufacturers such as `panos` back onto `Palo Alto`.
-4. Set `librenms_consolidated_platforms = True` and run **LibreNMS to Nautobot** in dry-run. The
-   diff lists exactly which devices change platform. Legacy rows are adopted in place, so the only
-   entries should be the IOS/IOS-XE split and any hand-named platforms.
-5. Run the sync for real.
-6. Optionally run the consolidation job with `rename_legacy_platforms` and `merge_duplicates` to
+2. Optionally run the repair phase for real. This sets correct drivers on existing FQCN-named rows,
+   changes no names and moves no devices. Safe with `librenms_consolidated_platforms` still `false`.
+   Enable **Repair manufacturers** in the same run to fold OS-named Manufacturers such as `panos`
+   back onto `Palo Alto`.
+3. Set `librenms_consolidated_platforms = True` and run **LibreNMS to Nautobot** in dry-run. The
+   diff lists exactly which devices change platform. Existing rows are adopted in place, so the
+   only entries should be the IOS/IOS-XE split and any hand-named platforms.
+4. Run the sync for real.
+5. Optionally run the consolidation job with `rename_legacy_platforms` and `merge_duplicates` to
    converge names on device-onboarding's.
 
 ### Platform Consolidation job
@@ -124,7 +121,7 @@ Each step is independently reversible up to step 5.
 dry run, and is scoped by default to LibreNMS-synced platforms. It never invents a driver, never
 overwrites a `network_driver` that disagrees, and never touches anything outside its scope.
 
-Three phases, each independently selectable:
+Four phases, each independently selectable:
 
 - **Repair drivers** (default on) -- for rows named after an Ansible FQCN whose `network_driver` is
   blank or duplicates the name, set the correct driver. Structurally cannot match a dna_center or
@@ -139,12 +136,12 @@ Three phases, each independently selectable:
   notes and metadata. Refuses on a software version collision or a manufacturer conflict unless you
   explicitly choose how to resolve it, and never deletes a platform that still has software
   versions.
-- **Repair manufacturers** (default off) -- rename Manufacturers that a pre-fix sync named after the
-  device OS, such as `panos` to `Palo Alto`. Renames in place when the vendor name is free, which
-  moves nothing; merges when it is taken. Independent of the platform-naming mode, since a
-  Manufacturer named after the OS is wrong either way. Refuses when the same device type model
-  exists under both Manufacturers, because merging those moves real Devices between DeviceTypes --
-  set `device_type_collisions` to "merge" to allow it.
+- **Repair manufacturers** (default off) -- rename Manufacturers named after the device OS, such as
+  `panos` to `Palo Alto`. Renames in place when the vendor name is free, which moves nothing; merges
+  when it is taken. Independent of the platform-naming mode, since a Manufacturer named after the OS
+  is wrong either way. Refuses when the same device type model exists under both Manufacturers,
+  because merging those moves real Devices between DeviceTypes -- set `device_type_collisions` to
+  "merge" to allow it.
 
 The rename and merge phases refuse to run while `librenms_consolidated_platforms` is `false`,
 because in legacy mode the sync looks platforms up by FQCN name and would simply re-create the row.
@@ -157,29 +154,25 @@ plan as a table, and attaches `librenms_platform_consolidation.csv` plus
 
 ### Manufacturers named after the device OS
 
-Before this release the Manufacturer was resolved by round-tripping the Platform name back through
-the OS mappers, falling back to that name. Only 7 of the 217 mapped OS values round-tripped, so the
-rest produced a Manufacturer named after the OS string:
+The Manufacturer is resolved from the LibreNMS `os` through the OS-to-manufacturer table, so `panos`
+devices land under `Palo Alto` and `asa` devices under the same `Cisco` row as `ios` devices.
 
-| LibreNMS `os` | Manufacturer created | Should be |
+An estate synced by an earlier version may instead hold Manufacturers named after the OS string,
+which fragments a vendor into one row per OS:
+
+| LibreNMS `os` | Manufacturer present | Correct vendor |
 |---|---|---|
 | `panos` | `panos` | `Palo Alto` |
 | `asa` | `asa` | `Cisco` |
 | `fortios` | `fortios` | `Fortinet` |
 | `arubaos` | `arubaos` | `Aruba Networks` |
 
-The `asa` row is the one to watch: a `Cisco` Manufacturer already exists, created correctly from the
-`ios` devices in the same sync, yet the ASAs land under a second OS-named vendor. Any vendor with more
-than one OS in LibreNMS gets fragmented this way.
+Those rows are left alone until you run the consolidation job's **Repair manufacturers** phase, so
+both `panos` and `Palo Alto` can be present in the meantime.
 
-New devices now get the correct Manufacturer. Existing wrong rows are left alone until you run the
-consolidation job's **Repair manufacturers** phase, so you may see both `panos` and `Palo Alto` in
-the meantime.
-
-The phase is scoped by an internally derived name map rather than by the platform scope. That map is
-built by replaying the old buggy resolution over the OS-to-manufacturer table, so it can only match
-a name that resolution could actually have produced -- a real vendor name is never a candidate, and
-entries are dropped where two OS values disagree.
+The phase is scoped by an internally derived name map rather than by the platform scope, so it can
+only match a name that OS-named resolution could have produced -- a real vendor name is never a
+candidate, and entries are dropped where two OS values disagree.
 
 ## Process
 

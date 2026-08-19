@@ -7,7 +7,10 @@ from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Platform as ORMPlatform
 from netutils.lib_mapper import MAIN_LIB_MAPPER
 
-from nautobot_ssot.integrations.librenms.constants import LIBRENMS_OS_TO_NETWORK_DRIVER
+from nautobot_ssot.integrations.librenms.constants import (
+    LIBRENMS_OS_TO_NETWORK_DRIVER,
+    NETUTILS_LIBRENMS_LIB_MAPPER,
+)
 from nautobot_ssot.integrations.librenms.utils.nautobot import (
     clear_network_driver_caches,
     known_network_drivers,
@@ -144,6 +147,14 @@ class TestLibrenmsOsToNetworkDriverMapperIntegrity(TestCase):
         for key in LIBRENMS_OS_TO_NETWORK_DRIVER:
             with self.subTest(key=key):
                 self.assertEqual(key, key.strip().lower())
+
+    def test_does_not_diverge_from_netutils(self):
+        """netutils owns these mappings; the local table only fills gaps, it never contradicts."""
+        if NETUTILS_LIBRENMS_LIB_MAPPER is None:
+            self.skipTest("This netutils release does not carry LIBRENMS_LIB_MAPPER yet.")
+        for librenms_os, driver in NETUTILS_LIBRENMS_LIB_MAPPER.items():
+            with self.subTest(librenms_os=librenms_os):
+                self.assertEqual(LIBRENMS_OS_TO_NETWORK_DRIVER[librenms_os], driver)
 
 
 class TestPlatformToNetworkDriver(TestCase):
