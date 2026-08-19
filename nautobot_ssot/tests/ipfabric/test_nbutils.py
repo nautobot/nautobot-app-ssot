@@ -33,7 +33,7 @@ from nautobot_ssot.integrations.ipfabric.utilities import (
     get_or_create_virtual_chassis_object,
     get_tagged_device,
 )
-from nautobot_ssot.integrations.ipfabric.utilities.nbutils import tag_object
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import get_tagged_interface, tag_object
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 
@@ -1393,6 +1393,62 @@ class TestNautobotUtils(TestCase):
             second = get_tagged_device(self.device.name)
             mock_filter.assert_not_called()
         self.assertIs(first, second)
+
+    # ===== get_tagged_interface =====
+
+    def _tag_test_device(self):
+        """Tag `self.device` as synced from IPFabric so it is visible to the tagged lookups."""
+        ssot_tag, _ = Tag.objects.get_or_create(
+            name="SSoT Synced from IPFabric", defaults={"color": ColorChoices.COLOR_LIGHT_GREEN}
+        )
+        ssot_tag.content_types.add(self.content_type)
+        self.device.tags.add(ssot_tag)
+
+    def test_get_tagged_interface_match(self):
+        """Test returns the Interface when the Device is tagged and the Interface exists."""
+        self._tag_test_device()
+        interface = self.device.interfaces.get(name="Test-Interface")
+
+        result = get_tagged_interface(self.device.name, "Test-Interface")
+
+        self.assertEqual(result.id, interface.id)
+
+    def test_get_tagged_interface_device_not_tagged(self):
+        """Test returns None and warns when the Device is not tagged as synced."""
+        mock_logger = mock.MagicMock()
+
+        result = get_tagged_interface(self.device.name, "Test-Interface", logger=mock_logger)
+
+        self.assertIsNone(result)
+        mock_logger.warning.assert_called_once()
+
+    def test_get_tagged_interface_does_not_exist(self):
+        """Test returns None and warns when the Interface is absent from a tagged Device."""
+        self._tag_test_device()
+        mock_logger = mock.MagicMock()
+
+        result = get_tagged_interface(self.device.name, "Ethernet9/9", logger=mock_logger)
+
+        self.assertIsNone(result)
+        mock_logger.warning.assert_called_once()
+
+    def test_get_tagged_interface_multiple_returned(self):
+        """Test returns None and errors when the Interface name is ambiguous."""
+        self._tag_test_device()
+        mock_logger = mock.MagicMock()
+
+        with mock.patch.object(Device, "interfaces", new_callable=mock.PropertyMock) as mock_interfaces:
+            mock_interfaces.return_value.get.side_effect = Interface.MultipleObjectsReturned
+            result = get_tagged_interface(self.device.name, "Test-Interface", logger=mock_logger)
+
+        self.assertIsNone(result)
+        mock_logger.error.assert_called_once()
+
+    def test_get_tagged_interface_no_logger(self):
+        """Test the logger is optional on every failure path."""
+        self.assertIsNone(get_tagged_interface(self.device.name, "Test-Interface"))
+        self._tag_test_device()
+        self.assertIsNone(get_tagged_interface(self.device.name, "Ethernet9/9"))
 
     # ===== tag_object (direct) =====
 

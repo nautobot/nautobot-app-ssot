@@ -8,9 +8,9 @@ from collections import defaultdict
 from typing import Any, ClassVar, List, Optional
 
 from diffsync import Adapter
-from diffsync.exceptions import ObjectAlreadyExists
+from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.db import IntegrityError, transaction
-from django.db.models import ProtectedError, Q
+from django.db.models import ProtectedError
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Device, Location
 from nautobot.extras.models import Tag
@@ -18,6 +18,7 @@ from nautobot.ipam.models import VLAN, Interface
 from netutils.ip import cidr_to_netmask
 from netutils.mac import mac_to_format
 
+import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
 import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_utils
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_MAC,
@@ -46,6 +47,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         sync_ipfabric_tagged_only: bool,
         location_filter: Optional[Location],
         *args,
+        sync_cables: bool = False,
         **kwargs,
     ):
         """Initialize the NautobotDiffSync."""
@@ -54,6 +56,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         self.sync = sync
         self.sync_ipfabric_tagged_only = sync_ipfabric_tagged_only
         self.location_filter = location_filter
+        self.sync_cables = sync_cables
         self.ssot_tag = tonb_utils.get_or_create_tag_object(
             tag_name="SSoT Synced from IPFabric",
             tag_color=ColorChoices.COLOR_LIGHT_GREEN,
@@ -139,6 +142,59 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             )
             self.add(interface)
             diffsync_device.add_child(interface)
+
+    def load_cables(self, device_queryset):
+        """Add Nautobot Cable objects as DiffSync Cable models.
+
+        Only links whose Interfaces were both loaded are added, matching the endpoints IP Fabric can
+        report. A Cable with one end out of scope would otherwise look absent from IP Fabric and be
+        deleted on every run.
+        """
+        endpoints_by_cable = defaultdict(list)
+        for interface_record in tonb_cables.cabled_interfaces(device_queryset):
+            endpoint = (interface_record.device.name, interface_record.name)
+            try:
+                self.get(self.interface, {"name": endpoint[1], "device_name": endpoint[0]})
+            except ObjectNotFound:
+                # The Interface's Device was skipped while loading, so the link is out of scope.
+                continue
+            endpoints_by_cable[interface_record.cable].append(endpoint)
+
+        for cable_record, endpoints in endpoints_by_cable.items():
+            if len(endpoints) == 1:
+                if self.job.debug:
+                    logger.debug("Not loading Cable %s as only one of its ends is in scope", cable_record.pk)
+                continue
+            if len(endpoints) > 2:
+                logger.warning(
+                    f"Not loading Cable {cable_record.pk} as it terminates on {len(endpoints)} in scope Interfaces, "
+                    "which IP Fabric's point to point connectivity matrix cannot describe"
+                )
+                continue
+            endpoint_a, endpoint_b = tonb_cables.canonical_endpoints(*endpoints)
+            cable = self.cable(
+                termination_a_device=endpoint_a[0],
+                termination_a_name=endpoint_a[1],
+                termination_b_device=endpoint_b[0],
+                termination_b_name=endpoint_b[1],
+                status=cable_record.status.name,
+                cable_pk=cable_record.pk,
+            )
+            try:
+                self.add(cable)
+            except ObjectAlreadyExists:
+                logger.warning(f"Duplicate Cable discovered, {cable.get_unique_id()}")
+
+    def get_in_scope_devices(self, location_objects):
+        """Return the Devices at the given Locations that this sync covers.
+
+        Shared by Device loading and Cable loading, so that Cables cannot load for Devices whose
+        Interfaces did not.
+        """
+        devices = Device.objects.filter(location__in=location_objects)
+        if self.sync_ipfabric_tagged_only:
+            devices = devices.filter(tags=self.ssot_tag)
+        return devices
 
     def load_device(self, filtered_devices: List, location):
         """Load Devices from Nautobot."""
@@ -251,13 +307,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 self.add(location)
                 try:
                     # Load Location's Children - Devices with Interfaces, if any.
-                    if self.sync_ipfabric_tagged_only:
-                        nautobot_location_devices = Device.objects.filter(
-                            Q(location=location_record) & Q(tags=self.ssot_tag)
-                        )
-                    else:
-                        nautobot_location_devices = Device.objects.filter(location=location_record)
-                    self.load_device(nautobot_location_devices, location)
+                    self.load_device(self.get_in_scope_devices([location_record]), location)
 
                     # Load Location Children - Vlans, if any.
                     nautobot_location_vlans = (
@@ -268,6 +318,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     self.load_vlans(nautobot_location_vlans, location, location_record)
                 except Location.DoesNotExist:
                     logger.error("Unable to find Location, %s.", location_record)
+
+            # Loaded after every Location, as a link may terminate on Devices in two of them.
+            if self.sync_cables:
+                self.load_cables(self.get_in_scope_devices(location_objects))
         else:
             logger.warning("No Nautobot records to load.")
 

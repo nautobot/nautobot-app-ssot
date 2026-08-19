@@ -417,6 +417,43 @@ def get_tagged_device(device_name: str) -> Device:
     return Device.objects.filter(Q(name=device_name) & Q(tags=ssot_tag)).first()
 
 
+# Not cached, so that callers which mutate an Interface's relations see them afresh
+def get_tagged_interface(
+    device_name: str, interface_name: str, logger: Optional[logging.Logger] = None
+) -> Optional[Interface]:
+    """Retrieve an Interface belonging to a Device tagged as synced from IP Fabric.
+
+    Args:
+        device_name: Name of the Device the Interface belongs to.
+        interface_name: Name of the Interface.
+        logger: Logger to use for messaging.
+
+    Returns:
+        Interface: When the Interface is found.
+        None: When either the Device or the Interface cannot be found.
+    """
+    device = get_tagged_device(device_name)
+    if not device:
+        if logger:
+            logger.warning(
+                f"Unable to find a Device named {device_name} tagged as synced from IPFabric, "
+                f"so its Interface named {interface_name} cannot be retrieved"
+            )
+        return None
+    try:
+        return device.interfaces.get(name=interface_name)
+    except Interface.MultipleObjectsReturned:
+        if logger:
+            logger.error(
+                f"Multiple Interfaces returned with the name {interface_name} on Device named {device_name}, "
+                "unable to determine which one to retrieve"
+            )
+    except Interface.DoesNotExist:
+        if logger:
+            logger.warning(f"Unable to find an Interface named {interface_name} on Device named {device_name}")
+    return None
+
+
 def create_ip(  # pylint: disable=too-many-statements
     ip_address: str,
     subnet_mask: str,

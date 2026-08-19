@@ -115,6 +115,14 @@ class IpFabricDataSource(DataSource):
         label="Sync Tagged Only",
         description="Only sync objects that have the 'SSoT Synced from IPFabric' Tag.",
     )
+    sync_cables = BooleanVar(
+        default=False,
+        label="Sync Cables",
+        description=(
+            "Sync the connections in IP Fabric's connectivity matrix to Nautobot Cables. "
+            "Only links whose Devices and Interfaces are both in scope are synced."
+        ),
+    )
     location_filter = OptionalObjectVar(
         description="Only sync Nautobot records belonging to a single Location.",
         model=Location,
@@ -134,6 +142,7 @@ class IpFabricDataSource(DataSource):
             "snapshot",
             "safe_delete_mode",
             "sync_ipfabric_tagged_only",
+            "sync_cables",
             "dryrun",
         )
 
@@ -191,6 +200,7 @@ class IpFabricDataSource(DataSource):
             DataMapping("Interfaces", None, "Interfaces", reverse("dcim:interface_list")),
             DataMapping("IP Addresses", None, "IP Addresses", reverse("ipam:ipaddress_list")),
             DataMapping("VLANs", None, "VLANs", reverse("ipam:vlan_list")),
+            DataMapping("Connectivity Matrix", None, "Cables", reverse("dcim:cable_list")),
         )
 
     @classmethod
@@ -209,10 +219,12 @@ class IpFabricDataSource(DataSource):
             "Use Canonical Interface Names": str(constants.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME),
             "Default MAC Address": constants.DEFAULT_INTERFACE_MAC,
             "Default MTU": constants.DEFAULT_INTERFACE_MTU,
+            "Default Cable Status": constants.DEFAULT_CABLE_STATUS,
             "Safe Delete Device Status": constants.SAFE_DELETE_DEVICE_STATUS,
             "Safe Delete Location Status": constants.SAFE_DELETE_LOCATION_STATUS,
             "Safe Delete IPAddress Status": constants.SAFE_DELETE_IPADDRESS_STATUS,
             "Safe Delete VLAN status": constants.SAFE_DELETE_VLAN_STATUS,
+            "Safe Delete Cable Status": constants.SAFE_DELETE_CABLE_STATUS,
         }
 
     # pylint: disable-next=too-many-arguments, arguments-differ
@@ -223,6 +235,7 @@ class IpFabricDataSource(DataSource):
             "dryrun": kwargs.get("dryrun"),
             "safe_delete_mode": kwargs.get("safe_delete_mode"),
             "sync_ipfabric_tagged_only": kwargs.get("sync_ipfabric_tagged_only"),
+            "sync_cables": kwargs.get("sync_cables"),
             "location_filter": kwargs.get("location_filter"),
             "debug": kwargs.get("debug"),
         }
@@ -249,6 +262,7 @@ class IpFabricDataSource(DataSource):
         dryrun = self.kwargs["dryrun"]
         safe_mode = self.kwargs["safe_delete_mode"]
         tagged_only = self.kwargs["sync_ipfabric_tagged_only"]
+        sync_cables = self.kwargs["sync_cables"]
         location_filter = self.kwargs["location_filter"]
         debug_mode = self.kwargs["debug"]
 
@@ -256,7 +270,7 @@ class IpFabricDataSource(DataSource):
             location_filter_object = Location.objects.get(pk=location_filter)
         else:
             location_filter_object = None
-        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Location Filter`: {location_filter_object}"
+        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Sync Cables`: {sync_cables}, `Location Filter`: {location_filter_object}"
         self.logger.info(f"Starting job with the following options: {options}")
 
         ipfabric_source = IPFabricDiffSync(
@@ -264,6 +278,7 @@ class IpFabricDataSource(DataSource):
             sync=self.sync,
             client=self.client,
             location_filter=location_filter_object.name if location_filter_object else None,
+            sync_cables=sync_cables,
         )
         self.logger.info("Loading current data from IP Fabric...")
         ipfabric_source.load()
@@ -277,6 +292,7 @@ class IpFabricDataSource(DataSource):
             sync=self.sync,
             sync_ipfabric_tagged_only=tagged_only,
             location_filter=location_filter_object,
+            sync_cables=sync_cables,
         )
 
         self.logger.info("Loading current data from Nautobot...")

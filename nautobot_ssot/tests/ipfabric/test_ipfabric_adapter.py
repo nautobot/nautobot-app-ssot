@@ -24,6 +24,24 @@ VLAN_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_vlans.json
 INTERFACE_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_interface_inventory.json")
 NETWORKS_FIXTURE = [{"net": "10.10.0.0/24", "sn": "a000a02", "ip": "10.10.0.10"}]
 STACKS_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_stack_members.json")
+CONNECTIVITY_MATRIX_FIXTURE = load_json("./nautobot_ssot/tests/ipfabric/fixtures/get_connectivity_matrix.json")
+
+
+def mock_ipfabric_client():
+    """Return a mock IPFClient serving the JSON fixtures."""
+    ipfabric_client = MagicMock()
+    ipfabric_client.inventory.sites.all.return_value = SITE_FIXTURE
+    ipfabric_client.devices.by_site = defaultdict(list)
+    for dev in DEVICE_INVENTORY_FIXTURE:
+        ipfabric_client.devices.by_site[dev["siteName"]].append(Device(**dev))  # pylint: disable=no-member
+    ipfabric_client.fetch_all = MagicMock(
+        side_effect=(lambda x: VLAN_FIXTURE if x == "tables/vlan/site-summary" else "")
+    )
+    ipfabric_client.inventory.interfaces.all.return_value = INTERFACE_FIXTURE
+    ipfabric_client.technology.addressing.managed_ip_ipv4.all.return_value = NETWORKS_FIXTURE
+    ipfabric_client.technology.platforms.stacks_members.all.return_value = STACKS_FIXTURE
+    ipfabric_client.technology.interfaces.connectivity_matrix.all.return_value = CONNECTIVITY_MATRIX_FIXTURE
+    return ipfabric_client
 
 
 class IPFabricDiffSyncTestCase(TestCase):
@@ -31,22 +49,9 @@ class IPFabricDiffSyncTestCase(TestCase):
 
     @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
     def setUp(self):
-        # Create a mock client
-        ipfabric_client = MagicMock()
-        ipfabric_client.inventory.sites.all.return_value = SITE_FIXTURE
-        ipfabric_client.devices.by_site = defaultdict(list)
-        for dev in DEVICE_INVENTORY_FIXTURE:
-            ipfabric_client.devices.by_site[dev["siteName"]].append(Device(**dev))  # pylint: disable=no-member
-        ipfabric_client.fetch_all = MagicMock(
-            side_effect=(lambda x: VLAN_FIXTURE if x == "tables/vlan/site-summary" else "")
-        )
-        ipfabric_client.inventory.interfaces.all.return_value = INTERFACE_FIXTURE
-        ipfabric_client.technology.addressing.managed_ip_ipv4.all.return_value = NETWORKS_FIXTURE
-        ipfabric_client.technology.platforms.stacks_members.all.return_value = STACKS_FIXTURE
-
         job = IpFabricDataSource()
         job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
-        self.ipfabric = IPFabricDiffSync(job=job, sync=None, client=ipfabric_client, location_filter=None)
+        self.ipfabric = IPFabricDiffSync(job=job, sync=None, client=mock_ipfabric_client(), location_filter=None)
         self.ipfabric.load()
 
     def test_data_loading(self):
@@ -150,3 +155,113 @@ class IPFabricDiffSyncTestCase(TestCase):
         self.assertEqual(stack.serial_number, "stack4")
         self.assertEqual(stack.model, "ws-3850-b")
         self.assertFalse(stack.vc_master)
+
+    def test_cables_not_loaded_by_default(self):
+        """Cables are opt in, so `sync_cables=False` loads none even when the API returns links."""
+        self.assertEqual(self.ipfabric.get_all("cable"), [])
+
+
+class IPFabricDiffSyncCableTestCase(TestCase):
+    """Test loading the IP Fabric connectivity matrix as Cable models."""
+
+    # Extra cableable ends, since the shared interface fixture only has enough for one link.
+    EXTRA_INTERFACES = [
+        {"hostname": "nyc-leaf-01", "sn": "5254.0029.fbf2", "intName": "Et20", "media": None, "mtu": 9214},
+        {"hostname": "nyc-spine-02", "sn": "5254.00d3.a91d", "intName": "Et5", "media": None, "mtu": 9214},
+    ]
+
+    @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
+    def setUp(self):
+        client = mock_ipfabric_client()
+        client.inventory.interfaces.all.return_value = INTERFACE_FIXTURE + self.EXTRA_INTERFACES
+        job = IpFabricDataSource()
+        job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
+        self.ipfabric = IPFabricDiffSync(
+            job=job,
+            sync=None,
+            client=client,
+            location_filter=None,
+            sync_cables=True,
+        )
+        self.ipfabric.load()
+
+    def test_only_cableable_links_in_scope_are_synced(self):
+        """Links are skipped unless both endpoints were loaded and are of a cableable Interface type."""
+        self.assertEqual(
+            {
+                # Endpoints are ordered by (device, interface), not by IP Fabric's local/remote side.
+                "nyc-leaf-01__Ethernet15__nyc-rtr-01__Ethernet1",
+                "nyc-leaf-01__Ethernet20__nyc-spine-02__Ethernet5",
+            },
+            {cable.get_unique_id() for cable in self.ipfabric.get_all("cable")},
+        )
+
+    def test_links_to_virtual_interfaces_are_skipped(self):
+        """Nautobot refuses to cable virtual Interfaces, so such links are dropped before syncing."""
+        # jcy-rtr-02's Gi4 has a media type of "Virtual" in the interface fixture.
+        self.assertEqual(
+            self.ipfabric.get("interface", {"name": "GigabitEthernet4", "device_name": "jcy-rtr-02"}).type,
+            "virtual",
+        )
+        reported = [
+            entry
+            for entry in CONNECTIVITY_MATRIX_FIXTURE
+            if {entry["localHost"], entry["remoteHost"]} == {"nyc-rtr-01", "jcy-rtr-02"}
+        ]
+        self.assertEqual(len(reported), 1, "Fixture should report a link onto the virtual interface.")
+        self.assertFalse(
+            any(
+                "jcy-rtr-02" in (cable.termination_a_device, cable.termination_b_device)
+                for cable in self.ipfabric.get_all("cable")
+            )
+        )
+
+    def test_endpoints_are_cableable_rejects_unloaded_interface(self):
+        """An endpoint with no matching loaded Interface is not cableable."""
+        self.assertFalse(self.ipfabric.endpoints_are_cableable(("nyc-rtr-01", "Ethernet99")))
+        self.assertTrue(self.ipfabric.endpoints_are_cableable(("nyc-rtr-01", "Ethernet1")))
+
+    def test_bidirectional_entries_load_a_single_cable(self):
+        """The connectivity matrix reports each link twice, which must not become two Cables."""
+        reported_both_ways = [
+            entry
+            for entry in CONNECTIVITY_MATRIX_FIXTURE
+            if {entry["localHost"], entry["remoteHost"]} == {"nyc-rtr-01", "nyc-leaf-01"}
+            and {entry["localInt"], entry["remoteInt"]} == {"eth1", "Et15"}
+        ]
+        self.assertEqual(len(reported_both_ways), 2, "Fixture should report this link from both devices.")
+        matching = [
+            cable
+            for cable in self.ipfabric.get_all("cable")
+            if {
+                (cable.termination_a_device, cable.termination_a_name),
+                (cable.termination_b_device, cable.termination_b_name),
+            }
+            == {("nyc-rtr-01", "Ethernet1"), ("nyc-leaf-01", "Ethernet15")}
+        ]
+        self.assertEqual(len(matching), 1)
+
+    def test_cable_attributes(self):
+        """Loaded Cables carry the configured default Status."""
+        for cable in self.ipfabric.get_all("cable"):
+            self.assertEqual(cable.status, "Connected")
+
+    def test_link_endpoint_canonicalizes_interface_name(self):
+        """`link_endpoint` applies the canonical interface name setting to the raw API value."""
+        entry = {"localHost": "nyc-rtr-01", "localInt": "Gi0/1"}
+        with patch(
+            "nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME",
+            True,
+        ):
+            self.assertEqual(self.ipfabric.link_endpoint(entry, "local"), ("nyc-rtr-01", "GigabitEthernet0/1"))
+        with patch(
+            "nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME",
+            False,
+        ):
+            self.assertEqual(self.ipfabric.link_endpoint(entry, "local"), ("nyc-rtr-01", "Gi0/1"))
+
+    def test_link_endpoint_returns_none_when_incomplete(self):
+        """An entry missing either the host or the interface for a side yields no endpoint."""
+        self.assertIsNone(self.ipfabric.link_endpoint({"localHost": "nyc-rtr-01", "localInt": None}, "local"))
+        self.assertIsNone(self.ipfabric.link_endpoint({"localHost": None, "localInt": "eth1"}, "local"))
+        self.assertIsNone(self.ipfabric.link_endpoint({}, "remote"))

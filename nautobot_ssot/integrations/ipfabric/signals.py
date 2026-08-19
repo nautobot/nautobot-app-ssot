@@ -45,6 +45,7 @@ def create_custom_field(key: str, label: str, models: List, apps, cf_type: Optio
 def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
     """Callback function triggered by the nautobot_database_ready signal when the Nautobot database is fully ready."""
     # pylint: disable=invalid-name, too-many-locals
+    Cable = apps.get_model("dcim", "Cable")
     Device = apps.get_model("dcim", "Device")
     DeviceType = apps.get_model("dcim", "DeviceType")
     Role = apps.get_model("extras", "Role")
@@ -75,7 +76,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     loc_type.content_types.add(ContentType.objects.get_for_model(Device))
     loc_type.content_types.add(ContentType.objects.get_for_model(apps.get_model("ipam", "Prefix")))
     loc_type.content_types.add(ContentType.objects.get_for_model(VLAN))
-    synced_from_models = [Device, DeviceType, Interface, Manufacturer, Location, VLAN, Role, IPAddress]
+    synced_from_models = [Device, DeviceType, Interface, Manufacturer, Location, VLAN, Role, IPAddress, Cable]
     create_custom_field("system_of_record", "System of Record", synced_from_models, apps=apps, cf_type="type_text")
     create_custom_field("last_synced_from_sor", "Last sync from System of Record", synced_from_models, apps=apps)
     create_custom_field("ipfabric_site_id", "IPFabric Location ID", [Location], apps=apps, cf_type="type_text")

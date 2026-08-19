@@ -1,11 +1,13 @@
 """Unit tests for the IPFabric DiffSync adapter class."""
 
 import unittest
+from uuid import uuid4
 
 from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.testing import TestCase
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import (
+    Cable,
     Device,
     DeviceType,
     Interface,
@@ -24,14 +26,20 @@ try:
 except ImportError:
     AssertNoRepeatedQueries = None
 
+import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
+from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 
+# pylint: disable=too-many-public-methods
 class TestNautobotAdapter(TestCase):
     """Test cases for InfoBlox Nautobot adapter."""
 
     def setUp(self):
         populate_status_choices()
+        # Cached Tag lookups must not outlive a test's transaction; see test_cables.py.
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
         device_ct = ContentType.objects.get_for_model(Device)
         self.active_status = Status.objects.get(name="Active")
         self.ssot_tag, _ = Tag.objects.get_or_create(
@@ -252,3 +260,172 @@ class TestNautobotAdapter(TestCase):
         self.assertIsNone(loaded["eth1"].ip_address)
         self.assertIsNone(loaded["eth1"].subnet_mask)
         self.assertFalse(loaded["eth1"].ip_is_primary)
+
+    def _interface(self, device_name, interface_name):
+        """Create a cableable Interface on the named Device.
+
+        The type must be physical; Nautobot refuses to cable virtual or wireless Interfaces.
+        """
+        return Interface.objects.create(
+            name=interface_name,
+            device=Device.objects.get(name=device_name),
+            type="1000base-t",
+            status=self.active_status,
+        )
+
+    def _cable(self, interface_a, interface_b):
+        """Cable two Interfaces together."""
+        cable = Cable(
+            termination_a=interface_a,
+            termination_b=interface_b,
+            status=Status.objects.get(name="Connected"),
+        )
+        cable.validated_save()
+        return cable
+
+    def test_load_cables_orders_endpoints_independently_of_nautobot_sides(self):
+        """The A side of the loaded model is the lower endpoint, not whichever end Nautobot cabled first."""
+        int_dev1 = self._interface("dev1", "eth0")
+        int_dev2 = self._interface("dev2", "eth0")
+        # Cabled with dev2 as Nautobot's A side; the loaded model should still order dev1 first.
+        cable = self._cable(int_dev2, int_dev1)
+
+        self.nb_adapter.sync_cables = True
+        self.nb_adapter.load_data()
+
+        cables = self.nb_adapter.get_all("cable")
+        self.assertEqual(len(cables), 1)
+        self.assertEqual(cables[0].get_unique_id(), "dev1__eth0__dev2__eth0")
+        self.assertEqual(cables[0].status, "Connected")
+        # Recorded so update/delete can re-find the Cable without walking its endpoints.
+        self.assertEqual(cables[0].cable_pk, cable.pk)
+
+    def test_cable_connects_matches_terminations_in_either_order(self):
+        """`cable_connects` reads termination IDs, which must agree with the terminations themselves."""
+        int_dev1 = self._interface("dev1", "eth0")
+        int_dev2 = self._interface("dev2", "eth0")
+        int_other = self._interface("dev2", "eth1")
+        cable = self._cable(int_dev1, int_dev2)
+
+        self.assertTrue(tonb_cables.cable_connects(cable, int_dev1, int_dev2))
+        self.assertTrue(tonb_cables.cable_connects(cable, int_dev2, int_dev1))
+        self.assertFalse(tonb_cables.cable_connects(cable, int_dev1, int_other))
+
+    def test_retrieve_cable_finds_the_loaded_cable_by_pk(self):
+        """A Cable model carrying `cable_pk` resolves back to the Nautobot Cable it was loaded from."""
+        cable = self._cable(self._interface("dev1", "eth0"), self._interface("dev2", "eth0"))
+
+        self.nb_adapter.sync_cables = True
+        self.nb_adapter.load_data()
+
+        loaded = self.nb_adapter.get_all("cable")[0]
+        self.assertEqual(loaded.retrieve_cable(), cable)
+
+    def test_load_cables_skips_links_with_one_end_out_of_scope(self):
+        """A link whose far end is outside the Location filter is left alone rather than loaded."""
+        self._cable(self._interface("dev1", "eth0"), self._interface("dev3", "eth0"))
+
+        self.nb_adapter.sync_cables = True
+        self.nb_adapter.location_filter = self.site1
+        self.nb_adapter.load_data()
+
+        self.assertEqual(self.nb_adapter.get_all("cable"), [])
+
+    def test_load_cables_spanning_locations(self):
+        """A link between two in-scope Locations is loaded, since Cables are not children of one."""
+        self._cable(self._interface("dev1", "eth0"), self._interface("dev3", "eth0"))
+
+        self.nb_adapter.sync_cables = True
+        self.nb_adapter.load_data()
+
+        cables = self.nb_adapter.get_all("cable")
+        self.assertEqual(len(cables), 1)
+        self.assertEqual(cables[0].get_unique_id(), "dev1__eth0__dev3__eth0")
+
+    def test_load_cables_not_loaded_when_disabled(self):
+        """Cables are opt in, so a Cable in the database is ignored unless `sync_cables` is set."""
+        self._cable(self._interface("dev1", "eth0"), self._interface("dev2", "eth0"))
+
+        self.nb_adapter.load_data()
+
+        self.assertEqual(self.nb_adapter.get_all("cable"), [])
+
+    def test_load_cables_skips_interfaces_absent_from_the_store(self):
+        """An Interface returned by the query but never loaded takes its link out of scope."""
+        self._cable(self._interface("dev1", "eth0"), self._interface("dev3", "eth0"))
+        # Only site1 is loaded, so dev3's Interface is in the Cable query but not in the store.
+        self.nb_adapter.location_filter = self.site1
+        self.nb_adapter.load_data()
+
+        self.nb_adapter.load_cables(Device.objects.all())
+
+        self.assertEqual(self.nb_adapter.get_all("cable"), [])
+
+    def test_load_cables_skips_cables_with_too_many_in_scope_ends(self):
+        """A Cable terminating on more than two in-scope Interfaces cannot be described point to point."""
+        for index in range(3):
+            self._interface("dev1", f"eth{index}")
+        self.nb_adapter.load_data()
+        shared_cable = unittest.mock.MagicMock()
+        shared_cable.pk = uuid4()
+        records = []
+        for index in range(3):
+            record = unittest.mock.MagicMock()
+            record.name = f"eth{index}"
+            record.device.name = "dev1"
+            record.cable = shared_cable
+            records.append(record)
+
+        with unittest.mock.patch.object(tonb_cables, "cabled_interfaces", return_value=records):
+            with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as captured:
+                self.nb_adapter.load_cables(Device.objects.none())
+
+        self.assertEqual(self.nb_adapter.get_all("cable"), [])
+        self.assertTrue(any("terminates on 3 in scope Interfaces" in line for line in captured.output))
+
+    def test_load_cables_warns_on_duplicate_endpoint_pairs(self):
+        """Two Cables resolving to the same endpoint pair cannot both be loaded."""
+        self._interface("dev1", "eth0")
+        self._interface("dev2", "eth0")
+        self.nb_adapter.load_data()
+        records = []
+        for _ in range(2):
+            cable = unittest.mock.MagicMock()
+            cable.pk = uuid4()
+            cable.status.name = "Connected"
+            for device_name in ("dev1", "dev2"):
+                record = unittest.mock.MagicMock()
+                record.name = "eth0"
+                record.device.name = device_name
+                record.cable = cable
+                records.append(record)
+
+        with unittest.mock.patch.object(tonb_cables, "cabled_interfaces", return_value=records):
+            with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as captured:
+                self.nb_adapter.load_cables(Device.objects.none())
+
+        self.assertEqual(len(self.nb_adapter.get_all("cable")), 1)
+        self.assertTrue(any("Duplicate Cable discovered" in line for line in captured.output))
+
+    def test_get_in_scope_devices_honours_tagged_only(self):
+        """`sync_ipfabric_tagged_only` narrows Device scope to tagged Devices."""
+        locations = Location.objects.filter(name="stack")
+        self.nb_adapter.sync_ipfabric_tagged_only = False
+        self.assertEqual(self.nb_adapter.get_in_scope_devices(locations).count(), 3)
+
+        self.nb_adapter.sync_ipfabric_tagged_only = True
+        self.assertEqual(self.nb_adapter.get_in_scope_devices(locations).count(), 0)
+
+        Device.objects.get(name="stack1").tags.add(self.ssot_tag)
+        self.assertEqual(self.nb_adapter.get_in_scope_devices(locations).count(), 1)
+
+    @unittest.skipIf(AssertNoRepeatedQueries is None, "Requires Nautobot 3.1+ (AssertNoRepeatedQueries)")
+    def test_load_cables_no_n_plus_one(self):
+        """Reading each Cable's Status must use select_related, not a query per cabled Interface."""
+        for index in range(5):
+            self._cable(self._interface("dev1", f"eth{index}"), self._interface("dev2", f"eth{index}"))
+        # Load the Interfaces into the store without loading Cables, so only `load_cables` is measured.
+        self.nb_adapter.load_data()
+
+        with AssertNoRepeatedQueries(self, threshold=1):
+            self.nb_adapter.load_cables(Device.objects.filter(location=self.site1))

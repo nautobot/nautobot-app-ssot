@@ -1,6 +1,7 @@
 # pylint: disable=duplicate-code
 # Ignore return statements for updates and deletes, #  pylint:disable=R1710
 # Ignore too many args #  pylint:disable=too-many-locals
+# One module holds every synced model #  pylint:disable=too-many-lines
 """DiffSyncModel subclasses for Nautobot-to-IPFabric data sync."""
 
 import logging
@@ -10,7 +11,11 @@ from uuid import UUID
 from diffsync import DiffSyncModel
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
+from django.db.models import ProtectedError
 from nautobot.core.choices import ColorChoices
+from nautobot.dcim.models import (
+    Cable as NautobotCable,
+)
 from nautobot.dcim.models import (
     Device as NautobotDevice,
 )
@@ -25,14 +30,17 @@ from nautobot.extras.models import Tag
 from nautobot.ipam.models import VLAN, IPAddress
 from netutils.ip import netmask_to_cidr
 
+import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
 import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_nbutils
 from nautobot_ssot.integrations.ipfabric.constants import (
+    DEFAULT_CABLE_STATUS,
     DEFAULT_DEVICE_ROLE,
     DEFAULT_DEVICE_ROLE_COLOR,
     DEFAULT_DEVICE_STATUS,
     DEFAULT_DEVICE_STATUS_COLOR,
     DEFAULT_INTERFACE_MAC,
     LAST_SYNCHRONIZED_CF_NAME,
+    SAFE_DELETE_CABLE_STATUS,
     SAFE_DELETE_DEVICE_STATUS,
     SAFE_DELETE_IPADDRESS_STATUS,
     SAFE_DELETE_LOCATION_STATUS,
@@ -854,7 +862,156 @@ class Vlan(DiffSyncExtras):
         return super().update(attrs)
 
 
+class Cable(DiffSyncExtras):
+    """Cable model.
+
+    Neither system has a stable identifier for a link, so a Cable is identified by its two endpoints
+    ordered by `cables.canonical_endpoints`.
+    """
+
+    _modelname = "cable"
+    _identifiers = (
+        "termination_a_device",
+        "termination_a_name",
+        "termination_b_device",
+        "termination_b_name",
+    )
+    _attributes = ("status",)
+
+    termination_a_device: str
+    termination_a_name: str
+    termination_b_device: str
+    termination_b_name: str
+    status: str
+    cable_pk: Optional[UUID] = None
+
+    @staticmethod
+    def describe(ids) -> str:
+        """Render a link's endpoints for log messages."""
+        return (
+            f"{ids['termination_a_device']}:{ids['termination_a_name']} <-> "
+            f"{ids['termination_b_device']}:{ids['termination_b_name']}"
+        )
+
+    @staticmethod
+    def resolve_interfaces(ids, job_logger):
+        """Return the two Nautobot Interfaces a link terminates on, or (None, None) if either is missing."""
+        interface_a = tonb_nbutils.get_tagged_interface(
+            ids["termination_a_device"], ids["termination_a_name"], logger=job_logger
+        )
+        interface_b = tonb_nbutils.get_tagged_interface(
+            ids["termination_b_device"], ids["termination_b_name"], logger=job_logger
+        )
+        if not interface_a or not interface_b:
+            return None, None
+        return interface_a, interface_b
+
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Create a Cable in Nautobot between the two Interfaces it terminates on."""
+        job_logger = adapter.job.logger
+        link = cls.describe(ids)
+        interface_a, interface_b = cls.resolve_interfaces(ids, job_logger)
+        if not interface_a:
+            job_logger.warning(f"Unable to create a Cable for {link} because an Interface could not be retrieved")
+            return None
+
+        existing_cable = interface_a.cable
+        if existing_cable and tonb_cables.cable_connects(existing_cable, interface_a, interface_b):
+            # Already recorded, so correct it in place rather than replacing it.
+            if not tonb_cables.update_cable_status(existing_cable, attrs["status"], logger=job_logger):
+                return None
+            return super().create(ids=ids, adapter=adapter, attrs=attrs)
+
+        if not cls.release_interfaces(adapter, link, interface_a, interface_b):
+            return None
+        if tonb_cables.create_cable(interface_a, interface_b, attrs["status"], logger=job_logger):
+            return super().create(ids=ids, adapter=adapter, attrs=attrs)
+        return None
+
+    @classmethod
+    def release_interfaces(cls, adapter, link, *interfaces) -> bool:
+        """Remove any Cable occupying an Interface this link needs, returning False on a conflict.
+
+        Nautobot permits one Cable per Interface, so a link that has moved cannot be recorded until
+        the Cable holding its Interface is gone. Safe delete mode removes nothing, so there the
+        conflict is reported and left for an operator instead.
+        """
+        for interface in interfaces:
+            cable = interface.cable
+            if cable is None:
+                continue
+            if cls.safe_delete_mode:
+                adapter.job.logger.warning(
+                    f"Not creating a Cable for {link} because {interface.device.name}:{interface.name} is already "
+                    f"cabled and Safe Delete Mode will not remove the existing Cable with an ID of {cable.id}"
+                )
+                return False
+            adapter.job.logger.info(
+                f"Removing the Cable with an ID of {cable.id} from {interface.device.name}:{interface.name} "
+                f"so that {link} can be recorded"
+            )
+            try:
+                cable.delete()
+            except (ProtectedError, DjangoBaseDBError) as err:
+                adapter.job.logger.error(
+                    f"Unable to remove the Cable with an ID of {cable.id} from "
+                    f"{interface.device.name}:{interface.name}, so {link} will not be created. Error: {err}"
+                )
+                return False
+        return True
+
+    def retrieve_cable(self):
+        """Return the Nautobot Cable this model represents, or None when it is no longer present."""
+        if self.cable_pk:
+            # Recorded by the Nautobot adapter while loading, so the endpoints need not be walked again.
+            return NautobotCable.objects.filter(pk=self.cable_pk).select_related("status").first()
+        interface_a, interface_b = self.resolve_interfaces(self.get_identifiers(), self.adapter.job.logger)
+        if not interface_a:
+            return None
+        cable = interface_a.cable
+        if cable and tonb_cables.cable_connects(cable, interface_a, interface_b):
+            return cable
+        return None
+
+    def update(self, attrs):
+        """Update a Cable's Status in Nautobot."""
+        link = self.describe(self.get_identifiers())
+        cable = self.retrieve_cable()
+        if cable is None:
+            self.adapter.job.logger.error(f"Unable to find a Cable for {link} to update")
+            return None
+        status = attrs.get("status")
+        if status:
+            if not tonb_cables.update_cable_status(cable, status, logger=self.adapter.job.logger):
+                return None
+            if status == DEFAULT_CABLE_STATUS:
+                cable.tags.remove(self.adapter.safe_delete_tag)
+        return super().update(attrs)
+
+    def delete(self) -> Optional["DiffSyncModel"]:
+        """Delete a Cable in Nautobot."""
+        link = self.describe(self.get_identifiers())
+        cable = self.retrieve_cable()
+        if cable is None:
+            self.adapter.job.logger.info(f"No Cable for {link} remains in Nautobot, so there is nothing to delete")
+            return super().delete()
+        if self.safe_delete_mode:
+            self.safe_delete(cable, SAFE_DELETE_CABLE_STATUS, self.adapter.safe_delete_tag)
+        else:
+            # Removed here rather than queued for the adapter's `sync_complete()` like the other
+            # models: nothing depends on a Cable, and a queued one would still be holding an
+            # Interface that a relocated link needs earlier in the same sync.
+            try:
+                cable.delete()
+            except (ProtectedError, DjangoBaseDBError) as err:
+                self.adapter.job.logger.error(f"Unable to delete the Cable for {link}. Error: {err}")
+                return None
+        return super().delete()
+
+
 Location.model_rebuild()
 Device.model_rebuild()
 Interface.model_rebuild()
 Vlan.model_rebuild()
+Cable.model_rebuild()

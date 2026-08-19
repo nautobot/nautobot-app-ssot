@@ -16,7 +16,11 @@ class DiffSyncModelAdapters(Adapter):
     device = diffsync_models.Device
     interface = diffsync_models.Interface
     vlan = diffsync_models.Vlan
+    cable = diffsync_models.Cable
 
+    # Cables are top level because a link may span two Locations, and come after "location" so the
+    # Devices and Interfaces they terminate on exist by the time they are created.
     top_level = [
         "location",
+        "cable",
     ]
