@@ -1,6 +1,9 @@
 """Unittests for typing utility functions."""
 
 from nautobot.apps.testing import TestCase
+from nautobot_ssot.contrib.types import CustomRelationshipAnnotation
+from nautobot_ssot.contrib.enums import RelationshipSideEnum
+from typing import Annotated
 
 from nautobot_ssot.utils.typing import (
     get_inner_type,
@@ -38,25 +41,23 @@ class TestGetInnerType(TestCase):
         with self.assertRaises(AttributeError):
             get_inner_type(self.ExampleClass, "non_existant_attribute")
 
-
+from typing import get_origin, get_type_hints
 
 class TestSortedListTypeAnnotations(TestCase):
     """"""
-
+    '''
+    '''
     class TagTypedDict(TypedDict):
         """Test Class Please Ignore."""
 
         name: str
-
-    def setUp(self):
-        """"""
 
     def test_subclass_raise_error(self):
         with self.assertRaises(TypeError):
             class TestSorted(SortedList):
                 """Test Class Please Ignore."""
 
-    def test_new_instance_raises_error(self):
+    def test_instantiate_raises_error(self):
         with self.assertRaises(TypeError):
             SortedList()
 
@@ -99,4 +100,44 @@ class TestSortedListTypeAnnotations(TestCase):
 
             sorted_list: SortedList[self.TagTypedDict, SortKey("name")]
 
+    def test_type_with_no_key(self):
+        class TestClass:
+            """Test Class Please Ignore."""
 
+            sorted_list: SortedList[str]
+
+    def test_type_with_sort_key(self):
+        with self.assertRaises(TypeError):
+            class TestClass:
+                """Test Class Please Ignore."""
+
+                sorted_list: SortedList[str, SortKey("name")]
+
+    def test_sortkey_with_custom_annotation_first(self):
+        class TestClass:
+            """Test Class Please Ignore."""
+
+            sorted_list: SortedList[
+                self.TagTypedDict,
+                CustomRelationshipAnnotation(name="my_relationship", side=RelationshipSideEnum.DESTINATION),
+                SortKey("name"),
+            ]
+
+    def test_sortkey_with_custom_annotation_second(self):
+        class TestClass:
+            """Test Class Please Ignore."""
+
+            sorted_list: SortedList[
+                self.TagTypedDict,
+                SortKey("name"),
+                CustomRelationshipAnnotation(name="my_relationship", side=RelationshipSideEnum.DESTINATION),
+            ]
+
+    def test_invalid_str_type(self):
+        class TestClass:
+            """Test Class Please Ignore."""
+
+            sorted_list: SortedList["thisisastring"]
+
+        with self.assertRaises(NameError):
+            get_type_hints(TestClass, include_extras=True)

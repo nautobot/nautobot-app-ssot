@@ -61,9 +61,6 @@ class SortKey:
 
     key: str
 
-    def __repr__(self):
-        return self.key
-
 
 class SortedListAlias(_AnnotatedAlias, _root=True):
     """"""
@@ -76,10 +73,12 @@ class SortedListAlias(_AnnotatedAlias, _root=True):
         self.__metadata__ = metadata
 
     def __repr__(self):
-        return "nautobot_ssot.typing.SortedList[{}, {}]".format(
-            _type_repr(self.__origin__),
-            ", ".join(repr(a) for a in self.__metadata__)
-        )
+        if len(self.__metadata__) >= 1:
+            return "nautobot_ssot.utils.typing.SortedList[{}, {}]".format(
+                _type_repr(self.__origin__),
+                ", ".join(repr(a) for a in self.__metadata__)
+            )
+        return "nautobot_ssot.utils.typing.SortedList[{}]".format(_type_repr(self.__origin__))
 
     def __reduce__(self):
         return operator.getitem, (
@@ -112,29 +111,25 @@ class SortedList(list):
             if isinstance(data, SortKey):
                 return data
         return None
-
     
     def __class_getitem__(cls, params):
         if not isinstance(params, tuple):
             params = (params,)
-        cls._class_getitem_inner(cls, *params)
-
+        return cls._class_getitem_inner(cls, *params)
 
     @_tp_cache(typed=True)
     def _class_getitem_inner(cls, *params):
         """"""
-
-        if _is_unpacked_typevartuple(params[0]):
-            raise TypeError("SortedList[...] should not be used with an "
-                            "unpacked TypeVarTuple")
-
-
-
         origin = _type_check(params[0], "SortedList[t, ...]: t must be a type.", allow_special_forms=True)
+
         metadata = tuple(params[1:])
         sort_key = cls._get_sort_key(metadata)
         is_dict = is_typeddict(origin) or origin in [dict, Dict]
-
+        
+        if _is_unpacked_typevartuple(params[0]):
+            raise TypeError("SortedList[...] should not be used with an unpacked TypeVarTuple")
+        if not is_dict and sort_key:
+            raise TypeError("SortedList[...], `SortKey` metadata only used with `[dict|Dict|TypedDict]` types.")
         if is_dict and not sort_key:
             raise TypeError("SortedList[...] with `dict` or `TypedDict` type must have a `SortKey`.")
         elif not is_dict and sort_key:
@@ -144,5 +139,3 @@ class SortedList(list):
 
     def __init_subclass__(cls):
         raise TypeError("Cannot subclass {}.SortedList".format(cls.__module__))
-
-
