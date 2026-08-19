@@ -413,7 +413,7 @@ LIBRENMS_LIB_MAPPER_REVERSE = {
 }
 
 # LibreNMS `os` | network driver
-#
+# TODO: Remove this once PR is merged.
 # netutils owns this mapping as `LIBRENMS_LIB_MAPPER`. The entries below are the ones netutils does
 # not carry yet; they are being contributed upstream (networktocode/netutils#765) and should be
 # dropped from here as each netutils release picks them up.
