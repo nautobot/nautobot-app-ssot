@@ -4,15 +4,16 @@
 import json
 import os
 from base64 import b64encode
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 import yaml
 from diffsync import Adapter
-from diffsync.enum import DiffSyncFlags
+from diffsync.enum import DiffSyncFlags, DiffSyncStatus
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from jinja2 import Environment, FileSystemLoader
 
 from nautobot_ssot.contrib.model import DiffSyncModel
+from nautobot_ssot.integrations.servicenow.exceptions import ServiceNowReferenceError
 
 from . import models
 
@@ -44,10 +45,10 @@ class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attribut
         self.job = job
         self.sync = sync
         self.site_filter = site_filter
+        # Dict of table -> sys_id -> record. Every record pulled during load, plus any fetched later.
+        # Reference (foreign key) fields are resolved against this, so the write path needs no extra queries.
         self.sys_ids = {}
         self.mapping_data = []
-        # Dict of table -> column_name -> value -> sys_id.
-        self.sys_ids_cache = defaultdict(dict)  # Cache for sys_ids to avoid redundant queries
 
         # Since a device may contain dozens or hundreds of interfaces,
         # to improve performance when a device is created, we use ServiceNow's bulk/batch API to
@@ -55,6 +56,9 @@ class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attribut
         self.interfaces_to_create_per_device = {}
 
         self.duplicate_records = defaultdict(list)  # Store duplicate records for user notification
+
+        # Reference fields that could not be resolved, so that the run does not look clean afterwards.
+        self.unresolved_references = []
 
     def load(self):
         """Load data via pysnow."""
@@ -110,6 +114,34 @@ class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attribut
 
         for modelname, duplicate_uids in self.duplicate_records.items():
             self.job.create_file(f"duplicate_{modelname}.txt", "\n".join(duplicate_uids))
+
+        self.warn_about_ambiguous_references()
+
+    def warn_about_ambiguous_references(self):
+        """Warn about loaded records that a reference to their table will not be able to tell apart.
+
+        A dry run never writes, and so never resolves a reference. Without this, a duplicate that is going
+        to fail the next real sync stays invisible until that sync runs.
+        """
+        for modelname, entry in self.mapping_data.items():
+            for mapping in entry["mappings"]:
+                reference = mapping.get("reference")
+                if not reference or "column" not in reference:
+                    continue
+                records = self.sys_ids.get(reference["table"], {}).values()
+                columns = [reference["column"]] + [match["column"] for match in reference.get("match", [])]
+                counts = Counter(
+                    tuple(models.normalize_sn_value(record.get(column)) for column in columns) for record in records
+                )
+                for values, count in counts.items():
+                    if count == 1:
+                        continue
+                    described = ", ".join(f"{column}={value}" for column, value in zip(columns, values))
+                    self.job.logger.warning(
+                        f"Table `{reference['table']}` has {count} records with {described}; "
+                        f"`{modelname}.{mapping['field']}` references it by those columns and will not be "
+                        "able to tell them apart."
+                    )
 
     @classmethod
     def load_yaml_datafile(cls, filename, config=None):
@@ -190,9 +222,18 @@ class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attribut
             self.duplicate_records[model_name] = [",".join(model_identifiers)]
         self.duplicate_records[model_name].append(",".join([getattr(model_cls, attr) for attr in model_identifiers]))
 
+    def record_unresolved_reference(self, error):
+        """Report a reference field that could not be resolved, and remember it for the run summary."""
+        self.job.logger.error(str(error))
+        self.unresolved_references.append(error)
+
+    def register_sn_record(self, table, record):
+        """Remember a ServiceNow record so that references to it can be resolved without a query."""
+        self.sys_ids.setdefault(table, {})[record["sys_id"]] = record
+
     def load_record(self, table, record, model_cls, mappings, **kwargs):
         """Helper method to load_table()."""
-        self.sys_ids.setdefault(table, {})[record["sys_id"]] = record
+        self.register_sn_record(table, record)
 
         ids_attrs = self.map_record_to_attrs(record, mappings)
         model = model_cls(**ids_attrs)
@@ -250,7 +291,7 @@ class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attribut
                                 f"references sys_id `{sys_id}`, but that was not found in table `{table}`"
                             )
                         else:
-                            self.sys_ids.setdefault(table, {})[sys_id] = referenced_record
+                            self.register_sn_record(table, referenced_record)
 
                     if sys_id in self.sys_ids.get(table, {}):
                         value = self.sys_ids[table][sys_id][mapping["reference"]["column"]]
@@ -283,10 +324,17 @@ class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attribut
             }
 
             for inner_request_id, interface in enumerate(self.interfaces_to_create_per_device[device_name]):
-                inner_request_payload = interface.map_data_to_sn_record(
-                    data={**interface.get_identifiers(), **interface.get_attrs()},
-                    mapping_entry=sn_mapping_entry,
-                )
+                try:
+                    inner_request_payload = interface.map_data_to_sn_record(
+                        data={**interface.get_identifiers(), **interface.get_attrs()},
+                        mapping_entry=sn_mapping_entry,
+                    )
+                except ServiceNowReferenceError as error:
+                    # Sending the batch anyway would create interfaces attached to nothing. Drop just this
+                    # one: the rest of the device's interfaces, and every other device, still go through.
+                    self.record_unresolved_reference(error)
+                    interface.set_status(DiffSyncStatus.FAILURE, str(error))
+                    continue
                 inner_request_body = b64encode(json.dumps(inner_request_payload).encode("utf-8")).decode("utf-8")
                 inner_request_data = {
                     "id": str(inner_request_id),
@@ -301,10 +349,17 @@ class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attribut
                 }
                 request_data["rest_requests"].append(inner_request_data)
 
-            self.job.logger.debug(
-                f'Sending bulk API request to ServiceNow to create interfaces for device "{device_name}":'
-                f"\n```\n{json.dumps(request_data, indent=4)}\n```"
-            )
+            if not request_data["rest_requests"]:
+                self.job.logger.warning(
+                    f'No interfaces could be prepared for device "{device_name}"; skipping its bulk request.'
+                )
+                continue
+
+            if self.job.debug:
+                self.job.logger.debug(
+                    f'Sending bulk API request to ServiceNow to create interfaces for device "{device_name}":'
+                    f"\n```\n{json.dumps(request_data, indent=4)}\n```"
+                )
 
             sn_response = sn_resource.request(
                 "POST",
@@ -327,9 +382,10 @@ class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attribut
                     f"were not serviced:\n```\n{json.dumps(response_data['unserviced_requests'], indent=4)}\n```",
                 )
             else:
-                self.job.logger.debug(
-                    f"ServiceNow response: {response.status_code}\n```\n{json.dumps(response_data, indent=4)}\n```"
-                )
+                if self.job.debug:
+                    self.job.logger.debug(
+                        f"ServiceNow response: {response.status_code}\n```\n{json.dumps(response_data, indent=4)}\n```"
+                    )
                 self.job.logger.info("Interfaces successfully bulk-created.")
 
         self.job.logger.info("Bulk creation of interfaces completed.")
@@ -363,3 +419,22 @@ class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attribut
                 for sn_object in self.objects_to_delete[grouping]:
                     sn_object.delete()
                 self.objects_to_delete[grouping] = []
+
+        self.report_unresolved_references()
+
+    def report_unresolved_references(self):
+        """Summarize any reference fields that could not be written, so the run does not look clean."""
+        if not self.unresolved_references:
+            return
+
+        self.job.logger.error(
+            f"{len(self.unresolved_references)} reference field(s) could not be resolved; the affected "
+            "records were not fully written to ServiceNow. See unresolved_references.txt."
+        )
+        lines = [ServiceNowReferenceError.csv_header()] + [error.as_csv_row() for error in self.unresolved_references]
+        try:
+            self.job.create_file("unresolved_references.txt", "\n".join(lines))
+        except Exception as error:  # pylint: disable=broad-except
+            # The errors themselves are already in the job log; losing the whole sync over the attachment
+            # (which enforces a size limit and a unique filename) would be a poor trade.
+            self.job.logger.warning(f"Unable to attach the unresolved reference report: {error}")

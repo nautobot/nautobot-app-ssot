@@ -1,0 +1,1 @@
+Fixed ServiceNow integration to log and report errors for unresolved or ambiguous references, mark affected objects as failed, and resolve device model references by both manufacturer and model name to prevent name collisions.

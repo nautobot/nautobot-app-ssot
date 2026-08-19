@@ -5,52 +5,152 @@ from typing import List, Optional, Union
 
 from diffsync import DiffSyncModel
 from diffsync.enum import DiffSyncStatus
-from diffsync.exceptions import ObjectNotCreated, ObjectNotUpdated
+from diffsync.exceptions import ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
+
+from nautobot_ssot.integrations.servicenow.exceptions import (
+    AmbiguousReferenceError,
+    MissingReferenceError,
+    ServiceNowReferenceError,
+)
 
 # import pysnow
 from nautobot_ssot.integrations.servicenow.third_party import pysnow
 
 
+def normalize_sn_value(value):
+    """Render a value the way ServiceNow reports it, for comparison against a fetched record.
+
+    ServiceNow returns every column as a string, using an empty string for an unset reference.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def record_matches(record, criteria):
+    """Whether a fetched ServiceNow record satisfies every column/value pair in `criteria`."""
+    return all(
+        normalize_sn_value(record.get(column)) == normalize_sn_value(expected) for column, expected in criteria.items()
+    )
+
+
 class ServiceNowCRUDMixin:
     """Mixin class for all ServiceNow models, to support CRUD operations based on mappings.yaml."""
 
-    def map_data_to_sn_record(self, data, mapping_entry, existing_record=None, clear_cache=False):
-        """Map create/update data from DiffSync to a corresponding ServiceNow data record."""
+    def map_data_to_sn_record(self, data, mapping_entry, existing_record=None, context=None):
+        """Map create/update data from DiffSync to a corresponding ServiceNow data record.
+
+        Args:
+            data (dict): Field values to write. Also decides *which* columns appear in the returned record,
+                so an update payload stays limited to the changed fields.
+            mapping_entry (dict): The mappings.yaml entry for this model.
+            existing_record (dict): Record to populate in place, if any.
+            context (dict): Additional field values used only to resolve and disambiguate references.
+                Never written to ServiceNow. Needed on the update path, where `data` holds only the
+                changed attributes and so may be missing the sibling fields a lookup needs.
+
+        Raises:
+            ServiceNowReferenceError: If a non-null reference value did not resolve to exactly one
+                ServiceNow record. Returning a null column instead would silently drop the field while
+                the sync went on to report success.
+        """
         record = existing_record or {}
+        context = {**(context or {}), **data}
         for mapping in mapping_entry.get("mappings", []):
             if mapping["field"] not in data:
                 continue
-            value = data[mapping["field"]]
             if "column" in mapping:
-                record[mapping["column"]] = value
+                record[mapping["column"]] = data[mapping["field"]]
             elif "reference" in mapping:
-                tablename = mapping["reference"]["table"]
-                sys_id = None
                 if "column" not in mapping["reference"]:
                     raise NotImplementedError
-                column_name = mapping["reference"]["column"]
-                if value is not None:
-                    # if clear_cache is set to True then clear the cache for the object
-                    if clear_cache:
-                        self.adapter.sys_ids_cache.setdefault(tablename, {}).setdefault(column_name, {})[value] = {}
-                    # Look in the cache first
-                    sys_id = self.adapter.sys_ids_cache.get(tablename, {}).get(column_name, {}).get(value, None)
-                    if not sys_id:
-                        target = self.adapter.client.get_by_query(tablename, {mapping["reference"]["column"]: value})
-                        if target is None:
-                            self.adapter.job.logger.warning(f"Unable to find reference target in {tablename}")
-                        else:
-                            sys_id = target["sys_id"]
-                            self.adapter.sys_ids_cache.setdefault(tablename, {}).setdefault(column_name, {})[value] = (
-                                sys_id
-                            )
-
-                record[mapping["reference"]["key"]] = sys_id
+                record[mapping["reference"]["key"]] = self._resolve_reference(mapping, context, record)
             else:
                 raise NotImplementedError
 
-        self.adapter.job.logger.debug(f"Mapped data {data} to record {record}")
+        if self.adapter.job.debug:
+            self.adapter.job.logger.debug(f"Mapped data {data} to record {record}")
         return record
+
+    def _find_sn_records(self, table, criteria):
+        """Records in `table` matching every column/value pair in `criteria`.
+
+        The records pulled during load are consulted first: they already contain every candidate, so the
+        happy path costs no API call. Only when the loaded set has nothing (because a `table_query` or
+        `site_filter` narrowed the load) is ServiceNow queried, and a single hit joins the loaded set so
+        an identical lookup later does not query again.
+        """
+        loaded = [record for record in self.adapter.sys_ids.get(table, {}).values() if record_matches(record, criteria)]
+        if loaded:
+            return loaded
+        fetched = self.adapter.client.get_all_by_query(table, criteria)
+        if len(fetched) == 1:
+            self.adapter.register_sn_record(table, fetched[0])
+        return fetched
+
+    def _match_criteria(self, reference, context, record):
+        """Build the extra column/value pairs that narrow an otherwise ambiguous reference lookup.
+
+        Returns:
+            tuple: (criteria, unapplied), where `unapplied` names the match fields whose value was not
+            available, so that an ambiguity error can report why it could not be narrowed.
+        """
+        criteria = {}
+        unapplied = []
+        for entry in reference.get("match", []):
+            # Prefer a sys_id already resolved for an earlier mapping in this same record: it is free.
+            if entry.get("key") in record:
+                criteria[entry["column"]] = record[entry["key"]]
+                continue
+            # Otherwise fall back to the DiffSync value, which on the update path is all we have.
+            value = context.get(entry.get("field"))
+            if value is not None and "reference" in entry:
+                nested = entry["reference"]
+                found = self._find_sn_records(nested["table"], {nested["column"]: value})
+                value = found[0]["sys_id"] if len(found) == 1 else None
+            if value is None:
+                unapplied.append(entry.get("field") or entry["column"])
+            else:
+                criteria[entry["column"]] = value
+        return criteria, unapplied
+
+    def _resolve_reference(self, mapping, context, record):
+        """Resolve a `reference` mapping to exactly one ServiceNow sys_id.
+
+        Returns None only when the source value is itself None, i.e. the reference is being cleared.
+
+        Raises:
+            AmbiguousReferenceError: If more than one record matched.
+            MissingReferenceError: If no record matched.
+        """
+        reference = mapping["reference"]
+        table = reference["table"]
+        column = reference["column"]
+        value = context.get(mapping["field"])
+        if value is None:
+            return None
+
+        criteria = {column: value}
+        match_criteria, unapplied = self._match_criteria(reference, context, record)
+        criteria.update(match_criteria)
+
+        candidates = self._find_sn_records(table, criteria)
+        if len(candidates) == 1:
+            return candidates[0]["sys_id"]
+
+        error_class = AmbiguousReferenceError if candidates else MissingReferenceError
+        raise error_class(
+            table=table,
+            column=column,
+            value=value,
+            modelname=self.get_type(),
+            unique_id=self.get_unique_id(),
+            field=mapping["field"],
+            candidates=[candidate["sys_id"] for candidate in candidates],
+            unapplied=unapplied,
+        )
 
     @classmethod
     def create(cls, adapter, ids, attrs):
@@ -62,7 +162,11 @@ class ServiceNowCRUDMixin:
         model = super().create(adapter, ids=ids, attrs=attrs)
 
         sn_resource = adapter.client.resource(api_path=f"/table/{entry['table']}")
-        sn_record = model.map_data_to_sn_record(data={**ids, **attrs}, mapping_entry=entry)
+        try:
+            sn_record = model.map_data_to_sn_record(data={**ids, **attrs}, mapping_entry=entry)
+        except ServiceNowReferenceError as error:
+            adapter.record_unresolved_reference(error)
+            raise ObjectNotCreated(str(error)) from error
         result = sn_resource.create(payload=sn_record)
         object_id = result.one().get("sys_id")
         if not object_id:
@@ -70,6 +174,12 @@ class ServiceNowCRUDMixin:
                 f"Failed to create {cls.get_type()} with identifiers {ids} and attributes {attrs}"
             )
             raise ObjectNotCreated(f"Failed to create {cls.get_type()} with identifiers {ids} and attributes {attrs}")
+
+        # Remember the new record so that objects created later in this same run can reference it
+        # without querying ServiceNow for something we just wrote.
+        model.sys_id = object_id
+        adapter.register_sn_record(entry["table"], result.one())
+
         for key in sn_record:
             if key not in result.one():
                 adapter.job.logger.warning(f"Key {key} from SN record {sn_record} not found in result {result.one()}")
@@ -97,20 +207,28 @@ class ServiceNowCRUDMixin:
         entry = self.adapter.mapping_data[self.get_type()]
 
         sn_resource = self.adapter.client.resource(api_path=f"/table/{entry['table']}")
-        if self.sys_id:
-            query = {"sys_id": self.sys_id}
-        else:
-            query = self.map_data_to_sn_record(data=self.get_identifiers(), mapping_entry=entry)
+        # `attrs` holds only the changed attributes, so reference lookups that need a sibling field
+        # (such as resolving a model name within its manufacturer) have to read it from the current state.
+        context = {**self.get_identifiers(), **self.get_attrs(), **attrs}
+        try:
+            if self.sys_id:
+                query = {"sys_id": self.sys_id}
+            else:
+                query = self.map_data_to_sn_record(data=self.get_identifiers(), mapping_entry=entry, context=context)
+            sn_record = self.map_data_to_sn_record(data=attrs, mapping_entry=entry, context=context)
+        except ServiceNowReferenceError as error:
+            self.adapter.record_unresolved_reference(error)
+            raise ObjectNotUpdated(str(error)) from error
 
-        sn_record = self.map_data_to_sn_record(data=attrs, mapping_entry=entry)
         try:
             result = sn_resource.update(query=query, payload=sn_record)
-        except pysnow.exceptions.MultipleResults:
-            self.adapter.job.logger.error(
+        except pysnow.exceptions.MultipleResults as error:
+            message = (
                 f"Unsure which record to update, as query {query} matched more than one item "
                 f"in table {entry['table']}"
             )
-            return None
+            self.adapter.job.logger.error(message)
+            raise ObjectNotUpdated(message) from error
         if self.adapter.job.debug:
             self.adapter.job.logger.debug(f"Result of update: {result.one()}")
         for key, value in sn_record.items():
@@ -137,21 +255,29 @@ class ServiceNowCRUDMixin:
         """Delete an existing instance in ServiceNow if it does not exist in Nautobot. This code adds the ServiceNow object to the objects_to_delete dict of lists. The actual delete occurs in the post-run method of adapter_servicenow.py."""
         entry = self.adapter.mapping_data[self.get_type()]
         sn_resource = self.adapter.client.resource(api_path=f"/table/{entry['table']}")
-        query = self.map_data_to_sn_record(data=self.get_identifiers(), mapping_entry=entry)
         try:
-            sn_resource.get(query=query).one()
-        except pysnow.exceptions.MultipleResults:
-            self.adapter.job.logger.error(
-                f"Unsure which record to update, as query {query} matched more than one item "
+            query = self.map_data_to_sn_record(
+                data=self.get_identifiers(),
+                mapping_entry=entry,
+                context={**self.get_identifiers(), **self.get_attrs()},
+            )
+        except ServiceNowReferenceError as error:
+            # An unresolved reference would leave the query matching the wrong records, or none at all.
+            self.adapter.record_unresolved_reference(error)
+            raise ObjectNotDeleted(str(error)) from error
+
+        _object = sn_resource.get(query=query)
+        try:
+            _object.one()
+        except pysnow.exceptions.MultipleResults as error:
+            message = (
+                f"Unsure which record to delete, as query {query} matched more than one item "
                 f"in table {entry['table']}"
             )
-            return None
+            self.adapter.job.logger.error(message)
+            raise ObjectNotDeleted(message) from error
         self.adapter.job.logger.warning(f"{self._modelname} {self.get_identifiers()} will be deleted.")
-        _object = sn_resource.get(query=query)
         self.adapter.objects_to_delete[self._modelname].append(_object)
-        self.map_data_to_sn_record(
-            data=self.get_identifiers(), mapping_entry=entry, clear_cache=True
-        )  # remove device cache
         super().delete()
         return self
 
@@ -260,7 +386,10 @@ class Device(ServiceNowCRUDMixin, DiffSyncModel):
         """Create a new Device instance, and set things up for eventual bulk-creation of its child Interfaces."""
         model = super().create(adapter, ids=ids, attrs=attrs)
 
-        adapter.job.logger.debug(f'New Device "{ids["name"]}" is being created, will bulk-create its interfaces later.')
+        if adapter.job.debug:
+            adapter.job.logger.debug(
+                f'New Device "{ids["name"]}" is being created, will bulk-create its interfaces later.'
+            )
         adapter.interfaces_to_create_per_device[ids["name"]] = []
 
         return model
@@ -307,9 +436,10 @@ class Interface(ServiceNowCRUDMixin, DiffSyncModel):
     def create(cls, adapter, ids, attrs):
         """Create an interface in isolation, or if the parent Device is new as well, defer for later bulk-creation."""
         if ids["device_name"] in adapter.interfaces_to_create_per_device:
-            adapter.job.logger.debug(
-                f'Device "{ids["device_name"]}" was just created; deferring creation of interface "{ids["name"]}"'
-            )
+            if adapter.job.debug:
+                adapter.job.logger.debug(
+                    f'Device "{ids["device_name"]}" was just created; deferring creation of interface "{ids["name"]}"'
+                )
             # copy-paste of DiffSyncModel's create() classmethod;
             # we don't want to call super().create() here as that would be ServiceNowCRUDMixin.create(),
             # which is what we're trying to avoid here!
