@@ -26,9 +26,21 @@ PLUGINS_CONFIG = {
         "librenms_permitted_values": {  # Allows the SSOT to only sync certain values from LibreNMS
             "role": ["network"],
         },
+        # Name Platforms after the network driver (cisco_ios) to share them with
+        # device-onboarding, instead of the Ansible FQCN (cisco.ios.ios).
+        # Enabling this is a migration -- read the docs section linked below first.
+        "librenms_consolidated_platforms": is_truthy(
+            os.getenv("NAUTOBOT_SSOT_LIBRENMS_CONSOLIDATED_PLATFORMS", "false")
+        ),
+        # Override the bundled os -> driver mappings.
+        "librenms_network_driver_map": {},
   }
 }
 ```
+
+See [Platform naming and network drivers](../../user/integrations/librenms.md#platform-naming-and-network-drivers)
+for what `librenms_consolidated_platforms` changes, how existing Platforms are adopted rather than
+duplicated, and the recommended sequence for enabling it.
 
 ### External Integrations
 

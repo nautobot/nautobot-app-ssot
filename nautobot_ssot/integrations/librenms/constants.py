@@ -2,6 +2,11 @@
 
 from django.conf import settings
 
+try:  # netutils owns the LibreNMS mappings from the release carrying networktocode/netutils#732.
+    from netutils.lib_mapper import LIBRENMS_LIB_MAPPER as NETUTILS_LIBRENMS_LIB_MAPPER
+except ImportError:  # pragma: no cover
+    NETUTILS_LIBRENMS_LIB_MAPPER = None
+
 # Import config vars from nautobot_config.py
 PLUGIN_CFG = settings.PLUGINS_CONFIG["nautobot_ssot"]
 
@@ -405,4 +410,95 @@ LIBRENMS_LIB_MAPPER_REVERSE = {
     "cisco_xr": "iosxr",
     "juniper_junos": "junos",
     "applogic_procera": "procera",
+}
+
+# LibreNMS `os` | network driver
+# TODO: Remove this once PR is merged.
+# netutils owns this mapping as `LIBRENMS_LIB_MAPPER`. The entries below are the ones netutils does
+# not carry yet; they are being contributed upstream (networktocode/netutils#765) and should be
+# dropped from here as each netutils release picks them up.
+#
+# Separate from LIBRENMS_LIB_MAPPER in this module, which also drives legacy naming: an entry there
+# would rename platforms (fortios -> fortinet.fortios.fortios) and move devices.
+#
+# Values are MAIN_LIB_MAPPER keys, except applogic_procera (legacy, kept for compatibility).
+# Ambiguous OS values (dnos, asyncos, junose, extremeware, zynos, zywall, sonicwall, pfsense,
+# opnsense, vmwareesxi, aix, cumulus, axos) intentionally absent -> "". Map them via
+# librenms_network_driver_map.
+#
+# Driver-space values (cisco_ios -> cisco_ios) are deliberately not listed: consolidated mode
+# re-resolves them through librenms_os_to_network_driver(), whose known_network_drivers() fallback
+# already covers every netutils driver.
+_LIBRENMS_OS_TO_NETWORK_DRIVER_PENDING_NETUTILS = {
+    # Cisco
+    "ios": "cisco_ios",
+    "asa": "cisco_asa",
+    "ciscosb": "cisco_s300",
+    "ciscowlc": "cisco_wlc",
+    "viptela": "cisco_viptella",
+    # Juniper
+    "screenos": "juniper_screenos",
+    # Aruba
+    "arubaoscx": "aruba_aoscx",
+    "arubaos": "aruba_os",
+    "arubainstant": "aruba_os",
+    # HP
+    "procurve": "hp_procurve",
+    "comware": "hp_comware",
+    # Fortinet
+    "fortigate": "fortinet",
+    "fortios": "fortinet",
+    # Palo Alto
+    "panos": "paloalto_panos",
+    # Check Point
+    "gaia": "checkpoint_gaia",
+    # F5
+    "f5": "bigip_f5",
+    # Mikrotik
+    "routeros": "mikrotik_routeros",
+    # Huawei
+    "vrp": "huawei_vrp",
+    "smartax": "huawei_smartax",
+    "smartaxmdu": "huawei_smartax",
+    # Nokia
+    "timos": "nokia_sros",
+    # Alcatel
+    "aos": "alcatel_aos",
+    # Extreme
+    "xos": "extreme_exos",
+    # Brocade
+    "fabos": "brocade_fos",
+    "ironware": "brocade_netiron",
+    # Dell
+    "ftos": "dell_force10",
+    "powerconnect": "dell_powerconnect",
+    # Ubiquiti
+    "airos": "ubiquiti_airos",
+    "edgeos": "ubiquiti_edgerouter",
+    "edgeswitch": "ubiquiti_edgeswitch",
+    "unifi": "ubiquiti_unifiswitch",
+    # Ciena
+    "cienarls": "ciena_saos",
+    "cienasds": "ciena_saos",
+    # IP Infusion
+    "ocnos": "ipinfusion_ocnos",
+    # Eltex
+    "eltexmes23xx": "eltex",
+    "eltexmes24xx": "eltex",
+    # Allied Telesis
+    "awplus": "allied_telesis_awplus",
+    # Ruckus
+    "ruckuswirelesssz": "ruckus_smartzone",
+    # Citrix
+    "nitro": "netscaler",
+    # AppLogic -- not a netutils driver, so the known-driver fallback cannot recover it.
+    "applogic_procera": "applogic_procera",
+}
+
+# netutils wins where it has an opinion, so upstream additions take effect on upgrade. Until the
+# release carrying them is available, LIBRENMS_LIB_MAPPER above is the vendored copy of the same
+# entries that this integration has always shipped.
+LIBRENMS_OS_TO_NETWORK_DRIVER = {
+    **_LIBRENMS_OS_TO_NETWORK_DRIVER_PENDING_NETUTILS,
+    **(NETUTILS_LIBRENMS_LIB_MAPPER or LIBRENMS_LIB_MAPPER),
 }
