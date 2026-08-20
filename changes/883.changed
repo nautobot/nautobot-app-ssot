@@ -1,0 +1,1 @@
+Added the `ipfabric_sync_<object type>` and `ipfabric_disabled_sync_objects` settings, which pre-select and administratively disable IP Fabric object types on the Job form.

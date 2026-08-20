@@ -63,6 +63,8 @@ PLUGINS_CONFIG = {
 | `ipfabric_safe_delete_ipaddress_status` | The status that is set for an IP Address when the `Safe Delete Mode` flag is set in the Job.                                                                                                  | `Deprecated`        |
 | `ipfabric_safe_delete_cable_status`     | The status that is set for a Cable when the `Safe Delete Mode` flag is set in the Job.                                                                                                        | `Decommissioning`   |
 | `ipfabric_use_canonical_interface_name` | Whether to attempt to elongate interface names as found in IP Fabric.                                                                                                                         | `False`             |
+| `ipfabric_sync_<object type>`           | Pre-selects an object type on the Job form. See [Choosing what to sync](#choosing-what-to-sync).                                                                                              | Varies by type      |
+| `ipfabric_disabled_sync_objects`        | Object types that may not be selected on the Job form at all. See [Choosing what to sync](#choosing-what-to-sync).                                                                            | `[]`                |
 
 
 Below is an example snippet from `nautobot_config.py` that demonstrates how to enable and configure the IPFabric SSoT integration along with the optional settings:
@@ -96,6 +98,9 @@ PLUGINS_CONFIG = {
         "ipfabric_use_canonical_interface_name": is_truthy(
             os.getenv("NAUTOBOT_SSOT_USE_CANONICAL_INTERFACE_NAME", "true")
         ),
+        "ipfabric_sync_cables": is_truthy(os.getenv("NAUTOBOT_SSOT_IPFABRIC_SYNC_CABLES", "false")),
+        # For example, ["primary_ip"] to remove it from the Job form entirely.
+        "ipfabric_disabled_sync_objects": [],
     }
 }
 ```
@@ -149,3 +154,49 @@ PLUGINS_CONFIG = {
 
 !!! warning
     The setting names have been updated to help avoid any potential conflicts, please update the settings in `PLUGINS_CONFIG` accordingly.
+
+## Choosing what to sync
+
+The Job form carries a checkbox per object type, so a run can be narrowed to the data an
+installation actually wants IP Fabric to own. Deselecting a type keeps it out of the sync in both
+directions: it is neither read from IP Fabric nor read from Nautobot, so existing Nautobot records
+of that type are left untouched rather than treated as absent from the source and removed.
+
+| Object type    | Job field            | Default | Requires       |
+|----------------|----------------------|---------|----------------|
+| `interfaces`   | `Sync Interfaces`    | On      |                |
+| `ip_addresses` | `Sync IP Addresses`  | On      | `interfaces`   |
+| `primary_ip`   | `Sync Primary IP`    | On      | `ip_addresses` |
+| `vlans`        | `Sync VLANs`         | On      |                |
+| `cables`       | `Sync Cables`        | Off     | `interfaces`   |
+
+Locations and Devices are always synced. They are the objects every other type hangs off, so a run
+with either excluded would have nothing left to do.
+
+An object type is skipped when a type it requires is not selected, and the Job log says which
+requirement was unmet. Selecting `Sync Cables` without `Sync Interfaces`, for example, syncs no
+Cables, because a Cable can only be matched through the Interfaces it terminates on.
+
+### Pre-selecting a type
+
+`ipfabric_sync_<object type>` sets the initial state of a checkbox, for installations that want a
+different starting point from the shipped default. It changes what the form offers, not what it
+permits, so an operator can still override it for one run:
+
+```python
+"ipfabric_sync_cables": True,
+```
+
+### Disabling a type outright
+
+`ipfabric_disabled_sync_objects` removes object types from the form altogether, for cases where
+another system is authoritative and the answer must not vary run to run. A disabled type cannot be
+re-enabled by an operator, by the REST API, or by a scheduled Job saved before it was disabled:
+
+```python
+"ipfabric_disabled_sync_objects": ["primary_ip", "vlans"],
+```
+
+Disabling a type also disables everything that requires it, since those have nothing to attach to.
+Every exclusion is reported in the Job log, so a run whose selections were overruled says so rather
+than quietly doing less than asked.
