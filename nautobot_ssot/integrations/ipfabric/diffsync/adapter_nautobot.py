@@ -26,6 +26,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
+from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
 
 logger = logging.getLogger("nautobot.ssot.ipfabric")
 
@@ -47,7 +48,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         sync_ipfabric_tagged_only: bool,
         location_filter: Optional[Location],
         *args,
-        sync_cables: bool = False,
+        scope=None,
         **kwargs,
     ):
         """Initialize the NautobotDiffSync."""
@@ -56,7 +57,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         self.sync = sync
         self.sync_ipfabric_tagged_only = sync_ipfabric_tagged_only
         self.location_filter = location_filter
-        self.sync_cables = sync_cables
+        self.scope = scope if scope is not None else SyncScope.from_job_kwargs({})
         self.ssot_tag = tonb_utils.get_or_create_tag_object(
             tag_name="SSoT Synced from IPFabric",
             tag_color=ColorChoices.COLOR_LIGHT_GREEN,
@@ -110,9 +111,14 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         elif device_record.primary_ip6:
             device_primary_ip = device_record.primary_ip6
 
+        if not self.scope.ip_addresses:
+            # Matches what the IP Fabric adapter reports with addresses out of scope, so that the
+            # existing address diffs as unchanged rather than as one to remove.
+            device_primary_ip = None
+
         for interface_record in device_record.interfaces.all():
             # Avoid .first() to preserve prefetch cache
-            ip_addresses = interface_record.ip_addresses.all()
+            ip_addresses = interface_record.ip_addresses.all() if self.scope.ip_addresses else []
             if ip_addresses:
                 ip_address_obj = ip_addresses[0]
                 ip_address = ip_address_obj.host
@@ -137,7 +143,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 type=interface_record.type,
                 mgmt_only=interface_record.mgmt_only if interface_record.mgmt_only else False,
                 pk=interface_record.pk,
-                ip_is_primary=ip_address_obj == device_primary_ip if device_primary_ip else False,
+                ip_is_primary=(
+                    self.scope.primary_ip and device_primary_ip is not None and ip_address_obj == device_primary_ip
+                ),
                 ip_address=ip_address,
             )
             self.add(interface)
@@ -198,21 +206,21 @@ class NautobotDiffSync(DiffSyncModelAdapters):
 
     def load_device(self, filtered_devices: List, location):
         """Load Devices from Nautobot."""
-        optimized_query = (
-            filtered_devices.select_related(
-                "location",
-                "device_type__manufacturer",
-                "primary_ip4",
-                "primary_ip6",
-                "role",
-                "status",
-                "platform",
-                "virtual_chassis",
-                "virtual_chassis__master",
-            )
-            .prefetch_related("interfaces__ip_addresses")
-            .iterator(1000)
+        devices = filtered_devices.select_related(
+            "location",
+            "device_type__manufacturer",
+            "primary_ip4",
+            "primary_ip6",
+            "role",
+            "status",
+            "platform",
+            "virtual_chassis",
+            "virtual_chassis__master",
         )
+        if self.scope.interfaces:
+            # Only worth prefetching what the Interfaces will be read for.
+            devices = devices.prefetch_related("interfaces__ip_addresses" if self.scope.ip_addresses else "interfaces")
+        optimized_query = devices.iterator(1000)
         for device_record in optimized_query:
             if self.job.debug:
                 logger.debug("Loading Nautobot Device: %s", device_record.name)
@@ -241,7 +249,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 continue
 
             location.add_child(device)
-            self.load_interfaces(device_record=device_record, diffsync_device=device)
+            if self.scope.interfaces:
+                self.load_interfaces(device_record=device_record, diffsync_device=device)
 
     def load_vlans(self, filtered_vlans: List, location, location_record):
         """Add Nautobot VLAN objects as DiffSync VLAN models."""
@@ -310,17 +319,18 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     self.load_device(self.get_in_scope_devices([location_record]), location)
 
                     # Load Location Children - Vlans, if any.
-                    nautobot_location_vlans = (
-                        VLAN.objects.filter(location=location_record)
-                        .select_related("status")
-                        .prefetch_related("locations")
-                    )
-                    self.load_vlans(nautobot_location_vlans, location, location_record)
+                    if self.scope.vlans:
+                        nautobot_location_vlans = (
+                            VLAN.objects.filter(location=location_record)
+                            .select_related("status")
+                            .prefetch_related("locations")
+                        )
+                        self.load_vlans(nautobot_location_vlans, location, location_record)
                 except Location.DoesNotExist:
                     logger.error("Unable to find Location, %s.", location_record)
 
             # Loaded after every Location, as a link may terminate on Devices in two of them.
-            if self.sync_cables:
+            if self.scope.cables:
                 self.load_cables(self.get_in_scope_devices(location_objects))
         else:
             logger.warning("No Nautobot records to load.")

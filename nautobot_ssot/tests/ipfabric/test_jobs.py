@@ -7,7 +7,8 @@ from django.conf import settings
 from django.urls import reverse
 from nautobot.apps.testing import TestCase
 
-from nautobot_ssot.integrations.ipfabric import jobs
+from nautobot_ssot.integrations.ipfabric import jobs, sync_scope
+from nautobot_ssot.integrations.ipfabric.sync_scope import SYNCABLE_OBJECTS, SyncScope
 
 CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
 BACKUP_CONFIG = deepcopy(CONFIG)
@@ -79,11 +80,55 @@ class IPFabricJobTest(TestCase):
     #     CONFIG["ipfabric_host"] = BACKUP_CONFIG["ipfabric_host"]
 
 
+class IPFabricJobFormTestCase(TestCase):
+    """Test that the job form is built from the object type registry."""
+
+    def test_get_vars_includes_a_field_per_selectable_object_type(self):
+        """The checkboxes are generated, so a missing one means the registry never reached the form."""
+        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=None):
+            got_vars = jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
+
+        for syncable in SYNCABLE_OBJECTS:
+            self.assertIn(syncable.field_name, got_vars)
+
+    def test_get_vars_omits_an_administratively_disabled_object_type(self):
+        """A disabled object type must be absent from the form, not merely unticked."""
+        with (
+            mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=None),
+            mock.patch.dict(sync_scope.CONFIG, {"ipfabric_disabled_sync_objects": ["vlans"]}, clear=False),
+        ):
+            got_vars = jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
+
+        self.assertNotIn("sync_vlans", got_vars)
+        self.assertIn("sync_interfaces", got_vars)
+
+    def test_field_order_names_every_object_type(self):
+        """A generated field missing from `field_order` would be appended out of place."""
+        for syncable in SYNCABLE_OBJECTS:
+            self.assertIn(syncable.field_name, jobs.IpFabricDataSource.Meta.field_order)
+
+    def test_run_resolves_the_submitted_selection_into_a_scope(self):
+        """`run` is where the form's booleans become the one scope both adapters read."""
+        job = jobs.IpFabricDataSource()
+        job.logger = mock.MagicMock()
+
+        with mock.patch("nautobot_ssot.jobs.base.DataSource.run"):
+            job.run(sync_interfaces=True, sync_cables=True, sync_vlans=False, dryrun=True)
+
+        scope = job.kwargs["scope"]
+        self.assertTrue(scope.cables)
+        self.assertFalse(scope.vlans)
+
+
 class IPFabricSyncDataTest(TestCase):
     """Test that `sync_data` threads its job options through to both adapters."""
 
-    def _job(self, **overrides):
-        """Return a job instance with mocked client, sync and logger."""
+    def _job(self, scope=None, **overrides):
+        """Return a job instance with mocked client, sync and logger.
+
+        `scope` names the object types selected on the form; the default is what the form itself
+        would submit with nothing changed.
+        """
         job = jobs.IpFabricDataSource()
         job.client = mock.MagicMock()
         job.sync = mock.MagicMock()
@@ -93,39 +138,53 @@ class IPFabricSyncDataTest(TestCase):
             "dryrun": True,
             "safe_delete_mode": True,
             "sync_ipfabric_tagged_only": True,
-            "sync_cables": False,
             "location_filter": None,
             "debug": False,
+            "scope": SyncScope(scope) if scope is not None else SyncScope.from_job_kwargs({}),
             **overrides,
         }
         return job
 
-    def test_sync_data_passes_sync_cables_to_both_adapters(self):
-        """`sync_cables` reaches the IP Fabric and Nautobot adapters alike."""
-        job = self._job(sync_cables=True)
-
+    def _run(self, job):
+        """Run `sync_data` with both adapters mocked out, returning the mocks."""
         with (
             mock.patch("nautobot_ssot.integrations.ipfabric.jobs.IPFabricDiffSync") as mock_source,
             mock.patch("nautobot_ssot.integrations.ipfabric.jobs.NautobotDiffSync") as mock_dest,
         ):
             job.sync_data()
+        return mock_source, mock_dest
 
-        self.assertTrue(mock_source.call_args.kwargs["sync_cables"])
-        self.assertTrue(mock_dest.call_args.kwargs["sync_cables"])
-        self.assertTrue(any("`Sync Cables`: True" in str(c) for c in job.logger.info.call_args_list))
+    def test_sync_data_passes_the_same_scope_to_both_adapters(self):
+        """Both adapters must be given one scope object, or they can disagree about what is in scope."""
+        job = self._job(scope=("interfaces", "cables"))
 
-    def test_sync_data_defaults_sync_cables_off(self):
+        mock_source, mock_dest = self._run(job)
+
+        scope = mock_source.call_args.kwargs["scope"]
+        self.assertIs(scope, mock_dest.call_args.kwargs["scope"])
+        self.assertTrue(scope.cables)
+
+    def test_sync_data_defaults_cables_off(self):
         """With the option unset, neither adapter loads Cables."""
         job = self._job()
 
-        with (
-            mock.patch("nautobot_ssot.integrations.ipfabric.jobs.IPFabricDiffSync") as mock_source,
-            mock.patch("nautobot_ssot.integrations.ipfabric.jobs.NautobotDiffSync") as mock_dest,
-        ):
-            job.sync_data()
+        mock_source, mock_dest = self._run(job)
 
-        self.assertFalse(mock_source.call_args.kwargs["sync_cables"])
-        self.assertFalse(mock_dest.call_args.kwargs["sync_cables"])
+        self.assertFalse(mock_source.call_args.kwargs["scope"].cables)
+        self.assertFalse(mock_dest.call_args.kwargs["scope"].cables)
+
+    def test_sync_data_logs_the_resolved_scope(self):
+        """The operator needs the log to say what was actually in scope, not what was submitted."""
+        job = self._job(scope=("cables",))
+
+        self._run(job)
+
+        logged = " ".join(str(call) for call in job.logger.info.call_args_list)
+        self.assertIn("cables: False", logged)
+        self.assertTrue(
+            any("requires 'interfaces'" in str(call) for call in job.logger.warning.call_args_list),
+            f"Expected a warning naming the unmet requirement, got: {job.logger.warning.call_args_list}",
+        )
 
     def test_sync_data_errors_without_a_client(self):
         """No client means the job reports and returns rather than proceeding."""

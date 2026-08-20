@@ -23,6 +23,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
+from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
 from nautobot_ssot.integrations.ipfabric.utilities.cables import canonical_endpoints
 
@@ -42,13 +43,13 @@ name_max_length = VLAN._meta.get_field("name").max_length
 class IPFabricDiffSync(DiffSyncModelAdapters):
     """IPFabric adapter for DiffSync."""
 
-    def __init__(self, job, sync, client: IPFClient, location_filter, *args, sync_cables: bool = False, **kwargs):
+    def __init__(self, job, sync, client: IPFClient, location_filter, *args, scope=None, **kwargs):
         """Initialize the NautobotDiffSync."""
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
         self.client = client
-        self.sync_cables = sync_cables
+        self.scope = scope if scope is not None else SyncScope.from_job_kwargs({})
         if location_filter:
             self.client.attribute_filters = {"siteName": ["ieq", location_filter]}
             logging.info("Applied IP Fabric Attribute Filter: %s", self.client.attribute_filters)
@@ -65,7 +66,14 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
 
     def load_device_interfaces(self, device_model, device_interfaces, device_primary_ip, managed_ipv4):
         """Create and load DiffSync Interface model objects for a specific device."""
-        pseudo_interface = pseudo_management_interface(device_model.name, device_interfaces, device_primary_ip)
+        # The pseudo interface exists only to carry a NAT management address, so with addresses out
+        # of scope there is nothing for it to hold. Skipped rather than passed a null address, which
+        # `pseudo_management_interface` reads as "no Interface claims it" and so fabricates one for.
+        pseudo_interface = (
+            pseudo_management_interface(device_model.name, device_interfaces, device_primary_ip)
+            if self.scope.ip_addresses
+            else None
+        )
 
         if pseudo_interface:
             device_interfaces.append(pseudo_interface)
@@ -73,7 +81,12 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
 
         for iface in device_interfaces:
             # loginIpv4 is available in 7.3+, fallback to primaryIp for older versions
-            if ip_address := iface.get("primaryIp") or iface.get("loginIpv4"):
+            if not self.scope.ip_addresses:
+                # Reported as absent rather than skipped, so that the Nautobot adapter's matching
+                # `None` leaves the existing address alone instead of diffing against it.
+                ip_address = None
+                subnet_mask = None
+            elif ip_address := iface.get("primaryIp") or iface.get("loginIpv4"):
                 if ip_address in managed_ipv4 and managed_ipv4[ip_address].get("net"):
                     subnet_mask = str(ipaddress.ip_interface(managed_ipv4[ip_address]["net"]).netmask)
                 else:
@@ -100,7 +113,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     mgmt_only=iface.get("mgmt_only", False),
                     ip_address=ip_address,
                     subnet_mask=subnet_mask,
-                    ip_is_primary=ip_address is not None and ip_address == device_primary_ip,
+                    ip_is_primary=(
+                        self.scope.primary_ip and ip_address is not None and ip_address == device_primary_ip
+                    ),
                     status="Active",
                 )
                 self.add(interface)
@@ -211,7 +226,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         for location in self.get_all(self.location):
             if location.name is None:
                 continue
-            location_vlans = vlans_by_location.get(location.name, [])
+            location_vlans = vlans_by_location.get(location.name, []) if self.scope.vlans else []
             for vlan_record in location_vlans:
                 vlan_name = vlan_record.get("vlanName")
                 vlan_id = vlan_record["vlanId"]
@@ -299,16 +314,17 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         if index == 0:
                             # TODO: New Login IP columns in 7.3
                             device_primary_ip = str(device.login_ip.ip) if device.login_ip else None
-                            self.load_device_interfaces(
-                                device_model,
-                                interfaces.get(device.sn, []),
-                                device_primary_ip,
-                                managed_ipv4.get(device.sn, {}),
-                            )
+                            if self.scope.interfaces:
+                                self.load_device_interfaces(
+                                    device_model,
+                                    interfaces.get(device.sn, []),
+                                    device_primary_ip,
+                                    managed_ipv4.get(device.sn, {}),
+                                )
                     except ObjectAlreadyExists:
                         logger.warning(f"Duplicate Device discovered, {device.model_dump()}")
 
-        if self.sync_cables:
+        if self.scope.cables:
             self.load_cables()
 
 

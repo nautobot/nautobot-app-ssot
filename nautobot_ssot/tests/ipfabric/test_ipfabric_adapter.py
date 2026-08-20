@@ -10,6 +10,7 @@ from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
 from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
+from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
 
 
 def load_json(path):
@@ -157,8 +158,74 @@ class IPFabricDiffSyncTestCase(TestCase):
         self.assertFalse(stack.vc_master)
 
     def test_cables_not_loaded_by_default(self):
-        """Cables are opt in, so `sync_cables=False` loads none even when the API returns links."""
+        """Cables are opt in, so the default scope loads none even when the API returns links."""
         self.assertEqual(self.ipfabric.get_all("cable"), [])
+
+
+class IPFabricScopeTestCase(TestCase):
+    """Test that deselecting an object type keeps it out of the source adapter's load.
+
+    Each assertion has a matching one on the Nautobot adapter. A toggle that gated only one side
+    would make every existing record look absent from IP Fabric, which a sync would then delete.
+    """
+
+    def _load(self, **kwargs):
+        """Load with the named object types selected."""
+        job = IpFabricDataSource()
+        job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
+        adapter = IPFabricDiffSync(
+            job=job,
+            sync=None,
+            client=mock_ipfabric_client(),
+            location_filter=None,
+            scope=SyncScope.from_job_kwargs(kwargs),
+        )
+        adapter.load()
+        return adapter
+
+    def test_interfaces_out_of_scope_loads_none(self):
+        adapter = self._load(sync_interfaces=False)
+
+        self.assertEqual(adapter.get_all("interface"), [])
+        self.assertNotEqual(adapter.get_all("device"), [], "Devices should still load.")
+
+    def test_vlans_out_of_scope_loads_none(self):
+        adapter = self._load(sync_vlans=False)
+
+        self.assertEqual(adapter.get_all("vlan"), [])
+        self.assertNotEqual(adapter.get_all("device"), [], "Devices should still load.")
+
+    def test_ip_addresses_out_of_scope_reports_no_address(self):
+        """Every loaded Interface reports no address, rather than the Interfaces being skipped."""
+        adapter = self._load(sync_ip_addresses=False)
+
+        interfaces = adapter.get_all("interface")
+        self.assertNotEqual(interfaces, [])
+        for interface in interfaces:
+            self.assertIsNone(interface.ip_address, interface.name)
+            self.assertIsNone(interface.subnet_mask, interface.name)
+            self.assertFalse(interface.ip_is_primary, interface.name)
+
+    def test_ip_addresses_out_of_scope_drops_the_pseudo_interface(self):
+        """The pseudo interface exists only to carry a NAT address, so it has no reason to load."""
+        adapter = self._load(sync_ip_addresses=False)
+
+        self.assertNotIn("pseudo_mgmt", {interface.name for interface in adapter.get_all("interface")})
+
+    def test_primary_ip_out_of_scope_keeps_the_addresses(self):
+        """Only the primary assignment is withheld; the addresses themselves are still synced."""
+        adapter = self._load(sync_primary_ip=False)
+
+        interfaces = adapter.get_all("interface")
+        self.assertTrue(any(interface.ip_address for interface in interfaces), "Addresses should still load.")
+        for interface in interfaces:
+            self.assertFalse(interface.ip_is_primary, interface.name)
+
+    def test_cables_require_interfaces(self):
+        """Selecting Cables without Interfaces cannot work, so the scope drops it rather than failing."""
+        adapter = self._load(sync_interfaces=False, sync_cables=True)
+
+        self.assertEqual(adapter.get_all("cable"), [])
 
 
 class IPFabricDiffSyncCableTestCase(TestCase):
@@ -181,7 +248,7 @@ class IPFabricDiffSyncCableTestCase(TestCase):
             sync=None,
             client=client,
             location_filter=None,
-            sync_cables=True,
+            scope=SyncScope.from_job_kwargs({"sync_cables": True}),
         )
         self.ipfabric.load()
 
