@@ -164,14 +164,34 @@ of that type are left untouched rather than treated as absent from the source an
 
 | Object type    | Job field            | Default | Requires       |
 |----------------|----------------------|---------|----------------|
+| `locations`    | `Sync Locations`     | On      |                |
 | `interfaces`   | `Sync Interfaces`    | On      |                |
 | `ip_addresses` | `Sync IP Addresses`  | On      | `interfaces`   |
 | `primary_ip`   | `Sync Primary IP`    | On      | `ip_addresses` |
 | `vlans`        | `Sync VLANs`         | On      |                |
 | `cables`       | `Sync Cables`        | Off     | `interfaces`   |
 
-Locations and Devices are always synced. They are the objects every other type hangs off, so a run
-with either excluded would have nothing left to do.
+Devices are always synced. Every other object type is either a Device or hangs off one, so a run with
+Devices excluded would have nothing left to do.
+
+### Locations
+
+Locations are the root of the object tree: every Device and VLAN belongs to one. Deselecting them
+therefore does not stop Locations being *read* — it stops them being *written*. No Location is
+created, updated or deleted, and the `ipfabric_site_id` custom field is left alone, but Devices at
+Locations that already exist in Nautobot still sync normally.
+
+Two consequences follow from that, both of which are the point rather than a limitation:
+
+- **A site IP Fabric has discovered is not created**, and neither are the Devices at it. There is no
+  Location for them to belong to, so the whole site is skipped.
+- **A Nautobot Location that IP Fabric does not report is left completely alone**, including the
+  Devices at it. With Locations out of scope the sync holds no opinion about which sites exist, so it
+  cannot treat a missing site as evidence that the Devices at it are gone. With Locations in scope,
+  that same site and its Devices are deleted, subject to Safe Delete Mode.
+
+Deselect Locations where another system owns the site list. Leave it selected — the default — to keep
+the existing behaviour.
 
 An object type is skipped when a type it requires is not selected, and the Job log says which
 requirement was unmet. Selecting `Sync Cables` without `Sync Interfaces`, for example, syncs no
@@ -194,7 +214,7 @@ another system is authoritative and the answer must not vary run to run. A disab
 re-enabled by an operator, by the REST API, or by a scheduled Job saved before it was disabled:
 
 ```python
-"ipfabric_disabled_sync_objects": ["primary_ip", "vlans"],
+"ipfabric_disabled_sync_objects": ["locations", "primary_ip"],
 ```
 
 Disabling a type also disables everything that requires it, since those have nothing to attach to.

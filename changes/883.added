@@ -1,1 +1,1 @@
-Added per object type controls to the IP Fabric Job form, so a sync can be narrowed to Interfaces, IP Addresses, Primary IP, VLANs and Cables individually.
+Added per object type controls to the IP Fabric Job form, so a sync can be narrowed to Locations, Interfaces, IP Addresses, Primary IP, VLANs and Cables individually.
