@@ -16,6 +16,7 @@ Two rules make the toggles safe to act on:
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, Iterator, List, Tuple
 
+from diffsync.enum import DiffSyncModelFlags
 from nautobot.extras.jobs import BooleanVar
 
 from nautobot_ssot.integrations.ipfabric.constants import CONFIG
@@ -59,10 +60,24 @@ class SyncableObject:
 
 # Object types that can be turned on and off, in the order they appear on the job form.
 #
-# Locations and Devices are deliberately absent. They are the spine every other object type hangs
-# off, so a run with either disabled has nothing left to do, and offering the choice would only
-# give a way to configure a sync that cannot work.
+# Devices are deliberately absent. Every other object type is either a Device or hangs off one, so
+# a run with Devices disabled has nothing left to do.
+#
+# Locations are present but special: they are the root of the object tree, so they keep being read
+# even when out of scope. Deselecting them withholds only the writing of them; see
+# `UNSYNCED_LOCATION_ATTRS` and `unsynced_location_flags`.
 SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
+    SyncableObject(
+        key="locations",
+        label="Sync Locations",
+        description=(
+            "Create, update and delete Nautobot Locations from IP Fabric sites. Deselect where "
+            "another system owns the site list; Devices at Locations that already exist in Nautobot "
+            "are still synced, but a site IP Fabric has discovered will not be created, and neither "
+            "will the Devices at it."
+        ),
+        default=True,
+    ),
     SyncableObject(
         key="interfaces",
         label="Sync Interfaces",
@@ -239,3 +254,24 @@ class SyncScope:
             required = ", ".join(f"'{name}'" for name in unmet)
             messages.append(f"Not syncing '{key}' as it requires {required}, which is not in scope.")
         return messages
+
+
+# Attribute values both adapters report for a Location that is out of scope.
+#
+# A Location cannot simply be left unloaded when out of scope, because every Device and VLAN is a
+# child of one; drop the Location and its children go with it. So it is still loaded, as a tree node
+# rather than as synced data. Reporting the same placeholder attributes from both adapters is what
+# makes it a node: the Location matches on its name and diffs as unchanged, so no attribute of it is
+# ever written, while its children diff normally.
+UNSYNCED_LOCATION_ATTRS = {"site_id": None, "status": "Not synced"}
+
+
+def unsynced_location_flags() -> DiffSyncModelFlags:
+    """Return the model flags that stop an out of scope Location being created or deleted.
+
+    Matching attributes only prevent updates. A Location that exists on one side alone would still
+    be created or deleted, taking its children with it, so both unmatched cases are skipped too.
+    `SKIP_UNMATCHED_*` applies only to a Location missing from the other side, which is why a matched
+    Location still carries its Devices and VLANs into the diff.
+    """
+    return DiffSyncModelFlags.SKIP_UNMATCHED_BOTH

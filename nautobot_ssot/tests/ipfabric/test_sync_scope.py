@@ -2,18 +2,21 @@
 
 from unittest import mock
 
+from diffsync.enum import DiffSyncModelFlags
 from nautobot.apps.testing import TestCase
 
 from nautobot_ssot.integrations.ipfabric import sync_scope
 from nautobot_ssot.integrations.ipfabric.sync_scope import (
     DISABLED_OBJECTS_SETTING,
     SYNCABLE_OBJECTS,
+    UNSYNCED_LOCATION_ATTRS,
     SyncableObject,
     SyncScope,
     disabled_keys,
     form_fields,
     scope_field_order,
     selectable_objects,
+    unsynced_location_flags,
     validate_registry,
 )
 
@@ -81,6 +84,41 @@ class SyncableObjectTestCase(TestCase):
         with self.assertRaises(ValueError) as caught:
             validate_registry([duplicate, duplicate])
         self.assertIn("Duplicate object type 'widgets'", str(caught.exception))
+
+
+class UnsyncedLocationTestCase(TestCase):
+    """Test the pieces that make an out of scope Location a tree node rather than synced data."""
+
+    def test_locations_are_selectable(self):
+        """Locations must appear on the form, unlike the always on Devices."""
+        self.assertIn("sync_locations", form_fields())
+
+    def test_locations_default_to_on(self):
+        """Deselecting Locations has to be a deliberate act, not the shipped behaviour."""
+        self.assertTrue(SyncScope.from_job_kwargs({}).locations)
+
+    def test_nothing_requires_locations(self):
+        """Devices at Locations that already exist must still sync with Locations out of scope."""
+        for syncable in SYNCABLE_OBJECTS:
+            self.assertNotIn("locations", syncable.requires, syncable.key)
+
+    def test_placeholder_attributes_cover_every_location_attribute(self):
+        """A real attribute left out of the placeholder would still diff, and so still be written."""
+        from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (  # pylint: disable=import-outside-toplevel
+            Location,
+        )
+
+        self.assertEqual(set(UNSYNCED_LOCATION_ATTRS), set(Location._attributes))  # pylint: disable=protected-access
+
+    def test_flags_skip_both_unmatched_directions(self):
+        """Matching attributes stop updates; only these flags stop creates and deletes."""
+        flags = unsynced_location_flags()
+        self.assertTrue(flags & DiffSyncModelFlags.SKIP_UNMATCHED_SRC)
+        self.assertTrue(flags & DiffSyncModelFlags.SKIP_UNMATCHED_DST)
+
+    def test_flags_do_not_ignore_the_location(self):
+        """IGNORE would drop the Location's children from the diff along with the Location."""
+        self.assertFalse(unsynced_location_flags() & DiffSyncModelFlags.IGNORE)
 
 
 class SyncScopeTestCase(TestCase):

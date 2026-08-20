@@ -23,7 +23,11 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
-from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
+from nautobot_ssot.integrations.ipfabric.sync_scope import (
+    UNSYNCED_LOCATION_ATTRS,
+    SyncScope,
+    unsynced_location_flags,
+)
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
 from nautobot_ssot.integrations.ipfabric.utilities.cables import canonical_endpoints
 
@@ -55,11 +59,20 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             logging.info("Applied IP Fabric Attribute Filter: %s", self.client.attribute_filters)
 
     def load_sites(self):
-        """Add IP Fabric Location objects as DiffSync Location models."""
+        """Add IP Fabric Location objects as DiffSync Location models.
+
+        Loaded even when Locations are out of scope, since Devices and VLANs are their children, but
+        then as tree nodes carrying placeholder attributes rather than as data to write.
+        """
         sites = self.client.inventory.sites.all()
         for site in sites:
+            attrs = (
+                {"site_id": site["id"], "status": "Active"} if self.scope.locations else dict(UNSYNCED_LOCATION_ATTRS)
+            )
             try:
-                location = self.location(adapter=self, name=site["siteName"], site_id=site["id"], status="Active")
+                location = self.location(adapter=self, name=site["siteName"], **attrs)
+                if not self.scope.locations:
+                    location.model_flags |= unsynced_location_flags()
                 self.add(location)
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Location discovered, {site}")

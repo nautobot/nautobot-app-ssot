@@ -10,7 +10,11 @@ from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
 from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
-from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
+from nautobot_ssot.integrations.ipfabric.sync_scope import (
+    UNSYNCED_LOCATION_ATTRS,
+    SyncScope,
+    unsynced_location_flags,
+)
 
 
 def load_json(path):
@@ -220,6 +224,27 @@ class IPFabricScopeTestCase(TestCase):
         self.assertTrue(any(interface.ip_address for interface in interfaces), "Addresses should still load.")
         for interface in interfaces:
             self.assertFalse(interface.ip_is_primary, interface.name)
+
+    def test_locations_out_of_scope_are_still_loaded_as_tree_nodes(self):
+        """Locations keep being read, since Devices hang off them, but carry no writable attributes."""
+        adapter = self._load(sync_locations=False)
+
+        locations = adapter.get_all("location")
+        self.assertNotEqual(locations, [])
+        for location in locations:
+            self.assertEqual(location.site_id, UNSYNCED_LOCATION_ATTRS["site_id"], location.name)
+            self.assertEqual(location.status, UNSYNCED_LOCATION_ATTRS["status"], location.name)
+            self.assertTrue(location.model_flags & unsynced_location_flags(), location.name)
+        self.assertNotEqual(adapter.get_all("device"), [], "Devices should still load.")
+
+    def test_locations_in_scope_carry_the_ip_fabric_site_id(self):
+        """The default: the site ID is loaded, so it can be written to the Location custom field."""
+        adapter = self._load()
+
+        for location in adapter.get_all("location"):
+            self.assertEqual(location.status, "Active", location.name)
+            self.assertFalse(location.model_flags & unsynced_location_flags(), location.name)
+        self.assertTrue(any(location.site_id for location in adapter.get_all("location")))
 
     def test_cables_require_interfaces(self):
         """Selecting Cables without Interfaces cannot work, so the scope drops it rather than failing."""

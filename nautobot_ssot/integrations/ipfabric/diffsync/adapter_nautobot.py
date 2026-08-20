@@ -26,7 +26,11 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
-from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
+from nautobot_ssot.integrations.ipfabric.sync_scope import (
+    UNSYNCED_LOCATION_ATTRS,
+    SyncScope,
+    unsynced_location_flags,
+)
 
 logger = logging.getLogger("nautobot.ssot.ipfabric")
 
@@ -303,16 +307,22 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         if location_objects:
             for location_record in location_objects:
                 try:
-                    location = self.location(
-                        name=location_record.name,
-                        site_id=location_record.custom_field_data.get("ipfabric_site_id"),
-                        status=location_record.status.name,
+                    attrs = (
+                        {
+                            "site_id": location_record.custom_field_data.get("ipfabric_site_id"),
+                            "status": location_record.status.name,
+                        }
+                        if self.scope.locations
+                        else dict(UNSYNCED_LOCATION_ATTRS)
                     )
+                    location = self.location(name=location_record.name, **attrs)
                 except AttributeError:
                     logger.error(
                         "Error loading %s, invalid or missing attributes on object. Skipping...", location_record
                     )
                     continue
+                if not self.scope.locations:
+                    location.model_flags |= unsynced_location_flags()
                 self.add(location)
                 try:
                     # Load Location's Children - Devices with Interfaces, if any.
