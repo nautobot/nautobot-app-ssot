@@ -415,3 +415,68 @@ class SyncCompleteReportTestCase(TestCase):
         adapter.job.create_file.side_effect = ValueError("file too large")
         adapter.sync_complete(source=MagicMock(), diff=MagicMock())
         adapter.job.logger.warning.assert_called()
+
+
+class TableQueryOnFallbackTestCase(TestCase):
+    """Test that a reference lookup respects the target table's own `table_query` filter."""
+
+    COMPANY_ENTRY = {
+        "table": "core_company",
+        "table_query": {"manufacturer": "true"},
+        "mappings": [{"field": "name", "column": "name"}],
+    }
+
+    def _adapter(self):
+        adapter = build_adapter(
+            device_entry(),
+            candidates=[{"sys_id": CISCO_SYS_ID, "name": "Cisco"}],
+        )
+        adapter.mapping_data["company"] = self.COMPANY_ENTRY
+        return adapter
+
+    def test_fallback_query_applies_the_table_query(self):
+        """The load filters the table, so a fallback that ignores the filter can resolve an excluded record."""
+        adapter = self._adapter()
+        device = models.Device(name="switch1", adapter=adapter)
+        device.map_data_to_sn_record(data={"manufacturer_name": "Cisco"}, mapping_entry=adapter.mapping_data["device"])
+        self.assertEqual(
+            adapter.client.get_all_by_query.call_args.args,
+            ("core_company", {"manufacturer": "true", "name": "Cisco"}),
+        )
+
+    def test_lookup_criteria_win_over_the_table_query(self):
+        """A table_query must never override the column the reference is actually keyed on."""
+        adapter = self._adapter()
+        adapter.mapping_data["company"]["table_query"] = {"name": "Ignored"}
+        device = models.Device(name="switch1", adapter=adapter)
+        device.map_data_to_sn_record(data={"manufacturer_name": "Cisco"}, mapping_entry=adapter.mapping_data["device"])
+        self.assertEqual(adapter.client.get_all_by_query.call_args.args[1]["name"], "Cisco")
+
+
+class AmbiguityRemedyTestCase(TestCase):
+    """Test that the advice attached to an ambiguity error matches what actually went wrong."""
+
+    DUPLICATE_MODELS = {
+        MODELS_TABLE: {
+            CISCO_MODEL_SYS_ID: {"sys_id": CISCO_MODEL_SYS_ID, "name": "C9300-48P", "manufacturer": CISCO_SYS_ID},
+            ACME_MODEL_SYS_ID: {"sys_id": ACME_MODEL_SYS_ID, "name": "C9300-48P", "manufacturer": ACME_SYS_ID},
+        }
+    }
+
+    def _ambiguity(self, entry, data):
+        adapter = build_adapter(entry, sys_ids=deepcopy(self.DUPLICATE_MODELS))
+        device = models.Device(name="switch1", adapter=adapter)
+        with self.assertRaises(AmbiguousReferenceError) as context:
+            device.map_data_to_sn_record(data=data, mapping_entry=adapter.mapping_data["device"])
+        return str(context.exception)
+
+    def test_unapplied_constraint_does_not_advise_adding_one(self):
+        """The mapping already has a `match` clause; telling the user to add one is misleading."""
+        message = self._ambiguity(device_entry(MANUFACTURER_MATCH), {"model_name": "C9300-48P"})
+        self.assertNotIn("Add a `match` clause", message)
+        self.assertIn("manufacturer_name", message)
+
+    def test_missing_match_clause_advises_adding_one(self):
+        """With nothing to narrow by, adding a `match` clause is the actionable advice."""
+        message = self._ambiguity(device_entry(), {"model_name": "C9300-48P"})
+        self.assertIn("Add a `match` clause", message)

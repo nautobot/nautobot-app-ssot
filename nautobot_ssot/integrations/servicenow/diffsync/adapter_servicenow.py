@@ -134,7 +134,7 @@ class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attribut
                     tuple(models.normalize_sn_value(record.get(column)) for column in columns) for record in records
                 )
                 for values, count in counts.items():
-                    if count == 1:
+                    if count == 1 or not values[0]:
                         continue
                     described = ", ".join(f"{column}={value}" for column, value in zip(columns, values))
                     self.job.logger.warning(
@@ -230,6 +230,17 @@ class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attribut
     def register_sn_record(self, table, record):
         """Remember a ServiceNow record so that references to it can be resolved without a query."""
         self.sys_ids.setdefault(table, {})[record["sys_id"]] = record
+
+    def table_query_for(self, table):
+        """The `table_query` filter this table is loaded with, if any.
+
+        Reference lookups apply it too, so that a record the load deliberately excluded is not resolved by
+        a fallback query instead.
+        """
+        for entry in self.mapping_data.values():
+            if entry["table"] == table:
+                return entry.get("table_query") or {}
+        return {}
 
     def load_record(self, table, record, model_cls, mappings, **kwargs):
         """Helper method to load_table()."""

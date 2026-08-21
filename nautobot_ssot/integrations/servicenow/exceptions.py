@@ -10,6 +10,7 @@ class ServiceNowReferenceError(Exception):  # pylint: disable=too-many-instance-
 
     cause = "could not be resolved"
     remedy = ""
+    remedy_unapplied = ""
 
     def __init__(  # pylint: disable=too-many-arguments
         self,
@@ -62,8 +63,9 @@ class ServiceNowReferenceError(Exception):  # pylint: disable=too-many-instance-
                 f"; could not narrow the lookup by {', '.join(self.unapplied)} "
                 "because those values were not available"
             )
-        if self.remedy:
-            message += f". {self.remedy}"
+        remedy = self.remedy_unapplied if self.unapplied else self.remedy
+        if remedy:
+            message += f". {remedy}"
         return message
 
     def as_csv_row(self):
@@ -91,6 +93,10 @@ class AmbiguousReferenceError(ServiceNowReferenceError):
 
     cause = "matched more than one record"
     remedy = "Add a `match` clause to this reference in mappings.yaml, or de-duplicate the ServiceNow records"
+    remedy_unapplied = (
+        "Populate those fields on the record being synced so the `match` clause can be applied, or "
+        "de-duplicate the ServiceNow records"
+    )
 
 
 class MissingReferenceError(ServiceNowReferenceError):

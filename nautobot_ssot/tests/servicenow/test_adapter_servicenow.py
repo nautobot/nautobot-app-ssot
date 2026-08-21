@@ -880,6 +880,29 @@ class AmbiguousReferenceWarningTestCase(TestCase):
         adapter.warn_about_ambiguous_references()
         adapter.job.logger.warning.assert_not_called()
 
+    def test_records_with_an_empty_lookup_value_are_not_reported(self):
+        """A null source value never triggers a lookup, so these records can never collide."""
+        adapter = self._adapter(
+            [
+                {"sys_id": "m1", "name": "", "manufacturer": ""},
+                {"sys_id": "m2", "name": "", "manufacturer": ""},
+                {"sys_id": "m3", "name": "", "manufacturer": "c1"},
+            ]
+        )
+        adapter.warn_about_ambiguous_references()
+        adapter.job.logger.warning.assert_not_called()
+
+    def test_an_empty_match_column_still_reports_a_name_collision(self):
+        """Only the lookup column itself being empty makes a record unreachable, not a match column."""
+        adapter = self._adapter(
+            [
+                {"sys_id": "m1", "name": "Unknown", "manufacturer": ""},
+                {"sys_id": "m2", "name": "Unknown", "manufacturer": ""},
+            ]
+        )
+        adapter.warn_about_ambiguous_references()
+        self.assertIn("Unknown", str(adapter.job.logger.warning.call_args))
+
 
 class ServiceNowModelUpdateTestCase(TestCase):
     """Test that ServiceNowCRUDMixin.update writes and verifies only the mapped, changed fields."""

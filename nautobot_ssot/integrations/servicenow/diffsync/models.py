@@ -85,7 +85,8 @@ class ServiceNowCRUDMixin:
         loaded = [record for record in self.adapter.sys_ids.get(table, {}).values() if record_matches(record, criteria)]
         if loaded:
             return loaded
-        fetched = self.adapter.client.get_all_by_query(table, criteria)
+        query = {**self.adapter.table_query_for(table), **criteria}
+        fetched = self.adapter.client.get_all_by_query(table, query)
         if len(fetched) == 1:
             self.adapter.register_sn_record(table, fetched[0])
         return fetched
