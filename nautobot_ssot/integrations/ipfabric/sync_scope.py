@@ -267,11 +267,15 @@ UNSYNCED_LOCATION_ATTRS = {"site_id": None, "status": "Not synced"}
 
 
 def unsynced_location_flags() -> DiffSyncModelFlags:
-    """Return the model flags that stop an out of scope Location being created or deleted.
+    """Return the model flags that stop an out of scope Location being deleted.
 
-    Matching attributes only prevent updates. A Location that exists on one side alone would still
-    be created or deleted, taking its children with it, so both unmatched cases are skipped too.
-    `SKIP_UNMATCHED_*` applies only to a Location missing from the other side, which is why a matched
-    Location still carries its Devices and VLANs into the diff.
+    Matching attributes prevent updates, and `Location.create` declines to create the Nautobot record
+    while still returning its model, so creates need no flag: the Location is not written, but
+    DiffSync keeps descending and the Devices at it are still attempted.
+
+    Deletes do need one. Without `SKIP_UNMATCHED_DST` a Location that IP Fabric does not report would
+    be deleted along with every Device at it, which a sync holding no opinion on which sites exist has
+    no business doing. `SKIP_UNMATCHED_DST` applies only to a Location missing from the source, so a
+    Location both sides know still carries its children into the diff.
     """
-    return DiffSyncModelFlags.SKIP_UNMATCHED_BOTH
+    return DiffSyncModelFlags.SKIP_UNMATCHED_DST

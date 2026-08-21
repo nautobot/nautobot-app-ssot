@@ -23,6 +23,7 @@ from nautobot_ssot.integrations.ipfabric.utilities import (
     create_interface,
     create_ip,
     create_vlan,
+    get_location_object,
     get_or_create_device_role_object,
     get_or_create_device_type_object,
     get_or_create_location_object,
@@ -190,6 +191,27 @@ class TestNautobotUtils(TestCase):
         logger.warning.assert_called_with(
             f"Unable to perform a validated_save() on Location {test_location.name} with an ID of {test_location.id}"
         )
+
+    def test_get_location_object_returns_an_existing_location(self):
+        """The lookup used when Locations are out of scope finds one another App may have created."""
+        existing = get_or_create_location_object(location_name="Test-Location")
+        self.assertEqual(get_location_object("Test-Location"), existing)
+
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_location_object_returns_none_when_absent(self, mock_logger):
+        """A missing Location is not an error here; it is expected to arrive from another App."""
+        logger = mock_logger("nb_job")
+        self.assertIsNone(get_location_object("Test-Location-absent", logger=logger))
+        logger.error.assert_not_called()
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Location.objects.get")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_location_object_multiple_returned(self, mock_logger, mock_get):
+        """Two Locations sharing a name cannot be told apart, so neither is used."""
+        mock_get.side_effect = [Location.MultipleObjectsReturned]
+        logger = mock_logger("nb_job")
+        self.assertIsNone(get_location_object("Test-Location", logger=logger))
+        logger.error.assert_called_with("Multiple Locations returned with name Test-Location")
 
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)

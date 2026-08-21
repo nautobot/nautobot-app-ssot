@@ -98,6 +98,35 @@ def get_or_create_location_object(
     return None
 
 
+def get_location_object(
+    location_name: str,
+    logger: Optional[logging.Logger] = None,
+) -> Optional[Location]:
+    """Return an existing Location by name, without creating one.
+
+    Used when Locations are out of the sync's scope: another system owns them, so a Location that is
+    not there yet is expected to arrive from that system rather than from this sync. Matched on name
+    alone, since the owning system decides the LocationType.
+
+    Args:
+        location_name: Name of the location.
+        logger: Logger to use for messaging.
+
+    Returns:
+        Location: When exactly one Location has that name.
+        None: When no Location has that name, or more than one does.
+    """
+    try:
+        return Location.objects.get(name=location_name)
+    except Location.MultipleObjectsReturned:
+        if logger:
+            logger.error(f"Multiple Locations returned with name {location_name}")
+    except Location.DoesNotExist:
+        if logger:
+            logger.debug("No Location named %s exists yet", location_name)
+    return None
+
+
 @job_scoped_cache
 def get_or_create_manufacturer_object(
     vendor_name: str, logger: Optional[logging.Logger] = None

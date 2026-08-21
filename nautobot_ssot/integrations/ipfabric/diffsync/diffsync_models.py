@@ -51,6 +51,22 @@ from nautobot_ssot.integrations.ipfabric.constants import (
 logger = logging.getLogger(__name__)
 
 
+def resolve_location(adapter, location_name: str, location_id: Optional[str] = None):
+    """Return the Nautobot Location a synced object belongs to.
+
+    Creates one only while Locations are in scope. Out of scope another system owns them, so a
+    Location that is not there yet is expected to arrive from that system; this sync looks for it and
+    reports it missing rather than filling the gap itself.
+    """
+    if adapter.scope.locations:
+        return tonb_nbutils.get_or_create_location_object(
+            location_name=location_name,
+            location_id=location_id,
+            logger=adapter.job.logger,
+        )
+    return tonb_nbutils.get_location_object(location_name, logger=adapter.job.logger)
+
+
 # pylint: disable=too-many-branches,too-many-statements
 class DiffSyncExtras(DiffSyncModel):
     """Additional components to mix and subclass from with `DiffSyncModel`."""
@@ -117,12 +133,21 @@ class Location(DiffSyncExtras):
 
     @classmethod
     def create(cls, adapter, ids, attrs):
-        """Create Location in Nautobot."""
-        location = tonb_nbutils.get_or_create_location_object(
-            location_name=ids["name"],
-            location_id=attrs["site_id"],
-            logger=adapter.job.logger,
-        )
+        """Create Location in Nautobot, or find it when Locations are out of scope.
+
+        Out of scope the model is returned whether or not the Location was found, because DiffSync
+        stops descending when a create yields nothing and the Devices at this Location are still
+        worth attempting. Each reports its own outcome, so a Location another app has not created yet
+        shows up as the Devices that could not be placed rather than as silence.
+        """
+        location = resolve_location(adapter, ids["name"], attrs["site_id"])
+        if not adapter.scope.locations:
+            if not location:
+                adapter.job.logger.warning(
+                    f"No Location named {ids['name']} exists and Locations are out of scope, so it will not be "
+                    "created here. Devices at it will be attempted and will fail until another sync creates it."
+                )
+            return super().create(ids=ids, adapter=adapter, attrs=attrs)
         if location:
             return super().create(ids=ids, adapter=adapter, attrs=attrs)
         return None
@@ -287,7 +312,7 @@ class Device(DiffSyncExtras):
             )
         # Get Location
         location_name = attrs["location_name"]
-        location_object = tonb_nbutils.get_or_create_location_object(location_name, logger=adapter.job.logger)
+        location_object = resolve_location(adapter, location_name)
         if not location_object:
             adapter.job.logger.warning(
                 f"Unable to create Device with name {device_name} because of a failure "
@@ -426,7 +451,7 @@ class Device(DiffSyncExtras):
 
             location_name = attrs.get("location_name")
             if location_name:
-                location = tonb_nbutils.get_or_create_location_object(location_name, logger=self.adapter.job.logger)
+                location = resolve_location(self.adapter, location_name)
                 if location:
                     _device.location = location
                 else:

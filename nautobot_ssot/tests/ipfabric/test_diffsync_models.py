@@ -503,8 +503,37 @@ class TestDeviceModel(_ModelTestBase):
         ):
             diff_model.update({"location_name": "new-loc"})
 
-        mock_loc_helper.assert_called_once_with("new-loc", logger=self.adapter.job.logger)
+        mock_loc_helper.assert_called_once_with(
+            location_name="new-loc", location_id=None, logger=self.adapter.job.logger
+        )
         self.assertIs(nb_device.location, new_location)
+
+
+class TestResolveLocation(_ModelTestBase):
+    """Test the single place that decides whether a sync may create a Location."""
+
+    def test_creates_when_locations_are_in_scope(self):
+        self.adapter.scope.locations = True
+
+        with _nb_patch("get_or_create_location_object", return_value="created") as mock_helper:
+            resolved = diffsync_models.resolve_location(self.adapter, "loc", "site-id")
+
+        self.assertEqual(resolved, "created")
+        mock_helper.assert_called_once_with(location_name="loc", location_id="site-id", logger=self.adapter.job.logger)
+
+    def test_only_looks_up_when_locations_are_out_of_scope(self):
+        """Another system owns Locations, so a missing one is theirs to create, not this sync's."""
+        self.adapter.scope.locations = False
+
+        with (
+            _nb_patch("get_location_object", return_value="found") as mock_lookup,
+            _nb_patch("get_or_create_location_object") as mock_create,
+        ):
+            resolved = diffsync_models.resolve_location(self.adapter, "loc", "site-id")
+
+        self.assertEqual(resolved, "found")
+        mock_lookup.assert_called_once_with("loc", logger=self.adapter.job.logger)
+        mock_create.assert_not_called()
 
 
 # ============================================================

@@ -110,11 +110,14 @@ class UnsyncedLocationTestCase(TestCase):
 
         self.assertEqual(set(UNSYNCED_LOCATION_ATTRS), set(Location._attributes))  # pylint: disable=protected-access
 
-    def test_flags_skip_both_unmatched_directions(self):
-        """Matching attributes stop updates; only these flags stop creates and deletes."""
+    def test_flags_skip_deletion_only(self):
+        """Deletes need a flag; creates are declined in `Location.create` so children are reached."""
         flags = unsynced_location_flags()
-        self.assertTrue(flags & DiffSyncModelFlags.SKIP_UNMATCHED_SRC)
         self.assertTrue(flags & DiffSyncModelFlags.SKIP_UNMATCHED_DST)
+        self.assertFalse(
+            flags & DiffSyncModelFlags.SKIP_UNMATCHED_SRC,
+            "Skipping unmatched source Locations would drop the Devices at them from the diff.",
+        )
 
     def test_flags_do_not_ignore_the_location(self):
         """IGNORE would drop the Location's children from the diff along with the Location."""
