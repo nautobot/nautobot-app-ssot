@@ -12,8 +12,8 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabr
 from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
 from nautobot_ssot.integrations.ipfabric.sync_scope import (
     UNSYNCED_LOCATION_ATTRS,
+    UNSYNCED_LOCATION_FLAGS,
     SyncScope,
-    unsynced_location_flags,
 )
 
 
@@ -49,15 +49,27 @@ def mock_ipfabric_client():
     return ipfabric_client
 
 
+def build_adapter(client=None, **scope_kwargs):
+    """Return a loaded IPFabricDiffSync over the JSON fixtures, scoped by `scope_kwargs`."""
+    job = IpFabricDataSource()
+    job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
+    adapter = IPFabricDiffSync(
+        job=job,
+        sync=None,
+        client=client if client is not None else mock_ipfabric_client(),
+        location_filter=None,
+        scope=SyncScope.from_job_kwargs(scope_kwargs),
+    )
+    adapter.load()
+    return adapter
+
+
 class IPFabricDiffSyncTestCase(TestCase):
     """Test the IPFabricDiffSync adapter class."""
 
     @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
     def setUp(self):
-        job = IpFabricDataSource()
-        job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
-        self.ipfabric = IPFabricDiffSync(job=job, sync=None, client=mock_ipfabric_client(), location_filter=None)
-        self.ipfabric.load()
+        self.ipfabric = build_adapter()
 
     def test_data_loading(self):
         """Test the load() function."""
@@ -175,17 +187,7 @@ class IPFabricScopeTestCase(TestCase):
 
     def _load(self, **kwargs):
         """Load with the named object types selected."""
-        job = IpFabricDataSource()
-        job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
-        adapter = IPFabricDiffSync(
-            job=job,
-            sync=None,
-            client=mock_ipfabric_client(),
-            location_filter=None,
-            scope=SyncScope.from_job_kwargs(kwargs),
-        )
-        adapter.load()
-        return adapter
+        return build_adapter(**kwargs)
 
     def test_interfaces_out_of_scope_loads_none(self):
         adapter = self._load(sync_interfaces=False)
@@ -234,7 +236,7 @@ class IPFabricScopeTestCase(TestCase):
         for location in locations:
             self.assertEqual(location.site_id, UNSYNCED_LOCATION_ATTRS["site_id"], location.name)
             self.assertEqual(location.status, UNSYNCED_LOCATION_ATTRS["status"], location.name)
-            self.assertTrue(location.model_flags & unsynced_location_flags(), location.name)
+            self.assertTrue(location.model_flags & UNSYNCED_LOCATION_FLAGS, location.name)
         self.assertNotEqual(adapter.get_all("device"), [], "Devices should still load.")
 
     def test_locations_in_scope_carry_the_ip_fabric_site_id(self):
@@ -243,8 +245,27 @@ class IPFabricScopeTestCase(TestCase):
 
         for location in adapter.get_all("location"):
             self.assertEqual(location.status, "Active", location.name)
-            self.assertFalse(location.model_flags & unsynced_location_flags(), location.name)
+            self.assertFalse(location.model_flags & UNSYNCED_LOCATION_FLAGS, location.name)
         self.assertTrue(any(location.site_id for location in adapter.get_all("location")))
+
+    def test_out_of_scope_tables_are_not_fetched(self):
+        """The tables are the largest requests the job makes, so a narrowed run must not ask for them."""
+        client = mock_ipfabric_client()
+        build_adapter(client=client, sync_interfaces=False, sync_vlans=False)
+
+        client.inventory.interfaces.all.assert_not_called()
+        client.fetch_all.assert_not_called()
+        client.technology.addressing.managed_ip_ipv4.all.assert_not_called()
+        client.technology.platforms.stacks_members.all.assert_called_once()
+
+    def test_in_scope_tables_are_fetched(self):
+        """The counterpart, so the guards cannot silently starve a default run."""
+        client = mock_ipfabric_client()
+        build_adapter(client=client)
+
+        client.inventory.interfaces.all.assert_called_once()
+        client.technology.addressing.managed_ip_ipv4.all.assert_called_once()
+        client.fetch_all.assert_called_once_with("tables/vlan/site-summary")
 
     def test_cables_require_interfaces(self):
         """Selecting Cables without Interfaces cannot work, so the scope drops it rather than failing."""
@@ -266,16 +287,7 @@ class IPFabricDiffSyncCableTestCase(TestCase):
     def setUp(self):
         client = mock_ipfabric_client()
         client.inventory.interfaces.all.return_value = INTERFACE_FIXTURE + self.EXTRA_INTERFACES
-        job = IpFabricDataSource()
-        job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
-        self.ipfabric = IPFabricDiffSync(
-            job=job,
-            sync=None,
-            client=client,
-            location_filter=None,
-            scope=SyncScope.from_job_kwargs({"sync_cables": True}),
-        )
-        self.ipfabric.load()
+        self.ipfabric = build_adapter(client=client, sync_cables=True)
 
     def test_only_cableable_links_in_scope_are_synced(self):
         """Links are skipped unless both endpoints were loaded and are of a cableable Interface type."""

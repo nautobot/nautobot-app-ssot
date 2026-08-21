@@ -23,11 +23,6 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
-from nautobot_ssot.integrations.ipfabric.sync_scope import (
-    UNSYNCED_LOCATION_ATTRS,
-    SyncScope,
-    unsynced_location_flags,
-)
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
 from nautobot_ssot.integrations.ipfabric.utilities.cables import canonical_endpoints
 
@@ -47,13 +42,12 @@ name_max_length = VLAN._meta.get_field("name").max_length
 class IPFabricDiffSync(DiffSyncModelAdapters):
     """IPFabric adapter for DiffSync."""
 
-    def __init__(self, job, sync, client: IPFClient, location_filter, *args, scope=None, **kwargs):
+    def __init__(self, job, sync, client: IPFClient, location_filter, *args, **kwargs):
         """Initialize the NautobotDiffSync."""
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
         self.client = client
-        self.scope = scope if scope is not None else SyncScope.from_job_kwargs({})
         if location_filter:
             self.client.attribute_filters = {"siteName": ["ieq", location_filter]}
             logging.info("Applied IP Fabric Attribute Filter: %s", self.client.attribute_filters)
@@ -66,14 +60,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         """
         sites = self.client.inventory.sites.all()
         for site in sites:
-            attrs = (
-                {"site_id": site["id"], "status": "Active"} if self.scope.locations else dict(UNSYNCED_LOCATION_ATTRS)
-            )
             try:
-                location = self.location(adapter=self, name=site["siteName"], **attrs)
-                if not self.scope.locations:
-                    location.model_flags |= unsynced_location_flags()
-                self.add(location)
+                self.add(self.location_model(site["siteName"], site_id=site["id"], status="Active"))
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Location discovered, {site}")
 
@@ -206,25 +194,35 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     logger.debug("Already loaded a Cable for %s", cable.get_unique_id())
 
     def load_data(self):
-        """Load shared data from IP Fabric."""
+        """Load shared data from IP Fabric.
+
+        Each table is fetched only when something in scope reads it. These are the largest requests
+        the job makes, so a narrowed sync should not pay to download and index a table it will never
+        look at.
+        """
         managed_ipv4 = defaultdict(dict)
         stacks, interfaces = defaultdict(list), defaultdict(list)
-
         vlans_by_location = defaultdict(list)
-        for vlan in self.client.fetch_all("tables/vlan/site-summary"):
-            vlans_by_location[vlan["siteName"]].append(vlan)
 
-        ip_columns = ["sn", "intName", "net", "ip", "type"]
-        ip_filter = {"type": ["eq", "primary"]}
+        if self.scope.vlans:
+            for vlan in self.client.fetch_all("tables/vlan/site-summary"):
+                vlans_by_location[vlan["siteName"]].append(vlan)
 
-        for ip_address in self.client.technology.addressing.managed_ip_ipv4.all(columns=ip_columns, filters=ip_filter):
-            managed_ipv4[ip_address["sn"]].update({ip_address["ip"]: ip_address})
+        if self.scope.ip_addresses:
+            ip_columns = ["sn", "intName", "net", "ip", "type"]
+            ip_filter = {"type": ["eq", "primary"]}
+            for ip_address in self.client.technology.addressing.managed_ip_ipv4.all(
+                columns=ip_columns, filters=ip_filter
+            ):
+                managed_ipv4[ip_address["sn"]].update({ip_address["ip"]: ip_address})
 
         # Get all interfaces for devices
-        for interface in self.client.inventory.interfaces.all():
-            interfaces[interface["sn"]].append(interface)
+        if self.scope.interfaces:
+            for interface in self.client.inventory.interfaces.all():
+                interfaces[interface["sn"]].append(interface)
 
-        # Get all stacks for devices
+        # Get all stacks for devices. Stack membership is Device data, so it is read whatever else is
+        # in scope.
         for stack in self.client.technology.platforms.stacks_members.all(
             columns=["master", "member", "memberSn", "pn", "sn"]
         ):
@@ -239,7 +237,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         for location in self.get_all(self.location):
             if location.name is None:
                 continue
-            location_vlans = vlans_by_location.get(location.name, []) if self.scope.vlans else []
+            location_vlans = vlans_by_location.get(location.name, [])
             for vlan_record in location_vlans:
                 vlan_name = vlan_record.get("vlanName")
                 vlan_id = vlan_record["vlanId"]

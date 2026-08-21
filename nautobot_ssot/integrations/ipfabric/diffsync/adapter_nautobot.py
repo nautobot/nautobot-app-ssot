@@ -26,11 +26,6 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
-from nautobot_ssot.integrations.ipfabric.sync_scope import (
-    UNSYNCED_LOCATION_ATTRS,
-    SyncScope,
-    unsynced_location_flags,
-)
 
 logger = logging.getLogger("nautobot.ssot.ipfabric")
 
@@ -52,7 +47,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         sync_ipfabric_tagged_only: bool,
         location_filter: Optional[Location],
         *args,
-        scope=None,
         **kwargs,
     ):
         """Initialize the NautobotDiffSync."""
@@ -61,7 +55,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         self.sync = sync
         self.sync_ipfabric_tagged_only = sync_ipfabric_tagged_only
         self.location_filter = location_filter
-        self.scope = scope if scope is not None else SyncScope.from_job_kwargs({})
         self.ssot_tag = tonb_utils.get_or_create_tag_object(
             tag_name="SSoT Synced from IPFabric",
             tag_color=ColorChoices.COLOR_LIGHT_GREEN,
@@ -110,15 +103,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
     def load_interfaces(self, device_record: Device, diffsync_device):
         """Import a single Nautobot Interface object as a DiffSync Interface model."""
         device_primary_ip = None
-        if device_record.primary_ip4:
-            device_primary_ip = device_record.primary_ip4
-        elif device_record.primary_ip6:
-            device_primary_ip = device_record.primary_ip6
-
-        if not self.scope.ip_addresses:
-            # Matches what the IP Fabric adapter reports with addresses out of scope, so that the
-            # existing address diffs as unchanged rather than as one to remove.
-            device_primary_ip = None
+        if self.scope.ip_addresses:
+            device_primary_ip = device_record.primary_ip4 or device_record.primary_ip6
 
         for interface_record in device_record.interfaces.all():
             # Avoid .first() to preserve prefetch cache
@@ -210,20 +196,26 @@ class NautobotDiffSync(DiffSyncModelAdapters):
 
     def load_device(self, filtered_devices: List, location):
         """Load Devices from Nautobot."""
-        devices = filtered_devices.select_related(
+        related = [
             "location",
             "device_type__manufacturer",
-            "primary_ip4",
-            "primary_ip6",
             "role",
             "status",
             "platform",
             "virtual_chassis",
             "virtual_chassis__master",
-        )
-        if self.scope.interfaces:
-            # Only worth prefetching what the Interfaces will be read for.
-            devices = devices.prefetch_related("interfaces__ip_addresses" if self.scope.ip_addresses else "interfaces")
+        ]
+        # Only fetch the relations something in scope reads: the primary IP decides whether an
+        # Interface holds it, and the Interfaces themselves are only walked when they are in scope.
+        prefetch = None
+        if self.scope.ip_addresses:
+            related += ["primary_ip4", "primary_ip6"]
+            prefetch = "interfaces__ip_addresses"
+        elif self.scope.interfaces:
+            prefetch = "interfaces"
+        devices = filtered_devices.select_related(*related)
+        if prefetch:
+            devices = devices.prefetch_related(prefetch)
         optimized_query = devices.iterator(1000)
         for device_record in optimized_query:
             if self.job.debug:
@@ -307,22 +299,16 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         if location_objects:
             for location_record in location_objects:
                 try:
-                    attrs = (
-                        {
-                            "site_id": location_record.custom_field_data.get("ipfabric_site_id"),
-                            "status": location_record.status.name,
-                        }
-                        if self.scope.locations
-                        else dict(UNSYNCED_LOCATION_ATTRS)
+                    location = self.location_model(
+                        location_record.name,
+                        site_id=location_record.custom_field_data.get("ipfabric_site_id"),
+                        status=location_record.status.name,
                     )
-                    location = self.location(name=location_record.name, **attrs)
                 except AttributeError:
                     logger.error(
                         "Error loading %s, invalid or missing attributes on object. Skipping...", location_record
                     )
                     continue
-                if not self.scope.locations:
-                    location.model_flags |= unsynced_location_flags()
                 self.add(location)
                 try:
                     # Load Location's Children - Devices with Interfaces, if any.

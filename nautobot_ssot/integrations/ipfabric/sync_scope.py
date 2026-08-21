@@ -65,7 +65,7 @@ class SyncableObject:
 #
 # Locations are present but special: they are the root of the object tree, so they keep being read
 # even when out of scope. Deselecting them withholds only the writing of them; see
-# `UNSYNCED_LOCATION_ATTRS` and `unsynced_location_flags`.
+# `UNSYNCED_LOCATION_ATTRS` and `DiffSyncModelAdapters.location_model`.
 SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
     SyncableObject(
         key="locations",
@@ -118,6 +118,29 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
         requires=("interfaces",),
     ),
 )
+
+
+# Attribute values both adapters report for a Location that is out of scope.
+#
+# A Location cannot simply be left unloaded when out of scope, because every Device and VLAN is a
+# child of one; drop the Location and its children go with it. So it is still loaded, as a tree node
+# rather than as synced data. Reporting the same placeholder attributes from both adapters is what
+# makes it a node: the Location matches on its name and diffs as unchanged, so no attribute of it is
+# ever written, while its children diff normally.
+UNSYNCED_LOCATION_ATTRS = {"site_id": None, "status": "Not synced"}
+
+
+# Model flags that stop an out of scope Location being deleted.
+#
+# Matching attributes prevent updates, and `Location.create` declines to create the Nautobot record
+# while still returning its model, so creates need no flag: the Location is not written, but DiffSync
+# keeps descending and the Devices at it are still attempted.
+#
+# Deletes do need one. Without `SKIP_UNMATCHED_DST` a Location that IP Fabric does not report would
+# be deleted along with every Device at it, which a sync holding no opinion on which sites exist has
+# no business doing. `SKIP_UNMATCHED_DST` applies only to a Location missing from the source, so a
+# Location both sides know still carries its children into the diff.
+UNSYNCED_LOCATION_FLAGS = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
 
 def validate_registry(syncables: Iterable[SyncableObject]) -> Dict[str, SyncableObject]:
@@ -221,9 +244,9 @@ class SyncScope:
         return key in self._enabled
 
     def __getattr__(self, name: str) -> bool:
-        """Expose each registered object type as an attribute."""
+        """Expose each registered object type as an attribute, for a key known at author time."""
         if name in _BY_KEY:
-            return name in self._enabled
+            return self.is_enabled(name)
         raise AttributeError(f"{type(self).__name__!r} object has no attribute {name!r}")
 
     def __iter__(self) -> Iterator[str]:
@@ -254,28 +277,3 @@ class SyncScope:
             required = ", ".join(f"'{name}'" for name in unmet)
             messages.append(f"Not syncing '{key}' as it requires {required}, which is not in scope.")
         return messages
-
-
-# Attribute values both adapters report for a Location that is out of scope.
-#
-# A Location cannot simply be left unloaded when out of scope, because every Device and VLAN is a
-# child of one; drop the Location and its children go with it. So it is still loaded, as a tree node
-# rather than as synced data. Reporting the same placeholder attributes from both adapters is what
-# makes it a node: the Location matches on its name and diffs as unchanged, so no attribute of it is
-# ever written, while its children diff normally.
-UNSYNCED_LOCATION_ATTRS = {"site_id": None, "status": "Not synced"}
-
-
-def unsynced_location_flags() -> DiffSyncModelFlags:
-    """Return the model flags that stop an out of scope Location being deleted.
-
-    Matching attributes prevent updates, and `Location.create` declines to create the Nautobot record
-    while still returning its model, so creates need no flag: the Location is not written, but
-    DiffSync keeps descending and the Devices at it are still attempted.
-
-    Deletes do need one. Without `SKIP_UNMATCHED_DST` a Location that IP Fabric does not report would
-    be deleted along with every Device at it, which a sync holding no opinion on which sites exist has
-    no business doing. `SKIP_UNMATCHED_DST` applies only to a Location missing from the source, so a
-    Location both sides know still carries its children into the diff.
-    """
-    return DiffSyncModelFlags.SKIP_UNMATCHED_DST

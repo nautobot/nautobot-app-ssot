@@ -98,6 +98,7 @@ def get_or_create_location_object(
     return None
 
 
+@job_scoped_cache
 def get_location_object(
     location_name: str,
     logger: Optional[logging.Logger] = None,
@@ -107,6 +108,10 @@ def get_location_object(
     Used when Locations are out of the sync's scope: another system owns them, so a Location that is
     not there yet is expected to arrive from that system rather than from this sync. Matched on name
     alone, since the owning system decides the LocationType.
+
+    Cached like its get-or-create neighbour, since every Device at a site asks the same question. A
+    stale answer is not a risk here: a sync that may not write Locations cannot invalidate its own
+    cache, and caching the miss is what stops one absent site costing a query per Device.
 
     Args:
         location_name: Name of the location.

@@ -307,6 +307,16 @@ class TestNautobotAdapter(TestCase):
         self.assertEqual(loaded["eth0"].ip_address, "10.0.0.5")
         self.assertFalse(loaded["eth0"].ip_is_primary)
 
+    def test_addresses_out_of_scope_still_loads_interfaces(self):
+        """Interfaces stay in scope on their own, so the load prefetches them without their addresses."""
+        self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_ip_addresses": False})
+        self.nb_adapter.load_data()
+
+        interfaces = self.nb_adapter.get_all("interface")
+        self.assertNotEqual(interfaces, [], "Interfaces should still load.")
+        for interface in interfaces:
+            self.assertIsNone(interface.ip_address, interface.name)
+
     def test_vlans_out_of_scope_loads_none(self):
         """With VLANs deselected, an existing Nautobot VLAN is not loaded and so cannot be deleted."""
         self.site1.location_type.content_types.add(ContentType.objects.get_for_model(VLAN))

@@ -18,11 +18,7 @@ from nautobot.extras.models import CustomField, Role, Status, Tag
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
-from nautobot_ssot.integrations.ipfabric.sync_scope import (
-    UNSYNCED_LOCATION_ATTRS,
-    SyncScope,
-    unsynced_location_flags,
-)
+from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 # A site IP Fabric reports that this sync did not load from Nautobot.
@@ -104,13 +100,14 @@ class LocationScopeTestCase(TestCase):
         return device
 
     def _source(self, locations_in_scope, with_device_at=()):
-        """Return a source adapter reporting the shared site and one this sync did not load."""
-        source = DiffSyncModelAdapters()
+        """Return a source adapter reporting the shared site and one this sync did not load.
+
+        Built through `location_model` rather than by hand, so the placeholders the test relies on are
+        the ones the real adapters use.
+        """
+        source = DiffSyncModelAdapters(scope=SyncScope.from_job_kwargs({"sync_locations": locations_in_scope}))
         for site_name in (KNOWN_TO_BOTH, UNLOADED_FROM_NAUTOBOT):
-            attrs = {"site_id": "ipf-id", "status": "Active"} if locations_in_scope else dict(UNSYNCED_LOCATION_ATTRS)
-            location = source.location(name=site_name, **attrs)
-            if not locations_in_scope:
-                location.model_flags |= unsynced_location_flags()
+            location = source.location_model(site_name, site_id="ipf-id", status="Active")
             source.add(location)
             if site_name in with_device_at:
                 device = source.device(

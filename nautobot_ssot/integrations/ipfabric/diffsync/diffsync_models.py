@@ -141,16 +141,14 @@ class Location(DiffSyncExtras):
         shows up as the Devices that could not be placed rather than as silence.
         """
         location = resolve_location(adapter, ids["name"], attrs["site_id"])
-        if not adapter.scope.locations:
-            if not location:
-                adapter.job.logger.warning(
-                    f"No Location named {ids['name']} exists and Locations are out of scope, so it will not be "
-                    "created here. Devices at it will be attempted and will fail until another sync creates it."
-                )
-            return super().create(ids=ids, adapter=adapter, attrs=attrs)
-        if location:
-            return super().create(ids=ids, adapter=adapter, attrs=attrs)
-        return None
+        if not location:
+            if adapter.scope.locations:
+                return None
+            adapter.job.logger.warning(
+                f"No Location named {ids['name']} exists and Locations are out of scope, so it will not be "
+                "created here. Devices at it will be attempted and will fail until another sync creates it."
+            )
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete Location in Nautobot."""

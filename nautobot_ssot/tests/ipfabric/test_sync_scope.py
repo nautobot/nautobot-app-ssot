@@ -10,13 +10,13 @@ from nautobot_ssot.integrations.ipfabric.sync_scope import (
     DISABLED_OBJECTS_SETTING,
     SYNCABLE_OBJECTS,
     UNSYNCED_LOCATION_ATTRS,
+    UNSYNCED_LOCATION_FLAGS,
     SyncableObject,
     SyncScope,
     disabled_keys,
     form_fields,
     scope_field_order,
     selectable_objects,
-    unsynced_location_flags,
     validate_registry,
 )
 
@@ -112,16 +112,15 @@ class UnsyncedLocationTestCase(TestCase):
 
     def test_flags_skip_deletion_only(self):
         """Deletes need a flag; creates are declined in `Location.create` so children are reached."""
-        flags = unsynced_location_flags()
-        self.assertTrue(flags & DiffSyncModelFlags.SKIP_UNMATCHED_DST)
+        self.assertTrue(UNSYNCED_LOCATION_FLAGS & DiffSyncModelFlags.SKIP_UNMATCHED_DST)
         self.assertFalse(
-            flags & DiffSyncModelFlags.SKIP_UNMATCHED_SRC,
+            UNSYNCED_LOCATION_FLAGS & DiffSyncModelFlags.SKIP_UNMATCHED_SRC,
             "Skipping unmatched source Locations would drop the Devices at them from the diff.",
         )
 
     def test_flags_do_not_ignore_the_location(self):
         """IGNORE would drop the Location's children from the diff along with the Location."""
-        self.assertFalse(unsynced_location_flags() & DiffSyncModelFlags.IGNORE)
+        self.assertFalse(UNSYNCED_LOCATION_FLAGS & DiffSyncModelFlags.IGNORE)
 
 
 class SyncScopeTestCase(TestCase):
