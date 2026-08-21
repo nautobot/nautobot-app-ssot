@@ -1,1 +1,1 @@
-Added per object type controls to the IP Fabric Job form, so a sync can be narrowed to Locations, Interfaces, IP Addresses, Primary IP, VLANs and Cables individually.
+Added per object type controls to the IP Fabric Job form, so a sync can be narrowed to Locations, Interfaces, IP Addresses, Primary IP, VLANs and Cables individually. Deselecting Locations stops them being created, updated or deleted while still syncing the Devices at them, including Devices at Locations that another SSoT App owns.

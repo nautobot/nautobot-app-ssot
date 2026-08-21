@@ -181,14 +181,23 @@ therefore does not stop Locations being *read* — it stops them being *written*
 created, updated or deleted, and the `ipfabric_site_id` custom field is left alone, but Devices at
 Locations that already exist in Nautobot still sync normally.
 
-Two consequences follow from that, both of which are the point rather than a limitation:
+Three consequences follow, all of them intended:
 
-- **A site IP Fabric has discovered is not created**, and neither are the Devices at it. There is no
-  Location for them to belong to, so the whole site is skipped.
+- **A site IP Fabric reports that this sync did not load is not created**, but the Devices at it are
+  still attempted. The Location is looked up by name first, so a Location that another SSoT App has
+  already created is found and the Devices land at it. This matters most with `Sync Tagged Only`
+  enabled: a Location owned by another App carries no IP Fabric tag, so this sync never loads it, and
+  the name lookup is what connects the two.
+- **A Device whose Location does not exist yet is reported, not skipped silently.** The Job log names
+  the Location that could not be found and each Device that could not be placed, so a sync run before
+  the App that owns Locations shows up as work to retry rather than as missing data.
 - **A Nautobot Location that IP Fabric does not report is left completely alone**, including the
   Devices at it. With Locations out of scope the sync holds no opinion about which sites exist, so it
   cannot treat a missing site as evidence that the Devices at it are gone. With Locations in scope,
   that same site and its Devices are deleted, subject to Safe Delete Mode.
+
+The `ipfabric_site_id` custom field is only ever written while Locations are in scope; out of scope it
+belongs to whichever system owns the Location.
 
 Deselect Locations where another system owns the site list. Leave it selected — the default — to keep
 the existing behaviour.
