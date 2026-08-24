@@ -162,17 +162,50 @@ installation actually wants IP Fabric to own. Deselecting a type keeps it out of
 directions: it is neither read from IP Fabric nor read from Nautobot, so existing Nautobot records
 of that type are left untouched rather than treated as absent from the source and removed.
 
-| Object type    | Job field            | Default | Requires       |
-|----------------|----------------------|---------|----------------|
-| `locations`    | `Sync Locations`     | On      |                |
-| `interfaces`   | `Sync Interfaces`    | On      |                |
-| `ip_addresses` | `Sync IP Addresses`  | On      | `interfaces`   |
-| `primary_ip`   | `Sync Primary IP`    | On      | `ip_addresses` |
-| `vlans`        | `Sync VLANs`         | On      |                |
-| `cables`       | `Sync Cables`        | Off     | `interfaces`   |
+| Object type     | Job field             | Default | Requires       |
+|-----------------|-----------------------|---------|----------------|
+| `locations`     | `Sync Locations`      | On      |                |
+| `manufacturers` | `Sync Manufacturers`  | On      |                |
+| `device_types`  | `Sync Device Types`   | On      |                |
+| `roles`         | `Sync Roles`          | On      |                |
+| `platforms`     | `Sync Platforms`      | On      |                |
+| `interfaces`    | `Sync Interfaces`     | On      |                |
+| `ip_addresses`  | `Sync IP Addresses`   | On      | `interfaces`   |
+| `primary_ip`    | `Sync Primary IP`     | On      | `ip_addresses` |
+| `vlans`         | `Sync VLANs`          | On      |                |
+| `cables`        | `Sync Cables`         | Off     | `interfaces`   |
 
 Devices are always synced. Every other object type is either a Device or hangs off one, so a run with
 Devices excluded would have nothing left to do.
+
+### Manufacturers, Device Types, Roles and Platforms
+
+Manufacturers, Device Types, Roles and Platforms are not part of the object tree. Nothing is a child
+of them; they are created as a side effect of syncing a Device that needs one. Deselecting them
+therefore does not stop Devices syncing — it turns a get-or-create into a lookup, so this sync uses
+what Nautobot already holds and never adds to the catalogue.
+
+What happens when the supporting object is absent depends on whether Nautobot requires it:
+
+| Deselected      | A Device needing one Nautobot does not hold                                     |
+|-----------------|---------------------------------------------------------------------------------|
+| `manufacturers` | Skipped, if a Device Type would have had to be created under the missing vendor |
+| `device_types`  | Skipped — Nautobot requires a Device Type                                       |
+| `roles`         | Skipped — Nautobot requires a Role                                              |
+| `platforms`     | Synced without a Platform — Nautobot treats it as optional                      |
+
+Each skipped Device is named in the Job log, so a run against a catalogue that has not caught up
+reads as work to retry rather than as data that vanished.
+
+Two further consequences:
+
+- Deselecting `manufacturers` restricts *adding* vendors, not using them. A Device Type can still be
+  created under a Manufacturer that already exists; only one that would require inventing a vendor is
+  refused.
+- Deselecting `roles` also stops the `ipfabric_type` custom field being written. In scope, that field
+  records what IP Fabric called the role and is how a Role this integration created is matched again.
+  Out of scope, Roles are matched on that field first and then on their name, so a Role another system
+  owns is found without this sync stamping anything on it.
 
 ### Locations
 

@@ -38,6 +38,10 @@ There are several options available.
 - **Safe Delete Mode**: Delete operations changes the object status to a predefined value (configurable via settings) and tags the object with `SSoT Safe Delete` Tag.
 - **Sync Tagged Only**: Only load Nautobot data into DiffSync adapters that has the `SSoT Synced from IPFabric` Tag.
 - **Sync Locations**: Create, update and delete Nautobot Locations from IP Fabric sites. Enabled by default. Deselect where another system owns the site list; see [Choosing what to sync](../../admin/integrations/ipfabric_setup.md#locations) for what that does and does not stop.
+- **Sync Manufacturers**: Create Nautobot Manufacturers for the vendors IP Fabric reports. Enabled by default.
+- **Sync Device Types**: Create Nautobot Device Types for the models IP Fabric reports. Enabled by default.
+- **Sync Roles**: Create Nautobot Roles from the device types IP Fabric reports. Enabled by default.
+- **Sync Platforms**: Create Nautobot Platforms from the families IP Fabric reports. Enabled by default.
 - **Sync Interfaces**: Sync each Device's Interfaces. Enabled by default.
 - **Sync IP Addresses**: Sync the IP Address on each Interface. Enabled by default; requires **Sync Interfaces**.
 - **Sync Primary IP**: Assign a Device's primary IP from IP Fabric. Enabled by default; requires **Sync IP Addresses**. IP Fabric reports the address it logged in with, which is not necessarily the address a CMDB considers the management one.
