@@ -79,6 +79,46 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
         default=True,
     ),
     SyncableObject(
+        key="manufacturers",
+        label="Sync Manufacturers",
+        description=(
+            "Create Nautobot Manufacturers for the vendors IP Fabric reports. Deselect where another "
+            "system owns the vendor list; a Device whose vendor is not already in Nautobot is then "
+            "skipped rather than introducing one."
+        ),
+        default=True,
+    ),
+    SyncableObject(
+        key="device_types",
+        label="Sync Device Types",
+        description=(
+            "Create Nautobot Device Types for the models IP Fabric reports. Deselect where a hardware "
+            "catalogue owns them; a Device whose model is not already in Nautobot is then skipped, "
+            "since Nautobot requires one."
+        ),
+        default=True,
+    ),
+    SyncableObject(
+        key="roles",
+        label="Sync Roles",
+        description=(
+            "Create Nautobot Roles from the device types IP Fabric reports, and record the IP Fabric "
+            "type on them. Deselect where roles are assigned by another process; a Device whose role "
+            "is not already in Nautobot is then skipped, since Nautobot requires one."
+        ),
+        default=True,
+    ),
+    SyncableObject(
+        key="platforms",
+        label="Sync Platforms",
+        description=(
+            "Create Nautobot Platforms from the families IP Fabric reports. Deselect where another "
+            "system owns them; a Device whose platform is not already in Nautobot is then synced "
+            "without one, rather than being skipped, as Platform is optional."
+        ),
+        default=True,
+    ),
+    SyncableObject(
         key="interfaces",
         label="Sync Interfaces",
         description="Sync each Device's Interfaces.",

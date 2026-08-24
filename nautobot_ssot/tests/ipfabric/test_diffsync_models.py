@@ -23,6 +23,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
     Location,
     Vlan,
 )
+from nautobot_ssot.integrations.ipfabric.sync_scope import SYNCABLE_OBJECTS, SyncScope
 
 # ============================================================
 # Shared helpers
@@ -43,9 +44,14 @@ def _cable_patch(name, **kwargs):
     return mock.patch(f"{_CABLES}.{name}", **kwargs)
 
 
-def _make_adapter():
-    """Minimal mock adapter sufficient for invoking model methods directly."""
+def _make_adapter(scope=None):
+    """Minimal mock adapter sufficient for invoking model methods directly.
+
+    Carries a real `SyncScope` rather than a mock, since the resolvers branch on it and a mock reads
+    as every object type being in scope whether or not that is what the test meant.
+    """
     adapter = mock.MagicMock()
+    adapter.scope = scope if scope is not None else SyncScope(syncable.key for syncable in SYNCABLE_OBJECTS)
     adapter.job = mock.MagicMock()
     adapter.job.debug = False
     adapter.ssot_tag = mock.MagicMock(name="ssot_tag")
@@ -61,32 +67,47 @@ def _active_device_mock():
     return nb_device
 
 
-@contextlib.contextmanager
-def _patch_device_create_helpers(
-    *,
-    device_type=_UNSET,
-    role=_UNSET,
-    status=_UNSET,
-    location=_UNSET,
-    platform=_UNSET,
-):
-    """Patch the five `Device.create` collaborator helpers in one shot.
+# Maps the kwargs `_patch_device_create_helpers` accepts to the helpers they stand for.
+_CREATE_HELPERS = {
+    "device_type": "get_or_create_device_type_object",
+    "role": "get_or_create_device_role_object",
+    "status": "get_or_create_status_object",
+    "location": "get_or_create_location_object",
+    "platform": "get_or_create_platform_object",
+    "manufacturer": "get_or_create_manufacturer_object",
+}
 
-    Each kwarg overrides the helper's `return_value`. `_UNSET` defaults to a fresh
-    `MagicMock()`. Pass `None` to trigger the helper-failure branch.
+# Lookup-only helpers, which run first in the resolvers. Patched to return None so that the
+# get-or-create path is the one each test exercises.
+_CREATE_LOOKUPS = (
+    "get_device_type_object",
+    "get_device_role_object",
+    "get_location_object",
+    "get_platform_object",
+    "get_manufacturer_object",
+)
+
+
+@contextlib.contextmanager
+def _patch_device_create_helpers(**overrides):
+    """Patch the `Device.create` collaborator helpers in one shot.
+
+    Each kwarg names an entry in `_CREATE_HELPERS` and overrides that helper's `return_value`. An
+    unnamed helper returns a fresh `MagicMock()`; pass `None` to trigger its failure branch. The
+    yielded namespace exposes every patch under its full helper name.
     """
-    helpers = (
-        ("get_or_create_device_type_object", device_type),
-        ("get_or_create_device_role_object", role),
-        ("get_or_create_status_object", status),
-        ("get_or_create_location_object", location),
-        ("get_or_create_platform_object", platform),
-    )
+    unknown = set(overrides) - set(_CREATE_HELPERS)
+    assert not unknown, f"Unknown helper override(s): {sorted(unknown)}"
+
     with contextlib.ExitStack() as stack:
         ns = SimpleNamespace()
-        for helper_name, value in helpers:
-            return_value = mock.MagicMock() if value is _UNSET else value
+        for kwarg, helper_name in _CREATE_HELPERS.items():
+            return_value = overrides.get(kwarg, _UNSET)
+            if return_value is _UNSET:
+                return_value = mock.MagicMock()
             setattr(ns, helper_name, stack.enter_context(_nb_patch(helper_name, return_value=return_value)))
+        for helper_name in _CREATE_LOOKUPS:
+            setattr(ns, helper_name, stack.enter_context(_nb_patch(helper_name, return_value=None)))
         yield ns
 
 
@@ -237,7 +258,22 @@ class TestLocationModel(_ModelTestBase):
 # ============================================================
 
 
-class TestDeviceModel(_ModelTestBase):
+class TestSupportingObjectResolvers(_ModelTestBase):
+    """Unit tests for the resolvers that turn a get-or-create into a lookup."""
+
+    def test_resolve_platform_needs_a_manufacturer_to_create_under(self):
+        """In scope but with no Manufacturer resolved, there is nothing to file a new Platform under."""
+        self.assertIsNone(diffsync_models.resolve_platform(self.adapter, "ios", None))
+
+    def test_resolve_platform_out_of_scope_ignores_the_manufacturer(self):
+        """Out of scope the Platform is matched on its name, so a missing Manufacturer is no obstacle."""
+        self.adapter.scope = SyncScope(syncable.key for syncable in SYNCABLE_OBJECTS if syncable.key != "platforms")
+        with _nb_patch("get_platform_object", return_value="found") as mock_lookup:
+            self.assertEqual(diffsync_models.resolve_platform(self.adapter, "ios", None), "found")
+        mock_lookup.assert_called_once_with("ios", logger=self.adapter.job.logger)
+
+
+class TestDeviceModel(_ModelTestBase):  # pylint: disable=too-many-public-methods
     """Test `Device.create/update` branching and regression guards."""
 
     _BASE_CREATE_ATTRS = {"model": "m", "vendor": "v", "location_name": "loc"}
@@ -251,10 +287,8 @@ class TestDeviceModel(_ModelTestBase):
         """Any required helper returning None means Device.create returns None without saving."""
         with (
             _patch_device_create_helpers(location=None),
-            mock.patch.object(diffsync_models.DeviceType.objects, "filter") as mock_dt_filter,
             mock.patch.object(diffsync_models.NautobotDevice.objects, "get_or_create") as mock_get_or_create,
         ):
-            mock_dt_filter.return_value.first.return_value = mock.MagicMock()
             result = self._call_device_create()
 
         self.assertIsNone(result)
@@ -268,7 +302,6 @@ class TestDeviceModel(_ModelTestBase):
         # Force bail before super() by making location lookup fail
         with (
             _patch_device_create_helpers(role=role_obj, location=None),
-            mock.patch.object(diffsync_models.DeviceType.objects, "filter"),
         ):
             self._call_device_create(role="DesiredRole")
 
@@ -282,34 +315,55 @@ class TestDeviceModel(_ModelTestBase):
 
         with (
             _patch_device_create_helpers(role=role_obj, location=None),
-            mock.patch.object(diffsync_models.DeviceType.objects, "filter"),
         ):
             self._call_device_create(role="DesiredRole")
 
         role_obj.cf.__setitem__.assert_called_once_with("ipfabric_type", "DesiredRole")
         role_obj.validated_save.assert_called_once()
 
-    def test_create_uses_helper_when_devicetype_filter_empty(self):
-        """Empty DeviceType filter -> calls `get_or_create_device_type_object` helper."""
-        with (
-            mock.patch.object(diffsync_models.DeviceType.objects, "filter") as mock_dt_filter,
-            # Helper for DT supplied here, location=None bails early
-            _patch_device_create_helpers(location=None) as helpers,
-        ):
-            mock_dt_filter.return_value.first.return_value = None  # filter is empty
+    def test_create_uses_helper_when_no_devicetype_exists(self):
+        """No existing DeviceType -> calls `get_or_create_device_type_object` helper."""
+        manufacturer = mock.MagicMock()
+        # location=None bails early, after the DeviceType has been resolved
+        with _patch_device_create_helpers(location=None, manufacturer=manufacturer) as helpers:
             self._call_device_create()
 
         helpers.get_or_create_device_type_object.assert_called_once_with(
-            device_type="m", vendor_name="v", logger=self.adapter.job.logger
+            device_type="m", vendor_name="v", logger=self.adapter.job.logger, manufacturer_obj=manufacturer
         )
+
+    def test_create_reuses_an_existing_devicetype(self):
+        """An existing DeviceType is used whatever the scope, without a create being attempted."""
+        existing = mock.MagicMock()
+        with _patch_device_create_helpers(location=None) as helpers:
+            helpers.get_device_type_object.return_value = existing
+            self._call_device_create()
+
+        helpers.get_or_create_device_type_object.assert_not_called()
+
+    def test_create_does_not_create_a_devicetype_out_of_scope(self):
+        """Deselecting Device Types stops one being created for a model Nautobot does not have."""
+        self.adapter.scope = SyncScope(syncable.key for syncable in SYNCABLE_OBJECTS if syncable.key != "device_types")
+        with _patch_device_create_helpers(location=None) as helpers:
+            result = self._call_device_create()
+
+        helpers.get_or_create_device_type_object.assert_not_called()
+        self.assertIsNone(result)
+        self._assert_log_contains(self.adapter.job.logger.warning, "DeviceType")
+
+    def test_create_does_not_create_a_manufacturer_out_of_scope(self):
+        """A sync told not to add vendors must not add one in order to add a Device Type."""
+        self.adapter.scope = SyncScope(syncable.key for syncable in SYNCABLE_OBJECTS if syncable.key != "manufacturers")
+        with _patch_device_create_helpers(location=None) as helpers:
+            self._call_device_create()
+
+        helpers.get_or_create_manufacturer_object.assert_not_called()
+        helpers.get_or_create_device_type_object.assert_not_called()
+        self._assert_log_contains(self.adapter.job.logger.warning, "no Manufacturer named v could be resolved")
 
     def test_create_warns_when_devicetype_helper_returns_none(self):
         """DeviceType helper also fails -> warning logged."""
-        with (
-            mock.patch.object(diffsync_models.DeviceType.objects, "filter") as mock_dt_filter,
-            _patch_device_create_helpers(device_type=None),
-        ):
-            mock_dt_filter.return_value.first.return_value = None
+        with _patch_device_create_helpers(device_type=None):
             result = self._call_device_create()
 
         self.assertIsNone(result)
@@ -318,11 +372,8 @@ class TestDeviceModel(_ModelTestBase):
     def test_create_warns_when_platform_helper_returns_none(self):
         """Platform + device_type_object both set -> helper called; None return warns."""
         device_type_obj = mock.MagicMock()
-        with (
-            mock.patch.object(diffsync_models.DeviceType.objects, "filter") as mock_dt_filter,
-            _patch_device_create_helpers(platform=None, location=None) as helpers,
-        ):
-            mock_dt_filter.return_value.first.return_value = device_type_obj
+        with _patch_device_create_helpers(platform=None, location=None) as helpers:
+            helpers.get_device_type_object.return_value = device_type_obj
             self._call_device_create(platform="ios")
 
         helpers.get_or_create_platform_object.assert_called_once()
@@ -330,11 +381,7 @@ class TestDeviceModel(_ModelTestBase):
 
     def test_create_warns_when_platform_set_but_devicetype_missing(self):
         """No device_type_object but platform supplied -> warning."""
-        with (
-            mock.patch.object(diffsync_models.DeviceType.objects, "filter") as mock_dt_filter,
-            _patch_device_create_helpers(device_type=None),
-        ):
-            mock_dt_filter.return_value.first.return_value = None
+        with _patch_device_create_helpers(device_type=None):
             self._call_device_create(platform="ios")
 
         self._assert_log_contains(self.adapter.job.logger.warning, "since the DeviceType could not be retrieved")
@@ -347,7 +394,6 @@ class TestDeviceModel(_ModelTestBase):
 
         with (
             _patch_device_create_helpers(role=role_obj, location=None),
-            mock.patch.object(diffsync_models.DeviceType.objects, "filter"),
         ):
             self._call_device_create(role="DesiredRole")
 
@@ -358,7 +404,6 @@ class TestDeviceModel(_ModelTestBase):
         """Role helper returns None -> warning, no cf write."""
         with (
             _patch_device_create_helpers(role=None, location=None),
-            mock.patch.object(diffsync_models.DeviceType.objects, "filter"),
         ):
             result = self._call_device_create()
 
@@ -367,7 +412,7 @@ class TestDeviceModel(_ModelTestBase):
 
     def test_create_warns_when_status_helper_returns_none(self):
         """Status helper returns None -> warning."""
-        with _patch_device_create_helpers(status=None), mock.patch.object(diffsync_models.DeviceType.objects, "filter"):
+        with _patch_device_create_helpers(status=None):
             result = self._call_device_create()
 
         self.assertIsNone(result)
@@ -378,7 +423,6 @@ class TestDeviceModel(_ModelTestBase):
         new_device = mock.MagicMock()
         vc_obj = mock.MagicMock()
         with (
-            mock.patch.object(diffsync_models.DeviceType.objects, "filter") as mock_dt_filter,
             _patch_device_create_helpers(),
             mock.patch.object(diffsync_models.NautobotDevice.objects, "get_or_create", return_value=(new_device, True)),
             _nb_patch("tag_object"),
@@ -386,7 +430,6 @@ class TestDeviceModel(_ModelTestBase):
             _nb_patch("assign_device_to_virtual_chassis") as mock_assign,
             mock.patch.object(diffsync_models.DiffSyncModel, "create", return_value="ok"),
         ):
-            mock_dt_filter.return_value.first.return_value = mock.MagicMock()
             result = self._call_device_create(vc_name="stack-A", vc_position=1, vc_priority=5, vc_master=True)
 
         mock_vc_helper.assert_called_once_with("stack-A", logger=self.adapter.job.logger)
@@ -397,7 +440,6 @@ class TestDeviceModel(_ModelTestBase):
         """VC helper raises -> error logged, super().create() still runs."""
         new_device = mock.MagicMock()
         with (
-            mock.patch.object(diffsync_models.DeviceType.objects, "filter") as mock_dt_filter,
             _patch_device_create_helpers(),
             mock.patch.object(diffsync_models.NautobotDevice.objects, "get_or_create", return_value=(new_device, True)),
             _nb_patch("tag_object"),
@@ -407,7 +449,6 @@ class TestDeviceModel(_ModelTestBase):
             ),
             mock.patch.object(diffsync_models.DiffSyncModel, "create", return_value="ok"),
         ):
-            mock_dt_filter.return_value.first.return_value = mock.MagicMock()
             self._call_device_create(vc_name="stack-A")
 
         self._assert_log_contains(self.adapter.job.logger.error, "VirtualChassis data")
@@ -465,6 +506,8 @@ class TestDeviceModel(_ModelTestBase):
 
         with (
             mock.patch.object(diffsync_models.NautobotDevice.objects, "get", return_value=nb_device),
+            _nb_patch("get_device_type_object", return_value=None),
+            _nb_patch("get_or_create_manufacturer_object", return_value="mfg"),
             _nb_patch("get_or_create_device_type_object", return_value=mock.MagicMock()) as mock_dt_helper,
             _nb_patch("tag_object"),
             mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
@@ -472,7 +515,10 @@ class TestDeviceModel(_ModelTestBase):
             diff_model.update({"model": "new-model"})
 
         mock_dt_helper.assert_called_once_with(
-            device_type="new-model", vendor_name="cisco", logger=self.adapter.job.logger
+            device_type="new-model",
+            vendor_name="cisco",
+            logger=self.adapter.job.logger,
+            manufacturer_obj="mfg",
         )
 
     def test_update_calls_platform_helper_when_platform_in_attrs(self):
@@ -481,7 +527,7 @@ class TestDeviceModel(_ModelTestBase):
 
         with (
             mock.patch.object(diffsync_models.NautobotDevice.objects, "get", return_value=nb_device),
-            mock.patch.object(diffsync_models.Manufacturer.objects, "get", return_value="mfg"),
+            _nb_patch("get_or_create_manufacturer_object", return_value="mfg"),
             _nb_patch("get_or_create_platform_object", return_value=mock.MagicMock()) as mock_plat_helper,
             _nb_patch("tag_object"),
             mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
@@ -489,6 +535,37 @@ class TestDeviceModel(_ModelTestBase):
             diff_model.update({"platform": "ios"})
 
         mock_plat_helper.assert_called_once_with(platform="ios", manufacturer_obj="mfg", logger=self.adapter.job.logger)
+
+    def test_update_warns_when_the_platform_cannot_be_resolved(self):
+        """A Platform that cannot be resolved is reported rather than silently dropped."""
+        diff_model, nb_device = self._setup_update(vendor="cisco")
+
+        with (
+            mock.patch.object(diffsync_models.NautobotDevice.objects, "get", return_value=nb_device),
+            _nb_patch("get_or_create_manufacturer_object", return_value=None),
+            _nb_patch("get_platform_object", return_value=None),
+            _nb_patch("tag_object"),
+            mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
+        ):
+            diff_model.update({"platform": "ios"})
+
+        self._assert_log_contains(self.adapter.job.logger.warning, "with a Platform of ios")
+
+    def test_update_resolves_the_role_through_the_scope(self):
+        """`role` in attrs goes through the resolver, so a Role is not created out of scope."""
+        diff_model, nb_device = self._setup_update()
+        new_role = mock.MagicMock(name="new_role")
+
+        with (
+            mock.patch.object(diffsync_models.NautobotDevice.objects, "get", return_value=nb_device),
+            _nb_patch("get_or_create_device_role_object", return_value=new_role) as mock_role_helper,
+            _nb_patch("tag_object"),
+            mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
+        ):
+            diff_model.update({"role": "new-role"})
+
+        mock_role_helper.assert_called_once()
+        self.assertIs(nb_device.role, new_role)
 
     def test_update_calls_location_helper_when_location_name_in_attrs(self):
         """`location_name` in attrs -> `get_or_create_location_object` called and assigned."""

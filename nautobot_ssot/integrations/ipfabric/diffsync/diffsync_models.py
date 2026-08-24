@@ -19,7 +19,6 @@ from nautobot.dcim.models import (
 from nautobot.dcim.models import (
     Device as NautobotDevice,
 )
-from nautobot.dcim.models import DeviceType, Manufacturer
 from nautobot.dcim.models import (
     Interface as NautobotInterface,
 )
@@ -65,6 +64,75 @@ def resolve_location(adapter, location_name: str, location_id: Optional[str] = N
             logger=adapter.job.logger,
         )
     return tonb_nbutils.get_location_object(location_name, logger=adapter.job.logger)
+
+
+def resolve_manufacturer(adapter, vendor_name: str):
+    """Return the Nautobot Manufacturer for a vendor IP Fabric reports.
+
+    Creates one only while Manufacturers are in scope. Out of scope another system owns the vendor
+    list, so this sync looks for the Manufacturer and reports it missing rather than adding to it.
+    """
+    if adapter.scope.manufacturers:
+        return tonb_nbutils.get_or_create_manufacturer_object(vendor_name, logger=adapter.job.logger)
+    return tonb_nbutils.get_manufacturer_object(vendor_name, logger=adapter.job.logger)
+
+
+def resolve_device_type(adapter, device_type_name: str, vendor_name: str):
+    """Return the Nautobot DeviceType for a model IP Fabric reports.
+
+    An existing DeviceType is used whatever the scope. Creating one is what the scope governs, and
+    creating one needs a Manufacturer, so the Manufacturer is resolved through its own scope first:
+    a sync told not to add vendors must not add one in order to add a model.
+    """
+    existing = tonb_nbutils.get_device_type_object(device_type_name, logger=adapter.job.logger)
+    if existing or not adapter.scope.device_types:
+        return existing
+    manufacturer_object = resolve_manufacturer(adapter, vendor_name)
+    if not manufacturer_object:
+        adapter.job.logger.warning(
+            f"Unable to get or create a DeviceType named {device_type_name}, as no Manufacturer named "
+            f"{vendor_name} could be resolved"
+        )
+        return None
+    return tonb_nbutils.get_or_create_device_type_object(
+        device_type=device_type_name,
+        vendor_name=vendor_name,
+        logger=adapter.job.logger,
+        manufacturer_obj=manufacturer_object,
+    )
+
+
+def resolve_role(adapter, role_name: str):
+    """Return the Nautobot Role for a device type IP Fabric reports.
+
+    Creates one only while Roles are in scope. Out of scope roles are assigned by another process, so
+    this sync matches an existing Role and reports a missing one rather than inventing it.
+    """
+    if adapter.scope.roles:
+        return tonb_nbutils.get_or_create_device_role_object(
+            role_name=role_name,
+            role_color=DEFAULT_DEVICE_ROLE_COLOR,
+            logger=adapter.job.logger,
+        )
+    return tonb_nbutils.get_device_role_object(role_name, logger=adapter.job.logger)
+
+
+def resolve_platform(adapter, platform_name: str, manufacturer_object):
+    """Return the Nautobot Platform for a family IP Fabric reports.
+
+    Creates one only while Platforms are in scope, and only when a Manufacturer to file it under was
+    resolved. Out of scope the Platform is matched on its name alone, since the system that owns it
+    decides its Manufacturer.
+    """
+    if not adapter.scope.platforms:
+        return tonb_nbutils.get_platform_object(platform_name, logger=adapter.job.logger)
+    if not manufacturer_object:
+        return None
+    return tonb_nbutils.get_or_create_platform_object(
+        platform=platform_name,
+        manufacturer_obj=manufacturer_object,
+        logger=adapter.job.logger,
+    )
 
 
 # pylint: disable=too-many-branches,too-many-statements
@@ -241,28 +309,17 @@ class Device(DiffSyncExtras):
         # Get DeviceType
         device_name = ids["name"]
         device_type_name = attrs["model"]
-        device_type_filter = DeviceType.objects.filter(model=device_type_name)
-        device_type_object = device_type_filter.first()
+        vendor_name = attrs["vendor"]
+        device_type_object = resolve_device_type(adapter, device_type_name, vendor_name)
         if not device_type_object:
-            vendor_name = attrs["vendor"]
-            device_type_object = tonb_nbutils.get_or_create_device_type_object(
-                device_type=device_type_name,
-                vendor_name=vendor_name,
-                logger=adapter.job.logger,
+            adapter.job.logger.warning(
+                f"Unable to create a Device with the name {device_name} because of a failure "
+                f"to get or create a DeviceType named {device_type_name} with a Manufacturer named {vendor_name}"
             )
-            if not device_type_object:
-                adapter.job.logger.warning(
-                    f"Unable to create a Device with the name {device_name} because of a failure "
-                    f"to get or create a DeviceType named {device_type_name} with a Manufacturer named {vendor_name}"
-                )
         # Get Platform
         platform = attrs.get("platform")
         if platform and device_type_object:
-            platform_object = tonb_nbutils.get_or_create_platform_object(
-                platform=platform,
-                manufacturer_obj=device_type_object.manufacturer,
-                logger=adapter.job.logger,
-            )
+            platform_object = resolve_platform(adapter, platform, device_type_object.manufacturer)
             if not platform_object:
                 adapter.job.logger.warning(
                     f"Unable to get or create a Platform named {platform}, "
@@ -278,13 +335,11 @@ class Device(DiffSyncExtras):
 
         # Get Role, update if missing cf and create otherwise
         role_name = attrs.get("role") or DEFAULT_DEVICE_ROLE
-        device_role_object = tonb_nbutils.get_or_create_device_role_object(
-            role_name=role_name,
-            role_color=DEFAULT_DEVICE_ROLE_COLOR,
-            logger=adapter.job.logger,
-        )
+        device_role_object = resolve_role(adapter, role_name)
         if device_role_object:
-            if device_role_object.cf.get("ipfabric_type") != role_name:
+            # Only while Roles are in scope: the custom field records what IP Fabric called the role,
+            # and stamping it on a Role another system owns is exactly what deselecting them refuses.
+            if adapter.scope.roles and device_role_object.cf.get("ipfabric_type") != role_name:
                 device_role_object.cf["ipfabric_type"] = role_name
                 try:
                     device_role_object.validated_save()
@@ -405,11 +460,7 @@ class Device(DiffSyncExtras):
             vendor_name = attrs.get("vendor") or self.vendor
             device_type_name = attrs.get("model")
             if device_type_name:
-                device_type_object = tonb_nbutils.get_or_create_device_type_object(
-                    device_type=device_type_name,
-                    vendor_name=vendor_name,
-                    logger=self.adapter.job.logger,
-                )
+                device_type_object = resolve_device_type(self.adapter, device_type_name, vendor_name)
                 if device_type_object:
                     _device.type = device_type_object
                 else:
@@ -419,33 +470,17 @@ class Device(DiffSyncExtras):
                     return_super = False
             platform_name = attrs.get("platform")
             if platform_name:
-                try:
-                    manufacturer_object = Manufacturer.objects.get(name=vendor_name)
-                except Manufacturer.MultipleObjectsReturned:
-                    self.adapter.job.logger.error(
-                        f"Multiple Manufacturers found with the name {vendor_name}, "
-                        f"unable to get or create a Platform named {platform_name} for Device named {self.name}"
-                    )
-                    return_super = False
-                except Manufacturer.DoesNotExist:
-                    self.adapter.job.logger.error(
-                        f"Could not find a Manufacturer with the name {vendor_name}, "
-                        f"unable to get or create a Platform named {platform_name} for Device named {self.name}"
-                    )
-                    return_super = False
+                # Resolved rather than fetched directly, so that a Platform is not created under a
+                # Manufacturer this sync is not permitted to add.
+                manufacturer_object = resolve_manufacturer(self.adapter, vendor_name)
+                platform_object = resolve_platform(self.adapter, platform_name, manufacturer_object)
+                if platform_object:
+                    _device.platform = platform_object
                 else:
-                    platform_object = tonb_nbutils.get_or_create_platform_object(
-                        platform=platform_name,
-                        manufacturer_obj=manufacturer_object,
-                        logger=self.adapter.job.logger,
+                    self.adapter.job.logger.warning(
+                        f"Unable to update Device {self.name} with a Platform of {platform_name}"
                     )
-                    if platform_object:
-                        _device.platform = platform_object
-                    else:
-                        self.adapter.job.logger.warning(
-                            f"Unable to update Device {self.name} with a Platform of {platform_name}"
-                        )
-                        return_super = False
+                    return_super = False
 
             location_name = attrs.get("location_name")
             if location_name:
@@ -460,11 +495,7 @@ class Device(DiffSyncExtras):
             if attrs.get("serial_number"):
                 _device.serial = attrs.get("serial_number")
             if SYNC_IPF_DEV_TYPE_TO_ROLE and (role_name := attrs.get("role")):
-                device_role_object = tonb_nbutils.get_or_create_device_role_object(
-                    role_name=role_name,
-                    role_color=DEFAULT_DEVICE_ROLE_COLOR,
-                    logger=self.adapter.job.logger,
-                )
+                device_role_object = resolve_role(self.adapter, role_name)
                 if device_role_object:
                     _device.role = device_role_object
                 else:
