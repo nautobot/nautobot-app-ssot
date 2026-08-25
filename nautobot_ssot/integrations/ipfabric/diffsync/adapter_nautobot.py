@@ -5,7 +5,7 @@
 
 import logging
 from collections import defaultdict
-from typing import Any, ClassVar, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional
 
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
@@ -200,8 +200,13 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             devices = devices.filter(tags=self.ssot_tag)
         return devices
 
-    def load_device(self, filtered_devices: List, location):
-        """Load Devices from Nautobot."""
+    def load_devices(self, filtered_devices: List, locations_by_name: Dict[str, Any]):
+        """Load Devices from Nautobot, placing each under the Location it belongs to.
+
+        Every Location's Devices come from one query, streamed in chunks. Querying per Location
+        instead would repeat the Interface and IP Address prefetches once per Location, which for
+        an estate of many Locations is where the load spends most of its queries.
+        """
         related = [
             "location",
             "device_type__manufacturer",
@@ -224,6 +229,11 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             devices = devices.prefetch_related(prefetch)
         optimized_query = devices.iterator(1000)
         for device_record in optimized_query:
+            location = locations_by_name.get(device_record.location.name)
+            if location is None:
+                # Its Location failed to load, so there is no parent to add the Device to.
+                logger.error("Unable to find Location, %s.", device_record.location.name)
+                continue
             if self.job.debug:
                 logger.debug("Loading Nautobot Device: %s", device_record.name)
             ipfabric_type = device_record.role.cf.get("ipfabric_type")
@@ -254,23 +264,38 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             if self.scope.interfaces:
                 self.load_interfaces(device_record=device_record, diffsync_device=device)
 
-    def load_vlans(self, filtered_vlans: List, location, location_record):
-        """Add Nautobot VLAN objects as DiffSync VLAN models."""
+    def load_vlans(self, location_objects, locations_by_name: Dict[str, Any]):
+        """Add Nautobot VLAN objects as DiffSync VLAN models.
+
+        One query covers every Location. A VLAN assigned to several of them is loaded once per
+        Location, as each is a separate DiffSync VLAN, matching how IP Fabric reports VLANs per site.
+        """
+        filtered_vlans = (
+            VLAN.objects.filter(locations__in=location_objects)
+            .select_related("status")
+            .prefetch_related("locations")
+            .distinct()
+        )
         for vlan_record in filtered_vlans:
-            vlan = self.vlan(
-                name=vlan_record.name,
-                location=location_record.name,
-                status=vlan_record.status.name,
-                vid=vlan_record.vid,
-                vlan_pk=vlan_record.pk,
-                description=vlan_record.description,
-            )
-            try:
-                self.add(vlan)
-            except ObjectAlreadyExists:
-                logger.warning(f"Duplicate VLAN discovered, {vlan_record.name}")
-                continue
-            location.add_child(vlan)
+            for location_record in vlan_record.locations.all():
+                location = locations_by_name.get(location_record.name)
+                if location is None:
+                    # A Location the VLAN is also assigned to, but which this sync does not cover.
+                    continue
+                vlan = self.vlan(
+                    name=vlan_record.name,
+                    location=location_record.name,
+                    status=vlan_record.status.name,
+                    vid=vlan_record.vid,
+                    vlan_pk=vlan_record.pk,
+                    description=vlan_record.description,
+                )
+                try:
+                    self.add(vlan)
+                except ObjectAlreadyExists:
+                    logger.warning(f"Duplicate VLAN discovered, {vlan_record.name}")
+                    continue
+                location.add_child(vlan)
 
     def get_initial_location(self, ssot_tag: Tag):
         """Identify the location objects based on user defined job inputs.
@@ -302,40 +327,33 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         if self.job.debug:
             logger.debug("Found %s Nautobot Location objects to start sync from", len(location_objects))
 
-        if location_objects:
-            for location_record in location_objects:
-                try:
-                    location = self.location_model(
-                        location_record.name,
-                        site_id=location_record.custom_field_data.get("ipfabric_site_id"),
-                        status=location_record.status.name,
-                    )
-                except AttributeError:
-                    logger.error(
-                        "Error loading %s, invalid or missing attributes on object. Skipping...", location_record
-                    )
-                    continue
-                self.add(location)
-                try:
-                    # Load Location's Children - Devices with Interfaces, if any.
-                    self.load_device(self.get_in_scope_devices([location_record]), location)
-
-                    # Load Location Children - Vlans, if any.
-                    if self.scope.vlans:
-                        nautobot_location_vlans = (
-                            VLAN.objects.filter(location=location_record)
-                            .select_related("status")
-                            .prefetch_related("locations")
-                        )
-                        self.load_vlans(nautobot_location_vlans, location, location_record)
-                except Location.DoesNotExist:
-                    logger.error("Unable to find Location, %s.", location_record)
-
-            # Loaded after every Location, as a link may terminate on Devices in two of them.
-            if self.scope.cables:
-                self.load_cables(self.get_in_scope_devices(location_objects))
-        else:
+        if not location_objects:
             logger.warning("No Nautobot records to load.")
+            return
+
+        locations_by_name = {}
+        for location_record in location_objects:
+            try:
+                location = self.location_model(
+                    location_record.name,
+                    site_id=location_record.custom_field_data.get("ipfabric_site_id"),
+                    status=location_record.status.name,
+                )
+            except AttributeError:
+                logger.error("Error loading %s, invalid or missing attributes on object. Skipping...", location_record)
+                continue
+            self.add(location)
+            locations_by_name[location_record.name] = location
+
+        # Children are loaded once for every Location rather than once per Location, so that the
+        # number of queries a load takes does not grow with the number of Locations in scope.
+        self.load_devices(self.get_in_scope_devices(location_objects), locations_by_name)
+        if self.scope.vlans:
+            self.load_vlans(location_objects, locations_by_name)
+
+        # Loaded after every Location, as a link may terminate on Devices in two of them.
+        if self.scope.cables:
+            self.load_cables(self.get_in_scope_devices(location_objects))
 
     def load(self):
         """Load data from Nautobot."""
