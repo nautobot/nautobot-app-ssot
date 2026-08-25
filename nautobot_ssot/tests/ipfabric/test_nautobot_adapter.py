@@ -674,6 +674,51 @@ class TestNautobotAdapterLoadScaling(TestCase):
         self.assertEqual(len(adapter.get_all("vlan")), location_count)
         return len(queries.captured_queries)
 
+    def test_a_vlan_at_several_locations_loads_once_for_each(self):
+        """Reading VLANs through the `locations` many-to-many must not collapse a shared VLAN."""
+        self.build_locations(2)
+        shared = VLAN.objects.create(name="shared-vlan", vid=20, status=self.active_status)
+        shared.locations.add(*Location.objects.filter(location_type=self.location_type))
+        job = unittest.mock.MagicMock()
+        job.debug = False
+        adapter = NautobotDiffSync(
+            job=job,
+            sync=unittest.mock.MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+        )
+        adapter.load_data()
+
+        loaded = [vlan for vlan in adapter.get_all("vlan") if vlan.name == "shared-vlan"]
+        self.assertEqual(
+            sorted(vlan.location for vlan in loaded),
+            ["scaling0", "scaling1"],
+        )
+
+    def test_a_vlan_is_not_loaded_for_a_location_out_of_scope(self):
+        """A VLAN's other Locations come back with the prefetch, and must not be loaded from it."""
+        self.build_locations(1)
+        out_of_scope_type, _ = LocationType.objects.get_or_create(name="scaling-other")
+        out_of_scope_type.content_types.add(ContentType.objects.get_for_model(VLAN))
+        out_of_scope = Location.objects.create(
+            name="scaling-elsewhere", location_type=out_of_scope_type, status=self.active_status
+        )
+        shared = VLAN.objects.create(name="spanning-vlan", vid=21, status=self.active_status)
+        shared.locations.add(Location.objects.get(name="scaling0"), out_of_scope)
+
+        job = unittest.mock.MagicMock()
+        job.debug = False
+        adapter = NautobotDiffSync(
+            job=job,
+            sync=unittest.mock.MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=Location.objects.get(name="scaling0"),
+        )
+        adapter.load_data()
+
+        loaded = [vlan for vlan in adapter.get_all("vlan") if vlan.name == "spanning-vlan"]
+        self.assertEqual([vlan.location for vlan in loaded], ["scaling0"])
+
     def test_query_count_does_not_grow_with_locations(self):
         """Devices and VLANs come from one query each, not one per Location."""
         self.build_locations(2)
