@@ -4,6 +4,8 @@
 import datetime
 import ipaddress
 import logging
+from contextlib import contextmanager
+from functools import wraps
 from typing import Any, Optional
 
 from django.contrib.contenttypes.models import ContentType
@@ -22,8 +24,10 @@ from nautobot.dcim.models import (
     VirtualChassis,
 )
 from nautobot.extras.choices import CustomFieldTypeChoices
+from nautobot.extras.context_managers import deferred_change_logging_for_bulk_operation
 from nautobot.extras.models import CustomField, Role, Tag
 from nautobot.extras.models.statuses import Status
+from nautobot.extras.signals import change_context_state
 from nautobot.ipam.choices import PrefixTypeChoices
 from nautobot.ipam.models import VLAN, IPAddress, IPAddressToInterface, Namespace, Prefix
 from netutils.ip import netmask_to_cidr
@@ -33,6 +37,41 @@ from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_N
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 # pylint: disable=too-many-branches
+
+
+@contextmanager
+def deferred_change_logging():
+    """Collapse the several writes one object takes into a single change log entry.
+
+    Writing an object twice normally means looking up its change log entry and rewriting it, and
+    serializing the object again to do so. Deferring within a scope makes Nautobot record one entry
+    per object at the end of it instead.
+
+    The scope is one object, not the whole run. Nautobot keys deferred changes per object, so a
+    per-object scope saves everything a run wide one would, without holding every changed instance
+    in memory or keeping one transaction open for the length of the sync.
+
+    Does nothing when change logging is not enabled, which is the case when an adapter is driven
+    directly rather than by a job, or when an enclosing scope is already deferring.
+    """
+    change_context = change_context_state.get()
+    if change_context is None or change_context.defer_object_changes:
+        # Nesting would flush and discard the enclosing scope's pending changes on the way out.
+        yield
+        return
+    with deferred_change_logging_for_bulk_operation():
+        yield
+
+
+def with_deferred_change_logging(method):
+    """Wrap a model operation so that the writes it makes record one change log entry each."""
+
+    @wraps(method)
+    def wrapper(*args, **kwargs):
+        with deferred_change_logging():
+            return method(*args, **kwargs)
+
+    return wrapper
 
 
 @job_scoped_cache

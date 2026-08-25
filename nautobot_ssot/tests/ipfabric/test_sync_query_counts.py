@@ -9,14 +9,16 @@ Nautobot's own validation while the repeated writes are what this integration co
 import re
 import unittest.mock
 
+from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from nautobot.apps.testing import TestCase
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
+from nautobot.extras.context_managers import JobChangeContext, change_logging
 from nautobot.extras.management import populate_status_choices
-from nautobot.extras.models import Role, Status, Tag
+from nautobot.extras.models import ObjectChange, Role, Status, Tag
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
@@ -274,3 +276,97 @@ class DeleteCostTestCase(TestCase):
             location_filter=None,
         )
         self.assertEqual(other.objects_to_delete["_interface"], [])
+
+
+class ChangeLogCostTestCase(TestCase):
+    """Test that the writes one synced object takes record a single change log entry."""
+
+    def setUp(self):
+        populate_status_choices()
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
+        self.active_status = Status.objects.get(name="Active")
+        device_ct = ContentType.objects.get_for_model(Device)
+        interface_ct = ContentType.objects.get_for_model(Interface)
+        ssot_tag, _ = Tag.objects.get_or_create(
+            name="SSoT Synced from IPFabric",
+            defaults={"color": ColorChoices.COLOR_LIGHT_GREEN, "description": "Synced from IPFabric"},
+        )
+        ssot_tag.content_types.add(device_ct, interface_ct)
+        safe_delete_tag, _ = Tag.objects.get_or_create(
+            name="SSoT Safe Delete", defaults={"color": ColorChoices.COLOR_RED, "description": "Safe delete"}
+        )
+        safe_delete_tag.content_types.add(device_ct, interface_ct)
+        self.safe_delete_tag = safe_delete_tag
+        role = Role.objects.create(name="change-log-role")
+        role.content_types.add(device_ct)
+        location_type, _ = LocationType.objects.get_or_create(name="change-log-site")
+        location_type.content_types.add(device_ct)
+        location = Location.objects.create(
+            name="change-log-site1", location_type=location_type, status=self.active_status
+        )
+        manufacturer = Manufacturer.objects.create(name="change-log-vendor")
+        device_type = DeviceType.objects.create(model="change-log-model", manufacturer=manufacturer)
+        self.device = Device.objects.create(
+            name="change-log-device",
+            status=self.active_status,
+            role=role,
+            location=location,
+            device_type=device_type,
+            serial="serial",
+        )
+        self.device.tags.add(ssot_tag)
+        job = unittest.mock.MagicMock()
+        job.debug = False
+        self.adapter = NautobotDiffSync(
+            job=job,
+            sync=unittest.mock.MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+        )
+        self.user = get_user_model().objects.create_user(username="change-log-tester")
+
+    def interfaces(self, count, prefix):
+        """Return `count` newly created Interfaces on this test's Device."""
+        return [
+            Interface.objects.create(
+                device=self.device, name=f"{prefix}{index}", status=self.active_status, type="1000base-t"
+            )
+            for index in range(count)
+        ]
+
+    def test_creating_an_interface_records_one_change(self):
+        """Deferring the change log must not alter what it records.
+
+        Creating an Interface writes it twice, and Nautobot consolidates those into one entry either
+        way. This pins that the deferral keeps both the count and the final content.
+        """
+        with change_logging(JobChangeContext(user=self.user)):
+            InterfaceModel.create(
+                self.adapter,
+                ids={"name": "logged", "device_name": self.device.name},
+                attrs={"ip_address": None, "subnet_mask": None, "status": "Active", "type": "1000base-t"},
+            )
+            created = Interface.objects.get(name="logged")
+            changes = ObjectChange.objects.filter(
+                changed_object_type=ContentType.objects.get_for_model(Interface),
+                changed_object_id=created.pk,
+            )
+            self.assertEqual(changes.count(), 1, "Expected one change log entry for the created Interface.")
+            # The single entry must describe the Interface as it ended up, not as first inserted.
+            self.assertEqual(changes.get().object_data["custom_fields"]["system_of_record"], "IPFabric")
+
+    def test_safe_deleting_an_interface_records_one_change(self):
+        """Marking an object tags it and saves it, which must still read as a single change."""
+        interface = self.interfaces(1, "marked")[0]
+        model = InterfaceModel(name=interface.name, device_name=self.device.name, status="Active")
+        model.adapter = self.adapter
+
+        with change_logging(JobChangeContext(user=self.user)):
+            model.delete()
+
+        changes = ObjectChange.objects.filter(
+            changed_object_type=ContentType.objects.get_for_model(Interface),
+            changed_object_id=interface.pk,
+        )
+        self.assertEqual(changes.count(), 1, "Expected one change log entry for the safe deleted Interface.")

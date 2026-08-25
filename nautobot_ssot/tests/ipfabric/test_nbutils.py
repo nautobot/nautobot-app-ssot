@@ -5,6 +5,7 @@ import ipaddress
 import unittest
 from unittest import mock
 
+from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
@@ -12,6 +13,7 @@ from nautobot.apps.testing import TestCase
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import DeviceType, Interface, Location, LocationType, Manufacturer, Platform, VirtualChassis
 from nautobot.dcim.models.devices import Device
+from nautobot.extras.context_managers import JobChangeContext, change_logging
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Role, Tag
 from nautobot.extras.models.statuses import Status
@@ -38,7 +40,12 @@ from nautobot_ssot.integrations.ipfabric.utilities import (
     get_platform_object,
     get_tagged_device,
 )
-from nautobot_ssot.integrations.ipfabric.utilities.nbutils import get_tagged_interface, tag_object
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
+    deferred_change_logging,
+    get_tagged_interface,
+    tag_object,
+    with_deferred_change_logging,
+)
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 
@@ -1671,3 +1678,58 @@ class TestNautobotUtils(TestCase):
     def test_get_device_role_object_returns_none_when_absent(self):
         """A Role neither matched on the custom field nor on the name is reported missing."""
         self.assertIsNone(get_device_role_object("No-Such-Role"))
+
+
+class TestDeferredChangeLogging(TestCase):
+    """Test the per-object change log deferral helper."""
+
+    def setUp(self):
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
+        populate_status_choices()
+        self.user = get_user_model().objects.create_user(username="deferral-tester")
+        self.status = Status.objects.get(name="Active")
+
+    def test_does_nothing_without_change_logging(self):
+        """Adapters are driven directly as well as by jobs, and Nautobot raises if nothing is set up."""
+        reached = False
+        with deferred_change_logging():
+            reached = True
+        self.assertTrue(reached)
+
+    def test_defers_while_inside_the_scope(self):
+        context = JobChangeContext(user=self.user)
+        with change_logging(context):
+            self.assertFalse(context.defer_object_changes)
+            with deferred_change_logging():
+                self.assertTrue(context.defer_object_changes)
+            self.assertFalse(context.defer_object_changes)
+
+    def test_a_nested_scope_leaves_the_enclosing_one_deferring(self):
+        """Exiting a nested scope would otherwise flush and discard what the outer one had pending."""
+        context = JobChangeContext(user=self.user)
+        with change_logging(context):
+            with deferred_change_logging():
+                self.status.description = "changed inside the outer scope"
+                self.status.validated_save()
+                self.assertEqual(len(context.deferred_object_changes), 1)
+                with deferred_change_logging():
+                    pass
+                self.assertEqual(
+                    len(context.deferred_object_changes),
+                    1,
+                    "The nested scope flushed the enclosing scope's pending changes.",
+                )
+
+    def test_the_decorator_applies_the_scope(self):
+        context = JobChangeContext(user=self.user)
+        seen = []
+
+        @with_deferred_change_logging
+        def operation():
+            seen.append(context.defer_object_changes)
+            return "returned"
+
+        with change_logging(context):
+            self.assertEqual(operation(), "returned")
+        self.assertEqual(seen, [True])
