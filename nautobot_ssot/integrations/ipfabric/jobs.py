@@ -275,7 +275,7 @@ class IpFabricDataSource(DataSource):
             location_filter_object = None
         options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Location Filter`: {location_filter_object}"
         self.logger.info(f"Starting job with the following options: {options}")
-        self.logger.info(f"Object types in scope: {scope.describe()}")
+        self.logger.info("Object types in scope: %s", scope.describe())
         for explanation in scope.explanations():
             self.logger.warning(explanation)
 

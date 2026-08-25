@@ -6,6 +6,7 @@ from diffsync.enum import DiffSyncModelFlags
 from nautobot.apps.testing import TestCase
 
 from nautobot_ssot.integrations.ipfabric import sync_scope
+from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Location
 from nautobot_ssot.integrations.ipfabric.sync_scope import (
     DISABLED_OBJECTS_SETTING,
     SYNCABLE_OBJECTS,
@@ -104,10 +105,6 @@ class UnsyncedLocationTestCase(TestCase):
 
     def test_placeholder_attributes_cover_every_location_attribute(self):
         """A real attribute left out of the placeholder would still diff, and so still be written."""
-        from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (  # pylint: disable=import-outside-toplevel
-            Location,
-        )
-
         self.assertEqual(set(UNSYNCED_LOCATION_ATTRS), set(Location._attributes))  # pylint: disable=protected-access
 
     def test_flags_skip_deletion_only(self):
