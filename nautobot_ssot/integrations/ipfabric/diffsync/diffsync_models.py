@@ -173,15 +173,22 @@ class DiffSyncExtras(DiffSyncModel):
                 else:
                     # Not everything has a status. This may come in handy once more models are synced.
                     logger.warning(f"{nautobot_object} has no Status attribute.")
+            tags_to_add = ()
             if hasattr(nautobot_object, "tags") and safe_delete_tag:
-                if not nautobot_object.tags.filter(id=safe_delete_tag.id).exists():
-                    nautobot_object.tags.add(safe_delete_tag)
+                already_tagged = tonb_nbutils.get_tagged_pks(type(nautobot_object), safe_delete_tag.id)
+                if nautobot_object.pk not in already_tagged:
+                    # Applied below alongside the synced from tag, as one call to `tags.add`.
+                    tags_to_add = (safe_delete_tag,)
                     logger.warning(f"Tagging {nautobot_object} with `SSoT Safe Delete`.")
                     update = True
                 else:
                     logger.warning(f"{nautobot_object} has previously been tagged with `SSoT Safe Delete`. Skipping...")
             if update:
-                tonb_nbutils.tag_object(nautobot_object=nautobot_object, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+                tonb_nbutils.tag_object(
+                    nautobot_object=nautobot_object,
+                    custom_field=LAST_SYNCHRONIZED_CF_NAME,
+                    extra_tags=tags_to_add,
+                )
         return self
 
 

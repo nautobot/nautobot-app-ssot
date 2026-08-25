@@ -872,13 +872,31 @@ def create_vlan(  # pylint: disable=too-many-arguments
     return None
 
 
-def tag_object(nautobot_object: Any, custom_field: str, tag_name: Optional[str] = "SSoT Synced from IPFabric"):
+@job_scoped_cache
+def get_tagged_pks(model: Any, tag_id: Any) -> frozenset:
+    """Return the primary keys of the model's objects already carrying the given Tag.
+
+    Resolved once per model and Tag for the whole run. Asking whether one object carries a Tag is a
+    query, and a sync removing a hundred thousand Interfaces would otherwise ask it that many times.
+    Objects tagged during the run are not added here, as each is only ever considered once.
+    """
+    return frozenset(model.objects.filter(tags__id=tag_id).values_list("pk", flat=True))
+
+
+def tag_object(
+    nautobot_object: Any,
+    custom_field: str,
+    tag_name: Optional[str] = "SSoT Synced from IPFabric",
+    extra_tags: Optional[tuple] = None,
+):
     """Apply the given tag and custom field to the identified object.
 
     Args:
         nautobot_object (Any): Nautobot ORM Object
         custom_field (str): Name of custom field to update
         tag_name (Optional[str], optional): Tag name. Defaults to "SSoT Synced From IPFabric".
+        extra_tags (Optional[tuple], optional): Further Tags to apply in the same operation, so that
+            a caller wanting two Tags does not pay for two round trips to the tag table.
     """
     ct = ContentType.objects.get_for_model(nautobot_object)
     tag = get_or_create_tag_object(
@@ -894,7 +912,7 @@ def tag_object(nautobot_object: Any, custom_field: str, tag_name: Optional[str] 
     def _tag_object(nautobot_object):
         """Apply custom field and tag to object, if applicable."""
         if hasattr(nautobot_object, "tags"):
-            nautobot_object.tags.add(tag)
+            nautobot_object.tags.add(tag, *(extra_tags or ()))
         if hasattr(nautobot_object, "cf"):
             # Update custom field date stamp
             nautobot_object.cf["system_of_record"] = "IPFabric"

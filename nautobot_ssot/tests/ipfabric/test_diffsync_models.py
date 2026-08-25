@@ -139,20 +139,23 @@ class TestSafeDelete(_ModelTestBase):
         self.diff_model = Vlan(name="v", vid=10, status="Active", location="loc")
         self.diff_model.adapter = self.adapter
 
+    @_nb_patch("get_tagged_pks", return_value=frozenset())
     @_nb_patch("tag_object")
     @_nb_patch("get_or_create_status_object")
-    def test_safe_delete_changes_status_and_tags_when_status_differs(self, mock_status, mock_tag_object):
-        """Status differs -> status updated, tag added, tag_object called once."""
+    def test_safe_delete_changes_status_and_tags_when_status_differs(
+        self, mock_status, mock_tag_object, _mock_tagged_pks
+    ):
+        """Status differs -> status updated, safe delete tag passed to tag_object, called once."""
         mock_status.return_value = "safe-deleted-status"
         nb_obj = mock.MagicMock()
         nb_obj.status = "active-status"
-        nb_obj.tags.filter.return_value.exists.return_value = False
 
         self.diff_model.safe_delete(nb_obj, "Decommissioning", self.adapter.safe_delete_tag)
 
         self.assertEqual(nb_obj.status, "safe-deleted-status")
-        nb_obj.tags.add.assert_called_once_with(self.adapter.safe_delete_tag)
+        # The tag is applied by `tag_object`, alongside the synced from tag, in one call.
         mock_tag_object.assert_called_once()
+        self.assertEqual(mock_tag_object.call_args.kwargs["extra_tags"], (self.adapter.safe_delete_tag,))
 
     @_nb_patch("tag_object")
     @_nb_patch("get_or_create_status_object")
@@ -161,9 +164,9 @@ class TestSafeDelete(_ModelTestBase):
         mock_status.return_value = "safe-deleted-status"
         nb_obj = mock.MagicMock()
         nb_obj.status = "safe-deleted-status"  # already matches
-        nb_obj.tags.filter.return_value.exists.return_value = True  # tag already present
 
-        self.diff_model.safe_delete(nb_obj, "Decommissioning", self.adapter.safe_delete_tag)
+        with _nb_patch("get_tagged_pks", return_value=frozenset({nb_obj.pk})):
+            self.diff_model.safe_delete(nb_obj, "Decommissioning", self.adapter.safe_delete_tag)
 
         nb_obj.tags.add.assert_not_called()
         mock_tag_object.assert_not_called()

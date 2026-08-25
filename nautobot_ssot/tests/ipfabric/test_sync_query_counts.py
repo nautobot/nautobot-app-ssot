@@ -22,6 +22,7 @@ from nautobot.extras.models import ObjectChange, Role, Status, Tag
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
+from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 # The trailing boundary keeps this off tables whose names merely start with "dcim_interface",
@@ -370,3 +371,97 @@ class ChangeLogCostTestCase(TestCase):
             changed_object_id=interface.pk,
         )
         self.assertEqual(changes.count(), 1, "Expected one change log entry for the safe deleted Interface.")
+
+
+class SafeDeleteCostTestCase(TestCase):
+    """Test how much work marking objects for safe deletion takes."""
+
+    def setUp(self):
+        populate_status_choices()
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
+        self.active_status = Status.objects.get(name="Active")
+        device_ct = ContentType.objects.get_for_model(Device)
+        interface_ct = ContentType.objects.get_for_model(Interface)
+        ssot_tag, _ = Tag.objects.get_or_create(
+            name="SSoT Synced from IPFabric",
+            defaults={"color": ColorChoices.COLOR_LIGHT_GREEN, "description": "Synced from IPFabric"},
+        )
+        ssot_tag.content_types.add(device_ct, interface_ct)
+        self.safe_delete_tag, _ = Tag.objects.get_or_create(
+            name="SSoT Safe Delete", defaults={"color": ColorChoices.COLOR_RED, "description": "Safe delete"}
+        )
+        self.safe_delete_tag.content_types.add(device_ct, interface_ct)
+        role = Role.objects.create(name="safe-delete-role")
+        role.content_types.add(device_ct)
+        location_type, _ = LocationType.objects.get_or_create(name="safe-delete-site")
+        location_type.content_types.add(device_ct)
+        location = Location.objects.create(
+            name="safe-delete-site1", location_type=location_type, status=self.active_status
+        )
+        manufacturer = Manufacturer.objects.create(name="safe-delete-vendor")
+        device_type = DeviceType.objects.create(model="safe-delete-model", manufacturer=manufacturer)
+        self.device = Device.objects.create(
+            name="safe-delete-device",
+            status=self.active_status,
+            role=role,
+            location=location,
+            device_type=device_type,
+            serial="serial",
+        )
+        self.device.tags.add(ssot_tag)
+        job = unittest.mock.MagicMock()
+        job.debug = False
+        self.adapter = NautobotDiffSync(
+            job=job,
+            sync=unittest.mock.MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+        )
+
+    def safe_delete(self, name):
+        """Run the DiffSync delete for the named Interface, which marks it in safe delete mode."""
+        model = InterfaceModel(name=name, device_name=self.device.name, status="Active")
+        model.adapter = self.adapter
+        model.delete()
+
+    def test_the_tag_is_looked_up_once_for_every_interface(self):
+        """Asking per object whether it is already tagged is a query per object."""
+        for index in range(6):
+            Interface.objects.create(
+                device=self.device, name=f"eth{index}", status=self.active_status, type="1000base-t"
+            )
+        for index in range(6):
+            self.safe_delete(f"eth{index}")
+
+        self.assertEqual(
+            nbutils.get_tagged_pks.cache_info().misses,
+            1,
+            "The safe delete tag membership must be resolved once for the whole model, not per object.",
+        )
+
+    def test_both_tags_are_applied_in_one_operation(self):
+        interface = Interface.objects.create(
+            device=self.device, name="eth0", status=self.active_status, type="1000base-t"
+        )
+        self.safe_delete("eth0")
+
+        interface.refresh_from_db()
+        self.assertEqual(
+            sorted(tag.name for tag in interface.tags.all()),
+            ["SSoT Safe Delete", "SSoT Synced from IPFabric"],
+        )
+
+    def test_an_already_marked_interface_is_not_written_again(self):
+        """The short circuit for an already marked object is what keeps a re-run cheap."""
+        interface = Interface.objects.create(
+            device=self.device, name="eth0", status=self.active_status, type="1000base-t"
+        )
+        interface.tags.add(self.safe_delete_tag)
+        before = interface.last_updated
+
+        job_scoped_cache.clear_all()
+        self.safe_delete("eth0")
+
+        interface.refresh_from_db()
+        self.assertEqual(interface.last_updated, before, "An already marked Interface was written again.")
