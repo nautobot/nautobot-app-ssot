@@ -1,0 +1,1 @@
+Silenced `F601` on the duplicated boolean keys of the LibreNMS `librenms_status_map`, which newer `ruff` releases flag.
