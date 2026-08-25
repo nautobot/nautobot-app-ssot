@@ -148,3 +148,125 @@ class InterfaceWriteCostTestCase(TestCase):
         address = Interface.objects.get(name="eth3").ip_addresses.get()
         self.assertTrue(address.tags.filter(name="SSoT Synced from IPFabric").exists())
         self.assertEqual(address.cf["system_of_record"], "IPFabric")
+
+
+class DeleteCostTestCase(TestCase):
+    """Count the queries deleting a set of objects takes when safe delete mode is off."""
+
+    def setUp(self):
+        populate_status_choices()
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
+        self.active_status = Status.objects.get(name="Active")
+        device_ct = ContentType.objects.get_for_model(Device)
+        Tag.objects.get_or_create(
+            name="SSoT Synced from IPFabric",
+            defaults={"color": ColorChoices.COLOR_LIGHT_GREEN, "description": "Synced from IPFabric"},
+        )
+        Tag.objects.get_or_create(
+            name="SSoT Safe Delete", defaults={"color": ColorChoices.COLOR_RED, "description": "Safe delete"}
+        )
+        role = Role.objects.create(name="delete-cost-role")
+        role.content_types.add(device_ct)
+        self.location_type, _ = LocationType.objects.get_or_create(name="delete-cost-site")
+        self.location_type.content_types.add(device_ct)
+        location = Location.objects.create(
+            name="delete-cost-site1", location_type=self.location_type, status=self.active_status
+        )
+        manufacturer = Manufacturer.objects.create(name="delete-cost-vendor")
+        device_type = DeviceType.objects.create(model="delete-cost-model", manufacturer=manufacturer)
+        self.device = Device.objects.create(
+            name="delete-cost-device",
+            status=self.active_status,
+            role=role,
+            location=location,
+            device_type=device_type,
+            serial="serial",
+        )
+        job = unittest.mock.MagicMock()
+        job.debug = False
+        self.adapter = NautobotDiffSync(
+            job=job,
+            sync=unittest.mock.MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+        )
+
+    def interfaces(self, count, prefix):
+        """Return `count` newly created Interfaces on this test's Device."""
+        return [
+            Interface.objects.create(
+                device=self.device, name=f"{prefix}{index}", status=self.active_status, type="1000base-t"
+            )
+            for index in range(count)
+        ]
+
+    def delete_query_count(self, nautobot_objects):
+        """Return how many queries deleting the given objects takes."""
+        with CaptureQueriesContext(connection) as queries:
+            self.adapter.delete_objects(nautobot_objects)
+        return len(queries.captured_queries)
+
+    def test_query_count_does_not_grow_with_the_number_of_objects(self):
+        """Django walks the relations once for a whole batch, so the cost must not scale with it."""
+        few = self.delete_query_count(self.interfaces(2, "few"))
+        many = self.delete_query_count(self.interfaces(40, "many"))
+        self.assertEqual(
+            few,
+            many,
+            f"Deleting 40 Interfaces took {many} queries against {few} for 2, so they are not "
+            "being deleted as a batch.",
+        )
+        self.assertEqual(Interface.objects.filter(device=self.device).count(), 0)
+
+    def test_every_object_in_a_batch_is_deleted(self):
+        deleted = self.interfaces(5, "gone")
+        self.adapter.delete_objects(deleted)
+        self.assertFalse(Interface.objects.filter(pk__in=[interface.pk for interface in deleted]).exists())
+
+    def test_objects_of_different_models_are_each_batched(self):
+        """`objects_to_delete` is keyed per model, but a mixed list must not delete the wrong rows."""
+        interfaces = self.interfaces(3, "mixed")
+        spare_location = Location.objects.create(
+            name="delete-cost-spare", location_type=self.location_type, status=self.active_status
+        )
+        self.adapter.delete_objects([*interfaces, spare_location])
+        self.assertFalse(Interface.objects.filter(pk__in=[interface.pk for interface in interfaces]).exists())
+        self.assertFalse(Location.objects.filter(pk=spare_location.pk).exists())
+
+    def test_a_protected_object_does_not_stop_the_rest_of_its_batch(self):
+        """The Device at a Location protects it, so that Location cannot be deleted with the others."""
+        free_location = Location.objects.create(
+            name="delete-cost-free", location_type=self.location_type, status=self.active_status
+        )
+        protected_location = self.device.location
+
+        with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
+            self.adapter.delete_objects([protected_location, free_location])
+
+        self.assertFalse(Location.objects.filter(pk=free_location.pk).exists())
+        self.assertTrue(Location.objects.filter(pk=protected_location.pk).exists())
+        self.assertTrue(
+            any("protected" in message for message in logs.output),
+            f"Expected the protected Location to be reported: {logs.output}",
+        )
+
+    def test_safe_delete_mode_deletes_nothing(self):
+        """Nothing is queued in safe delete mode, and `sync_complete` must not delete regardless."""
+        self.adapter.objects_to_delete["_interface"] = self.interfaces(3, "safe")
+        self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
+        self.assertEqual(Interface.objects.filter(device=self.device).count(), 3)
+        self.assertEqual(self.adapter.objects_to_delete["_interface"], [])
+
+    def test_objects_to_delete_is_not_shared_between_adapters(self):
+        """A run that fails before `sync_complete` must not leave work for the next run in the worker."""
+        self.adapter.objects_to_delete["_interface"].append(self.interfaces(1, "leak")[0])
+        job = unittest.mock.MagicMock()
+        job.debug = False
+        other = NautobotDiffSync(
+            job=job,
+            sync=unittest.mock.MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+        )
+        self.assertEqual(other.objects_to_delete["_interface"], [])

@@ -1,6 +1,7 @@
 # pylint: disable=duplicate-code
 # pylint: disable=too-many-arguments
 # Load method is packed with conditionals  #  pylint: disable=too-many-branches
+# The adapter carries the job's options  #  pylint: disable=too-many-instance-attributes
 """DiffSync adapter class for Nautobot as source-of-truth."""
 
 import logging
@@ -31,10 +32,13 @@ from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 logger = logging.getLogger("nautobot.ssot.ipfabric")
 
 
+# How many objects to delete per statement. Django walks the relations of a whole batch once, so
+# larger batches cost fewer queries, at the price of a longer `IN` list and a wider lock.
+DELETE_BATCH_SIZE = 1000
+
+
 class NautobotDiffSync(DiffSyncModelAdapters):
     """Nautobot adapter for DiffSync."""
-
-    objects_to_delete = defaultdict(list)
 
     _vlan: ClassVar[Any] = VLAN
     _device: ClassVar[Any] = Device
@@ -56,6 +60,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         self.sync = sync
         self.sync_ipfabric_tagged_only = sync_ipfabric_tagged_only
         self.location_filter = location_filter
+        # Per adapter rather than per class, so that a run which fails before `sync_complete` cannot
+        # leave objects queued for a later run in the same worker to delete.
+        self.objects_to_delete = defaultdict(list)
         self.ssot_tag = tonb_utils.get_or_create_tag_object(
             tag_name="SSoT Synced from IPFabric",
             tag_color=ColorChoices.COLOR_LIGHT_GREEN,
@@ -88,18 +95,43 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             "_device",
             "_location",
         ):
-            for nautobot_object in self.objects_to_delete[grouping]:
-                if NautobotDiffSync.safe_delete_mode:
-                    continue
-                try:
-                    nautobot_object.delete()
-                except ProtectedError:
-                    logger.warning("Deletion failed protected object", extra={"object": nautobot_object})
-                except IntegrityError:
-                    logger.warning(f"Deletion failed due to IntegrityError with {nautobot_object}")
-
+            if not NautobotDiffSync.safe_delete_mode:
+                self.delete_objects(self.objects_to_delete[grouping])
             self.objects_to_delete[grouping] = []
         return super().sync_complete(source, *args, **kwargs)
+
+    def delete_objects(self, nautobot_objects: List):
+        """Delete the given Nautobot objects, in as few statements as their relations allow.
+
+        Deleting one at a time makes Django walk that object's relations and issue its own
+        statements; deleting a batch walks them once. A batch Nautobot refuses is retried an object
+        at a time, so one protected object neither takes the rest with it nor goes unreported.
+        """
+        by_model = defaultdict(list)
+        for nautobot_object in nautobot_objects:
+            by_model[type(nautobot_object)].append(nautobot_object)
+
+        for model, objects in by_model.items():
+            for start in range(0, len(objects), DELETE_BATCH_SIZE):
+                batch = objects[start : start + DELETE_BATCH_SIZE]
+                try:
+                    # Its own savepoint, so a refused batch leaves the transaction usable.
+                    with transaction.atomic():
+                        model.objects.filter(pk__in=[nautobot_object.pk for nautobot_object in batch]).delete()
+                except (ProtectedError, IntegrityError):
+                    self.delete_objects_one_at_a_time(batch)
+
+    @staticmethod
+    def delete_objects_one_at_a_time(nautobot_objects: List):
+        """Delete the given Nautobot objects individually, naming each one Nautobot refuses."""
+        for nautobot_object in nautobot_objects:
+            try:
+                with transaction.atomic():
+                    nautobot_object.delete()
+            except ProtectedError:
+                logger.warning("Deletion failed protected object", extra={"object": nautobot_object})
+            except IntegrityError:
+                logger.warning(f"Deletion failed due to IntegrityError with {nautobot_object}")
 
     def load_interfaces(self, device_record: Device, diffsync_device):
         """Import a single Nautobot Interface object as a DiffSync Interface model."""
