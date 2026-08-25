@@ -595,7 +595,8 @@ class Interface(DiffSyncExtras):
                     logger=adapter.job.logger,
                 )
                 if ip_address_obj:
-                    interface_obj.ip_addresses.add(ip_address_obj)
+                    # `create_ip` has already assigned it to the Interface, through a validated
+                    # save of the assignment rather than the plain insert `add()` would do.
                     if attrs.get("ip_is_primary"):
                         if ip_address_obj.ip_version == 4:
                             device_obj.primary_ip4 = ip_address_obj
@@ -609,13 +610,9 @@ class Interface(DiffSyncExtras):
                         f"because of a failure to get or create an IPAddress of {ip_address}/{subnet_mask}"
                     )
                     return_super = False
-                try:
-                    interface_obj.validated_save()
-                except (DjangoBaseDBError, ValidationError):
-                    adapter.job.logger.error(
-                        f"Unable to perform a validated_save() on an Interface named {interface_name} on a Device named {device_name}"
-                    )
-                    return_super = False
+                # The Interface is not saved again here. `create_interface` saved it, and nothing
+                # since has changed a field on it: assigning an address touches only the through
+                # table, and `Interface.clean()` does not validate the addresses assigned to it.
             elif ip_address:
                 adapter.job.logger.warning(
                     f"Unable to create an IPAddress {ip_address}/{subnet_mask} because of a failure "
@@ -723,9 +720,7 @@ class Interface(DiffSyncExtras):
                         object_pk=interface,
                         logger=self.adapter.job.logger,
                     )
-                    if ip_address_obj:
-                        interface.ip_addresses.add(ip_address_obj)
-                    else:
+                    if not ip_address_obj:
                         self.adapter.job.logger.warning(
                             f"Unable to update Interface {self.name} on Device {device.name} "
                             f"with an IPAddress of {ip_address}/{subnet_mask}"

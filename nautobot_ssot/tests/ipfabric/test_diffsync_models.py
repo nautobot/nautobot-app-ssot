@@ -710,21 +710,22 @@ class TestInterfaceModel(_ModelTestBase):
         return diff_model, device, interface_obj
 
     def test_update_replaces_existing_ip_address(self):
-        """Update flows through prefetch, clears existing IPs, adds new."""
+        """Existing addresses are cleared, and `create_ip` is left to assign the new one."""
         diff_model, device, interface_obj = self._setup_interface_update()
         interface_obj.ip_addresses.all.return_value = [mock.MagicMock()]  # existing IPs present
         new_ip = mock.MagicMock()
 
         with (
             _nb_patch("get_tagged_device", return_value=device),
-            _nb_patch("create_ip", return_value=new_ip),
+            _nb_patch("create_ip", return_value=new_ip) as create_ip,
             _nb_patch("tag_object"),
             mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
         ):
             result = diff_model.update({"ip_address": "10.0.0.5", "subnet_mask": "255.255.255.0"})
 
         interface_obj.ip_addresses.set.assert_called_once_with([])
-        interface_obj.ip_addresses.add.assert_called_once_with(new_ip)
+        self.assertEqual(create_ip.call_args.kwargs["object_pk"], interface_obj)
+        interface_obj.ip_addresses.add.assert_not_called()
         self.assertEqual(result, "ok")
 
     def test_update_primary_ipv6_saves_device(self):
