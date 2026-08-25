@@ -20,6 +20,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_MAC,
     DEFAULT_INTERFACE_MTU,
     IP_FABRIC_USE_CANONICAL_INTERFACE_NAME,
+    PSEUDO_MANAGEMENT_INTERFACE_NAME,
     SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
@@ -345,7 +346,7 @@ def pseudo_management_interface(hostname, device_interfaces, device_primary_ip):
         return None
     return {
         "hostname": hostname,
-        "intName": "pseudo_mgmt",
+        "intName": PSEUDO_MANAGEMENT_INTERFACE_NAME,
         "dscr": "pseudo interface for NAT IP address",
         "primaryIp": device_primary_ip,
         "type": "virtual",

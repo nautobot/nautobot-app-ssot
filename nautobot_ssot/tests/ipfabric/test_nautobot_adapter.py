@@ -28,11 +28,31 @@ except ImportError:
 
 import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
+from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 
 # pylint: disable=too-many-public-methods
+def _deleted_interfaces(node):
+    """Return the names of Interfaces a nested diff dict would delete.
+
+    An element the source does not report shows up with a "-" and no "+". Interfaces sit under
+    location -> device rather than at the top of the diff, so the whole tree is walked.
+    """
+    deleted = set()
+    if not isinstance(node, dict):
+        return deleted
+    for key, value in node.items():
+        if key == "interface" and isinstance(value, dict):
+            for unique_id, change in value.items():
+                if isinstance(change, dict) and change.get("-") and not change.get("+"):
+                    deleted.add(unique_id.split("__")[0])
+        if isinstance(value, dict):
+            deleted |= _deleted_interfaces(value)
+    return deleted
+
+
 class TestNautobotAdapter(TestCase):
     """Test cases for InfoBlox Nautobot adapter."""
 
@@ -316,6 +336,92 @@ class TestNautobotAdapter(TestCase):
         self.assertNotEqual(interfaces, [], "Interfaces should still load.")
         for interface in interfaces:
             self.assertIsNone(interface.ip_address, interface.name)
+
+    def test_ip_addresses_out_of_scope_drops_the_pseudo_interface(self):
+        """Mirrors the IP Fabric adapter, which does not fabricate the pseudo interface out of scope.
+
+        A previous run with addresses in scope leaves a real `pseudo_mgmt` Interface in Nautobot. If
+        only this side reported it, the diff would read it as absent from IP Fabric and delete it.
+        """
+        stack_master = self.stack.master
+        Interface.objects.create(
+            name="pseudo_mgmt",
+            device=stack_master,
+            type="virtual",
+            status=self.active_status,
+        )
+
+        self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_ip_addresses": False})
+        self.nb_adapter.load_interfaces(device_record=stack_master, diffsync_device=unittest.mock.Mock())
+
+        loaded = {interface.name for interface in self.nb_adapter.get_all("interface")}
+        self.assertNotIn("pseudo_mgmt", loaded)
+        self.assertIn("eth0", loaded, "Real Interfaces must still load.")
+
+    def test_pseudo_interface_loads_while_addresses_are_in_scope(self):
+        """In scope both adapters report it, so it must not be dropped unconditionally."""
+        stack_master = self.stack.master
+        Interface.objects.create(
+            name="pseudo_mgmt",
+            device=stack_master,
+            type="virtual",
+            status=self.active_status,
+        )
+
+        self.nb_adapter.load_interfaces(device_record=stack_master, diffsync_device=unittest.mock.Mock())
+
+        self.assertIn("pseudo_mgmt", {interface.name for interface in self.nb_adapter.get_all("interface")})
+
+    def test_the_pseudo_interface_is_not_deleted_when_addresses_go_out_of_scope(self):
+        """The consequence the symmetry above exists to prevent, asserted on the diff itself.
+
+        A run with addresses in scope leaves a real `pseudo_mgmt` Interface behind. A later run with
+        addresses deselected must not read it as absent from IP Fabric and delete it.
+        """
+        stack_master = self.stack.master
+        Interface.objects.create(
+            name="pseudo_mgmt",
+            device=stack_master,
+            type="virtual",
+            status=self.active_status,
+        )
+        scope = SyncScope.from_job_kwargs({"sync_ip_addresses": False, "sync_vlans": False})
+
+        # A source that reports the Device but, being out of scope for addresses, no pseudo interface.
+        source = DiffSyncModelAdapters(scope=scope)
+        location = source.location_model(self.stack_site.name, site_id=None, status="Active")
+        source.add(location)
+        device = source.device(
+            name=stack_master.name,
+            location_name=self.stack_site.name,
+            model=stack_master.device_type.model,
+            vendor=stack_master.device_type.manufacturer.name,
+            serial_number=stack_master.serial,
+            role=stack_master.role.name,
+            status="Active",
+        )
+        source.add(device)
+        location.add_child(device)
+        for interface_record in stack_master.interfaces.exclude(name="pseudo_mgmt"):
+            interface = source.interface(
+                name=interface_record.name,
+                device_name=stack_master.name,
+                status="Active",
+                enabled=True,
+                type=interface_record.type,
+            )
+            source.add(interface)
+            device.add_child(interface)
+
+        self.nb_adapter.scope = scope
+        self.nb_adapter.location_filter = self.stack_site
+        self.nb_adapter.load_data()
+        diff = self.nb_adapter.diff_from(source)
+
+        # Interfaces are nested under location -> device, since `top_level` is Locations and Cables.
+        deleted = _deleted_interfaces(diff.dict())
+        self.assertNotIn("pseudo_mgmt", deleted, f"Diff would delete: {sorted(deleted)}")
+        self.assertEqual(deleted, set(), "No Interface should be deleted; the source reports them all.")
 
     def test_vlans_out_of_scope_loads_none(self):
         """With VLANs deselected, an existing Nautobot VLAN is not loaded and so cannot be deleted."""

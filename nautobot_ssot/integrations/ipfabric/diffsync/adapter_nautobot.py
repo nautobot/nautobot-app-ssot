@@ -23,6 +23,7 @@ import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_utils
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_MAC,
     DEFAULT_INTERFACE_MTU,
+    PSEUDO_MANAGEMENT_INTERFACE_NAME,
     SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
@@ -107,6 +108,11 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             device_primary_ip = device_record.primary_ip4 or device_record.primary_ip6
 
         for interface_record in device_record.interfaces.all():
+            if not self.scope.ip_addresses and interface_record.name == PSEUDO_MANAGEMENT_INTERFACE_NAME:
+                # The IP Fabric adapter only fabricates this Interface to carry a NAT management
+                # address, so out of scope it reports none. Skipped here to match: reporting one an
+                # earlier run created would leave it looking absent from the source, and deleted.
+                continue
             # Avoid .first() to preserve prefetch cache
             ip_addresses = interface_record.ip_addresses.all() if self.scope.ip_addresses else []
             if ip_addresses:
