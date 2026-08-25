@@ -22,7 +22,9 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import Nautob
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
-WRITE_TO_INTERFACE = re.compile(r'^(INSERT INTO|UPDATE)\s+"?dcim_interface"?', re.IGNORECASE)
+# The trailing boundary keeps this off tables whose names merely start with "dcim_interface",
+# such as the tagged VLAN join table.
+WRITE_TO_INTERFACE = re.compile(r'^(INSERT INTO|UPDATE)\s+"?dcim_interface"?(\s|$)', re.IGNORECASE)
 
 
 class InterfaceWriteCostTestCase(TestCase):
@@ -32,7 +34,7 @@ class InterfaceWriteCostTestCase(TestCase):
         populate_status_choices()
         job_scoped_cache.clear_all()
         self.addCleanup(job_scoped_cache.clear_all)
-        active_status = Status.objects.get(name="Active")
+        self.active_status = Status.objects.get(name="Active")
         device_ct = ContentType.objects.get_for_model(Device)
         ssot_tag, _ = Tag.objects.get_or_create(
             name="SSoT Synced from IPFabric",
@@ -46,12 +48,14 @@ class InterfaceWriteCostTestCase(TestCase):
         role.content_types.add(device_ct)
         location_type, _ = LocationType.objects.get_or_create(name="query-count-site")
         location_type.content_types.add(device_ct)
-        location = Location.objects.create(name="query-count-site1", location_type=location_type, status=active_status)
+        location = Location.objects.create(
+            name="query-count-site1", location_type=location_type, status=self.active_status
+        )
         manufacturer = Manufacturer.objects.create(name="query-count-vendor")
         device_type = DeviceType.objects.create(model="query-count-model", manufacturer=manufacturer)
         self.device = Device.objects.create(
             name="query-count-device",
-            status=active_status,
+            status=self.active_status,
             role=role,
             location=location,
             device_type=device_type,
@@ -59,7 +63,7 @@ class InterfaceWriteCostTestCase(TestCase):
         )
         self.device.tags.add(ssot_tag)
         self.existing = Interface.objects.create(
-            device=self.device, name="eth0", status=active_status, type="1000base-t"
+            device=self.device, name="eth0", status=self.active_status, type="1000base-t"
         )
         job = unittest.mock.MagicMock()
         job.debug = False

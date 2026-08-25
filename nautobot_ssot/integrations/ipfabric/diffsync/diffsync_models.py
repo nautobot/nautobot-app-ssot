@@ -654,9 +654,11 @@ class Interface(DiffSyncExtras):
             else:
                 # Access the addr within an interface, change the status if necessary
                 for ip_address in interface.ip_addresses.all():
-                    if not ip_address.interfaces.exclude(id=interface.id).exists():
-                        # IP's can be associated to multiple Interfaces.
-                        # Only mark IPs with no other interface associtations as safe to delete.
+                    # An address can be on several Interfaces, and only one with no other Interface
+                    # is safe to delete. Read from the prefetched Interfaces rather than excluding
+                    # this one in the database, which would cost a query per address and make the
+                    # `ip_addresses__interfaces` prefetch above pointless.
+                    if not any(other.id != interface.id for other in ip_address.interfaces.all()):
                         self.safe_delete(ip_address, SAFE_DELETE_IPADDRESS_STATUS, self.adapter.safe_delete_tag)
                 # Then do the parent interface
                 # Attached interfaces do not have a status to update.

@@ -671,14 +671,18 @@ class TestInterfaceModel(_ModelTestBase):
 
     def test_delete_only_safe_deletes_unshared_ips(self):
         """Regression: when an IP is also on another interface, the IP must not be safe-deleted."""
-        shared_ip = mock.MagicMock(name="shared_ip")
-        shared_ip.interfaces.exclude.return_value.exists.return_value = True
-
-        exclusive_ip = mock.MagicMock(name="exclusive_ip")
-        exclusive_ip.interfaces.exclude.return_value.exists.return_value = False
-
         interface_obj = mock.MagicMock()
         interface_obj.id = "iface-uuid"
+        other_interface = mock.MagicMock(name="other_interface")
+        other_interface.id = "other-iface-uuid"
+
+        # The prefetched Interfaces of each address, which is where the check reads from.
+        shared_ip = mock.MagicMock(name="shared_ip")
+        shared_ip.interfaces.all.return_value = [interface_obj, other_interface]
+
+        exclusive_ip = mock.MagicMock(name="exclusive_ip")
+        exclusive_ip.interfaces.all.return_value = [interface_obj]
+
         interface_obj.ip_addresses.all.return_value = [shared_ip, exclusive_ip]
 
         device = mock.MagicMock()
