@@ -568,6 +568,22 @@ def assign_device_to_virtual_chassis(device, virtual_chassis, position, master=F
 
 
 @job_scoped_cache
+def get_status_for_model(model: Any, status_name: str) -> Status:
+    """Return the Status of the given name that applies to the given model.
+
+    Cached because an IP Address carrying sync repeats this lookup for every address it writes.
+    Raises rather than creating, so a caller can tell a missing Status from an ambiguous one.
+    """
+    return Status.objects.get_for_model(model).get(name=status_name)
+
+
+@job_scoped_cache
+def get_global_namespace() -> Namespace:
+    """Return the Global Namespace, which every Prefix this integration creates belongs to."""
+    return Namespace.objects.get(name="Global")
+
+
+@job_scoped_cache
 def get_tagged_device(device_name: str) -> Device:
     """Cached lookup for Devices, used in interface operations."""
     ssot_tag = get_or_create_tag_object(tag_name="SSoT Synced from IPFabric")
@@ -634,7 +650,7 @@ def create_ip(  # pylint: disable=too-many-statements
         None: When there is a failure in getting or creating a IPAddress.
     """
     try:
-        status_obj = Status.objects.get_for_model(IPAddress).get(name=status)
+        status_obj = get_status_for_model(IPAddress, status)
     except Status.MultipleObjectsReturned:
         if logger:
             logger.error(
@@ -648,7 +664,6 @@ def create_ip(  # pylint: disable=too-many-statements
                 f"and therefore cannot create an IPAddress of {ip_address}/{subnet_mask}"
             )
     else:
-        namespace_obj = Namespace.objects.get(name="Global")
         cidr = netmask_to_cidr(subnet_mask)
         ip_obj = None
         try:
@@ -665,8 +680,8 @@ def create_ip(  # pylint: disable=too-many-statements
                     network=str(network_obj.network_address),
                     prefix_length=network_obj.prefixlen,
                     type=PrefixTypeChoices.TYPE_NETWORK,
-                    status=Status.objects.get_for_model(Prefix).get(name="Active"),
-                    namespace=namespace_obj,
+                    status=get_status_for_model(Prefix, "Active"),
+                    namespace=get_global_namespace(),
                 )
             except (DjangoBaseDBError, ValidationError) as err:
                 if logger:
@@ -691,14 +706,9 @@ def create_ip(  # pylint: disable=too-many-statements
                             f"Unable to assign IPAddress {ip_obj.address} with ID {ip_obj.id}"
                             f"to interface {object_pk.name} with ID {object_pk.id}"
                         )
-                try:
-                    # Tag Interface (object_pk)
-                    tag_object(nautobot_object=object_pk, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-                except (DjangoBaseDBError, ValidationError):
-                    if logger:
-                        logger.warning(
-                            f"Unable to perform validated_save() on Interface {object_pk.name} with an ID of {object_pk.id}"
-                        )
+                # The Interface is deliberately not tagged here. Both callers tag it themselves
+                # once they are done with it, and `tag_object` runs a full `validated_save()`, so
+                # tagging it twice doubles the write cost of every Interface that carries an address.
 
             try:
                 # Tag IP Addr

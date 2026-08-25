@@ -599,12 +599,7 @@ class TestNautobotUtils(TestCase):
                 unittest.mock.call(address="192.168.0.1/32", defaults={"status": "mock_status"}),
             ]
         )
-        mock_tag_object.assert_has_calls(
-            [
-                unittest.mock.call(nautobot_object=mock_intf, custom_field=mock_last_sync),
-                unittest.mock.call(nautobot_object="mock_ipaddress", custom_field=mock_last_sync),
-            ],
-        )
+        mock_tag_object.assert_called_once_with(nautobot_object="mock_ipaddress", custom_field=mock_last_sync)
 
     @unittest.mock.patch(
         "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
@@ -647,12 +642,7 @@ class TestNautobotUtils(TestCase):
                 unittest.mock.call(address="192.168.0.1/32", defaults={"status": "mock_status"}),
             ]
         )
-        mock_tag_object.assert_has_calls(
-            [
-                unittest.mock.call(nautobot_object=mock_intf, custom_field=mock_last_sync),
-                unittest.mock.call(nautobot_object="mock_ipaddress", custom_field=mock_last_sync),
-            ],
-        )
+        mock_tag_object.assert_called_once_with(nautobot_object="mock_ipaddress", custom_field=mock_last_sync)
 
     @unittest.mock.patch(
         "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
@@ -777,44 +767,14 @@ class TestNautobotUtils(TestCase):
         )
 
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.LAST_SYNCHRONIZED_CF_NAME")
     @unittest.mock.patch("logging.Logger", autospec=True)
-    def test_create_ip_tag_interface_db_error(self, mock_logger, mock_last_sync, mock_tag_object):  # pylint: disable=unused-argument
-        """Test `create_device_type_object` Utility."""
+    def test_create_ip_does_not_tag_the_interface(self, mock_logger, mock_tag_object):
+        """Only the IPAddress is tagged, as `tag_object` costs a validated_save() per call."""
         logger = mock_logger("nb_job")
-        mock_tag_object.side_effect = [DjangoBaseDBError, None]
         interface_obj = self.device.interfaces.first()
-        test_ip = create_ip("192.168.0.1", "255.255.255.255", object_pk=interface_obj, logger=logger)
-        self.assertEqual(test_ip.id, self.ip_address.id)
-        mock_tag_object.assert_has_calls(
-            [
-                unittest.mock.call(nautobot_object=interface_obj, custom_field=mock_last_sync),
-                unittest.mock.call(nautobot_object=self.ip_address, custom_field=mock_last_sync),
-            ]
-        )
-        logger.warning.assert_called_with(
-            f"Unable to perform validated_save() on Interface {interface_obj.name} with an ID of {interface_obj.id}"
-        )
-
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.LAST_SYNCHRONIZED_CF_NAME")
-    @unittest.mock.patch("logging.Logger", autospec=True)
-    def test_create_ip_tag_interface_validation_error(self, mock_logger, mock_last_sync, mock_tag_object):
-        """Test `create_device_type_object` Utility."""
-        logger = mock_logger("nb_job")
-        mock_tag_object.side_effect = [ValidationError("fail"), None]
-        interface_obj = self.device.interfaces.first()
-        test_ip = create_ip("192.168.0.1", "255.255.255.255", object_pk=interface_obj, logger=logger)
-        self.assertEqual(test_ip.id, self.ip_address.id)
-        mock_tag_object.assert_has_calls(
-            [
-                unittest.mock.call(nautobot_object=interface_obj, custom_field=mock_last_sync),
-                unittest.mock.call(nautobot_object=self.ip_address, custom_field=mock_last_sync),
-            ]
-        )
-        logger.warning.assert_called_with(
-            f"Unable to perform validated_save() on Interface {interface_obj.name} with an ID of {interface_obj.id}"
-        )
+        create_ip("192.168.0.1", "255.255.255.255", object_pk=interface_obj, logger=logger)
+        tagged = [call.kwargs["nautobot_object"] for call in mock_tag_object.call_args_list]
+        self.assertEqual(tagged, [self.ip_address])
 
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
