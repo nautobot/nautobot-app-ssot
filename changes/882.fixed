@@ -1,0 +1,1 @@
+Fixed the IP Fabric adapter queueing objects for deletion on the adapter class rather than the instance, which let a run that failed part way leave objects for a later run in the same worker to delete.

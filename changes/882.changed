@@ -1,0 +1,1 @@
+Reduced the number of database queries an IP Fabric sync makes. Devices and VLANs are now read in one query each rather than one per Location, a synced Interface is written once rather than up to four times, and objects are deleted in batches rather than one at a time.
