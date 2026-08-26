@@ -7,7 +7,9 @@ calls, regression guards for fixed bugs. Nautobot ORM calls and the
 test suites.
 """
 
+import ast
 import contextlib
+import pathlib
 from types import SimpleNamespace
 from unittest import mock
 from uuid import UUID
@@ -1199,3 +1201,54 @@ class TestCableModel(_ModelTestBase):
         self.assertIsNone(result)
         mock_super.assert_not_called()
         self.adapter.job.logger.error.assert_called_once()
+
+
+class TestDeferredChangeLoggingCoverage(SimpleTestCase):
+    """Every model operation that writes must defer its change log.
+
+    The scope is applied as a decorator on each operation, since DiffSync calls `create`, `update`
+    and `delete` itself and each subclass does its writes before delegating to `super()`. Hand
+    application means a new model, or a rename, can silently lose it — this asserts the invariant
+    instead of relying on it being remembered.
+    """
+
+    WRITING_OPERATIONS = ("create", "update", "delete")
+
+    @staticmethod
+    def _decorated_operations(class_node):
+        """Return the operations on an `ast` class node that carry the deferral decorator."""
+        decorated = set()
+        for node in class_node.body:
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for decorator in node.decorator_list:
+                # Matches `@tonb_nbutils.deferred_change_logging()`.
+                function = decorator.func if isinstance(decorator, ast.Call) else decorator
+                if isinstance(function, ast.Attribute) and function.attr == "deferred_change_logging":
+                    decorated.add(node.name)
+        return decorated
+
+    def test_every_write_operation_defers_its_change_log(self):
+        module = ast.parse(pathlib.Path(diffsync_models.__file__).read_text(encoding="utf-8"))
+        subclasses = {model.__name__ for model in DiffSyncExtras.__subclasses__()}
+        self.assertTrue(subclasses, "No DiffSyncExtras subclasses found, so this test proves nothing.")
+
+        checked = 0
+        for class_node in (node for node in module.body if isinstance(node, ast.ClassDef)):
+            if class_node.name not in subclasses:
+                continue
+            defined = {
+                node.name
+                for node in class_node.body
+                if isinstance(node, ast.FunctionDef) and node.name in self.WRITING_OPERATIONS
+            }
+            decorated = self._decorated_operations(class_node)
+            for operation in sorted(defined):
+                checked += 1
+                self.assertIn(
+                    operation,
+                    decorated,
+                    f"{class_node.name}.{operation} writes without deferring its change log, which "
+                    "costs a change log rewrite per write and pins the instance for the whole job.",
+                )
+        self.assertEqual(checked, 15, "Expected 15 write operations across the five models.")

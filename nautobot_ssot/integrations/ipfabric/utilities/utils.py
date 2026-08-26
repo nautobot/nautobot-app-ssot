@@ -233,10 +233,10 @@ class job_scoped_cache:  # pylint: disable=invalid-name
         result = self._fn(*args, **kwargs)
         store = state["store"]
         store[key] = result
-        if self._maxsize is not None:
-            while len(store) > self._maxsize:
-                # Insertion ordered, so the first key is the oldest.
-                del store[next(iter(store))]
+        if self._maxsize is not None and len(store) > self._maxsize:
+            # One entry is added per miss, so the bound is exceeded by at most one. Insertion
+            # ordered, so the first key is the oldest.
+            del store[next(iter(store))]
         return result
 
     def _get_state(self):
@@ -262,7 +262,7 @@ class job_scoped_cache:  # pylint: disable=invalid-name
 
         state = self._get_state()
         _CacheInfo = namedtuple("CacheInfo", ["hits", "misses", "maxsize", "currsize"])
-        return _CacheInfo(state["hits"], state["misses"], None, len(state["store"]))
+        return _CacheInfo(state["hits"], state["misses"], self._maxsize, len(state["store"]))
 
     @classmethod
     def clear_group(cls, group):

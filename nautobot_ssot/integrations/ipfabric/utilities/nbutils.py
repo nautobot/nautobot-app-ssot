@@ -5,7 +5,6 @@ import datetime
 import ipaddress
 import logging
 from contextlib import contextmanager
-from functools import wraps
 from typing import Any, Optional
 
 from django.contrib.contenttypes.models import ContentType
@@ -29,7 +28,7 @@ from nautobot.extras.models import CustomField, Role, Tag
 from nautobot.extras.models.statuses import Status
 from nautobot.extras.signals import change_context_state
 from nautobot.ipam.choices import PrefixTypeChoices
-from nautobot.ipam.models import VLAN, IPAddress, IPAddressToInterface, Namespace, Prefix
+from nautobot.ipam.models import VLAN, IPAddress, IPAddressToInterface, Namespace, Prefix, get_default_namespace
 from netutils.ip import netmask_to_cidr
 from netutils.lib_mapper import NAPALM_LIB_MAPPER
 
@@ -53,6 +52,8 @@ def deferred_change_logging():
 
     Does nothing when change logging is not enabled, which is the case when an adapter is driven
     directly rather than by a job, or when an enclosing scope is already deferring.
+
+    Doubles as a decorator, which is how the model operations apply it.
     """
     change_context = change_context_state.get()
     if change_context is None or change_context.defer_object_changes:
@@ -61,17 +62,6 @@ def deferred_change_logging():
         return
     with deferred_change_logging_for_bulk_operation():
         yield
-
-
-def with_deferred_change_logging(method):
-    """Wrap a model operation so that the writes it makes record one change log entry each."""
-
-    @wraps(method)
-    def wrapper(*args, **kwargs):
-        with deferred_change_logging():
-            return method(*args, **kwargs)
-
-    return wrapper
 
 
 @job_scoped_cache
@@ -618,8 +608,12 @@ def get_status_for_model(model: Any, status_name: str) -> Status:
 
 @job_scoped_cache
 def get_global_namespace() -> Namespace:
-    """Return the Global Namespace, which every Prefix this integration creates belongs to."""
-    return Namespace.objects.get(name="Global")
+    """Return the Global Namespace, which every Prefix this integration creates belongs to.
+
+    Cached rather than called directly because a first import creates a Prefix for every subnet it
+    meets, and each of those would otherwise resolve the Namespace again.
+    """
+    return get_default_namespace()
 
 
 @job_scoped_cache

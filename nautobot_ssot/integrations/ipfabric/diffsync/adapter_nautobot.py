@@ -28,6 +28,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
+from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 logger = logging.getLogger("nautobot.ssot.ipfabric")
 
@@ -35,6 +36,44 @@ logger = logging.getLogger("nautobot.ssot.ipfabric")
 # How many objects to delete per statement. Django walks the relations of a whole batch once, so
 # larger batches cost fewer queries, at the price of a longer `IN` list and a wider lock.
 DELETE_BATCH_SIZE = 1000
+
+
+def delete_objects(nautobot_objects: List):
+    """Delete the given Nautobot objects, in as few statements as their relations allow.
+
+    Deleting one at a time makes Django walk that object's relations and issue its own statements;
+    deleting a batch walks them once. A batch Nautobot refuses is retried an object at a time, so one
+    protected object neither takes the rest with it nor goes unreported.
+
+    Nothing here is specific to IP Fabric, and six other integrations in this repository run the
+    same per-object loop, so this is written to lift into a shared module when one wants it.
+    """
+    by_model = defaultdict(list)
+    for nautobot_object in nautobot_objects:
+        by_model[type(nautobot_object)].append(nautobot_object)
+
+    for model, objects in by_model.items():
+        for start in range(0, len(objects), DELETE_BATCH_SIZE):
+            batch = objects[start : start + DELETE_BATCH_SIZE]
+            try:
+                # Its own savepoint, so a refused batch leaves the transaction usable. Deferring the
+                # change log within it turns one entry per deleted object into one bulk insert.
+                with transaction.atomic(), tonb_utils.deferred_change_logging():
+                    model.objects.filter(pk__in=[nautobot_object.pk for nautobot_object in batch]).delete()
+            except (ProtectedError, IntegrityError):
+                delete_objects_one_at_a_time(batch)
+
+
+def delete_objects_one_at_a_time(nautobot_objects: List):
+    """Delete the given Nautobot objects individually, naming each one Nautobot refuses."""
+    for nautobot_object in nautobot_objects:
+        try:
+            with transaction.atomic():
+                nautobot_object.delete()
+        except ProtectedError:
+            logger.warning("Deletion failed protected object", extra={"object": nautobot_object})
+        except IntegrityError:
+            logger.warning(f"Deletion failed due to IntegrityError with {nautobot_object}")
 
 
 class NautobotDiffSync(DiffSyncModelAdapters):
@@ -95,43 +134,13 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             "_device",
             "_location",
         ):
-            if not NautobotDiffSync.safe_delete_mode:
-                self.delete_objects(self.objects_to_delete[grouping])
+            if not self.safe_delete_mode:
+                delete_objects(self.objects_to_delete[grouping])
             self.objects_to_delete[grouping] = []
+        # Thread local and cleared nowhere else, so on a long lived worker the run that fills these
+        # is the run that has to empty them.
+        job_scoped_cache.clear_all()
         return super().sync_complete(source, *args, **kwargs)
-
-    def delete_objects(self, nautobot_objects: List):
-        """Delete the given Nautobot objects, in as few statements as their relations allow.
-
-        Deleting one at a time makes Django walk that object's relations and issue its own
-        statements; deleting a batch walks them once. A batch Nautobot refuses is retried an object
-        at a time, so one protected object neither takes the rest with it nor goes unreported.
-        """
-        by_model = defaultdict(list)
-        for nautobot_object in nautobot_objects:
-            by_model[type(nautobot_object)].append(nautobot_object)
-
-        for model, objects in by_model.items():
-            for start in range(0, len(objects), DELETE_BATCH_SIZE):
-                batch = objects[start : start + DELETE_BATCH_SIZE]
-                try:
-                    # Its own savepoint, so a refused batch leaves the transaction usable.
-                    with transaction.atomic():
-                        model.objects.filter(pk__in=[nautobot_object.pk for nautobot_object in batch]).delete()
-                except (ProtectedError, IntegrityError):
-                    self.delete_objects_one_at_a_time(batch)
-
-    @staticmethod
-    def delete_objects_one_at_a_time(nautobot_objects: List):
-        """Delete the given Nautobot objects individually, naming each one Nautobot refuses."""
-        for nautobot_object in nautobot_objects:
-            try:
-                with transaction.atomic():
-                    nautobot_object.delete()
-            except ProtectedError:
-                logger.warning("Deletion failed protected object", extra={"object": nautobot_object})
-            except IntegrityError:
-                logger.warning(f"Deletion failed due to IntegrityError with {nautobot_object}")
 
     def load_interfaces(self, device_record: Device, diffsync_device):
         """Import a single Nautobot Interface object as a DiffSync Interface model."""

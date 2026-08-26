@@ -9,11 +9,11 @@ from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
+from nautobot.apps.change_logging import JobChangeContext, change_logging
 from nautobot.apps.testing import TestCase
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import DeviceType, Interface, Location, LocationType, Manufacturer, Platform, VirtualChassis
 from nautobot.dcim.models.devices import Device
-from nautobot.extras.context_managers import JobChangeContext, change_logging
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Role, Tag
 from nautobot.extras.models.statuses import Status
@@ -44,7 +44,6 @@ from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
     deferred_change_logging,
     get_tagged_interface,
     tag_object,
-    with_deferred_change_logging,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
@@ -1721,15 +1720,17 @@ class TestDeferredChangeLogging(TestCase):
                     "The nested scope flushed the enclosing scope's pending changes.",
                 )
 
-    def test_the_decorator_applies_the_scope(self):
+    def test_it_works_as_a_decorator(self):
+        """The model operations apply it as a decorator, and each call must re-enter the scope."""
         context = JobChangeContext(user=self.user)
         seen = []
 
-        @with_deferred_change_logging
+        @deferred_change_logging()
         def operation():
             seen.append(context.defer_object_changes)
             return "returned"
 
         with change_logging(context):
             self.assertEqual(operation(), "returned")
-        self.assertEqual(seen, [True])
+            self.assertEqual(operation(), "returned")
+        self.assertEqual(seen, [True, True], "The scope was not re-entered on the second call.")

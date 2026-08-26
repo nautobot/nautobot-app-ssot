@@ -13,14 +13,14 @@ from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
+from nautobot.apps.change_logging import JobChangeContext, change_logging
 from nautobot.apps.testing import TestCase
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
-from nautobot.extras.context_managers import JobChangeContext, change_logging
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import ObjectChange, Role, Status, Tag
 
-from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
+from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync, delete_objects
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
@@ -30,52 +30,83 @@ from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 WRITE_TO_INTERFACE = re.compile(r'^(INSERT INTO|UPDATE)\s+"?dcim_interface"?(\s|$)', re.IGNORECASE)
 
 
-class InterfaceWriteCostTestCase(TestCase):
-    """Count the writes a single Interface sync makes to the Interface table."""
+class _CostTestCase(TestCase):
+    """A tagged Device at a Location, both SSoT Tags, and an adapter to drive them with.
+
+    Every class below needs the same fixture; each adds only what its own subject requires.
+    """
 
     def setUp(self):
         populate_status_choices()
+        # Cached ORM objects must not outlive this test's transaction; see test_cables.py.
         job_scoped_cache.clear_all()
         self.addCleanup(job_scoped_cache.clear_all)
         self.active_status = Status.objects.get(name="Active")
         device_ct = ContentType.objects.get_for_model(Device)
-        ssot_tag, _ = Tag.objects.get_or_create(
+        interface_ct = ContentType.objects.get_for_model(Interface)
+        self.ssot_tag, _ = Tag.objects.get_or_create(
             name="SSoT Synced from IPFabric",
             defaults={"color": ColorChoices.COLOR_LIGHT_GREEN, "description": "Synced from IPFabric"},
         )
-        ssot_tag.content_types.add(device_ct, ContentType.objects.get_for_model(Interface))
-        Tag.objects.get_or_create(
+        self.ssot_tag.content_types.add(device_ct, interface_ct)
+        self.safe_delete_tag, _ = Tag.objects.get_or_create(
             name="SSoT Safe Delete", defaults={"color": ColorChoices.COLOR_RED, "description": "Safe delete"}
         )
-        role = Role.objects.create(name="query-count-role")
+        self.safe_delete_tag.content_types.add(device_ct, interface_ct)
+        role = Role.objects.create(name="cost-role")
         role.content_types.add(device_ct)
-        location_type, _ = LocationType.objects.get_or_create(name="query-count-site")
-        location_type.content_types.add(device_ct)
-        location = Location.objects.create(
-            name="query-count-site1", location_type=location_type, status=self.active_status
+        self.location_type, _ = LocationType.objects.get_or_create(name="cost-site")
+        self.location_type.content_types.add(device_ct)
+        self.location = Location.objects.create(
+            name="cost-site1", location_type=self.location_type, status=self.active_status
         )
-        manufacturer = Manufacturer.objects.create(name="query-count-vendor")
-        device_type = DeviceType.objects.create(model="query-count-model", manufacturer=manufacturer)
+        manufacturer = Manufacturer.objects.create(name="cost-vendor")
+        device_type = DeviceType.objects.create(model="cost-model", manufacturer=manufacturer)
         self.device = Device.objects.create(
-            name="query-count-device",
+            name="cost-device",
             status=self.active_status,
             role=role,
-            location=location,
+            location=self.location,
             device_type=device_type,
             serial="serial",
         )
-        self.device.tags.add(ssot_tag)
-        self.existing = Interface.objects.create(
-            device=self.device, name="eth0", status=self.active_status, type="1000base-t"
-        )
+        self.device.tags.add(self.ssot_tag)
+        self.adapter = self.make_adapter()
+
+    @staticmethod
+    def make_adapter(location_filter=None):
+        """Return an adapter with a mocked job, which is all these tests need of one."""
         job = unittest.mock.MagicMock()
         job.debug = False
-        self.adapter = NautobotDiffSync(
+        return NautobotDiffSync(
             job=job,
             sync=unittest.mock.MagicMock(),
             sync_ipfabric_tagged_only=False,
-            location_filter=None,
+            location_filter=location_filter,
         )
+
+    def interfaces(self, count, prefix):
+        """Return `count` newly created Interfaces on this test's Device."""
+        return [
+            Interface.objects.create(
+                device=self.device, name=f"{prefix}{index}", status=self.active_status, type="1000base-t"
+            )
+            for index in range(count)
+        ]
+
+    def interface_model(self, name):
+        """Return a DiffSync Interface bound to this test's adapter."""
+        model = InterfaceModel(name=name, device_name=self.device.name, status="Active")
+        model.adapter = self.adapter
+        return model
+
+
+class InterfaceWriteCostTestCase(_CostTestCase):
+    """Count the writes a single Interface sync makes to the Interface table."""
+
+    def setUp(self):
+        super().setUp()
+        self.existing = self.interfaces(1, "eth")[0]
 
     def count_interface_writes(self, operation):
         """Return how many INSERTs and UPDATEs `operation` makes against the Interface table."""
@@ -84,12 +115,6 @@ class InterfaceWriteCostTestCase(TestCase):
         writes = [query["sql"] for query in queries.captured_queries if WRITE_TO_INTERFACE.match(query["sql"].strip())]
         # Only the verb is kept, so a failure reports how many writes happened rather than pages of SQL.
         return [write.split(None, 3)[0].upper() for write in writes]
-
-    def interface_model(self, name):
-        """Return a DiffSync Interface bound to this test's adapter."""
-        model = InterfaceModel(name=name, device_name=self.device.name, status="Active")
-        model.adapter = self.adapter
-        return model
 
     def test_creating_an_interface_with_an_address_writes_it_twice(self):
         """Creating one takes an INSERT and the UPDATE that stamps it, which is the floor.
@@ -157,61 +182,13 @@ class InterfaceWriteCostTestCase(TestCase):
         self.assertEqual(address.cf["system_of_record"], "IPFabric")
 
 
-class DeleteCostTestCase(TestCase):
+class DeleteCostTestCase(_CostTestCase):
     """Count the queries deleting a set of objects takes when safe delete mode is off."""
-
-    def setUp(self):
-        populate_status_choices()
-        job_scoped_cache.clear_all()
-        self.addCleanup(job_scoped_cache.clear_all)
-        self.active_status = Status.objects.get(name="Active")
-        device_ct = ContentType.objects.get_for_model(Device)
-        Tag.objects.get_or_create(
-            name="SSoT Synced from IPFabric",
-            defaults={"color": ColorChoices.COLOR_LIGHT_GREEN, "description": "Synced from IPFabric"},
-        )
-        Tag.objects.get_or_create(
-            name="SSoT Safe Delete", defaults={"color": ColorChoices.COLOR_RED, "description": "Safe delete"}
-        )
-        role = Role.objects.create(name="delete-cost-role")
-        role.content_types.add(device_ct)
-        self.location_type, _ = LocationType.objects.get_or_create(name="delete-cost-site")
-        self.location_type.content_types.add(device_ct)
-        location = Location.objects.create(
-            name="delete-cost-site1", location_type=self.location_type, status=self.active_status
-        )
-        manufacturer = Manufacturer.objects.create(name="delete-cost-vendor")
-        device_type = DeviceType.objects.create(model="delete-cost-model", manufacturer=manufacturer)
-        self.device = Device.objects.create(
-            name="delete-cost-device",
-            status=self.active_status,
-            role=role,
-            location=location,
-            device_type=device_type,
-            serial="serial",
-        )
-        job = unittest.mock.MagicMock()
-        job.debug = False
-        self.adapter = NautobotDiffSync(
-            job=job,
-            sync=unittest.mock.MagicMock(),
-            sync_ipfabric_tagged_only=False,
-            location_filter=None,
-        )
-
-    def interfaces(self, count, prefix):
-        """Return `count` newly created Interfaces on this test's Device."""
-        return [
-            Interface.objects.create(
-                device=self.device, name=f"{prefix}{index}", status=self.active_status, type="1000base-t"
-            )
-            for index in range(count)
-        ]
 
     def delete_query_count(self, nautobot_objects):
         """Return how many queries deleting the given objects takes."""
         with CaptureQueriesContext(connection) as queries:
-            self.adapter.delete_objects(nautobot_objects)
+            delete_objects(nautobot_objects)
         return len(queries.captured_queries)
 
     def test_query_count_does_not_grow_with_the_number_of_objects(self):
@@ -228,7 +205,7 @@ class DeleteCostTestCase(TestCase):
 
     def test_every_object_in_a_batch_is_deleted(self):
         deleted = self.interfaces(5, "gone")
-        self.adapter.delete_objects(deleted)
+        delete_objects(deleted)
         self.assertFalse(Interface.objects.filter(pk__in=[interface.pk for interface in deleted]).exists())
 
     def test_objects_of_different_models_are_each_batched(self):
@@ -237,7 +214,7 @@ class DeleteCostTestCase(TestCase):
         spare_location = Location.objects.create(
             name="delete-cost-spare", location_type=self.location_type, status=self.active_status
         )
-        self.adapter.delete_objects([*interfaces, spare_location])
+        delete_objects([*interfaces, spare_location])
         self.assertFalse(Interface.objects.filter(pk__in=[interface.pk for interface in interfaces]).exists())
         self.assertFalse(Location.objects.filter(pk=spare_location.pk).exists())
 
@@ -249,7 +226,7 @@ class DeleteCostTestCase(TestCase):
         protected_location = self.device.location
 
         with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
-            self.adapter.delete_objects([protected_location, free_location])
+            delete_objects([protected_location, free_location])
 
         self.assertFalse(Location.objects.filter(pk=free_location.pk).exists())
         self.assertTrue(Location.objects.filter(pk=protected_location.pk).exists())
@@ -279,62 +256,12 @@ class DeleteCostTestCase(TestCase):
         self.assertEqual(other.objects_to_delete["_interface"], [])
 
 
-class ChangeLogCostTestCase(TestCase):
+class ChangeLogCostTestCase(_CostTestCase):
     """Test that the writes one synced object takes record a single change log entry."""
 
     def setUp(self):
-        populate_status_choices()
-        job_scoped_cache.clear_all()
-        self.addCleanup(job_scoped_cache.clear_all)
-        self.active_status = Status.objects.get(name="Active")
-        device_ct = ContentType.objects.get_for_model(Device)
-        interface_ct = ContentType.objects.get_for_model(Interface)
-        ssot_tag, _ = Tag.objects.get_or_create(
-            name="SSoT Synced from IPFabric",
-            defaults={"color": ColorChoices.COLOR_LIGHT_GREEN, "description": "Synced from IPFabric"},
-        )
-        ssot_tag.content_types.add(device_ct, interface_ct)
-        safe_delete_tag, _ = Tag.objects.get_or_create(
-            name="SSoT Safe Delete", defaults={"color": ColorChoices.COLOR_RED, "description": "Safe delete"}
-        )
-        safe_delete_tag.content_types.add(device_ct, interface_ct)
-        self.safe_delete_tag = safe_delete_tag
-        role = Role.objects.create(name="change-log-role")
-        role.content_types.add(device_ct)
-        location_type, _ = LocationType.objects.get_or_create(name="change-log-site")
-        location_type.content_types.add(device_ct)
-        location = Location.objects.create(
-            name="change-log-site1", location_type=location_type, status=self.active_status
-        )
-        manufacturer = Manufacturer.objects.create(name="change-log-vendor")
-        device_type = DeviceType.objects.create(model="change-log-model", manufacturer=manufacturer)
-        self.device = Device.objects.create(
-            name="change-log-device",
-            status=self.active_status,
-            role=role,
-            location=location,
-            device_type=device_type,
-            serial="serial",
-        )
-        self.device.tags.add(ssot_tag)
-        job = unittest.mock.MagicMock()
-        job.debug = False
-        self.adapter = NautobotDiffSync(
-            job=job,
-            sync=unittest.mock.MagicMock(),
-            sync_ipfabric_tagged_only=False,
-            location_filter=None,
-        )
+        super().setUp()
         self.user = get_user_model().objects.create_user(username="change-log-tester")
-
-    def interfaces(self, count, prefix):
-        """Return `count` newly created Interfaces on this test's Device."""
-        return [
-            Interface.objects.create(
-                device=self.device, name=f"{prefix}{index}", status=self.active_status, type="1000base-t"
-            )
-            for index in range(count)
-        ]
 
     def test_creating_an_interface_records_one_change(self):
         """Deferring the change log must not alter what it records.
@@ -373,51 +300,8 @@ class ChangeLogCostTestCase(TestCase):
         self.assertEqual(changes.count(), 1, "Expected one change log entry for the safe deleted Interface.")
 
 
-class SafeDeleteCostTestCase(TestCase):
+class SafeDeleteCostTestCase(_CostTestCase):
     """Test how much work marking objects for safe deletion takes."""
-
-    def setUp(self):
-        populate_status_choices()
-        job_scoped_cache.clear_all()
-        self.addCleanup(job_scoped_cache.clear_all)
-        self.active_status = Status.objects.get(name="Active")
-        device_ct = ContentType.objects.get_for_model(Device)
-        interface_ct = ContentType.objects.get_for_model(Interface)
-        ssot_tag, _ = Tag.objects.get_or_create(
-            name="SSoT Synced from IPFabric",
-            defaults={"color": ColorChoices.COLOR_LIGHT_GREEN, "description": "Synced from IPFabric"},
-        )
-        ssot_tag.content_types.add(device_ct, interface_ct)
-        self.safe_delete_tag, _ = Tag.objects.get_or_create(
-            name="SSoT Safe Delete", defaults={"color": ColorChoices.COLOR_RED, "description": "Safe delete"}
-        )
-        self.safe_delete_tag.content_types.add(device_ct, interface_ct)
-        role = Role.objects.create(name="safe-delete-role")
-        role.content_types.add(device_ct)
-        location_type, _ = LocationType.objects.get_or_create(name="safe-delete-site")
-        location_type.content_types.add(device_ct)
-        location = Location.objects.create(
-            name="safe-delete-site1", location_type=location_type, status=self.active_status
-        )
-        manufacturer = Manufacturer.objects.create(name="safe-delete-vendor")
-        device_type = DeviceType.objects.create(model="safe-delete-model", manufacturer=manufacturer)
-        self.device = Device.objects.create(
-            name="safe-delete-device",
-            status=self.active_status,
-            role=role,
-            location=location,
-            device_type=device_type,
-            serial="serial",
-        )
-        self.device.tags.add(ssot_tag)
-        job = unittest.mock.MagicMock()
-        job.debug = False
-        self.adapter = NautobotDiffSync(
-            job=job,
-            sync=unittest.mock.MagicMock(),
-            sync_ipfabric_tagged_only=False,
-            location_filter=None,
-        )
 
     def safe_delete(self, name):
         """Run the DiffSync delete for the named Interface, which marks it in safe delete mode."""

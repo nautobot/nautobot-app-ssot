@@ -207,7 +207,7 @@ class Location(DiffSyncExtras):
     vlans: List["Vlan"] = []
 
     @classmethod
-    @tonb_nbutils.with_deferred_change_logging
+    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create Location in Nautobot, or find it when Locations are out of scope.
 
@@ -226,7 +226,7 @@ class Location(DiffSyncExtras):
             )
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-    @tonb_nbutils.with_deferred_change_logging
+    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete Location in Nautobot."""
         try:
@@ -246,6 +246,7 @@ class Location(DiffSyncExtras):
             return super().delete()
         return None
 
+    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update Location Object in Nautobot."""
         try:
@@ -313,7 +314,7 @@ class Device(DiffSyncExtras):
     interfaces: List["Interface"] = []
 
     @classmethod
-    @tonb_nbutils.with_deferred_change_logging
+    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create Device in Nautobot under its parent location."""
         # Get DeviceType
@@ -431,7 +432,7 @@ class Device(DiffSyncExtras):
                 return super().create(ids=ids, adapter=adapter, attrs=attrs)
         return None
 
-    @tonb_nbutils.with_deferred_change_logging
+    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete device in Nautobot."""
         try:
@@ -451,6 +452,7 @@ class Device(DiffSyncExtras):
             return super().delete()
         return None
 
+    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update devices in Nautobot based on Source."""
         try:
@@ -580,7 +582,7 @@ class Interface(DiffSyncExtras):
     status: str
 
     @classmethod
-    @tonb_nbutils.with_deferred_change_logging
+    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create interface in Nautobot under its parent device."""
         device_name = ids["device_name"]
@@ -645,7 +647,7 @@ class Interface(DiffSyncExtras):
             )
         return None
 
-    @tonb_nbutils.with_deferred_change_logging
+    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete Interface Object."""
         device = tonb_nbutils.get_tagged_device(self.device_name)
@@ -684,6 +686,7 @@ class Interface(DiffSyncExtras):
 
         return None
 
+    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):  # pylint: disable=too-many-branches
         """Update Interface object in Nautobot."""
         device = tonb_nbutils.get_tagged_device(self.device_name)
@@ -822,7 +825,7 @@ class Vlan(DiffSyncExtras):
     vlan_pk: Optional[UUID] = None
 
     @classmethod
-    @tonb_nbutils.with_deferred_change_logging
+    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create VLANs in Nautobot under the site."""
         status = attrs["status"].lower().capitalize()
@@ -861,7 +864,7 @@ class Vlan(DiffSyncExtras):
                 )
         return None
 
-    @tonb_nbutils.with_deferred_change_logging
+    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete."""
         try:
@@ -879,6 +882,7 @@ class Vlan(DiffSyncExtras):
             return super().delete()
         return None
 
+    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update VLAN object in Nautobot."""
         try:
@@ -970,7 +974,7 @@ class Cable(DiffSyncExtras):
         return interface_a, interface_b
 
     @classmethod
-    @tonb_nbutils.with_deferred_change_logging
+    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create a Cable in Nautobot between the two Interfaces it terminates on."""
         job_logger = adapter.job.logger
@@ -1038,6 +1042,7 @@ class Cable(DiffSyncExtras):
             return cable
         return None
 
+    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update a Cable's Status in Nautobot."""
         link = self.describe(self.get_identifiers())
@@ -1053,7 +1058,7 @@ class Cable(DiffSyncExtras):
                 cable.tags.remove(self.adapter.safe_delete_tag)
         return super().update(attrs)
 
-    @tonb_nbutils.with_deferred_change_logging
+    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete a Cable in Nautobot."""
         link = self.describe(self.get_identifiers())
