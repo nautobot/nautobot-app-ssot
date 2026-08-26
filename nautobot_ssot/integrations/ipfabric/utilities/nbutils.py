@@ -629,6 +629,23 @@ def get_tagged_device(device_name: str) -> Device:
     return Device.objects.filter(Q(name=device_name) & Q(tags=ssot_tag)).first()
 
 
+@job_scoped_cache(maxsize=2)
+def get_device_interfaces_by_name(device: Device) -> dict:
+    """Return a Device's Interfaces keyed by name, with the relations a delete reads prefetched.
+
+    Deletions reach a model grouped by Device, so holding the last couple of Devices turns a lookup
+    per Interface into one per Device. Bounded, because an estate wide teardown would otherwise
+    retain every Interface of every Device it passed through.
+
+    Keying by name loses nothing: Nautobot constrains `(device, name)` to be unique, so a Device
+    cannot have two Interfaces of the same name.
+
+    Not for callers that go on to mutate an Interface's relations, which would not see their own
+    writes; `get_tagged_interface` is the uncached lookup for those.
+    """
+    return {interface.name: interface for interface in device.interfaces.prefetch_related("ip_addresses__interfaces")}
+
+
 # Not cached, so that callers which mutate an Interface's relations see them afresh
 def get_tagged_interface(
     device_name: str, interface_name: str, logger: Optional[logging.Logger] = None

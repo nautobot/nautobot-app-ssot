@@ -651,14 +651,11 @@ class Interface(DiffSyncExtras):
         device = tonb_nbutils.get_tagged_device(self.device_name)
         if device:
             return_super = True
-            try:
-                interface = device.interfaces.prefetch_related("ip_addresses__interfaces").get(name=self.name)
-            except NautobotInterface.MultipleObjectsReturned:
-                self.adapter.job.logger.error(
-                    f"Multiple Interfaces found with the name {self.name}, on Device named {self.device_name} "
-                    f"with an ID of {device.id}, unable to determine which one to delete"
-                )
-            except NautobotInterface.DoesNotExist:
+            # Every Interface of the Device at once, so removing many of them costs one lookup
+            # rather than one each. Nautobot makes `(device, name)` unique, so there is no
+            # ambiguous match to report.
+            interface = tonb_nbutils.get_device_interfaces_by_name(device).get(self.name)
+            if interface is None:
                 self.adapter.job.logger.error(
                     f"Unable to find an Interface with the name {self.name} on Device named {self.device_name} "
                     f"with an ID of {device.id} to delete"

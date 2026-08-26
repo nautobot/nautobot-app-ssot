@@ -689,13 +689,13 @@ class TestInterfaceModel(_ModelTestBase):
         interface_obj.ip_addresses.all.return_value = [shared_ip, exclusive_ip]
 
         device = mock.MagicMock()
-        device.interfaces.prefetch_related.return_value.get.return_value = interface_obj
 
         diff_model = Interface(name="eth0", device_name="d1", status="Active")
         diff_model.adapter = self.adapter
 
         with (
             _nb_patch("get_tagged_device", return_value=device),
+            _nb_patch("get_device_interfaces_by_name", return_value={"eth0": interface_obj}),
             mock.patch.object(DiffSyncExtras, "safe_delete") as mock_safe_delete,
             mock.patch.object(diffsync_models.DiffSyncModel, "delete"),
         ):

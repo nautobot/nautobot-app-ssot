@@ -440,6 +440,31 @@ class SafeDeleteCostTestCase(TestCase):
             "The safe delete tag membership must be resolved once for the whole model, not per object.",
         )
 
+    def test_the_devices_interfaces_are_looked_up_once(self):
+        """Removing many Interfaces from a Device must not fetch them one at a time."""
+        for index in range(6):
+            Interface.objects.create(
+                device=self.device, name=f"eth{index}", status=self.active_status, type="1000base-t"
+            )
+        for index in range(6):
+            self.safe_delete(f"eth{index}")
+
+        self.assertEqual(
+            nbutils.get_device_interfaces_by_name.cache_info().misses,
+            1,
+            "The Device's Interfaces must be fetched once for the Device, not once per Interface.",
+        )
+
+    def test_an_interface_the_device_does_not_have_is_reported(self):
+        """A name the Device has no Interface for is logged, not passed over in silence."""
+        self.safe_delete("no-such-interface")
+
+        logged = [str(call) for call in self.adapter.job.logger.error.call_args_list]
+        self.assertTrue(
+            any("Unable to find an Interface with the name no-such-interface" in line for line in logged),
+            f"Expected the missing Interface to be reported: {logged}",
+        )
+
     def test_both_tags_are_applied_in_one_operation(self):
         interface = Interface.objects.create(
             device=self.device, name="eth0", status=self.active_status, type="1000base-t"
