@@ -23,6 +23,10 @@ from nautobot_ssot.integrations.ipfabric.utilities import (
     create_interface,
     create_ip,
     create_vlan,
+    get_device_role_object,
+    get_device_type_object,
+    get_location_object,
+    get_manufacturer_object,
     get_or_create_device_role_object,
     get_or_create_device_type_object,
     get_or_create_location_object,
@@ -31,6 +35,7 @@ from nautobot_ssot.integrations.ipfabric.utilities import (
     get_or_create_status_object,
     get_or_create_tag_object,
     get_or_create_virtual_chassis_object,
+    get_platform_object,
     get_tagged_device,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import get_tagged_interface, tag_object
@@ -190,6 +195,27 @@ class TestNautobotUtils(TestCase):
         logger.warning.assert_called_with(
             f"Unable to perform a validated_save() on Location {test_location.name} with an ID of {test_location.id}"
         )
+
+    def test_get_location_object_returns_an_existing_location(self):
+        """The lookup used when Locations are out of scope finds one another App may have created."""
+        existing = get_or_create_location_object(location_name="Test-Location")
+        self.assertEqual(get_location_object("Test-Location"), existing)
+
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_location_object_returns_none_when_absent(self, mock_logger):
+        """A missing Location is not an error here; it is expected to arrive from another App."""
+        logger = mock_logger("nb_job")
+        self.assertIsNone(get_location_object("Test-Location-absent", logger=logger))
+        logger.error.assert_not_called()
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Location.objects.get")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_location_object_multiple_returned(self, mock_logger, mock_get):
+        """Two Locations sharing a name cannot be told apart, so neither is used."""
+        mock_get.side_effect = [Location.MultipleObjectsReturned]
+        logger = mock_logger("nb_job")
+        self.assertIsNone(get_location_object("Test-Location", logger=logger))
+        logger.error.assert_called_with("Multiple Locations returned with name Test-Location")
 
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
@@ -1636,3 +1662,52 @@ class TestNautobotUtils(TestCase):
         result = create_interface(self.device, {"name": "TagV-Iface"}, logger=logger)
         self.assertEqual(result.name, "TagV-Iface")
         self.assertTrue(logger.warning.called)
+
+    # ===== lookup-only helper ambiguity paths =====
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Manufacturer.objects.get", autospec=True
+    )
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_manufacturer_object_multiple_returned(self, mock_logger, mock_get):
+        """An ambiguous name is reported rather than resolved arbitrarily."""
+        mock_get.side_effect = [Manufacturer.MultipleObjectsReturned]
+        logger = mock_logger("nb_job")
+        self.assertIsNone(get_manufacturer_object("X-Mfg", logger=logger))
+        logger.error.assert_called_with("Multiple Manufacturers returned with name X-Mfg")
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.DeviceType.objects.get", autospec=True)
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_device_type_object_multiple_returned(self, mock_logger, mock_get):
+        """Two DeviceTypes sharing a model cannot be told apart on the model alone."""
+        mock_get.side_effect = [DeviceType.MultipleObjectsReturned]
+        logger = mock_logger("nb_job")
+        self.assertIsNone(get_device_type_object("X-Model", logger=logger))
+        logger.error.assert_called_with("Multiple DeviceTypes returned with model X-Model")
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Role.objects.get", autospec=True)
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_device_role_object_multiple_returned(self, mock_logger, mock_get):
+        """An ambiguous Role stops the lookup rather than falling through to the name match."""
+        mock_get.side_effect = [Role.MultipleObjectsReturned]
+        logger = mock_logger("nb_job")
+        self.assertIsNone(get_device_role_object("X-Role", logger=logger))
+        logger.error.assert_called_with("Multiple Roles returned with the name X-Role")
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Platform.objects.get", autospec=True)
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_platform_object_multiple_returned(self, mock_logger, mock_get):
+        """Two Platforms sharing a name cannot be told apart without a Manufacturer."""
+        mock_get.side_effect = [Platform.MultipleObjectsReturned]
+        logger = mock_logger("nb_job")
+        self.assertIsNone(get_platform_object("X-Platform", logger=logger))
+        logger.error.assert_called_with("Multiple Platforms returned with name X-Platform")
+
+    def test_get_device_role_object_falls_back_to_the_name(self):
+        """A Role from a system that does not set the IP Fabric custom field is still found."""
+        role = Role.objects.create(name="Externally-Owned-Role")
+        self.assertEqual(get_device_role_object("Externally-Owned-Role"), role)
+
+    def test_get_device_role_object_returns_none_when_absent(self):
+        """A Role neither matched on the custom field nor on the name is reported missing."""
+        self.assertIsNone(get_device_role_object("No-Such-Role"))

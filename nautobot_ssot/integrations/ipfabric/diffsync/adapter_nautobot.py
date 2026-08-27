@@ -23,6 +23,7 @@ import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_utils
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_MAC,
     DEFAULT_INTERFACE_MTU,
+    PSEUDO_MANAGEMENT_INTERFACE_NAME,
     SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
@@ -47,7 +48,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         sync_ipfabric_tagged_only: bool,
         location_filter: Optional[Location],
         *args,
-        sync_cables: bool = False,
         **kwargs,
     ):
         """Initialize the NautobotDiffSync."""
@@ -56,7 +56,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         self.sync = sync
         self.sync_ipfabric_tagged_only = sync_ipfabric_tagged_only
         self.location_filter = location_filter
-        self.sync_cables = sync_cables
         self.ssot_tag = tonb_utils.get_or_create_tag_object(
             tag_name="SSoT Synced from IPFabric",
             tag_color=ColorChoices.COLOR_LIGHT_GREEN,
@@ -105,14 +104,17 @@ class NautobotDiffSync(DiffSyncModelAdapters):
     def load_interfaces(self, device_record: Device, diffsync_device):
         """Import a single Nautobot Interface object as a DiffSync Interface model."""
         device_primary_ip = None
-        if device_record.primary_ip4:
-            device_primary_ip = device_record.primary_ip4
-        elif device_record.primary_ip6:
-            device_primary_ip = device_record.primary_ip6
+        if self.scope.ip_addresses:
+            device_primary_ip = device_record.primary_ip4 or device_record.primary_ip6
 
         for interface_record in device_record.interfaces.all():
+            if not self.scope.ip_addresses and interface_record.name == PSEUDO_MANAGEMENT_INTERFACE_NAME:
+                # The IP Fabric adapter only fabricates this Interface to carry a NAT management
+                # address, so out of scope it reports none. Skipped here to match: reporting one an
+                # earlier run created would leave it looking absent from the source, and deleted.
+                continue
             # Avoid .first() to preserve prefetch cache
-            ip_addresses = interface_record.ip_addresses.all()
+            ip_addresses = interface_record.ip_addresses.all() if self.scope.ip_addresses else []
             if ip_addresses:
                 ip_address_obj = ip_addresses[0]
                 ip_address = ip_address_obj.host
@@ -137,7 +139,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 type=interface_record.type,
                 mgmt_only=interface_record.mgmt_only if interface_record.mgmt_only else False,
                 pk=interface_record.pk,
-                ip_is_primary=ip_address_obj == device_primary_ip if device_primary_ip else False,
+                ip_is_primary=(
+                    self.scope.primary_ip and device_primary_ip is not None and ip_address_obj == device_primary_ip
+                ),
                 ip_address=ip_address,
             )
             self.add(interface)
@@ -198,21 +202,27 @@ class NautobotDiffSync(DiffSyncModelAdapters):
 
     def load_device(self, filtered_devices: List, location):
         """Load Devices from Nautobot."""
-        optimized_query = (
-            filtered_devices.select_related(
-                "location",
-                "device_type__manufacturer",
-                "primary_ip4",
-                "primary_ip6",
-                "role",
-                "status",
-                "platform",
-                "virtual_chassis",
-                "virtual_chassis__master",
-            )
-            .prefetch_related("interfaces__ip_addresses")
-            .iterator(1000)
-        )
+        related = [
+            "location",
+            "device_type__manufacturer",
+            "role",
+            "status",
+            "platform",
+            "virtual_chassis",
+            "virtual_chassis__master",
+        ]
+        # Only fetch the relations something in scope reads: the primary IP decides whether an
+        # Interface holds it, and the Interfaces themselves are only walked when they are in scope.
+        prefetch = None
+        if self.scope.ip_addresses:
+            related += ["primary_ip4", "primary_ip6"]
+            prefetch = "interfaces__ip_addresses"
+        elif self.scope.interfaces:
+            prefetch = "interfaces"
+        devices = filtered_devices.select_related(*related)
+        if prefetch:
+            devices = devices.prefetch_related(prefetch)
+        optimized_query = devices.iterator(1000)
         for device_record in optimized_query:
             if self.job.debug:
                 logger.debug("Loading Nautobot Device: %s", device_record.name)
@@ -241,7 +251,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 continue
 
             location.add_child(device)
-            self.load_interfaces(device_record=device_record, diffsync_device=device)
+            if self.scope.interfaces:
+                self.load_interfaces(device_record=device_record, diffsync_device=device)
 
     def load_vlans(self, filtered_vlans: List, location, location_record):
         """Add Nautobot VLAN objects as DiffSync VLAN models."""
@@ -294,8 +305,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         if location_objects:
             for location_record in location_objects:
                 try:
-                    location = self.location(
-                        name=location_record.name,
+                    location = self.location_model(
+                        location_record.name,
                         site_id=location_record.custom_field_data.get("ipfabric_site_id"),
                         status=location_record.status.name,
                     )
@@ -310,17 +321,18 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     self.load_device(self.get_in_scope_devices([location_record]), location)
 
                     # Load Location Children - Vlans, if any.
-                    nautobot_location_vlans = (
-                        VLAN.objects.filter(location=location_record)
-                        .select_related("status")
-                        .prefetch_related("locations")
-                    )
-                    self.load_vlans(nautobot_location_vlans, location, location_record)
+                    if self.scope.vlans:
+                        nautobot_location_vlans = (
+                            VLAN.objects.filter(location=location_record)
+                            .select_related("status")
+                            .prefetch_related("locations")
+                        )
+                        self.load_vlans(nautobot_location_vlans, location, location_record)
                 except Location.DoesNotExist:
                     logger.error("Unable to find Location, %s.", location_record)
 
             # Loaded after every Location, as a link may terminate on Devices in two of them.
-            if self.sync_cables:
+            if self.scope.cables:
                 self.load_cables(self.get_in_scope_devices(location_objects))
         else:
             logger.warning("No Nautobot records to load.")

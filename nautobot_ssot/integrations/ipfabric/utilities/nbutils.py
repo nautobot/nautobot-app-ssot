@@ -99,6 +99,40 @@ def get_or_create_location_object(
 
 
 @job_scoped_cache
+def get_location_object(
+    location_name: str,
+    logger: Optional[logging.Logger] = None,
+) -> Optional[Location]:
+    """Return an existing Location by name, without creating one.
+
+    Used when Locations are out of the sync's scope: another system owns them, so a Location that is
+    not there yet is expected to arrive from that system rather than from this sync. Matched on name
+    alone, since the owning system decides the LocationType.
+
+    Cached like its get-or-create neighbour, since every Device at a site asks the same question. A
+    stale answer is not a risk here: a sync that may not write Locations cannot invalidate its own
+    cache, and caching the miss is what stops one absent site costing a query per Device.
+
+    Args:
+        location_name: Name of the location.
+        logger: Logger to use for messaging.
+
+    Returns:
+        Location: When exactly one Location has that name.
+        None: When no Location has that name, or more than one does.
+    """
+    try:
+        return Location.objects.get(name=location_name)
+    except Location.MultipleObjectsReturned:
+        if logger:
+            logger.error(f"Multiple Locations returned with name {location_name}")
+    except Location.DoesNotExist:
+        if logger:
+            logger.debug("No Location named %s exists yet", location_name)
+    return None
+
+
+@job_scoped_cache
 def get_or_create_manufacturer_object(
     vendor_name: str, logger: Optional[logging.Logger] = None
 ) -> Optional[Manufacturer]:
@@ -133,10 +167,68 @@ def get_or_create_manufacturer_object(
 
 
 @job_scoped_cache
+def get_manufacturer_object(
+    vendor_name: str,
+    logger: Optional[logging.Logger] = None,
+) -> Optional[Manufacturer]:
+    """Return an existing Manufacturer by name, without creating one.
+
+    Used when Manufacturers are out of the sync's scope. See `get_location_object` for why the miss
+    is cached along with the hit.
+
+    Args:
+        vendor_name: Vendor name.
+        logger: Logger to use for messaging.
+
+    Returns:
+        Manufacturer: When exactly one Manufacturer has that name.
+        None: When none has that name, or more than one does.
+    """
+    try:
+        return Manufacturer.objects.get(name=vendor_name)
+    except Manufacturer.MultipleObjectsReturned:
+        if logger:
+            logger.error(f"Multiple Manufacturers returned with name {vendor_name}")
+    except Manufacturer.DoesNotExist:
+        if logger:
+            logger.debug("No Manufacturer named %s exists yet", vendor_name)
+    return None
+
+
+@job_scoped_cache
+def get_device_type_object(
+    device_type: str,
+    logger: Optional[logging.Logger] = None,
+) -> Optional[DeviceType]:
+    """Return an existing DeviceType by model, without creating one.
+
+    Matched on the model alone, since out of scope the owning system decides the Manufacturer.
+
+    Args:
+        device_type: Device model gathered from DiffSync model.
+        logger: Logger to use for messaging.
+
+    Returns:
+        DeviceType: When exactly one DeviceType has that model.
+        None: When none has that model, or more than one does.
+    """
+    try:
+        return DeviceType.objects.get(model=device_type)
+    except DeviceType.MultipleObjectsReturned:
+        if logger:
+            logger.error(f"Multiple DeviceTypes returned with model {device_type}")
+    except DeviceType.DoesNotExist:
+        if logger:
+            logger.debug("No DeviceType with model %s exists yet", device_type)
+    return None
+
+
+@job_scoped_cache
 def get_or_create_device_type_object(
     device_type: str,
     vendor_name: str,
     logger: Optional[logging.Logger] = None,
+    manufacturer_obj: Optional[Manufacturer] = None,
 ) -> Optional[DeviceType]:
     """Create a specified device type in Nautobot.
 
@@ -144,12 +236,16 @@ def get_or_create_device_type_object(
         device_type: Device model gathered from DiffSync model.
         vendor_name: Vendor Name.
         logger: Logger to use for messaging.
+        manufacturer_obj: Manufacturer to file the DeviceType under. Supplied by callers that have
+            already resolved it, so that a Manufacturer is not created for a sync whose scope
+            excludes them. Looked up or created from `vendor_name` when not given.
 
     Returns:
         DeviceType: When a DeviceType Object is retrieved or created.
         None: When there is a failure in getting or creating a DeviceType.
     """
-    manufacturer_obj = get_or_create_manufacturer_object(vendor_name, logger=logger)
+    if manufacturer_obj is None:
+        manufacturer_obj = get_or_create_manufacturer_object(vendor_name, logger=logger)
     if manufacturer_obj:
         try:
             device_type_obj, _ = DeviceType.objects.get_or_create(
@@ -285,6 +381,67 @@ def get_or_create_device_role_object(
     except Role.MultipleObjectsReturned:
         if logger:
             logger.error(f"Multiple Roles returned with the name {role_name}")
+    return None
+
+
+@job_scoped_cache
+def get_device_role_object(
+    role_name: str,
+    logger: Optional[logging.Logger] = None,
+) -> Optional[Role]:
+    """Return an existing Role, without creating one.
+
+    Matched on the `ipfabric_type` custom field first, as `get_or_create_device_role_object` does, so
+    that a Role this integration created is still found. Falls back to the name, because out of scope
+    the Role is expected to come from a system that does not set that custom field.
+
+    Args:
+        role_name: Role name.
+        logger: Logger to use for messaging.
+
+    Returns:
+        Role: When exactly one Role matches.
+        None: When none matches, or more than one does.
+    """
+    for lookup in ({"_custom_field_data__ipfabric_type": role_name}, {"name": role_name}):
+        try:
+            return Role.objects.get(**lookup)
+        except Role.MultipleObjectsReturned:
+            if logger:
+                logger.error(f"Multiple Roles returned with the name {role_name}")
+            return None
+        except Role.DoesNotExist:
+            continue
+    if logger:
+        logger.debug("No Role named %s exists yet", role_name)
+    return None
+
+
+@job_scoped_cache
+def get_platform_object(
+    platform: str,
+    logger: Optional[logging.Logger] = None,
+) -> Optional[Platform]:
+    """Return an existing Platform by name, without creating one.
+
+    Matched on the name alone, since out of scope the owning system decides the Manufacturer.
+
+    Args:
+        platform: The name of the platform.
+        logger: Logger to use for messaging.
+
+    Returns:
+        Platform: When exactly one Platform has that name.
+        None: When none has that name, or more than one does.
+    """
+    try:
+        return Platform.objects.get(name=platform)
+    except Platform.MultipleObjectsReturned:
+        if logger:
+            logger.error(f"Multiple Platforms returned with name {platform}")
+    except Platform.DoesNotExist:
+        if logger:
+            logger.debug("No Platform named %s exists yet", platform)
     return None
 
 

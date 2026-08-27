@@ -1,10 +1,15 @@
 """Diff sync shared adapter class attritbutes to synchronize applications."""
 
-from typing import ClassVar
+from typing import ClassVar, Optional
 
 from diffsync import Adapter
 
 from nautobot_ssot.integrations.ipfabric.diffsync import diffsync_models
+from nautobot_ssot.integrations.ipfabric.sync_scope import (
+    UNSYNCED_LOCATION_ATTRS,
+    UNSYNCED_LOCATION_FLAGS,
+    SyncScope,
+)
 
 
 class DiffSyncModelAdapters(Adapter):
@@ -24,3 +29,26 @@ class DiffSyncModelAdapters(Adapter):
         "location",
         "cable",
     ]
+
+    def __init__(self, *args, scope: Optional[SyncScope] = None, **kwargs):
+        """Initialize the adapter with the object types this run covers.
+
+        Held on the shared base so that both adapters read one scope. They only agree about what is
+        in scope by construction if there is one place for it to come from.
+        """
+        super().__init__(*args, **kwargs)
+        self.scope = scope if scope is not None else SyncScope.from_job_kwargs({})
+
+    def location_model(self, name: str, *, site_id: Optional[str], status: str):
+        """Return the Location model to load, in scope or out of it.
+
+        Out of scope a Location is loaded as a tree node rather than as data, since every Device and
+        VLAN is a child of one: placeholder attributes so it diffs as unchanged, and a flag so one the
+        source does not report is not deleted. Built here because the placeholders only cancel out
+        while both adapters report the same ones.
+        """
+        if self.scope.locations:
+            return self.location(adapter=self, name=name, site_id=site_id, status=status)
+        node = self.location(adapter=self, name=name, **UNSYNCED_LOCATION_ATTRS)
+        node.model_flags |= UNSYNCED_LOCATION_FLAGS
+        return node

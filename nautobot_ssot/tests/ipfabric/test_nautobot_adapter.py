@@ -19,7 +19,7 @@ from nautobot.dcim.models import (
 )
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Role, Status, Tag
-from nautobot.ipam.models import IPAddress, Prefix, get_default_namespace
+from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
 
 try:
     from nautobot.core.testing.utils import AssertNoRepeatedQueries
@@ -28,10 +28,31 @@ except ImportError:
 
 import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
+from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
+from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 
 # pylint: disable=too-many-public-methods
+def _deleted_interfaces(node):
+    """Return the names of Interfaces a nested diff dict would delete.
+
+    An element the source does not report shows up with a "-" and no "+". Interfaces sit under
+    location -> device rather than at the top of the diff, so the whole tree is walked.
+    """
+    deleted = set()
+    if not isinstance(node, dict):
+        return deleted
+    for key, value in node.items():
+        if key == "interface" and isinstance(value, dict):
+            for unique_id, change in value.items():
+                if isinstance(change, dict) and change.get("-") and not change.get("+"):
+                    deleted.add(unique_id.split("__")[0])
+        if isinstance(value, dict):
+            deleted |= _deleted_interfaces(value)
+    return deleted
+
+
 class TestNautobotAdapter(TestCase):
     """Test cases for InfoBlox Nautobot adapter."""
 
@@ -261,6 +282,158 @@ class TestNautobotAdapter(TestCase):
         self.assertIsNone(loaded["eth1"].subnet_mask)
         self.assertFalse(loaded["eth1"].ip_is_primary)
 
+    def _address_a_primary_interface(self):
+        """Give the stack master's `eth0` an IP Address and make it the Device's primary."""
+        stack_master = self.stack.master
+        int_eth0 = stack_master.interfaces.get(name="eth0")
+        prefix, _ = Prefix.objects.get_or_create(
+            prefix="10.0.0.0/24", namespace=get_default_namespace(), status=self.active_status
+        )
+        ip_addr, _ = IPAddress.objects.get_or_create(address="10.0.0.5/24", status=self.active_status, parent=prefix)
+        int_eth0.ip_addresses.add(ip_addr)
+        stack_master.primary_ip4 = ip_addr
+        stack_master.validated_save()
+        stack_master.refresh_from_db()
+        return stack_master
+
+    def _load_with_scope(self, **kwargs):
+        """Load with the named object types selected, and return the Interfaces keyed by name."""
+        self.nb_adapter.scope = SyncScope.from_job_kwargs(kwargs)
+        self.nb_adapter.load_interfaces(
+            device_record=self._address_a_primary_interface(), diffsync_device=unittest.mock.Mock()
+        )
+        return {interface.name: interface for interface in self.nb_adapter.get_all("interface")}
+
+    def test_interfaces_out_of_scope_loads_none(self):
+        """With Interfaces deselected, none are loaded, so none can diff against IP Fabric."""
+        self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_interfaces": False})
+        self.nb_adapter.load_data()
+
+        self.assertEqual(self.nb_adapter.get_all("interface"), [])
+        self.assertNotEqual(self.nb_adapter.get_all("device"), [], "Devices should still load.")
+
+    def test_ip_addresses_out_of_scope_reports_no_address(self):
+        """Reported as absent, matching the source adapter, so the stored address is left alone."""
+        loaded = self._load_with_scope(sync_ip_addresses=False)
+
+        self.assertIsNone(loaded["eth0"].ip_address)
+        self.assertIsNone(loaded["eth0"].subnet_mask)
+        self.assertFalse(loaded["eth0"].ip_is_primary, "Primary IP cannot survive its address going out of scope.")
+
+    def test_primary_ip_out_of_scope_keeps_the_address(self):
+        """Only the primary assignment is withheld; the address itself is still synced."""
+        loaded = self._load_with_scope(sync_primary_ip=False)
+
+        self.assertEqual(loaded["eth0"].ip_address, "10.0.0.5")
+        self.assertFalse(loaded["eth0"].ip_is_primary)
+
+    def test_addresses_out_of_scope_still_loads_interfaces(self):
+        """Interfaces stay in scope on their own, so the load prefetches them without their addresses."""
+        self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_ip_addresses": False})
+        self.nb_adapter.load_data()
+
+        interfaces = self.nb_adapter.get_all("interface")
+        self.assertNotEqual(interfaces, [], "Interfaces should still load.")
+        for interface in interfaces:
+            self.assertIsNone(interface.ip_address, interface.name)
+
+    def test_ip_addresses_out_of_scope_drops_the_pseudo_interface(self):
+        """Mirrors the IP Fabric adapter, which does not fabricate the pseudo interface out of scope.
+
+        A previous run with addresses in scope leaves a real `pseudo_mgmt` Interface in Nautobot. If
+        only this side reported it, the diff would read it as absent from IP Fabric and delete it.
+        """
+        stack_master = self.stack.master
+        Interface.objects.create(
+            name="pseudo_mgmt",
+            device=stack_master,
+            type="virtual",
+            status=self.active_status,
+        )
+
+        self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_ip_addresses": False})
+        self.nb_adapter.load_interfaces(device_record=stack_master, diffsync_device=unittest.mock.Mock())
+
+        loaded = {interface.name for interface in self.nb_adapter.get_all("interface")}
+        self.assertNotIn("pseudo_mgmt", loaded)
+        self.assertIn("eth0", loaded, "Real Interfaces must still load.")
+
+    def test_pseudo_interface_loads_while_addresses_are_in_scope(self):
+        """In scope both adapters report it, so it must not be dropped unconditionally."""
+        stack_master = self.stack.master
+        Interface.objects.create(
+            name="pseudo_mgmt",
+            device=stack_master,
+            type="virtual",
+            status=self.active_status,
+        )
+
+        self.nb_adapter.load_interfaces(device_record=stack_master, diffsync_device=unittest.mock.Mock())
+
+        self.assertIn("pseudo_mgmt", {interface.name for interface in self.nb_adapter.get_all("interface")})
+
+    def test_the_pseudo_interface_is_not_deleted_when_addresses_go_out_of_scope(self):
+        """The consequence the symmetry above exists to prevent, asserted on the diff itself.
+
+        A run with addresses in scope leaves a real `pseudo_mgmt` Interface behind. A later run with
+        addresses deselected must not read it as absent from IP Fabric and delete it.
+        """
+        stack_master = self.stack.master
+        Interface.objects.create(
+            name="pseudo_mgmt",
+            device=stack_master,
+            type="virtual",
+            status=self.active_status,
+        )
+        scope = SyncScope.from_job_kwargs({"sync_ip_addresses": False, "sync_vlans": False})
+
+        # A source that reports the Device but, being out of scope for addresses, no pseudo interface.
+        source = DiffSyncModelAdapters(scope=scope)
+        location = source.location_model(self.stack_site.name, site_id=None, status="Active")
+        source.add(location)
+        device = source.device(
+            name=stack_master.name,
+            location_name=self.stack_site.name,
+            model=stack_master.device_type.model,
+            vendor=stack_master.device_type.manufacturer.name,
+            serial_number=stack_master.serial,
+            role=stack_master.role.name,
+            status="Active",
+        )
+        source.add(device)
+        location.add_child(device)
+        for interface_record in stack_master.interfaces.exclude(name="pseudo_mgmt"):
+            interface = source.interface(
+                name=interface_record.name,
+                device_name=stack_master.name,
+                status="Active",
+                enabled=True,
+                type=interface_record.type,
+            )
+            source.add(interface)
+            device.add_child(interface)
+
+        self.nb_adapter.scope = scope
+        self.nb_adapter.location_filter = self.stack_site
+        self.nb_adapter.load_data()
+        diff = self.nb_adapter.diff_from(source)
+
+        # Interfaces are nested under location -> device, since `top_level` is Locations and Cables.
+        deleted = _deleted_interfaces(diff.dict())
+        self.assertNotIn("pseudo_mgmt", deleted, f"Diff would delete: {sorted(deleted)}")
+        self.assertEqual(deleted, set(), "No Interface should be deleted; the source reports them all.")
+
+    def test_vlans_out_of_scope_loads_none(self):
+        """With VLANs deselected, an existing Nautobot VLAN is not loaded and so cannot be deleted."""
+        self.site1.location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
+        site_vlan = VLAN.objects.create(name="vlan1", vid=1, status=self.active_status)
+        site_vlan.locations.add(self.site1)
+
+        self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_vlans": False})
+        self.nb_adapter.load_data()
+
+        self.assertEqual(self.nb_adapter.get_all("vlan"), [])
+
     def _interface(self, device_name, interface_name):
         """Create a cableable Interface on the named Device.
 
@@ -290,7 +463,7 @@ class TestNautobotAdapter(TestCase):
         # Cabled with dev2 as Nautobot's A side; the loaded model should still order dev1 first.
         cable = self._cable(int_dev2, int_dev1)
 
-        self.nb_adapter.sync_cables = True
+        self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_cables": True})
         self.nb_adapter.load_data()
 
         cables = self.nb_adapter.get_all("cable")
@@ -315,7 +488,7 @@ class TestNautobotAdapter(TestCase):
         """A Cable model carrying `cable_pk` resolves back to the Nautobot Cable it was loaded from."""
         cable = self._cable(self._interface("dev1", "eth0"), self._interface("dev2", "eth0"))
 
-        self.nb_adapter.sync_cables = True
+        self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_cables": True})
         self.nb_adapter.load_data()
 
         loaded = self.nb_adapter.get_all("cable")[0]
@@ -325,7 +498,7 @@ class TestNautobotAdapter(TestCase):
         """A link whose far end is outside the Location filter is left alone rather than loaded."""
         self._cable(self._interface("dev1", "eth0"), self._interface("dev3", "eth0"))
 
-        self.nb_adapter.sync_cables = True
+        self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_cables": True})
         self.nb_adapter.location_filter = self.site1
         self.nb_adapter.load_data()
 
@@ -335,7 +508,7 @@ class TestNautobotAdapter(TestCase):
         """A link between two in-scope Locations is loaded, since Cables are not children of one."""
         self._cable(self._interface("dev1", "eth0"), self._interface("dev3", "eth0"))
 
-        self.nb_adapter.sync_cables = True
+        self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_cables": True})
         self.nb_adapter.load_data()
 
         cables = self.nb_adapter.get_all("cable")
@@ -343,7 +516,7 @@ class TestNautobotAdapter(TestCase):
         self.assertEqual(cables[0].get_unique_id(), "dev1__eth0__dev3__eth0")
 
     def test_load_cables_not_loaded_when_disabled(self):
-        """Cables are opt in, so a Cable in the database is ignored unless `sync_cables` is set."""
+        """Cables are opt in, so a Cable in the database is ignored unless the scope includes them."""
         self._cable(self._interface("dev1", "eth0"), self._interface("dev2", "eth0"))
 
         self.nb_adapter.load_data()

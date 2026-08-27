@@ -20,6 +20,12 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabr
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import DiffSyncExtras
+from nautobot_ssot.integrations.ipfabric.sync_scope import (
+    SyncScope,
+    disabled_keys,
+    form_fields,
+    scope_field_order,
+)
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
 LAST = "$last"
@@ -115,14 +121,6 @@ class IpFabricDataSource(DataSource):
         label="Sync Tagged Only",
         description="Only sync objects that have the 'SSoT Synced from IPFabric' Tag.",
     )
-    sync_cables = BooleanVar(
-        default=False,
-        label="Sync Cables",
-        description=(
-            "Sync the connections in IP Fabric's connectivity matrix to Nautobot Cables. "
-            "Only links whose Devices and Interfaces are both in scope are synced."
-        ),
-    )
     location_filter = OptionalObjectVar(
         description="Only sync Nautobot records belonging to a single Location.",
         model=Location,
@@ -142,7 +140,7 @@ class IpFabricDataSource(DataSource):
             "snapshot",
             "safe_delete_mode",
             "sync_ipfabric_tagged_only",
-            "sync_cables",
+            *scope_field_order(),
             "dryrun",
         )
 
@@ -189,6 +187,10 @@ class IpFabricDataSource(DataSource):
         if hasattr(cls, "snapshot"):
             got_vars["snapshot"] = cls.snapshot
 
+        # Built here rather than declared on the class so that an object type an administrator has
+        # disabled is absent from the form, not merely defaulted off.
+        got_vars.update(form_fields())
+
         return got_vars
 
     @classmethod
@@ -225,6 +227,7 @@ class IpFabricDataSource(DataSource):
             "Safe Delete IPAddress Status": constants.SAFE_DELETE_IPADDRESS_STATUS,
             "Safe Delete VLAN status": constants.SAFE_DELETE_VLAN_STATUS,
             "Safe Delete Cable Status": constants.SAFE_DELETE_CABLE_STATUS,
+            "Disabled Sync Objects": ", ".join(disabled_keys()) or "None",
         }
 
     # pylint: disable-next=too-many-arguments, arguments-differ
@@ -235,9 +238,9 @@ class IpFabricDataSource(DataSource):
             "dryrun": kwargs.get("dryrun"),
             "safe_delete_mode": kwargs.get("safe_delete_mode"),
             "sync_ipfabric_tagged_only": kwargs.get("sync_ipfabric_tagged_only"),
-            "sync_cables": kwargs.get("sync_cables"),
             "location_filter": kwargs.get("location_filter"),
             "debug": kwargs.get("debug"),
+            "scope": SyncScope.from_job_kwargs(kwargs),
         }
         self.dryrun = kwargs.get("dryrun")
         self.memory_profiling = kwargs.get("memory_profiling")
@@ -262,7 +265,7 @@ class IpFabricDataSource(DataSource):
         dryrun = self.kwargs["dryrun"]
         safe_mode = self.kwargs["safe_delete_mode"]
         tagged_only = self.kwargs["sync_ipfabric_tagged_only"]
-        sync_cables = self.kwargs["sync_cables"]
+        scope = self.kwargs["scope"]
         location_filter = self.kwargs["location_filter"]
         debug_mode = self.kwargs["debug"]
 
@@ -270,15 +273,18 @@ class IpFabricDataSource(DataSource):
             location_filter_object = Location.objects.get(pk=location_filter)
         else:
             location_filter_object = None
-        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Sync Cables`: {sync_cables}, `Location Filter`: {location_filter_object}"
+        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Location Filter`: {location_filter_object}"
         self.logger.info(f"Starting job with the following options: {options}")
+        self.logger.info("Object types in scope: %s", scope.describe())
+        for explanation in scope.explanations():
+            self.logger.warning(explanation)
 
         ipfabric_source = IPFabricDiffSync(
             job=self,
             sync=self.sync,
             client=self.client,
             location_filter=location_filter_object.name if location_filter_object else None,
-            sync_cables=sync_cables,
+            scope=scope,
         )
         self.logger.info("Loading current data from IP Fabric...")
         ipfabric_source.load()
@@ -292,7 +298,7 @@ class IpFabricDataSource(DataSource):
             sync=self.sync,
             sync_ipfabric_tagged_only=tagged_only,
             location_filter=location_filter_object,
-            sync_cables=sync_cables,
+            scope=scope,
         )
 
         self.logger.info("Loading current data from Nautobot...")

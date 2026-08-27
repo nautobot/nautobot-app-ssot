@@ -63,6 +63,8 @@ PLUGINS_CONFIG = {
 | `ipfabric_safe_delete_ipaddress_status` | The status that is set for an IP Address when the `Safe Delete Mode` flag is set in the Job.                                                                                                  | `Deprecated`        |
 | `ipfabric_safe_delete_cable_status`     | The status that is set for a Cable when the `Safe Delete Mode` flag is set in the Job.                                                                                                        | `Decommissioning`   |
 | `ipfabric_use_canonical_interface_name` | Whether to attempt to elongate interface names as found in IP Fabric.                                                                                                                         | `False`             |
+| `ipfabric_sync_<object type>`           | Pre-selects an object type on the Job form. See [Choosing what to sync](#choosing-what-to-sync).                                                                                              | Varies by type      |
+| `ipfabric_disabled_sync_objects`        | Object types that may not be selected on the Job form at all. See [Choosing what to sync](#choosing-what-to-sync).                                                                            | `[]`                |
 
 
 Below is an example snippet from `nautobot_config.py` that demonstrates how to enable and configure the IPFabric SSoT integration along with the optional settings:
@@ -96,6 +98,9 @@ PLUGINS_CONFIG = {
         "ipfabric_use_canonical_interface_name": is_truthy(
             os.getenv("NAUTOBOT_SSOT_USE_CANONICAL_INTERFACE_NAME", "true")
         ),
+        "ipfabric_sync_cables": is_truthy(os.getenv("NAUTOBOT_SSOT_IPFABRIC_SYNC_CABLES", "false")),
+        # For example, ["primary_ip"] to remove it from the Job form entirely.
+        "ipfabric_disabled_sync_objects": [],
     }
 }
 ```
@@ -149,3 +154,111 @@ PLUGINS_CONFIG = {
 
 !!! warning
     The setting names have been updated to help avoid any potential conflicts, please update the settings in `PLUGINS_CONFIG` accordingly.
+
+## Choosing what to sync
+
+The Job form carries a checkbox per object type, so a run can be narrowed to the data an
+installation actually wants IP Fabric to own. Deselecting a type keeps it out of the sync in both
+directions: it is neither read from IP Fabric nor read from Nautobot, so existing Nautobot records
+of that type are left untouched rather than treated as absent from the source and removed.
+
+| Object type     | Job field             | Default | Requires       |
+|-----------------|-----------------------|---------|----------------|
+| `locations`     | `Sync Locations`      | On      |                |
+| `manufacturers` | `Sync Manufacturers`  | On      |                |
+| `device_types`  | `Sync Device Types`   | On      |                |
+| `roles`         | `Sync Roles`          | On      |                |
+| `platforms`     | `Sync Platforms`      | On      |                |
+| `interfaces`    | `Sync Interfaces`     | On      |                |
+| `ip_addresses`  | `Sync IP Addresses`   | On      | `interfaces`   |
+| `primary_ip`    | `Sync Primary IP`     | On      | `ip_addresses` |
+| `vlans`         | `Sync VLANs`          | On      |                |
+| `cables`        | `Sync Cables`         | Off     | `interfaces`   |
+
+Devices are always synced. Every other object type is either a Device or hangs off one, so a run with
+Devices excluded would have nothing left to do.
+
+### Manufacturers, Device Types, Roles and Platforms
+
+Manufacturers, Device Types, Roles and Platforms are not part of the object tree. Nothing is a child
+of them; they are created as a side effect of syncing a Device that needs one. Deselecting them
+therefore does not stop Devices syncing — it turns a get-or-create into a lookup, so this sync uses
+what Nautobot already holds and never adds to the catalogue.
+
+What happens when the supporting object is absent depends on whether Nautobot requires it:
+
+| Deselected      | A Device needing one Nautobot does not hold                                     |
+|-----------------|---------------------------------------------------------------------------------|
+| `manufacturers` | Skipped, if a Device Type would have had to be created under the missing vendor |
+| `device_types`  | Skipped — Nautobot requires a Device Type                                       |
+| `roles`         | Skipped — Nautobot requires a Role                                              |
+| `platforms`     | Synced without a Platform — Nautobot treats it as optional                      |
+
+Each skipped Device is named in the Job log, so a run against a catalogue that has not caught up
+reads as work to retry rather than as data that vanished.
+
+Two further consequences:
+
+- Deselecting `manufacturers` restricts *adding* vendors, not using them. A Device Type can still be
+  created under a Manufacturer that already exists; only one that would require inventing a vendor is
+  refused.
+- Deselecting `roles` also stops the `ipfabric_type` custom field being written. In scope, that field
+  records what IP Fabric called the role and is how a Role this integration created is matched again.
+  Out of scope, Roles are matched on that field first and then on their name, so a Role another system
+  owns is found without this sync stamping anything on it.
+
+### Locations
+
+Locations are the root of the object tree: every Device and VLAN belongs to one. Deselecting them
+therefore does not stop Locations being *read* — it stops them being *written*. No Location is
+created, updated or deleted, and the `ipfabric_site_id` custom field is left alone, but Devices at
+Locations that already exist in Nautobot still sync normally.
+
+Three consequences follow, all of them intended:
+
+- **A site IP Fabric reports that this sync did not load is not created**, but the Devices at it are
+  still attempted. The Location is looked up by name first, so a Location that another SSoT App has
+  already created is found and the Devices land at it. This matters most with `Sync Tagged Only`
+  enabled: a Location owned by another App carries no IP Fabric tag, so this sync never loads it, and
+  the name lookup is what connects the two.
+- **A Device whose Location does not exist yet is reported, not skipped silently.** The Job log names
+  the Location that could not be found and each Device that could not be placed, so a sync run before
+  the App that owns Locations shows up as work to retry rather than as missing data.
+- **A Nautobot Location that IP Fabric does not report is left completely alone**, including the
+  Devices at it. With Locations out of scope the sync holds no opinion about which sites exist, so it
+  cannot treat a missing site as evidence that the Devices at it are gone. With Locations in scope,
+  that same site and its Devices are deleted, subject to Safe Delete Mode.
+
+The `ipfabric_site_id` custom field is only ever written while Locations are in scope; out of scope it
+belongs to whichever system owns the Location.
+
+Deselect Locations where another system owns the site list. Leave it selected — the default — to keep
+the existing behaviour.
+
+An object type is skipped when a type it requires is not selected, and the Job log says which
+requirement was unmet. Selecting `Sync Cables` without `Sync Interfaces`, for example, syncs no
+Cables, because a Cable can only be matched through the Interfaces it terminates on.
+
+### Pre-selecting a type
+
+`ipfabric_sync_<object type>` sets the initial state of a checkbox, for installations that want a
+different starting point from the shipped default. It changes what the form offers, not what it
+permits, so an operator can still override it for one run:
+
+```python
+"ipfabric_sync_cables": True,
+```
+
+### Disabling a type outright
+
+`ipfabric_disabled_sync_objects` removes object types from the form altogether, for cases where
+another system is authoritative and the answer must not vary run to run. A disabled type cannot be
+re-enabled by an operator, by the REST API, or by a scheduled Job saved before it was disabled:
+
+```python
+"ipfabric_disabled_sync_objects": ["locations", "primary_ip"],
+```
+
+Disabling a type also disables everything that requires it, since those have nothing to attach to.
+Every exclusion is reported in the Job log, so a run whose selections were overruled says so rather
+than quietly doing less than asked.
