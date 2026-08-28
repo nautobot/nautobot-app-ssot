@@ -25,6 +25,7 @@ from nautobot.ipam.models import (
 from nautobot_ssot.integrations.ipfabric.bulk_writes import LEVELS, PendingWrites
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
+from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 
@@ -356,3 +357,95 @@ class BulkModeInterfaceTestCase(TestCase):
         self.assertEqual(IPAddress.objects.filter(host="10.0.0.9").count(), 1)
         interface = Interface.objects.get(device=self.device, name="eth9")
         self.assertEqual(interface.ip_addresses.get().pk, existing.pk)
+
+
+class BulkModeLocationAndVlanTestCase(TestCase):
+    """Test the Location and VLAN bulk paths, and that a queued parent is found rather than rebuilt."""
+
+    def setUp(self):
+        populate_status_choices()
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
+        self.active = Status.objects.get(name="Active")
+        device_ct = ContentType.objects.get_for_model(Device)
+        # `get_or_create_location_object` looks for a LocationType named exactly "Site".
+        site_type, _ = LocationType.objects.get_or_create(name="Site")
+        site_type.content_types.add(device_ct, ContentType.objects.get_for_model(VLAN))
+        ssot_tag, _ = Tag.objects.get_or_create(
+            name="SSoT Synced from IPFabric",
+            defaults={"color": ColorChoices.COLOR_LIGHT_GREEN, "description": "Synced"},
+        )
+        ssot_tag.content_types.add(
+            device_ct, ContentType.objects.get_for_model(Location), ContentType.objects.get_for_model(VLAN)
+        )
+        self.pending = PendingWrites()
+
+    def test_a_queued_location_is_found_rather_than_queued_twice(self):
+        """Two callers asking for the same Location must not each build one.
+
+        `Location.create` asks with the site id and `Device.create` without it, so relying on the
+        lookup cache alone would build two and write both.
+        """
+        first = nbutils.get_or_create_location_object(location_name="dup", location_id="site-9", pending=self.pending)
+        second = nbutils.get_or_create_location_object(location_name="dup", location_id=None, pending=self.pending)
+
+        self.assertIs(second, first, "The second caller should have been given the queued Location.")
+        self.pending.flush()
+        self.assertEqual(Location.objects.filter(name="dup").count(), 1)
+
+    def test_a_queued_location_carries_its_site_id_and_tag(self):
+        location = nbutils.get_or_create_location_object(
+            location_name="stamped", location_id="site-7", pending=self.pending
+        )
+        self.pending.flush()
+
+        written = Location.objects.get(pk=location.pk)
+        self.assertEqual(written.cf["ipfabric_site_id"], "site-7")
+        self.assertEqual(written.cf["system_of_record"], "IPFabric")
+        self.assertTrue(written.tags.filter(name="SSoT Synced from IPFabric").exists())
+
+    def test_a_queued_vlan_gets_its_location_and_tag(self):
+        """`VLAN.save()` makes the location assignment, and a batched insert never calls it."""
+        location = nbutils.get_or_create_location_object(location_name="vlan-home", pending=self.pending)
+        vlan = nbutils.create_vlan(
+            vlan_name="bulk-vlan",
+            vlan_id=42,
+            vlan_status="Active",
+            location_obj=location,
+            description="queued",
+            pending=self.pending,
+        )
+        self.pending.flush()
+
+        written = VLAN.objects.get(pk=vlan.pk)
+        self.assertEqual([each.name for each in written.locations.all()], ["vlan-home"])
+        self.assertEqual(written.description, "queued")
+        self.assertEqual(written.cf["system_of_record"], "IPFabric")
+        self.assertTrue(written.tags.filter(name="SSoT Synced from IPFabric").exists())
+
+    def test_a_vlan_and_its_location_land_in_one_flush(self):
+        """The VLAN references a Location that has not been written when the VLAN is built."""
+        location = nbutils.get_or_create_location_object(location_name="same-flush", pending=self.pending)
+        self.assertFalse(Location.objects.filter(name="same-flush").exists())
+        vlan = nbutils.create_vlan(
+            vlan_name="same-flush-vlan",
+            vlan_id=43,
+            vlan_status="Active",
+            location_obj=location,
+            description="",
+            pending=self.pending,
+        )
+
+        self.pending.flush()
+
+        self.assertEqual([each.name for each in VLAN.objects.get(pk=vlan.pk).locations.all()], ["same-flush"])
+
+    def test_an_existing_location_is_not_queued(self):
+        """A re-sync must re-stamp what Nautobot holds rather than queue a second row."""
+        existing = Location.objects.create(
+            name="already-there", location_type=LocationType.objects.get(name="Site"), status=self.active
+        )
+        found = nbutils.get_or_create_location_object(location_name="already-there", pending=self.pending)
+
+        self.assertEqual(found.pk, existing.pk)
+        self.assertEqual(self.pending.counts(), {}, "Nothing should have been queued for an existing Location.")

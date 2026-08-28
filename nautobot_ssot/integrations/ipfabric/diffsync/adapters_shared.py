@@ -17,6 +17,15 @@ class DiffSyncModelAdapters(Adapter):
 
     safe_delete_mode: ClassVar[bool] = True
 
+    # Writes go one at a time unless an adapter says otherwise, so a model may ask any adapter.
+    bulk_write_mode: bool = False
+    pending = None
+
+    @property
+    def pending_writes(self):
+        """The collector to queue writes into, or None when they go one at a time."""
+        return self.pending if self.bulk_write_mode else None
+
     location = diffsync_models.Location
     device = diffsync_models.Device
     interface = diffsync_models.Interface

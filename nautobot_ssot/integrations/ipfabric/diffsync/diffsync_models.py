@@ -59,6 +59,7 @@ def resolve_location(adapter, location_name: str, location_id: Optional[str] = N
             location_name=location_name,
             location_id=location_id,
             logger=adapter.job.logger,
+            pending=adapter.pending_writes,
         )
     return tonb_nbutils.get_location_object(location_name, logger=adapter.job.logger)
 
@@ -591,7 +592,7 @@ class Interface(DiffSyncExtras):
             return_super = True
             if not attrs.get("mac_address"):
                 attrs["mac_address"] = DEFAULT_INTERFACE_MAC
-            pending = adapter.pending if adapter.bulk_write_mode else None
+            pending = adapter.pending_writes
             interface_obj = tonb_nbutils.create_interface(
                 device_obj=device_obj,
                 interface_details={**ids, **attrs},
@@ -835,8 +836,13 @@ class Vlan(DiffSyncExtras):
         location_name = ids["location"]
         vlan_id = attrs["vid"]
         vlan_name = ids["name"]
+        # A Location queued earlier in this run is not in the database yet, so it is looked for
+        # there first. Falls through to the database, which is where it is on any other run.
+        location = None
+        if adapter.pending_writes is not None:
+            location = adapter.pending_writes.find(NautobotLocation, location_name)
         try:
-            location = NautobotLocation.objects.get(name=ids["location"])
+            location = location or NautobotLocation.objects.get(name=ids["location"])
         except NautobotLocation.MultipleObjectsReturned:
             adapter.job.logger.error(
                 f"Multiple Locations returned with the name {location_name}, "
@@ -858,6 +864,7 @@ class Vlan(DiffSyncExtras):
                 location_obj=location,
                 description=description,
                 logger=adapter.job.logger,
+                pending=adapter.pending_writes,
             )
             if vlan:
                 return super().create(ids=ids, adapter=adapter, attrs=attrs)

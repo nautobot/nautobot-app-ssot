@@ -142,9 +142,7 @@ class TestNautobotUtils(TestCase):
         self.assertEqual(test_location.name, "Test-Location-new")
         self.assertEqual(test_location.cf["ipfabric_site_id"], "Test-Location-new")
 
-    @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Location.objects.get_or_create", autospec=True
-    )
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Location.objects.get", autospec=True)
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_location_multiple_locations_returned(self, mock_logger, mock_tag_object, mock_location):
@@ -158,9 +156,7 @@ class TestNautobotUtils(TestCase):
         logger.error.assert_called_with("Multiple Locations returned with name Test-Location")
         mock_tag_object.assert_not_called()
 
-    @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Location.objects.get_or_create", autospec=True
-    )
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Location.objects.get", autospec=True)
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_location_db_error(self, mock_logger, mock_tag_object, mock_location):
@@ -174,9 +170,7 @@ class TestNautobotUtils(TestCase):
         logger.error.assert_called_with("Unable to create a new Location named Test-Location with LocationType Site")
         mock_tag_object.assert_not_called()
 
-    @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Location.objects.get_or_create", autospec=True
-    )
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Location.objects.get", autospec=True)
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_location_validation_error(self, mock_logger, mock_tag_object, mock_location):
@@ -1464,9 +1458,7 @@ class TestNautobotUtils(TestCase):
 
     # ===== create_vlan error/tag paths =====
 
-    @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.VLAN.objects.get_or_create", autospec=True
-    )
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.VLAN.objects.get", autospec=True)
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_vlan_multiple_returned(self, mock_logger, mock_vlan):
         """Test `create_vlan` MultipleObjectsReturned path."""
@@ -1483,9 +1475,7 @@ class TestNautobotUtils(TestCase):
         self.assertIsNone(result)
         logger.error.assert_called_with("Multiple VLANs returned with name Multi-VLAN and ID 200")
 
-    @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.VLAN.objects.get_or_create", autospec=True
-    )
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.VLAN.objects.get", autospec=True)
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_vlan_db_error(self, mock_logger, mock_vlan):
         """Test `create_vlan` DjangoBaseDBError path."""
@@ -1502,9 +1492,7 @@ class TestNautobotUtils(TestCase):
         self.assertIsNone(result)
         self.assertTrue(logger.error.called)
 
-    @unittest.mock.patch(
-        "nautobot_ssot.integrations.ipfabric.utilities.nbutils.VLAN.objects.get_or_create", autospec=True
-    )
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.VLAN.objects.get", autospec=True)
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_vlan_validation_error(self, mock_logger, mock_vlan):
         """Test `create_vlan` ValidationError path."""

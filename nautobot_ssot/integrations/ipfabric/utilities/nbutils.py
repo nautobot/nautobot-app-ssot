@@ -29,7 +29,15 @@ from nautobot.extras.models import CustomField, Role, Tag, TaggedItem
 from nautobot.extras.models.statuses import Status
 from nautobot.extras.signals import change_context_state
 from nautobot.ipam.choices import PrefixTypeChoices
-from nautobot.ipam.models import VLAN, IPAddress, IPAddressToInterface, Namespace, Prefix, get_default_namespace
+from nautobot.ipam.models import (
+    VLAN,
+    IPAddress,
+    IPAddressToInterface,
+    Namespace,
+    Prefix,
+    VLANLocationAssignment,
+    get_default_namespace,
+)
 from netutils.ip import netmask_to_cidr
 from netutils.lib_mapper import NAPALM_LIB_MAPPER
 
@@ -70,6 +78,7 @@ def get_or_create_location_object(
     location_name: str,
     location_id: Optional[str] = None,
     logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
 ) -> Optional[Location]:
     """Creates a specified location in Nautobot.
 
@@ -77,55 +86,76 @@ def get_or_create_location_object(
         location_name: Name of the location.
         location_id: ID of the location.
         logger: Logger to use for messaging.
+        pending: When given, a new Location is queued for a batched write rather than saved. The
+            returned Location already has its primary key, so a caller may go on to reference it.
 
     Returns:
         Location: When a Location Object is retrieved or created.
         None: When there is a failure in getting or creating a Location.
     """
+    # A Location this run has already queued is not in the database yet, so it has to be found here
+    # or a second one would be built and both written.
+    if pending is not None:
+        queued = pending.find(Location, location_name)
+        if queued is not None:
+            return queued
+
     try:
         location_type = LocationType.objects.get(name="Site")
         if not location_type.content_types.filter(app_label="ipam", model="vlan").exists():
             location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
-
-        location_obj, _ = Location.objects.get_or_create(
-            name=location_name,
-            location_type=location_type,
-            status=Status.objects.get(name="Active"),
-        )
+        try:
+            location_obj = Location.objects.get(name=location_name, location_type=location_type)
+            is_new = False
+        except Location.DoesNotExist:
+            location_obj = Location(
+                name=location_name,
+                location_type=location_type,
+                status=Status.objects.get(name="Active"),
+            )
+            is_new = True
     except Location.MultipleObjectsReturned:
         if logger:
             logger.error(f"Multiple Locations returned with name {location_name}")
+        return None
     except (DjangoBaseDBError, ValidationError):
         if logger:
             logger.error(f"Unable to create a new Location named {location_name} with LocationType Site")
-    else:
-        if location_id:
-            # Ensure custom field is available
-            try:
-                custom_field_obj, _ = CustomField.objects.get_or_create(
-                    type=CustomFieldTypeChoices.TYPE_TEXT,
-                    key="ipfabric_site_id",
-                    defaults={"label": "IPFabric Location ID"},
-                )
-            except CustomField.MultipleObjectsReturned:
-                if logger:
-                    logger.error("Multiple CustomFields returned with key ipfabric_site_id")
-            except (DjangoBaseDBError, ValidationError):
-                if logger:
-                    logger.error("Unable to create a new CustomField named ipfabric_site_id with type of TYPE_TEXT")
-            else:
-                custom_field_obj.content_types.add(ContentType.objects.get_for_model(Location))
-                location_obj.cf["ipfabric_site_id"] = location_id
-        # tag_object performs validated_save()
+        return None
+
+    if location_id:
+        # Ensure custom field is available
         try:
-            tag_object(nautobot_object=location_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+            custom_field_obj, _ = CustomField.objects.get_or_create(
+                type=CustomFieldTypeChoices.TYPE_TEXT,
+                key="ipfabric_site_id",
+                defaults={"label": "IPFabric Location ID"},
+            )
+        except CustomField.MultipleObjectsReturned:
+            if logger:
+                logger.error("Multiple CustomFields returned with key ipfabric_site_id")
         except (DjangoBaseDBError, ValidationError):
             if logger:
-                logger.warning(
-                    f"Unable to perform a validated_save() on Location {location_name} with an ID of {location_obj.id}"
-                )
+                logger.error("Unable to create a new CustomField named ipfabric_site_id with type of TYPE_TEXT")
+        else:
+            custom_field_obj.content_types.add(ContentType.objects.get_for_model(Location))
+            location_obj.cf["ipfabric_site_id"] = location_id
+
+    if is_new and pending is not None:
+        stamp_synced(location_obj, LAST_SYNCHRONIZED_CF_NAME)
+        pending.add(location_obj, key=location_name)
+        queue_synced_tag(pending, location_obj)
         return location_obj
-    return None
+
+    # tag_object performs validated_save(), which is the only save a new Location takes.
+    try:
+        tag_object(nautobot_object=location_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+    except (DjangoBaseDBError, ValidationError):
+        if logger:
+            logger.warning(
+                f"Unable to perform a validated_save() on Location {location_name} with an ID of {location_obj.id}"
+            )
+    return location_obj
 
 
 @job_scoped_cache
@@ -900,6 +930,7 @@ def create_vlan(  # pylint: disable=too-many-arguments
     location_obj: Location,
     description: str,
     logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
 ) -> Optional[VLAN]:
     """Creates or obtains VLAN object.
 
@@ -910,6 +941,8 @@ def create_vlan(  # pylint: disable=too-many-arguments
         location_obj (Location): Location Django Model
         description (str): VLAN Description
         logger: Logger to use for messaging.
+        pending: When given, a new VLAN and its location assignment are queued for a batched write
+            rather than saved.
 
     Returns:
         VLAN: When a VLAN Object is retrieved or created.
@@ -920,31 +953,44 @@ def create_vlan(  # pylint: disable=too-many-arguments
         location_obj.location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
 
     try:
-        vlan_obj, _ = VLAN.objects.get_or_create(
-            vid=vlan_id,
-            location=location_obj,
-            defaults={
-                "name": vlan_name,
-                "status": Status.objects.get(name=vlan_status),
-                "description": description,
-            },
-        )
+        try:
+            vlan_obj = VLAN.objects.get(vid=vlan_id, locations=location_obj)
+            is_new = False
+        except VLAN.DoesNotExist:
+            # `location` is consumed by `VLAN.save()`, which is what makes the assignment. In bulk
+            # mode that save never runs, so the assignment row is queued below instead.
+            vlan_obj = VLAN(
+                vid=vlan_id,
+                name=vlan_name,
+                status=Status.objects.get(name=vlan_status),
+                description=description,
+                location=location_obj,
+            )
+            is_new = True
     except VLAN.MultipleObjectsReturned:
         if logger:
             logger.error(f"Multiple VLANs returned with name {vlan_name} and ID {vlan_id}")
+        return None
     except (DjangoBaseDBError, ValidationError) as err:
         if logger:
             logger.error(f"Unable to create a new VLAN named {vlan_name} with an ID {vlan_id}. Error: {err}")
-    else:
-        try:
-            tag_object(nautobot_object=vlan_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-        except (DjangoBaseDBError, ValidationError):
-            if logger:
-                logger.warning(
-                    f"Unable to perform validated_save() on VLAN named {vlan_name} with an ID of {vlan_obj.id}"
-                )
+        return None
+
+    if is_new and pending is not None:
+        stamp_synced(vlan_obj, LAST_SYNCHRONIZED_CF_NAME)
+        pending.add(vlan_obj)
+        if location_obj is not None:
+            pending.add_through(VLANLocationAssignment(vlan=vlan_obj, location_id=location_obj.pk))
+        queue_synced_tag(pending, vlan_obj)
         return vlan_obj
-    return None
+
+    # tag_object performs validated_save(), which is the only save a new VLAN takes.
+    try:
+        tag_object(nautobot_object=vlan_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+    except (DjangoBaseDBError, ValidationError):
+        if logger:
+            logger.warning(f"Unable to perform validated_save() on VLAN named {vlan_name} with an ID of {vlan_obj.id}")
+    return vlan_obj
 
 
 @job_scoped_cache

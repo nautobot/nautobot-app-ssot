@@ -16,6 +16,7 @@ from uuid import UUID
 
 from django.test import SimpleTestCase
 
+from nautobot_ssot.integrations.ipfabric.bulk_writes import PendingWrites
 from nautobot_ssot.integrations.ipfabric.diffsync import diffsync_models
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
     Cable,
@@ -57,6 +58,10 @@ def _make_adapter(scope=None, bulk_write_mode=False):
     adapter = mock.MagicMock()
     adapter.scope = scope if scope is not None else SyncScope(syncable.key for syncable in SYNCABLE_OBJECTS)
     adapter.bulk_write_mode = bulk_write_mode
+    # Mirrors the real property. Left as a mock it is truthy, and every model here would queue its
+    # writes instead of making them.
+    adapter.pending = PendingWrites() if bulk_write_mode else None
+    adapter.pending_writes = adapter.pending
     adapter.job = mock.MagicMock()
     adapter.job.debug = False
     adapter.ssot_tag = mock.MagicMock(name="ssot_tag")
@@ -589,7 +594,7 @@ class TestDeviceModel(_ModelTestBase):  # pylint: disable=too-many-public-method
             diff_model.update({"location_name": "new-loc"})
 
         mock_loc_helper.assert_called_once_with(
-            location_name="new-loc", location_id=None, logger=self.adapter.job.logger
+            location_name="new-loc", location_id=None, logger=self.adapter.job.logger, pending=None
         )
         self.assertIs(nb_device.location, new_location)
 
@@ -604,7 +609,9 @@ class TestResolveLocation(_ModelTestBase):
             resolved = diffsync_models.resolve_location(self.adapter, "loc", "site-id")
 
         self.assertEqual(resolved, "created")
-        mock_helper.assert_called_once_with(location_name="loc", location_id="site-id", logger=self.adapter.job.logger)
+        mock_helper.assert_called_once_with(
+            location_name="loc", location_id="site-id", logger=self.adapter.job.logger, pending=None
+        )
 
     def test_only_looks_up_when_locations_are_out_of_scope(self):
         """Another system owns Locations, so a missing one is theirs to create, not this sync's."""
