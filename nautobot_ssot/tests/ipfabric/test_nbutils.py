@@ -919,7 +919,7 @@ class TestNautobotUtils(TestCase):
 
     def test_create_interface(self):
         """Test `create_interface` Utility."""
-        interface_details = {"name": "Test-Interface"}
+        interface_details = {"name": "Test-Interface", "type": "virtual"}
         test_interface = create_interface(self.device, interface_details)
         self.assertEqual(test_interface.id, self.device.interfaces.get(name="Test-Interface").id)
 
@@ -1558,25 +1558,12 @@ class TestNautobotUtils(TestCase):
     # ===== create_interface error/tag paths =====
 
     @unittest.mock.patch("logging.Logger", autospec=True)
-    def test_create_interface_multiple_returned(self, mock_logger):
-        """Test `create_interface` Interface.MultipleObjectsReturned path."""
-        logger = mock_logger("nb_job")
-        mock_device = mock.MagicMock()
-        mock_device.name = "Mock-Device"
-        mock_device.interfaces.get_or_create.side_effect = Interface.MultipleObjectsReturned
-        result = create_interface(mock_device, {"name": "Multi-Iface"}, logger=logger)
-        self.assertIsNone(result)
-        logger.error.assert_called_with(
-            "Multiple Interfaces returned with name Multi-Iface on Device named Mock-Device"
-        )
-
-    @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_interface_db_error(self, mock_logger):
         """Test `create_interface` DjangoBaseDBError on get_or_create path."""
         logger = mock_logger("nb_job")
         mock_device = mock.MagicMock()
         mock_device.name = "Mock-Device"
-        mock_device.interfaces.get_or_create.side_effect = DjangoBaseDBError
+        mock_device.interfaces.filter.side_effect = DjangoBaseDBError
         result = create_interface(mock_device, {"name": "DB-Iface"}, logger=logger)
         self.assertIsNone(result)
         logger.error.assert_called_with("Unable to create a new Interface named DB-Iface on Device named Mock-Device")
@@ -1587,7 +1574,7 @@ class TestNautobotUtils(TestCase):
         logger = mock_logger("nb_job")
         mock_device = mock.MagicMock()
         mock_device.name = "Mock-Device"
-        mock_device.interfaces.get_or_create.side_effect = ValidationError("failure")
+        mock_device.interfaces.filter.side_effect = ValidationError("failure")
         result = create_interface(mock_device, {"name": "V-Iface"}, logger=logger)
         self.assertIsNone(result)
         logger.error.assert_called_with("Unable to create a new Interface named V-Iface on Device named Mock-Device")
@@ -1604,7 +1591,7 @@ class TestNautobotUtils(TestCase):
         mock_device.name = "Mock-Device"
         result = create_interface(mock_device, {"name": "NoStat-Iface"}, logger=logger)
         self.assertIsNone(result)
-        mock_device.interfaces.get_or_create.assert_not_called()
+        mock_device.interfaces.filter.assert_not_called()
         logger.error.assert_called_with(
             "Unable to set Status of Active for Interface named NoStat-Iface on Device named Mock-Device"
         )
@@ -1612,20 +1599,26 @@ class TestNautobotUtils(TestCase):
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_interface_tag_db_error(self, mock_logger, mock_tag):
-        """Test `create_interface` tag_object DjangoBaseDBError path."""
+        """An existing Interface whose re-tagging fails is still returned, with a warning."""
         mock_tag.side_effect = [DjangoBaseDBError]
         logger = mock_logger("nb_job")
-        result = create_interface(self.device, {"name": "TagDB-Iface"}, logger=logger)
+        Interface.objects.create(
+            device=self.device, name="TagDB-Iface", status=Status.objects.get(name="Active"), type="virtual"
+        )
+        result = create_interface(self.device, {"name": "TagDB-Iface", "type": "virtual"}, logger=logger)
         self.assertEqual(result.name, "TagDB-Iface")
         self.assertTrue(logger.warning.called)
 
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_interface_tag_validation_error(self, mock_logger, mock_tag):
-        """Test `create_interface` tag_object ValidationError path."""
+        """An existing Interface whose re-tagging fails validation is still returned, with a warning."""
         mock_tag.side_effect = [ValidationError("failure")]
         logger = mock_logger("nb_job")
-        result = create_interface(self.device, {"name": "TagV-Iface"}, logger=logger)
+        Interface.objects.create(
+            device=self.device, name="TagV-Iface", status=Status.objects.get(name="Active"), type="virtual"
+        )
+        result = create_interface(self.device, {"name": "TagV-Iface", "type": "virtual"}, logger=logger)
         self.assertEqual(result.name, "TagV-Iface")
         self.assertTrue(logger.warning.called)
 

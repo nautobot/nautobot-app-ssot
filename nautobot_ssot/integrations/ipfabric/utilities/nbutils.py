@@ -807,25 +807,31 @@ def create_interface(
     )
     defaults = {k: v for k, v in interface_details.items() if k in interface_fields and v}
     try:
-        interface_obj, _ = device_obj.interfaces.get_or_create(
-            name=interface_name, status=status_obj, defaults=defaults
-        )
-    except Interface.MultipleObjectsReturned:
-        if logger:
-            logger.error(f"Multiple Interfaces returned with name {interface_name} on Device named {device_obj.name}")
+        interface_obj = device_obj.interfaces.filter(name=interface_name, status=status_obj).first()
+        if interface_obj is None:
+            interface_obj = Interface(device=device_obj, name=interface_name, status=status_obj, **defaults)
+            # Stamped before the one save a new Interface takes. Applying the Tag afterwards writes
+            # the Tag's own row rather than the Interface again, so this costs a single validated
+            # save where a get or create followed by `tag_object` cost two.
+            stamp_synced(interface_obj, LAST_SYNCHRONIZED_CF_NAME)
+            interface_obj.validated_save()
+            interface_obj.tags.add(synced_tag_for(interface_obj))
+            return interface_obj
     except (DjangoBaseDBError, ValidationError):
         if logger:
             logger.error(f"Unable to create a new Interface named {interface_name} on Device named {device_obj.name}")
-    else:
-        try:
-            tag_object(nautobot_object=interface_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-        except (DjangoBaseDBError, ValidationError):
-            if logger:
-                logger.warning(
-                    f"Unable to perform validated_save() on Interface named {interface_name} on Device named {device_obj.name}"
-                )
-        return interface_obj
-    return None
+        return None
+
+    # An Interface Nautobot already holds is re-stamped in place. Kept separate from the creation
+    # above so that a failure here leaves the existing Interface returned, as it was before.
+    try:
+        tag_object(nautobot_object=interface_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+    except (DjangoBaseDBError, ValidationError):
+        if logger:
+            logger.warning(
+                f"Unable to perform validated_save() on Interface named {interface_name} on Device named {device_obj.name}"
+            )
+    return interface_obj
 
 
 @job_scoped_cache
@@ -894,6 +900,29 @@ def get_tagged_pks(model: Any, tag_id: Any) -> frozenset:
     return frozenset(model.objects.filter(tags__id=tag_id).values_list("pk", flat=True))
 
 
+def synced_tag_for(nautobot_object: Any, tag_name: str = "SSoT Synced from IPFabric") -> Tag:
+    """Return the Tag marking an object as synced from IP Fabric, for that object's content type."""
+    content_type = ContentType.objects.get_for_model(nautobot_object)
+    return get_or_create_tag_object(
+        tag_name=tag_name,
+        tag_color=ColorChoices.COLOR_LIGHT_GREEN,
+        description="Object synced at some point from IPFabric to Nautobot",
+        app_label=content_type.app_label,
+        model=content_type.model,
+    )
+
+
+def stamp_synced(nautobot_object: Any, custom_field: str):
+    """Record this integration as the object's source of record, without saving it.
+
+    Separate from `tag_object` so that a newly built object can be stamped before the one save it
+    takes, rather than saved again afterwards purely to carry the stamp.
+    """
+    if hasattr(nautobot_object, "cf"):
+        nautobot_object.cf["system_of_record"] = "IPFabric"
+        nautobot_object.cf[custom_field] = datetime.date.today().isoformat()
+
+
 def tag_object(
     nautobot_object: Any,
     custom_field: str,
@@ -909,25 +938,13 @@ def tag_object(
         extra_tags (Optional[tuple], optional): Further Tags to apply in the same operation, so that
             a caller wanting two Tags does not pay for two round trips to the tag table.
     """
-    ct = ContentType.objects.get_for_model(nautobot_object)
-    tag = get_or_create_tag_object(
-        tag_name=tag_name,
-        tag_color=ColorChoices.COLOR_LIGHT_GREEN,
-        description="Object synced at some point from IPFabric to Nautobot",
-        app_label=ct.app_label,
-        model=ct.model,
-    )
-
-    today = datetime.date.today().isoformat()
+    tag = synced_tag_for(nautobot_object, tag_name=tag_name)
 
     def _tag_object(nautobot_object):
         """Apply custom field and tag to object, if applicable."""
         if hasattr(nautobot_object, "tags"):
             nautobot_object.tags.add(tag, *(extra_tags or ()))
-        if hasattr(nautobot_object, "cf"):
-            # Update custom field date stamp
-            nautobot_object.cf["system_of_record"] = "IPFabric"
-            nautobot_object.cf[custom_field] = today
+        stamp_synced(nautobot_object, custom_field)
         nautobot_object.validated_save()
 
     _tag_object(nautobot_object)

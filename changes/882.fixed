@@ -1,1 +1,2 @@
 Fixed the IP Fabric adapter queueing objects for deletion on the adapter class rather than the instance, which let a run that failed part way leave objects for a later run in the same worker to delete.
+Fixed the IP Fabric adapter inserting an Interface before validating it, which left an invalid Interface in Nautobot when validation then failed.

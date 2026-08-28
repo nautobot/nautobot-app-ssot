@@ -116,8 +116,8 @@ class InterfaceWriteCostTestCase(_CostTestCase):
         # Only the verb is kept, so a failure reports how many writes happened rather than pages of SQL.
         return [write.split(None, 3)[0].upper() for write in writes]
 
-    def test_creating_an_interface_with_an_address_writes_it_twice(self):
-        """Creating one takes an INSERT and the UPDATE that stamps it, which is the floor.
+    def test_creating_an_interface_with_an_address_writes_it_once(self):
+        """One INSERT carrying the stamp, and no second save to apply it.
 
         Each write is a full `validated_save()`, so one more doubles what an Interface costs.
         """
@@ -133,7 +133,7 @@ class InterfaceWriteCostTestCase(_CostTestCase):
                 },
             )
         )
-        self.assertEqual(len(writes), 2, f"Expected two writes to the Interface table, got {writes}")
+        self.assertEqual(len(writes), 1, f"Expected one write to the Interface table, got {writes}")
         self.assertEqual(Interface.objects.get(name="eth1").ip_addresses.count(), 1)
 
     def test_updating_an_interface_with_an_address_writes_it_once(self):
