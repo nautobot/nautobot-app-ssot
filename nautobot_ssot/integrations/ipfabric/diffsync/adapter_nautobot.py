@@ -91,6 +91,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         sync_ipfabric_tagged_only: bool,
         location_filter: Optional[Location],
         *args,
+        bulk_write_mode: bool = False,
         **kwargs,
     ):
         """Initialize the NautobotDiffSync."""
@@ -99,6 +100,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         self.sync = sync
         self.sync_ipfabric_tagged_only = sync_ipfabric_tagged_only
         self.location_filter = location_filter
+        # Passed in rather than set on the class, so two runs in one worker cannot see each other's
+        # choice. `safe_delete_mode` predates that and still lives on the class.
+        self.bulk_write_mode = bulk_write_mode
         # Per adapter rather than per class, so that a run which fails before `sync_complete` cannot
         # leave objects queued for a later run in the same worker to delete.
         self.objects_to_delete = defaultdict(list)
