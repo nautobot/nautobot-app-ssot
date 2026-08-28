@@ -20,9 +20,6 @@ from nautobot.dcim.models import (
     Device as NautobotDevice,
 )
 from nautobot.dcim.models import (
-    Interface as NautobotInterface,
-)
-from nautobot.dcim.models import (
     Location as NautobotLocation,
 )
 from nautobot.extras.models import Tag
@@ -692,14 +689,12 @@ class Interface(DiffSyncExtras):
         device = tonb_nbutils.get_tagged_device(self.device_name)
         if device:  # pylint: disable=too-many-nested-blocks
             return_super = True
-            try:
-                interface = device.interfaces.prefetch_related("ip_addresses").get(name=self.name)
-            except NautobotInterface.MultipleObjectsReturned:
-                self.adapter.job.logger.error(
-                    f"Multiple Interfaces found with the name {self.name} on Device named {device.name} "
-                    f"with an ID of {device.id}, unable to determine which one to update"
-                )
-            except NautobotInterface.DoesNotExist:
+            # Every Interface of the Device at once, so a Device with many of them changing costs
+            # one lookup rather than one each. Nautobot makes `(device, name)` unique, so there is
+            # no ambiguous match to report. Each Interface is updated at most once per run, so the
+            # addresses this reads are still the ones on it.
+            interface = tonb_nbutils.get_device_interfaces_by_name(device).get(self.name)
+            if interface is None:
                 self.adapter.job.logger.error(
                     f"Unable to find an Interface with the name {self.name} on Device named {device.name} "
                     f"with an ID of {device.id} to update"

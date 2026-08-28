@@ -942,7 +942,12 @@ def tag_object(
 
     def _tag_object(nautobot_object):
         """Apply custom field and tag to object, if applicable."""
-        if hasattr(nautobot_object, "tags"):
+        # `tags.add` reads the tag table to find what is missing even when nothing is, so an object
+        # already carrying the tag is answered from the per-model set instead. Objects tagged during
+        # the run are absent from that set, which costs a redundant add rather than a wrong answer.
+        if hasattr(nautobot_object, "tags") and (
+            extra_tags or nautobot_object.pk not in get_tagged_pks(type(nautobot_object), tag.id)
+        ):
             nautobot_object.tags.add(tag, *(extra_tags or ()))
         stamp_synced(nautobot_object, custom_field)
         nautobot_object.validated_save()

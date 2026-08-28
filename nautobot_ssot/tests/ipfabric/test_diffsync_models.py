@@ -709,13 +709,12 @@ class TestInterfaceModel(_ModelTestBase):
         self.assertNotIn(shared_ip, targets)
 
     def _setup_interface_update(self):
-        """Build a diff model + a mocked device/interface returned from the prefetch chain."""
+        """Build a diff model plus the mocked Device and Interface the per-Device lookup returns."""
         diff_model = Interface(name="eth0", device_name="d1", status="Active")
         diff_model.adapter = self.adapter
 
         device = mock.MagicMock(name="device")
         interface_obj = mock.MagicMock(name="interface")
-        device.interfaces.prefetch_related.return_value.get.return_value = interface_obj
         return diff_model, device, interface_obj
 
     def test_update_replaces_existing_ip_address(self):
@@ -726,6 +725,7 @@ class TestInterfaceModel(_ModelTestBase):
 
         with (
             _nb_patch("get_tagged_device", return_value=device),
+            _nb_patch("get_device_interfaces_by_name", return_value={"eth0": interface_obj}),
             _nb_patch("create_ip", return_value=new_ip) as create_ip,
             _nb_patch("tag_object"),
             mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
@@ -746,6 +746,7 @@ class TestInterfaceModel(_ModelTestBase):
 
         with (
             _nb_patch("get_tagged_device", return_value=device),
+            _nb_patch("get_device_interfaces_by_name", return_value={"eth0": interface_obj}),
             _nb_patch("tag_object"),
             mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
         ):
