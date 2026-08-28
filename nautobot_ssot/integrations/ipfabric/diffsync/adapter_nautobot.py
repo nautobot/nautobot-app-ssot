@@ -21,6 +21,7 @@ from netutils.mac import mac_to_format
 
 import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
 import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_utils
+from nautobot_ssot.integrations.ipfabric.bulk_writes import PendingWrites
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_MAC,
     DEFAULT_INTERFACE_MTU,
@@ -103,6 +104,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         # Passed in rather than set on the class, so two runs in one worker cannot see each other's
         # choice. `safe_delete_mode` predates that and still lives on the class.
         self.bulk_write_mode = bulk_write_mode
+        # Always present, so a caller can queue without asking which mode is on; only bulk mode
+        # routes writes into it.
+        self.pending = PendingWrites()
         # Per adapter rather than per class, so that a run which fails before `sync_complete` cannot
         # leave objects queued for a later run in the same worker to delete.
         self.objects_to_delete = defaultdict(list)
@@ -132,6 +136,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         Args:
             source (Adapter): DiffSync Adapter
         """
+        # Deletion reads objects back from the database, so anything bulk mode has queued has to
+        # be written before it runs.
+        self.flush_pending_writes()
+
         for grouping in (
             "_vlan",
             "_interface",
@@ -145,6 +153,19 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         # is the run that has to empty them.
         job_scoped_cache.clear_all()
         return super().sync_complete(source, *args, **kwargs)
+
+    def flush_pending_writes(self) -> int:
+        """Write whatever bulk mode has queued, and report what was written.
+
+        Called before anything that reads those objects back from the database, and at the end of
+        the sync. A no-op when nothing is queued, so callers need not check the mode first.
+        """
+        if not self.pending:
+            return 0
+        counts = self.pending.counts()
+        written = self.pending.flush()
+        self.job.logger.info("Wrote %d queued rows in bulk mode: %s", written, counts)
+        return written
 
     def load_interfaces(self, device_record: Device, diffsync_device):
         """Import a single Nautobot Interface object as a DiffSync Interface model."""

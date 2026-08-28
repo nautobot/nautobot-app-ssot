@@ -1,4 +1,5 @@
 # pylint: disable=duplicate-code
+# One module holds every ORM helper this integration needs  #  pylint: disable=too-many-lines
 """Utility functions for Nautobot ORM."""
 
 import datetime
@@ -24,7 +25,7 @@ from nautobot.dcim.models import (
 )
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.context_managers import deferred_change_logging_for_bulk_operation
-from nautobot.extras.models import CustomField, Role, Tag
+from nautobot.extras.models import CustomField, Role, Tag, TaggedItem
 from nautobot.extras.models.statuses import Status
 from nautobot.extras.signals import change_context_state
 from nautobot.ipam.choices import PrefixTypeChoices
@@ -677,12 +678,13 @@ def get_tagged_interface(
     return None
 
 
-def create_ip(  # pylint: disable=too-many-statements
+def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
     ip_address: str,
     subnet_mask: str,
     status: str = "Active",
     object_pk: Optional[Interface] = None,
     logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
 ) -> Optional[IPAddress]:
     """Verify ip address exists in Nautobot. If not, creates specified ip.
 
@@ -694,6 +696,8 @@ def create_ip(  # pylint: disable=too-many-statements
         status: Status to assign to IP Address.
         object_pk: Interface Object to assigne IPAdress to.
         logger: Logger to use for messaging.
+        pending: When given, a new IPAddress and its Interface assignment are queued for a batched
+            write rather than saved.
 
     Returns:
         IPAddress: When a IPAddress Object is retrieved or created.
@@ -716,6 +720,14 @@ def create_ip(  # pylint: disable=too-many-statements
     else:
         cidr = netmask_to_cidr(subnet_mask)
         ip_obj = None
+        if pending is not None:
+            return queue_ip(
+                address=f"{ip_address}/{cidr}",
+                status_obj=status_obj,
+                interface=object_pk,
+                pending=pending,
+                logger=logger,
+            )
         try:
             ip_obj, _ = IPAddress.objects.get_or_create(address=f"{ip_address}/{cidr}", defaults={"status": status_obj})
         except IPAddress.MultipleObjectsReturned:
@@ -773,9 +785,49 @@ def create_ip(  # pylint: disable=too-many-statements
     return None
 
 
+def queue_ip(
+    address: str,
+    status_obj: Status,
+    interface: Optional[Interface],
+    pending: Any,
+    logger: Optional[logging.Logger] = None,
+) -> Optional[IPAddress]:
+    """Queue an IPAddress, and its assignment to an Interface, for a batched write.
+
+    An address Nautobot already holds is reused rather than queued, so a re-sync does not try to
+    insert it again.
+
+    `IPAddress.save()` calls `clean()` to work out which Prefix the address belongs under, and a
+    batched insert calls neither, so `clean()` is run here. It is also what rejects an address the
+    sync should not be writing, which is worth keeping even in bulk mode: the alternative is a row
+    with no parent Prefix, which leaves the address orphaned in IPAM.
+    """
+    existing = IPAddress.objects.filter(address=address).first()
+    if existing is None:
+        ip_obj = IPAddress(address=address, status=status_obj)
+        try:
+            ip_obj.clean()
+        except ValidationError as error:
+            if logger:
+                logger.error(f"Unable to queue an IPAddress of {address} for a bulk write. Error: {error}")
+            return None
+        stamp_synced(ip_obj, LAST_SYNCHRONIZED_CF_NAME)
+        pending.add(ip_obj)
+        queue_synced_tag(pending, ip_obj)
+    else:
+        ip_obj = existing
+
+    if interface is not None:
+        pending.add_through(IPAddressToInterface(ip_address=ip_obj, interface_id=interface.pk))
+    return ip_obj
+
+
 # Not cached, as it is unhashable, but not useful to cache anyway
 def create_interface(
-    device_obj: Device, interface_details: dict, logger: Optional[logging.Logger] = None
+    device_obj: Device,
+    interface_details: dict,
+    logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
 ) -> Optional[Interface]:
     """Verify interface exists on specified device. If not, creates interface.
 
@@ -783,6 +835,8 @@ def create_interface(
         device_obj: Device object to check interface against.
         interface_details: interface details.
         logger: Logger to use for messaging.
+        pending: When given, a new Interface is queued for a batched write rather than saved. The
+            returned Interface already has its primary key, so a caller may go on to reference it.
 
     Returns:
         Interface: When a Interface Object is retrieved or created.
@@ -814,6 +868,10 @@ def create_interface(
             # the Tag's own row rather than the Interface again, so this costs a single validated
             # save where a get or create followed by `tag_object` cost two.
             stamp_synced(interface_obj, LAST_SYNCHRONIZED_CF_NAME)
+            if pending is not None:
+                pending.add(interface_obj, key=(device_obj.pk, interface_name))
+                queue_synced_tag(pending, interface_obj)
+                return interface_obj
             interface_obj.validated_save()
             interface_obj.tags.add(synced_tag_for(interface_obj))
             return interface_obj
@@ -909,6 +967,21 @@ def synced_tag_for(nautobot_object: Any, tag_name: str = "SSoT Synced from IPFab
         description="Object synced at some point from IPFabric to Nautobot",
         app_label=content_type.app_label,
         model=content_type.model,
+    )
+
+
+def queue_synced_tag(pending: Any, nautobot_object: Any, tag_name: str = "SSoT Synced from IPFabric"):
+    """Queue the row tagging an object as synced, for an object being written in bulk.
+
+    `tags.add` needs a saved object and issues its own statements, so a queued object gets the join
+    row directly instead. Written after the object it points at, which the collector guarantees.
+    """
+    pending.add_through(
+        TaggedItem(
+            content_type=ContentType.objects.get_for_model(nautobot_object),
+            object_id=nautobot_object.pk,
+            tag=synced_tag_for(nautobot_object, tag_name=tag_name),
+        )
     )
 
 

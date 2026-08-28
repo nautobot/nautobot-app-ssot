@@ -4,6 +4,8 @@ These write against the real database, since what is being tested is whether a b
 this way produces the same rows a per-object save would.
 """
 
+import unittest.mock
+
 from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.testing import TestCase
 from nautobot.core.choices import ColorChoices
@@ -21,6 +23,9 @@ from nautobot.ipam.models import (
 )
 
 from nautobot_ssot.integrations.ipfabric.bulk_writes import LEVELS, PendingWrites
+from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
+from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
+from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 
 class PendingWritesTestCase(TestCase):
@@ -224,3 +229,130 @@ class PendingWritesTestCase(TestCase):
             pending.add(self.build_location(f"batched{index}"))
         self.assertEqual(pending.flush(), 5)
         self.assertEqual(Location.objects.filter(name__startswith="batched").count(), 5)
+
+
+class BulkModeInterfaceTestCase(TestCase):
+    """Test that a bulk mode Interface create lands the same rows a per-object one does."""
+
+    def setUp(self):
+        populate_status_choices()
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
+        self.active = Status.objects.get(name="Active")
+        self.namespace = get_default_namespace()
+        Prefix.objects.get_or_create(
+            prefix="10.0.0.0/8",
+            namespace=self.namespace,
+            defaults={"status": self.active, "type": PrefixTypeChoices.TYPE_NETWORK},
+        )
+        device_ct = ContentType.objects.get_for_model(Device)
+        interface_ct = ContentType.objects.get_for_model(Interface)
+        ssot_tag, _ = Tag.objects.get_or_create(
+            name="SSoT Synced from IPFabric",
+            defaults={"color": ColorChoices.COLOR_LIGHT_GREEN, "description": "Synced"},
+        )
+        ssot_tag.content_types.add(device_ct, interface_ct, ContentType.objects.get_for_model(IPAddress))
+        Tag.objects.get_or_create(
+            name="SSoT Safe Delete", defaults={"color": ColorChoices.COLOR_RED, "description": "Safe delete"}
+        )
+        role = Role.objects.create(name="mode-role")
+        role.content_types.add(device_ct)
+        location_type, _ = LocationType.objects.get_or_create(name="mode-site")
+        location_type.content_types.add(device_ct)
+        location = Location.objects.create(name="mode-site1", location_type=location_type, status=self.active)
+        manufacturer = Manufacturer.objects.create(name="mode-vendor")
+        device_type = DeviceType.objects.create(model="mode-model", manufacturer=manufacturer)
+        self.device = Device.objects.create(
+            name="mode-device",
+            status=self.active,
+            role=role,
+            location=location,
+            device_type=device_type,
+            serial="serial",
+        )
+        self.device.tags.add(ssot_tag)
+
+    def adapter(self, bulk_write_mode):
+        """Return an adapter in the given mode, with a mocked job."""
+        job = unittest.mock.MagicMock()
+        job.debug = False
+        return NautobotDiffSync(
+            job=job,
+            sync=unittest.mock.MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+            bulk_write_mode=bulk_write_mode,
+        )
+
+    def create_interface(self, adapter, name, address):
+        """Run the DiffSync Interface create for an Interface carrying an address."""
+        return InterfaceModel.create(
+            adapter,
+            ids={"name": name, "device_name": self.device.name},
+            attrs={
+                "ip_address": address,
+                "subnet_mask": "255.255.255.0",
+                "status": "Active",
+                "type": "1000base-t",
+                "ip_is_primary": True,
+            },
+        )
+
+    def rows_for(self, name):
+        """Return the state worth comparing between the two modes."""
+        interface = Interface.objects.get(device=self.device, name=name)
+        address = interface.ip_addresses.get()
+        self.device.refresh_from_db()
+        return {
+            "interface_tagged": interface.tags.filter(name="SSoT Synced from IPFabric").exists(),
+            "interface_stamped": interface.cf.get("system_of_record"),
+            "interface_type": interface.type,
+            "address": str(address.host),
+            "address_mask": address.mask_length,
+            "address_parent": str(address.parent.prefix),
+            "address_tagged": address.tags.filter(name="SSoT Synced from IPFabric").exists(),
+            "address_stamped": address.cf.get("system_of_record"),
+            "primary_ip": str(self.device.primary_ip4.host),
+        }
+
+    def test_bulk_mode_lands_the_same_rows(self):
+        """Every field a per-object write produces has to come out of the batched one too."""
+        self.create_interface(self.adapter(bulk_write_mode=False), "eth0", "10.0.0.1")
+        per_object = self.rows_for("eth0")
+
+        bulk_adapter = self.adapter(bulk_write_mode=True)
+        self.create_interface(bulk_adapter, "eth1", "10.0.0.2")
+        # Nothing is written until the flush.
+        self.assertFalse(Interface.objects.filter(device=self.device, name="eth1").exists())
+        bulk_adapter.flush_pending_writes()
+        batched = self.rows_for("eth1")
+
+        # The two addresses differ by design; everything else must match.
+        for key, expected in per_object.items():
+            if key in ("address", "primary_ip"):
+                continue
+            self.assertEqual(batched[key], expected, f"{key} differs between the two modes")
+        self.assertEqual(batched["address"], "10.0.0.2")
+        self.assertEqual(batched["primary_ip"], "10.0.0.2")
+
+    def test_nothing_is_written_before_the_flush(self):
+        adapter = self.adapter(bulk_write_mode=True)
+        self.create_interface(adapter, "eth5", "10.0.0.5")
+        self.assertEqual(Interface.objects.filter(device=self.device).count(), 0)
+        self.assertEqual(
+            adapter.pending.counts(),
+            {"Interface": 1, "IPAddress": 1, "TaggedItem": 2, "IPAddressToInterface": 1, "field updates": 1},
+        )
+
+    def test_an_address_nautobot_already_holds_is_reused(self):
+        """A re-sync must not try to insert an address that exists."""
+        existing = IPAddress(address="10.0.0.9/24", namespace=self.namespace, status=self.active)
+        existing.validated_save()
+
+        adapter = self.adapter(bulk_write_mode=True)
+        self.create_interface(adapter, "eth9", "10.0.0.9")
+        adapter.flush_pending_writes()
+
+        self.assertEqual(IPAddress.objects.filter(host="10.0.0.9").count(), 1)
+        interface = Interface.objects.get(device=self.device, name="eth9")
+        self.assertEqual(interface.ip_addresses.get().pk, existing.pk)

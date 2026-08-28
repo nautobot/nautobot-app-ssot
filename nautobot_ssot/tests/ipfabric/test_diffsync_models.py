@@ -46,14 +46,17 @@ def _cable_patch(name, **kwargs):
     return mock.patch(f"{_CABLES}.{name}", **kwargs)
 
 
-def _make_adapter(scope=None):
+def _make_adapter(scope=None, bulk_write_mode=False):
     """Minimal mock adapter sufficient for invoking model methods directly.
 
     Carries a real `SyncScope` rather than a mock, since the resolvers branch on it and a mock reads
-    as every object type being in scope whether or not that is what the test meant.
+    as every object type being in scope whether or not that is what the test meant. `bulk_write_mode`
+    is set for the same reason: left as a mock it reads as on, and every test here would silently
+    take the batched write path.
     """
     adapter = mock.MagicMock()
     adapter.scope = scope if scope is not None else SyncScope(syncable.key for syncable in SYNCABLE_OBJECTS)
+    adapter.bulk_write_mode = bulk_write_mode
     adapter.job = mock.MagicMock()
     adapter.job.debug = False
     adapter.ssot_tag = mock.MagicMock(name="ssot_tag")

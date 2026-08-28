@@ -591,30 +591,38 @@ class Interface(DiffSyncExtras):
             return_super = True
             if not attrs.get("mac_address"):
                 attrs["mac_address"] = DEFAULT_INTERFACE_MAC
+            pending = adapter.pending if adapter.bulk_write_mode else None
             interface_obj = tonb_nbutils.create_interface(
                 device_obj=device_obj,
                 interface_details={**ids, **attrs},
                 logger=adapter.job.logger,
+                pending=pending,
             )
             if interface_obj and ip_address:
-                interface_obj.ip_addresses.set([])
+                if pending is None:
+                    # A queued Interface has no addresses to clear, and clearing them would read a
+                    # row that does not exist yet.
+                    interface_obj.ip_addresses.set([])
                 ip_address_obj = tonb_nbutils.create_ip(
                     ip_address=ip_address,
                     subnet_mask=subnet_mask,
                     status=attrs["status"],
                     object_pk=interface_obj,
                     logger=adapter.job.logger,
+                    pending=pending,
                 )
                 if ip_address_obj:
                     # `create_ip` has already assigned it to the Interface, through a validated
                     # save of the assignment rather than the plain insert `add()` would do.
                     if attrs.get("ip_is_primary"):
-                        if ip_address_obj.ip_version == 4:
-                            device_obj.primary_ip4 = ip_address_obj
+                        field = "primary_ip4" if ip_address_obj.ip_version == 4 else "primary_ip6"
+                        setattr(device_obj, field, ip_address_obj)
+                        if pending is None:
                             device_obj.save()
-                        elif ip_address_obj.ip_version == 6:
-                            device_obj.primary_ip6 = ip_address_obj
-                            device_obj.save()
+                        else:
+                            # The address is only queued, so the Device cannot point at it until
+                            # after the insert. Applied once everything is written.
+                            pending.defer_update(device_obj, [field])
                 else:
                     adapter.job.logger.warning(
                         f"Unable to assign an IPAddress to an Interface named {interface_name} on a Device named {device_name} "
