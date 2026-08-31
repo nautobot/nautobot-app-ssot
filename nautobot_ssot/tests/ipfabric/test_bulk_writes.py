@@ -706,3 +706,110 @@ class HighWaterFlushTestCase(TestCase):
         self.adapter.flush_pending_writes()
 
         self.assertEqual(Interface.objects.get(name="after-flush").device.name, "flushed-dev")
+
+
+class MissingParentPrefixTestCase(TestCase):
+    """Test that an address whose subnet Nautobot does not hold is still created.
+
+    IP Fabric reports addresses without the subnets they sit in, so the first address a sync sees
+    from a subnet has no parent Prefix. Both write paths have to make one; the batched path did not,
+    and dropped every such address with "No suitable parent Prefix ... exists in Namespace Global".
+    """
+
+    def setUp(self):
+        populate_status_choices()
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
+        self.active = Status.objects.get(name="Active")
+        device_ct = ContentType.objects.get_for_model(Device)
+        ssot_tag, _ = Tag.objects.get_or_create(
+            name="SSoT Synced from IPFabric",
+            defaults={"color": ColorChoices.COLOR_LIGHT_GREEN, "description": "Synced"},
+        )
+        ssot_tag.content_types.add(
+            device_ct, ContentType.objects.get_for_model(Interface), ContentType.objects.get_for_model(IPAddress)
+        )
+        Tag.objects.get_or_create(
+            name="SSoT Safe Delete", defaults={"color": ColorChoices.COLOR_RED, "description": "Safe delete"}
+        )
+        role = Role.objects.create(name="prefix-role")
+        role.content_types.add(device_ct)
+        location_type, _ = LocationType.objects.get_or_create(name="prefix-site")
+        location_type.content_types.add(device_ct)
+        location = Location.objects.create(name="prefix-site1", location_type=location_type, status=self.active)
+        manufacturer = Manufacturer.objects.create(name="prefix-vendor")
+        device_type = DeviceType.objects.create(model="prefix-model", manufacturer=manufacturer)
+        self.device = Device.objects.create(
+            name="prefix-device",
+            status=self.active,
+            role=role,
+            location=location,
+            device_type=device_type,
+            serial="serial",
+        )
+        self.device.tags.add(ssot_tag)
+
+    def adapter(self, bulk_write_mode):
+        """Return an adapter in the given mode, with a mocked job."""
+        job = unittest.mock.MagicMock()
+        job.debug = False
+        return NautobotDiffSync(
+            job=job,
+            sync=unittest.mock.MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+            bulk_write_mode=bulk_write_mode,
+        )
+
+    def create_addressed_interface(self, adapter, name, address, mask):
+        """Run the DiffSync Interface create for an Interface carrying an address."""
+        return InterfaceModel.create(
+            adapter,
+            ids={"name": name, "device_name": self.device.name},
+            attrs={"ip_address": address, "subnet_mask": mask, "status": "Active", "type": "1000base-t"},
+        )
+
+    def test_the_parent_prefix_is_created_in_bulk_mode(self):
+        self.assertFalse(Prefix.objects.filter(prefix="172.31.16.0/20").exists())
+
+        adapter = self.adapter(bulk_write_mode=True)
+        self.create_addressed_interface(adapter, "eth0", "172.31.16.1", "255.255.240.0")
+        adapter.flush_pending_writes()
+
+        self.assertTrue(Prefix.objects.filter(prefix="172.31.16.0/20").exists())
+        address = IPAddress.objects.get(host="172.31.16.1")
+        self.assertEqual(str(address.parent.prefix), "172.31.16.0/20")
+        self.assertEqual(
+            [str(each.host) for each in Interface.objects.get(name="eth0").ip_addresses.all()], ["172.31.16.1"]
+        )
+        adapter.job.logger.error.assert_not_called()
+
+    def test_the_parent_prefix_is_created_in_per_object_mode(self):
+        """The path that already worked, kept covered now that both share one helper."""
+        adapter = self.adapter(bulk_write_mode=False)
+        self.create_addressed_interface(adapter, "eth1", "172.31.32.1", "255.255.240.0")
+
+        self.assertTrue(Prefix.objects.filter(prefix="172.31.32.0/20").exists())
+        self.assertEqual(str(IPAddress.objects.get(host="172.31.32.1").parent.prefix), "172.31.32.0/20")
+
+    def test_both_modes_agree_on_the_prefix_they_make(self):
+        """One helper serves both, so the Prefix must come out the same either way."""
+        self.create_addressed_interface(self.adapter(bulk_write_mode=False), "eth2", "10.40.0.1", "255.255.255.0")
+        bulk_adapter = self.adapter(bulk_write_mode=True)
+        self.create_addressed_interface(bulk_adapter, "eth3", "10.41.0.1", "255.255.255.0")
+        bulk_adapter.flush_pending_writes()
+
+        def prefix_state(network):
+            prefix = Prefix.objects.get(prefix=network)
+            return {"type": prefix.type, "status": prefix.status.name, "namespace": prefix.namespace.name}
+
+        self.assertEqual(prefix_state("10.41.0.0/24"), prefix_state("10.40.0.0/24"))
+
+    def test_a_second_address_in_the_same_subnet_reuses_the_prefix(self):
+        adapter = self.adapter(bulk_write_mode=True)
+        self.create_addressed_interface(adapter, "eth4", "192.168.5.1", "255.255.255.0")
+        self.create_addressed_interface(adapter, "eth5", "192.168.5.2", "255.255.255.0")
+        adapter.flush_pending_writes()
+
+        self.assertEqual(Prefix.objects.filter(prefix="192.168.5.0/24").count(), 1)
+        self.assertEqual(IPAddress.objects.filter(host__in=["192.168.5.1", "192.168.5.2"]).count(), 2)

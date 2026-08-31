@@ -772,21 +772,7 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
             if logger:
                 logger.error(f"Multiple IPAddresses returned with the address of {ip_address}/{subnet_mask}")
         except (DjangoBaseDBError, ValidationError, Prefix.DoesNotExist):
-            try:
-                network_obj = ipaddress.ip_network(f"{ip_address}/{cidr}", strict=False)
-                if logger:
-                    logger.info(f"Automatically creating missing prefix {network_obj} for IP {ip_address}/{cidr}")
-                _, _ = Prefix.objects.get_or_create(
-                    network=str(network_obj.network_address),
-                    prefix_length=network_obj.prefixlen,
-                    type=PrefixTypeChoices.TYPE_NETWORK,
-                    status=get_status_for_model(Prefix, "Active"),
-                    namespace=get_global_namespace(),
-                )
-            except (DjangoBaseDBError, ValidationError) as err:
-                if logger:
-                    logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}. Error: {err}")
-            else:
+            if create_parent_prefix(f"{ip_address}/{cidr}", logger=logger):
                 try:
                     ip_obj, _ = IPAddress.objects.get_or_create(
                         address=f"{ip_address}/{cidr}", defaults={"status": status_obj}
@@ -823,6 +809,54 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
     return None
 
 
+def _cleaned_ip(address: str, status_obj: Status) -> Optional[IPAddress]:
+    """Return an unsaved IPAddress with everything `save()` would have worked out, or None.
+
+    `clean()` is what resolves the Prefix the address belongs under, and a batched insert calls
+    neither it nor `save()`. Returns None when Nautobot will not accept the address, most often
+    because no parent Prefix exists yet. Built afresh each time, since a failed `clean()` may have
+    left the instance half adjusted.
+    """
+    ip_obj = IPAddress(address=address, status=status_obj)
+    try:
+        ip_obj.clean()
+    except ValidationError:
+        return None
+    return ip_obj
+
+
+def create_parent_prefix(address: str, logger: Optional[logging.Logger] = None) -> bool:
+    """Create the Prefix an address belongs under, for when Nautobot holds none.
+
+    IP Fabric reports addresses without the subnets they sit in, so the first address a sync sees
+    from a subnet has no parent Prefix and Nautobot will not take it. Both write paths need this, and
+    keeping it in one place is what stops them disagreeing about it.
+
+    Args:
+        address: The address in CIDR notation, whose network the Prefix is taken from.
+        logger: Logger to use for messaging.
+
+    Returns:
+        bool: Whether a Prefix now exists for the address.
+    """
+    try:
+        network_obj = ipaddress.ip_network(address, strict=False)
+        if logger:
+            logger.info(f"Automatically creating missing prefix {network_obj} for IP {address}")
+        Prefix.objects.get_or_create(
+            network=str(network_obj.network_address),
+            prefix_length=network_obj.prefixlen,
+            type=PrefixTypeChoices.TYPE_NETWORK,
+            status=get_status_for_model(Prefix, "Active"),
+            namespace=get_global_namespace(),
+        )
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error(f"Unable to create a missing Prefix for {address}. Error: {err}")
+        return False
+    return True
+
+
 def queue_ip(
     address: str,
     status_obj: Status,
@@ -842,12 +876,16 @@ def queue_ip(
     """
     existing = IPAddress.objects.filter(address=address).first()
     if existing is None:
-        ip_obj = IPAddress(address=address, status=status_obj)
-        try:
-            ip_obj.clean()
-        except ValidationError as error:
+        ip_obj = _cleaned_ip(address, status_obj)
+        if ip_obj is None:
+            # No parent Prefix yet, which is the normal state for the first address a sync sees from
+            # a subnet. Made here, then the address is built again against it.
+            if not create_parent_prefix(address, logger=logger):
+                return None
+            ip_obj = _cleaned_ip(address, status_obj)
+        if ip_obj is None:
             if logger:
-                logger.error(f"Unable to queue an IPAddress of {address} for a bulk write. Error: {error}")
+                logger.error(f"Unable to queue an IPAddress of {address} for a bulk write")
             return None
         stamp_synced(ip_obj, LAST_SYNCHRONIZED_CF_NAME)
         pending.add(ip_obj)

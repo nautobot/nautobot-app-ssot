@@ -669,7 +669,7 @@ class TestNautobotUtils(TestCase):
         mock_ipaddress_to_interface.assert_not_called()
         mock_ip.assert_called_once()
         mock_tag_object.assert_not_called()
-        logger.error.assert_called_with("Unable to create a new IPAddress of 192.168.0.1/255.255.255.255. Error: ")
+        logger.error.assert_called_with("Unable to create a missing Prefix for 192.168.0.1/32. Error: ")
 
     @unittest.mock.patch(
         "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
@@ -696,9 +696,7 @@ class TestNautobotUtils(TestCase):
         mock_ipaddress_to_interface.assert_not_called()
         mock_ip.assert_called_once()
         mock_tag_object.assert_not_called()
-        logger.error.assert_called_with(
-            "Unable to create a new IPAddress of 192.168.0.1/255.255.255.255. Error: ['failure']"
-        )
+        logger.error.assert_called_with("Unable to create a missing Prefix for 192.168.0.1/32. Error: ['failure']")
 
     @unittest.mock.patch(
         "nautobot_ssot.integrations.ipfabric.utilities.nbutils.Status.objects.get_for_model", autospec=True
@@ -879,7 +877,7 @@ class TestNautobotUtils(TestCase):
 
         self.assertIsNone(result)
 
-        logger.error.assert_called_with(f"Unable to create a new IPAddress of {ip_addr}/{mask}. Error: ")
+        logger.error.assert_called_with("Unable to create a missing Prefix for 10.0.0.1/24. Error: ")
 
     def test_create_vlan_updates_location_content_types(self):
         """Test `create_vlan` ensures location type allows VLAN content type."""
