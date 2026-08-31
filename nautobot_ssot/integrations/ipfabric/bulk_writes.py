@@ -11,8 +11,9 @@ saved. A child can therefore be built holding a reference to a parent that has n
 and the reference is valid as soon as the parent's row exists. `LEVELS` is the order that guarantees.
 
 `bulk_create` does not call `save()`, so anything a model computes there has to be supplied by the
-caller instead. What each model needs is recorded in the admin documentation; the collector here
-takes objects that are already complete and does not add to them.
+caller instead. The collector takes objects that are already complete and does not add to them, so
+what each model needs stays at the call site that knows: an IP Address arrives with the Prefix it
+belongs under, a VLAN with its location assignment row.
 
 Cables are deliberately absent. Creating one also sets `cable`, `_cable_peer` and `_path` on both
 Interfaces it terminates on, and builds the Cable paths, all through signals that a batched insert
