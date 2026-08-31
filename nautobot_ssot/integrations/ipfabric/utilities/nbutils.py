@@ -766,20 +766,25 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
                 pending=pending,
                 logger=logger,
             )
+        address = f"{ip_address}/{cidr}"
         try:
-            ip_obj, _ = IPAddress.objects.get_or_create(address=f"{ip_address}/{cidr}", defaults={"status": status_obj})
+            ip_obj = IPAddress.objects.filter(address=address).first()
         except IPAddress.MultipleObjectsReturned:
             if logger:
                 logger.error(f"Multiple IPAddresses returned with the address of {ip_address}/{subnet_mask}")
-        except (DjangoBaseDBError, ValidationError, Prefix.DoesNotExist):
-            if create_parent_prefix(f"{ip_address}/{cidr}", logger=logger):
-                try:
-                    ip_obj, _ = IPAddress.objects.get_or_create(
-                        address=f"{ip_address}/{cidr}", defaults={"status": status_obj}
-                    )
-                except (DjangoBaseDBError, ValidationError) as err:
-                    if logger:
-                        logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}. Error: {err}")
+            ip_obj = None
+        else:
+            if ip_obj is None:
+                ip_obj = resolve_new_ip(address, status_obj, logger=logger)
+                if ip_obj is not None:
+                    try:
+                        ip_obj.validated_save()
+                    except (DjangoBaseDBError, ValidationError) as err:
+                        if logger:
+                            logger.error(
+                                f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}. Error: {err}"
+                            )
+                        ip_obj = None
 
         if ip_obj:
             if object_pk:
@@ -823,6 +828,29 @@ def _cleaned_ip(address: str, status_obj: Status) -> Optional[IPAddress]:
     except ValidationError:
         return None
     return ip_obj
+
+
+def resolve_new_ip(address: str, status_obj: Status, logger: Optional[logging.Logger] = None) -> Optional[IPAddress]:
+    """Return an unsaved IPAddress ready to be written, creating its parent Prefix if there is none.
+
+    The parent is set here rather than left to Nautobot to work out on save. Nautobot's own
+    determination refuses a parent longer than the address's mask, so an address IP Fabric reports
+    with a /24 mask is rejected when the only Prefix covering it is a /25 — even though that /25 is
+    the parent Nautobot then says it expected. Setting it explicitly takes the same answer
+    `clean()` would give and avoids that.
+
+    A Prefix is only created when nothing covers the address. Creating a wider one when a narrower
+    one already exists does not help, since Nautobot parents an address to the most specific Prefix
+    that contains it.
+    """
+    ip_obj = _cleaned_ip(address, status_obj)
+    if ip_obj is not None:
+        return ip_obj
+    # Nothing covers the address. IP Fabric reports addresses without their subnets, so this is the
+    # normal state for the first address a sync sees from one.
+    if not create_parent_prefix(address, logger=logger):
+        return None
+    return _cleaned_ip(address, status_obj)
 
 
 def create_parent_prefix(address: str, logger: Optional[logging.Logger] = None) -> bool:
@@ -876,13 +904,7 @@ def queue_ip(
     """
     existing = IPAddress.objects.filter(address=address).first()
     if existing is None:
-        ip_obj = _cleaned_ip(address, status_obj)
-        if ip_obj is None:
-            # No parent Prefix yet, which is the normal state for the first address a sync sees from
-            # a subnet. Made here, then the address is built again against it.
-            if not create_parent_prefix(address, logger=logger):
-                return None
-            ip_obj = _cleaned_ip(address, status_obj)
+        ip_obj = resolve_new_ip(address, status_obj, logger=logger)
         if ip_obj is None:
             if logger:
                 logger.error(f"Unable to queue an IPAddress of {address} for a bulk write")

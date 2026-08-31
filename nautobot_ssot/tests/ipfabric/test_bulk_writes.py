@@ -813,3 +813,111 @@ class MissingParentPrefixTestCase(TestCase):
 
         self.assertEqual(Prefix.objects.filter(prefix="192.168.5.0/24").count(), 1)
         self.assertEqual(IPAddress.objects.filter(host__in=["192.168.5.1", "192.168.5.2"]).count(), 2)
+
+
+class NewAddressResolutionTestCase(TestCase):
+    """Test how a new IP Address is resolved, which both write paths now share.
+
+    These replace a set of tests that mocked `IPAddress.objects.get_or_create` to walk each internal
+    branch. The branches have changed shape; what matters is the behaviour, and it is the same in
+    both modes because both go through `resolve_new_ip`.
+    """
+
+    def setUp(self):
+        populate_status_choices()
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
+        self.active = Status.objects.get(name="Active")
+        self.namespace = get_default_namespace()
+        self.logger = unittest.mock.MagicMock()
+
+    def status_for_ip(self):
+        """Return the Status a synced address is given."""
+        return nbutils.get_status_for_model(IPAddress, "Active")
+
+    def make_prefix(self, network):
+        """Create a Prefix, as another system or an earlier sync would have."""
+        prefix, _ = Prefix.objects.get_or_create(
+            prefix=network,
+            namespace=self.namespace,
+            defaults={"status": self.active, "type": PrefixTypeChoices.TYPE_NETWORK},
+        )
+        return prefix
+
+    def errors(self):
+        """Return the error messages logged."""
+        return [str(call.args[0]) for call in self.logger.error.call_args_list]
+
+    # --- the reported failure ---
+
+    def test_an_address_covered_only_by_a_narrower_prefix(self):
+        """The reported case: IP Fabric reports a /24 mask where only a /25 covers the address.
+
+        Nautobot's own parent determination refuses a Prefix longer than the address's mask, so
+        leaving it to work the parent out rejected the address and named the very Prefix it wanted.
+        """
+        self.make_prefix("10.0.0.0/25")
+
+        for label, pending in (("per object", None), ("bulk", PendingWrites())):
+            with self.subTest(mode=label):
+                address = f"10.0.{0 if pending is None else 1}.1"
+                self.make_prefix(f"10.0.{0 if pending is None else 1}.0/25")
+                result = nbutils.create_ip(address, "255.255.255.0", logger=self.logger, pending=pending)
+                if pending is not None:
+                    pending.flush()
+
+                self.assertIsNotNone(result, f"{label}: the address should have been created")
+                written = IPAddress.objects.get(host=address)
+                self.assertEqual(str(written.parent.prefix), f"10.0.{0 if pending is None else 1}.0/25")
+                self.assertEqual(self.errors(), [])
+
+    def test_no_unnecessary_prefix_is_created(self):
+        """A wider Prefix does not help, since the address parents to the most specific one."""
+        self.make_prefix("10.5.0.0/25")
+
+        nbutils.create_ip("10.5.0.1", "255.255.255.0", logger=self.logger)
+
+        self.assertFalse(
+            Prefix.objects.filter(prefix="10.5.0.0/24").exists(),
+            "A /25 already covers the address, so no /24 should have been made.",
+        )
+
+    # --- the ordinary paths ---
+
+    def test_the_parent_prefix_is_created_when_nothing_covers_the_address(self):
+        for label, pending in (("per object", None), ("bulk", PendingWrites())):
+            with self.subTest(mode=label):
+                octet = 10 if pending is None else 11
+                result = nbutils.create_ip(f"10.{octet}.0.1", "255.255.255.0", logger=self.logger, pending=pending)
+                if pending is not None:
+                    pending.flush()
+
+                self.assertIsNotNone(result)
+                self.assertTrue(Prefix.objects.filter(prefix=f"10.{octet}.0.0/24").exists())
+                self.assertEqual(str(IPAddress.objects.get(host=f"10.{octet}.0.1").parent.prefix), f"10.{octet}.0.0/24")
+
+    def test_an_address_nautobot_already_holds_is_reused(self):
+        self.make_prefix("10.20.0.0/24")
+        existing = IPAddress(address="10.20.0.1/24", namespace=self.namespace, status=self.active)
+        existing.validated_save()
+
+        result = nbutils.create_ip("10.20.0.1", "255.255.255.0", logger=self.logger)
+
+        self.assertEqual(result.pk, existing.pk)
+        self.assertEqual(IPAddress.objects.filter(host="10.20.0.1").count(), 1)
+
+    def test_an_address_the_prefix_cannot_be_made_for_is_reported(self):
+        """A Prefix that cannot be created leaves the address unwritten, and says so."""
+        with unittest.mock.patch.object(
+            nbutils.Prefix.objects, "get_or_create", side_effect=nbutils.ValidationError("refused")
+        ):
+            result = nbutils.create_ip("10.30.0.1", "255.255.255.0", logger=self.logger)
+
+        self.assertIsNone(result)
+        self.assertTrue(any("Unable to create a missing Prefix" in line for line in self.errors()), self.errors())
+
+    def test_a_status_that_does_not_exist_is_reported(self):
+        result = nbutils.create_ip("10.40.0.1", "255.255.255.0", status="No-Such-Status", logger=self.logger)
+
+        self.assertIsNone(result)
+        self.assertTrue(any("No-Such-Status" in line for line in self.errors()), self.errors())
