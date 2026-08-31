@@ -1,3 +1,4 @@
+# One module holds every bulk mode write test  #  pylint: disable=too-many-lines
 """Tests for the batched write collector used by bulk write mode.
 
 These write against the real database, since what is being tested is whether a batched insert built
@@ -9,6 +10,7 @@ import unittest.mock
 from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.testing import TestCase, TransactionTestCase
 from nautobot.core.choices import ColorChoices
+from nautobot.dcim.models import Cable as NautobotCable
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.management import populate_status_choices
@@ -25,6 +27,7 @@ from nautobot.ipam.models import (
 
 from nautobot_ssot.integrations.ipfabric.bulk_writes import LEVELS, PendingWrites
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
+from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Cable as CableModel
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Device as DeviceModel
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
@@ -554,6 +557,49 @@ class BulkModeDeviceTestCase(TestCase):
 
         interface = Interface.objects.get(name="eth0")
         self.assertEqual(interface.device.name, "parent-dev")
+
+    def test_a_cable_terminates_on_devices_queued_in_the_same_run(self):
+        """Cables read their Interfaces back from the database, so the queue has to be written first.
+
+        The Devices and Interfaces a link terminates on are created earlier in the same sync. In bulk
+        mode that leaves them queued, and a Cable cannot terminate on a row that does not exist.
+        """
+        adapter = self.adapter(bulk_write_mode=True)
+        for device_name in ("cable-dev-a", "cable-dev-b"):
+            DeviceModel.create(adapter, ids={"name": device_name}, attrs=self.device_attrs())
+            InterfaceModel.create(
+                adapter,
+                ids={"name": "eth0", "device_name": device_name},
+                attrs={"ip_address": None, "subnet_mask": None, "status": "Active", "type": "1000base-t"},
+            )
+        self.assertFalse(Device.objects.filter(name="cable-dev-a").exists())
+
+        CableModel.create(
+            adapter,
+            ids={
+                "termination_a_device": "cable-dev-a",
+                "termination_a_name": "eth0",
+                "termination_b_device": "cable-dev-b",
+                "termination_b_name": "eth0",
+            },
+            attrs={"status": "Connected"},
+        )
+
+        cable = NautobotCable.objects.get()
+        self.assertEqual(
+            {cable.termination_a.device.name, cable.termination_b.device.name},
+            {"cable-dev-a", "cable-dev-b"},
+        )
+
+    def test_a_flush_empties_the_lookups_that_read_what_it_wrote(self):
+        """A lookup that ran before the flush cached an answer the flush has invalidated."""
+        adapter = self.adapter(bulk_write_mode=True)
+        DeviceModel.create(adapter, ids={"name": "stale-dev"}, attrs=self.device_attrs())
+        self.assertIsNone(nbutils.get_tagged_device("stale-dev"))
+
+        adapter.flush_pending_writes()
+
+        self.assertIsNotNone(nbutils.get_tagged_device("stale-dev"))
 
     def test_a_virtual_chassis_master_is_applied_after_its_device(self):
         """The master points back at the Device, so it cannot be set until the Device exists."""

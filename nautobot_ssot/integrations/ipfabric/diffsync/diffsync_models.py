@@ -1012,8 +1012,16 @@ class Cable(DiffSyncExtras):
         )
 
     @staticmethod
-    def resolve_interfaces(ids, job_logger):
-        """Return the two Nautobot Interfaces a link terminates on, or (None, None) if either is missing."""
+    def resolve_interfaces(adapter, ids):
+        """Return the two Nautobot Interfaces a link terminates on, or (None, None) if either is missing.
+
+        Cables keep the per-object write path, so this reads its Interfaces back from the database.
+        The Devices and Interfaces a link terminates on are created earlier in the same sync, and in
+        bulk mode that means queued rather than written, so anything still queued is written first.
+        """
+        if adapter.pending_writes is not None:
+            adapter.flush_pending_writes()
+        job_logger = adapter.job.logger
         interface_a = tonb_nbutils.get_tagged_interface(
             ids["termination_a_device"], ids["termination_a_name"], logger=job_logger
         )
@@ -1030,7 +1038,7 @@ class Cable(DiffSyncExtras):
         """Create a Cable in Nautobot between the two Interfaces it terminates on."""
         job_logger = adapter.job.logger
         link = cls.describe(ids)
-        interface_a, interface_b = cls.resolve_interfaces(ids, job_logger)
+        interface_a, interface_b = cls.resolve_interfaces(adapter, ids)
         if not interface_a:
             job_logger.warning(f"Unable to create a Cable for {link} because an Interface could not be retrieved")
             return None
@@ -1085,7 +1093,7 @@ class Cable(DiffSyncExtras):
         if self.cable_pk:
             # Recorded by the Nautobot adapter while loading, so the endpoints need not be walked again.
             return NautobotCable.objects.filter(pk=self.cable_pk).select_related("status").first()
-        interface_a, interface_b = self.resolve_interfaces(self.get_identifiers(), self.adapter.job.logger)
+        interface_a, interface_b = self.resolve_interfaces(self.adapter, self.get_identifiers())
         if not interface_a:
             return None
         cable = interface_a.cable

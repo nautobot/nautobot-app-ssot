@@ -46,6 +46,10 @@ from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 # pylint: disable=too-many-branches
 
+# Lookups that read back the objects bulk mode writes, so a flush leaves their results stale. Grouped
+# so that `flush_pending_writes` can empty them, rather than each one having to know about the mode.
+BULK_WRITTEN_LOOKUPS = "bulk_written_lookups"
+
 
 @contextmanager
 def deferred_change_logging():
@@ -655,14 +659,14 @@ def get_global_namespace() -> Namespace:
     return get_default_namespace()
 
 
-@job_scoped_cache
+@job_scoped_cache(group=BULK_WRITTEN_LOOKUPS)
 def get_tagged_device(device_name: str) -> Device:
     """Cached lookup for Devices, used in interface operations."""
     ssot_tag = get_or_create_tag_object(tag_name="SSoT Synced from IPFabric")
     return Device.objects.filter(Q(name=device_name) & Q(tags=ssot_tag)).first()
 
 
-@job_scoped_cache(maxsize=2)
+@job_scoped_cache(group=BULK_WRITTEN_LOOKUPS, maxsize=2)
 def get_device_interfaces_by_name(device: Device) -> dict:
     """Return a Device's Interfaces keyed by name, with the relations a delete reads prefetched.
 

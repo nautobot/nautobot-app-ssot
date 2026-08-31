@@ -182,6 +182,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             return 0
         counts = self.pending.counts()
         written = self.pending.flush()
+        # Rows exist now that did not when these lookups last ran, and one of them caching that a
+        # Device could not be found is enough to lose every Cable terminating on it.
+        job_scoped_cache.clear_group(tonb_utils.BULK_WRITTEN_LOOKUPS)
         self.job.logger.info("Wrote %d queued rows in bulk mode: %s", written, counts)
         return written
 
