@@ -18,7 +18,6 @@ except ImportError:  # meraki < 2.0, which is what Python 3.10 resolves to.
 # A valid `caller` also takes precedence over the deprecated BE_GEO_ID environment variable, which
 # would otherwise raise on client construction for anyone using it for partner tracking.
 MERAKI_API_CALLER = "NautobotSSoT NetworkToCode"
-SDK_ERRORS = (meraki.APIError, SessionInputError)
 
 
 def format_sdk_error(err: Exception) -> str:
@@ -69,7 +68,7 @@ class DashboardClient:
                 caller=MERAKI_API_CALLER,
             )
             return dashboard
-        except SDK_ERRORS as err:
+        except (meraki.APIError, SessionInputError) as err:
             self.logger.logger.error(f"Unable to connect to Meraki dashboard: {format_sdk_error(err)}")
             raise err
 
@@ -95,7 +94,7 @@ class DashboardClient:
         try:
             networks = self.conn.organizations.getOrganizationNetworks(organizationId=self.org_id)
             self.network_map = {net["id"]: net for net in networks}
-        except SDK_ERRORS as err:
+        except (meraki.APIError, SessionInputError) as err:
             self.logger.logger.warning(format_sdk_error(err))
         return networks
 
@@ -110,7 +109,7 @@ class DashboardClient:
             devices = self.conn.organizations.getOrganizationDevices(
                 organizationId=self.org_id, total_pages=total_pages, perPage=page_size
             )
-        except SDK_ERRORS as err:
+        except (meraki.APIError, SessionInputError) as err:
             self.logger.logger.warning(format_sdk_error(err))
         return devices
 
@@ -126,7 +125,7 @@ class DashboardClient:
                 organizationId=self.org_id, total_pages=total_pages, perPage=page_size
             )
             settings_map = {net["serial"]: net for net in result}
-        except SDK_ERRORS as err:
+        except (meraki.APIError, SessionInputError) as err:
             self.logger.logger.warning(format_sdk_error(err))
         return settings_map
 
@@ -144,7 +143,7 @@ class DashboardClient:
             addresses = self.conn.organizations.getOrganizationDevicesUplinksAddressesByDevice(
                 organizationId=self.org_id, serials=[serial]
             )
-        except SDK_ERRORS as err:
+        except (meraki.APIError, SessionInputError) as err:
             self.logger.logger.warning(format_sdk_error(err))
         return addresses
 
@@ -160,7 +159,7 @@ class DashboardClient:
                 organizationId=self.org_id, total_pages=total_pages
             )
             port_map = {switch["serial"]: switch for switch in result}
-        except SDK_ERRORS as err:
+        except (meraki.APIError, SessionInputError) as err:
             self.logger.logger.warning(format_sdk_error(err))
         return port_map
 
@@ -176,7 +175,7 @@ class DashboardClient:
                 organizationId=self.org_id, total_pages=total_pages, perPage=page_size
             )
             statuses = {dev["name"]: dev["status"] for dev in response}
-        except SDK_ERRORS as err:
+        except (meraki.APIError, SessionInputError) as err:
             self.logger.logger.warning(format_sdk_error(err))
         return statuses
 
@@ -194,7 +193,7 @@ class DashboardClient:
             ports = self.conn.devices.getDeviceManagementInterface(serial=serial)
             if ports.get("ddnsHostnames"):
                 ports.pop("ddnsHostnames")
-        except SDK_ERRORS as err:
+        except (meraki.APIError, SessionInputError) as err:
             self.logger.logger.warning(format_sdk_error(err))
         return ports
 
@@ -211,7 +210,7 @@ class DashboardClient:
         try:
             ports = self.conn.appliance.getDeviceApplianceUplinksSettings(serial=serial)
             ports = ports["interfaces"]
-        except SDK_ERRORS as err:
+        except (meraki.APIError, SessionInputError) as err:
             self.logger.logger.warning(format_sdk_error(err))
         return ports
 
@@ -228,7 +227,7 @@ class DashboardClient:
         try:
             result = self.conn.switch.getDeviceSwitchPortsStatuses(serial=serial)
             port_statuses = {port["portId"]: port for port in result}
-        except SDK_ERRORS as err:
+        except (meraki.APIError, SessionInputError) as err:
             self.logger.logger.warning(format_sdk_error(err))
         return port_statuses
 
@@ -244,7 +243,7 @@ class DashboardClient:
         ports = []
         try:
             ports = self.conn.appliance.getNetworkAppliancePorts(networkId=network_id)
-        except SDK_ERRORS as err:
+        except (meraki.APIError, SessionInputError) as err:
             self.logger.logger.warning(format_sdk_error(err))
         return ports
 
@@ -260,7 +259,7 @@ class DashboardClient:
         vlans = []
         try:
             vlans = self.conn.appliance.getNetworkApplianceVlans(networkId=network_id)
-        except SDK_ERRORS as err:
+        except (meraki.APIError, SessionInputError) as err:
             self.logger.logger.warning(format_sdk_error(err))
         return vlans
 
@@ -276,7 +275,7 @@ class DashboardClient:
         lan = {}
         try:
             lan = self.conn.appliance.getNetworkApplianceSingleLan(networkId=network_id)
-        except SDK_ERRORS as err:
+        except (meraki.APIError, SessionInputError) as err:
             self.logger.logger.warning(format_sdk_error(err))
         return lan
 
@@ -285,7 +284,7 @@ class DashboardClient:
         settings = {}
         try:
             settings = self.conn.appliance.getNetworkApplianceVlansSettings(networkId=network_id)
-        except SDK_ERRORS as err:
+        except (meraki.APIError, SessionInputError) as err:
             self.logger.logger.warning(format_sdk_error(err))
         return settings
 
