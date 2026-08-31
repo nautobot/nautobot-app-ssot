@@ -140,22 +140,25 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         Args:
             source (Adapter): DiffSync Adapter
         """
-        # Deletion reads objects back from the database, so anything bulk mode has queued has to
-        # be written before it runs.
-        self.flush_pending_writes()
+        try:
+            # Deletion reads objects back from the database, so anything bulk mode has queued has to
+            # be written before it runs.
+            self.flush_pending_writes()
 
-        for grouping in (
-            "_vlan",
-            "_interface",
-            "_device",
-            "_location",
-        ):
-            if not self.safe_delete_mode:
-                delete_objects(self.objects_to_delete[grouping])
-            self.objects_to_delete[grouping] = []
-        # Thread local and cleared nowhere else, so on a long lived worker the run that fills these
-        # is the run that has to empty them.
-        job_scoped_cache.clear_all()
+            for grouping in (
+                "_vlan",
+                "_interface",
+                "_device",
+                "_location",
+            ):
+                if not self.safe_delete_mode:
+                    delete_objects(self.objects_to_delete[grouping])
+                self.objects_to_delete[grouping] = []
+        finally:
+            # Thread local, so on a long lived worker these hold what this run cached until something
+            # empties them. Emptied even when the writes above fail, so that a failure cannot hand a
+            # later run objects whose rows were rolled back.
+            job_scoped_cache.clear_all()
         return super().sync_complete(source, *args, **kwargs)
 
     def flush_pending_writes_if_full(self) -> int:

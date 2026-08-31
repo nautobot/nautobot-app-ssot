@@ -3,3 +3,4 @@ Fixed the IP Fabric adapter inserting an Interface before validating it, which l
 Fixed Bulk Write Mode discarding every IP Address whose containing Prefix Nautobot did not already hold, rather than creating the Prefix as a per-object sync does.
 Fixed the IP Fabric adapter rejecting an IP Address whose only containing Prefix is longer than the mask IP Fabric reports for it, and creating a redundant wider Prefix while doing so.
 Fixed Bulk Write Mode failing an entire batch of Devices, and ending the job with a `DoesNotExist` exception, when a Device carried a primary IP Address that the same run had yet to write.
+Fixed the IP Fabric job reusing the object caches of an earlier run in the same worker when that run failed before clearing them.

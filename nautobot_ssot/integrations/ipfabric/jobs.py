@@ -26,6 +26,7 @@ from nautobot_ssot.integrations.ipfabric.sync_scope import (
     form_fields,
     scope_field_order,
 )
+from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
 LAST = "$last"
@@ -271,6 +272,11 @@ class IpFabricDataSource(DataSource):
         if self.client is None:
             self.logger.error("IPFabric client is not ready. Check your config.")
             return
+
+        # Thread local and shared by every run in this worker. A run that failed part way through
+        # leaves them populated, holding objects that may belong to a transaction that rolled back,
+        # so a run starts by emptying them rather than trusting the last one to have finished.
+        job_scoped_cache.clear_all()
 
         self.client.snapshot_id = self.kwargs["snapshot"]
         dryrun = self.kwargs["dryrun"]
