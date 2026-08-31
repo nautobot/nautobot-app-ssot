@@ -22,9 +22,9 @@ does not fire. They keep the per-object path.
 
 import logging
 from collections import defaultdict
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import Error as DjangoBaseDBError
 from django.db import IntegrityError, transaction
 from nautobot.dcim.models import Device, Interface, Location
@@ -55,7 +55,7 @@ class PendingWrites:
         self._queued: Dict[Any, List[Any]] = {model: [] for model in LEVELS}
         self._keys: Dict[Any, Dict[Any, Any]] = {model: {} for model in LEVELS}
         self._through: Dict[Any, List[Any]] = defaultdict(list)
-        self._updates: List[Tuple[Any, Tuple[str, ...]]] = []
+        self._updates: List[Tuple[Any, Dict[str, Any]]] = []
 
     def add(self, instance: Any, key: Optional[Any] = None) -> Any:
         """Queue an object for insertion, optionally findable later by `key`.
@@ -82,13 +82,16 @@ class PendingWrites:
         self._through[model].append(row)
         return row
 
-    def defer_update(self, instance: Any, fields: Iterable[str]) -> Any:
-        """Queue a field update on an object, applied after every insertion.
+    def defer_update(self, instance: Any, values: Mapping[str, Any]) -> Any:
+        """Queue field values to set on an object, applied after every insertion.
 
-        For values that are only known once something later in the order exists, such as the IP
-        Address a Device carries as its primary.
+        The values are assigned when the update is applied rather than now, because what they point
+        at may be written later in the order: a Device carries its primary IP Address, and Addresses
+        are written after Devices. Assigning one to a Device that is itself still queued would insert
+        that Device holding a foreign key to a row that does not exist yet, which PostgreSQL refuses
+        at `COMMIT` and which takes the whole batch with it.
         """
-        self._updates.append((instance, tuple(fields)))
+        self._updates.append((instance, dict(values)))
         return instance
 
     def __len__(self) -> int:
@@ -145,10 +148,16 @@ class PendingWrites:
         """
         written = 0
         for instance in objects:
+            # `bulk_create` marks everything it hands to the database as saved, and a constraint
+            # PostgreSQL defers to `COMMIT` fails after that, so the batch being retried here was
+            # rolled back while its objects still look written. Left that way, `save()` would issue
+            # an `UPDATE` matching no rows, and a `clean()` that reads its own row back would raise
+            # `DoesNotExist` instead of a validation error.
+            instance._state.adding = True  # pylint: disable=protected-access
             try:
                 with transaction.atomic():
                     instance.validated_save()
-            except (IntegrityError, DjangoBaseDBError, ValidationError) as error:
+            except (IntegrityError, DjangoBaseDBError, ValidationError, ObjectDoesNotExist) as error:
                 logger.warning("Unable to write %s %s in bulk mode: %s", model.__name__, instance, error)
             else:
                 written += 1
@@ -158,8 +167,10 @@ class PendingWrites:
         """Apply the deferred field updates, grouped by model and by the fields they touch."""
         written = 0
         by_model_and_fields = defaultdict(list)
-        for instance, fields in self._updates:
-            by_model_and_fields[(type(instance), fields)].append(instance)
+        for instance, values in self._updates:
+            for field, value in values.items():
+                setattr(instance, field, value)
+            by_model_and_fields[(type(instance), tuple(sorted(values)))].append(instance)
         self._updates = []
 
         for (model, fields), instances in by_model_and_fields.items():

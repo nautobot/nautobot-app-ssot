@@ -7,7 +7,7 @@ this way produces the same rows a per-object save would.
 import unittest.mock
 
 from django.contrib.contenttypes.models import ContentType
-from nautobot.apps.testing import TestCase
+from nautobot.apps.testing import TestCase, TransactionTestCase
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
 from nautobot.extras.choices import CustomFieldTypeChoices
@@ -176,12 +176,27 @@ class PendingWritesTestCase(TestCase):
         address.parent = address._get_closest_parent()  # pylint: disable=protected-access
         self.pending.add(address)
         self.pending.add_through(IPAddressToInterface(ip_address=address, interface_id=interface.pk))
-        device.primary_ip4 = address
-        self.pending.defer_update(device, ["primary_ip4"])
+        self.pending.defer_update(device, {"primary_ip4": address})
 
         self.pending.flush()
 
         self.assertEqual(str(Device.objects.get(pk=device.pk).primary_ip4.host), "10.0.0.5")
+
+    def test_a_deferred_value_is_not_set_until_the_update_is_applied(self):
+        """Queued now, the value would go in with the object's own insert, before what it points at.
+
+        Setting it at queue time is what wrote a Device holding a foreign key to an IP Address that
+        had not been inserted yet.
+        """
+        location = self.pending.add(self.build_location("unset"))
+        device = self.pending.add(self.build_device("unset-device", location))
+        address = IPAddress(address="10.0.0.6/24", namespace=self.namespace, status=self.active)
+        address.parent = address._get_closest_parent()  # pylint: disable=protected-access
+        self.pending.add(address)
+
+        self.pending.defer_update(device, {"primary_ip4": address})
+
+        self.assertIsNone(device.primary_ip4)
 
     # --- bookkeeping ---
 
@@ -921,3 +936,80 @@ class NewAddressResolutionTestCase(TestCase):
 
         self.assertIsNone(result)
         self.assertTrue(any("No-Such-Status" in line for line in self.errors()), self.errors())
+
+
+class CommitTimeRefusalTestCase(TransactionTestCase):
+    """Test what a batch does when PostgreSQL refuses it at `COMMIT` rather than at the insert.
+
+    A `TransactionTestCase` rather than a `TestCase` because that is the whole subject. Django
+    declares foreign keys `DEFERRABLE INITIALLY DEFERRED`, so a missing target is only detected at
+    `COMMIT`, and a `TestCase` wraps everything in a transaction it never commits. A batch that
+    breaks a foreign key therefore passes under a `TestCase` and fails in a job.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.active = Status.objects.get(name="Active")
+        device_ct = ContentType.objects.get_for_model(Device)
+        self.role = Role.objects.create(name="commit-role")
+        self.role.content_types.add(device_ct)
+        self.location_type = LocationType.objects.create(name="commit-site")
+        self.location_type.content_types.add(device_ct)
+        manufacturer = Manufacturer.objects.create(name="commit-vendor")
+        self.device_type = DeviceType.objects.create(model="commit-model", manufacturer=manufacturer)
+        self.pending = PendingWrites()
+
+    def build_location(self, name):
+        """Return an unsaved Location, primary key already assigned."""
+        return Location(name=name, location_type=self.location_type, status=self.active)
+
+    def build_device(self, name, location):
+        """Return an unsaved Device referencing a Location that may itself be unsaved."""
+        return Device(
+            name=name,
+            status=self.active,
+            role=self.role,
+            location_id=location.pk,
+            device_type=self.device_type,
+        )
+
+    def test_a_device_carries_its_primary_address_although_addresses_are_written_after_devices(self):
+        """The address is written after the Device, so the Device cannot hold it at insertion."""
+        namespace = get_default_namespace()
+        Prefix.objects.create(
+            prefix="10.0.0.0/24",
+            namespace=namespace,
+            status=self.active,
+            type=PrefixTypeChoices.TYPE_NETWORK,
+        )
+        location = self.pending.add(self.build_location("primary-commit"))
+        device = self.pending.add(self.build_device("primary-commit-device", location))
+        interface = self.pending.add(Interface(device_id=device.pk, name="eth0", status=self.active, type="1000base-t"))
+        address = IPAddress(address="10.0.0.5/24", namespace=namespace, status=self.active)
+        address.parent = address._get_closest_parent()  # pylint: disable=protected-access
+        self.pending.add(address)
+        self.pending.add_through(IPAddressToInterface(ip_address=address, interface_id=interface.pk))
+        self.pending.defer_update(device, {"primary_ip4": address})
+
+        self.pending.flush()
+
+        self.assertEqual(str(Device.objects.get(pk=device.pk).primary_ip4.host), "10.0.0.5")
+
+    def test_a_device_batch_refused_at_commit_still_writes_the_devices_it_can(self):
+        """A batch refused at `COMMIT` was already marked written, so the retry has to undo that.
+
+        Left marked written, `Device.clean()` reads its own row back and raises `DoesNotExist`,
+        which is not a refusal any caller expects and took a whole job down with it.
+        """
+        location = self.pending.add(self.build_location("retried"))
+        good = self.pending.add(self.build_device("retried-good", location))
+        # A Location neither queued nor in the database, so the Device pointing at it breaks a
+        # foreign key that is only checked at `COMMIT`, by which time the batch looks written.
+        bad = self.pending.add(self.build_device("retried-bad", self.build_location("never-written")))
+
+        with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
+            self.pending.flush()
+
+        self.assertTrue(Device.objects.filter(pk=good.pk).exists())
+        self.assertFalse(Device.objects.filter(pk=bad.pk).exists())
+        self.assertIn("retried-bad", " ".join(logs.output))

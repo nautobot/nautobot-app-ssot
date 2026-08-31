@@ -657,13 +657,14 @@ class Interface(DiffSyncExtras):
                     # save of the assignment rather than the plain insert `add()` would do.
                     if attrs.get("ip_is_primary"):
                         field = "primary_ip4" if ip_address_obj.ip_version == 4 else "primary_ip6"
-                        setattr(device_obj, field, ip_address_obj)
                         if pending is None:
+                            setattr(device_obj, field, ip_address_obj)
                             device_obj.save()
                         else:
-                            # The address is only queued, so the Device cannot point at it until
-                            # after the insert. Applied once everything is written.
-                            pending.defer_update(device_obj, [field])
+                            # Not set on the Device here: the address is only queued, and the Device
+                            # may be too, in which case its own insert would carry a foreign key to
+                            # a row that does not exist yet. Assigned once everything is written.
+                            pending.defer_update(device_obj, {field: ip_address_obj})
                 else:
                     adapter.job.logger.warning(
                         f"Unable to assign an IPAddress to an Interface named {interface_name} on a Device named {device_name} "

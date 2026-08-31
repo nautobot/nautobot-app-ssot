@@ -627,11 +627,11 @@ def assign_device_to_virtual_chassis(device, virtual_chassis, position, master=F
     if updated and pending is None:
         device.validated_save()
     if master and virtual_chassis.master != device:
-        virtual_chassis.master = device
         if pending is None:
+            virtual_chassis.master = device
             virtual_chassis.validated_save()
         else:
-            pending.defer_update(virtual_chassis, ["master"])
+            pending.defer_update(virtual_chassis, {"master": device})
     return virtual_chassis
 
 
