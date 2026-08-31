@@ -382,16 +382,32 @@ class Device(DiffSyncExtras):
             )
 
         if device_type_object and location_object and device_role_object and device_status_object:
+            pending = adapter.pending_writes
+            lookup = {
+                "name": device_name,
+                "serial": attrs.get("serial_number", ""),
+                "status": device_status_object,
+                "device_type": device_type_object,
+                "role": device_role_object,
+                "location": location_object,
+            }
             try:
-                new_device, _ = NautobotDevice.objects.get_or_create(
-                    name=device_name,
-                    serial=attrs.get("serial_number", ""),
-                    status=device_status_object,
-                    device_type=device_type_object,
-                    role=device_role_object,
-                    location=location_object,
-                    defaults={"platform": platform_object},
-                )
+                if pending is None:
+                    # Deliberately a get-or-create, which inserts without `full_clean()`. A Platform
+                    # owned by another system may name a different Manufacturer to the DeviceType,
+                    # which `Device.clean()` rejects but this integration accepts; validating before
+                    # the insert would stop such a Device being written at all.
+                    new_device, created = NautobotDevice.objects.get_or_create(
+                        defaults={"platform": platform_object}, **lookup
+                    )
+                    is_new = created
+                else:
+                    try:
+                        new_device = NautobotDevice.objects.get(**lookup)
+                        is_new = False
+                    except NautobotDevice.DoesNotExist:
+                        new_device = NautobotDevice(platform=platform_object, **lookup)
+                        is_new = True
             except NautobotDevice.MultipleObjectsReturned:
                 adapter.job.logger.error(
                     f"Multiple Devices returned with name {device_name} at Location {location_name}"
@@ -401,17 +417,22 @@ class Device(DiffSyncExtras):
                     f"Unable to create a new Device named {device_name} at Location {location_name}"
                 )
             else:
-                try:
-                    # Validated save happens inside of tag_objet
-                    tonb_nbutils.tag_object(nautobot_object=new_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-                except (DjangoBaseDBError, ValidationError) as error:
-                    adapter.job.logger.error(
-                        f"Unable to perform a validated_save() on Device {device_name} with an ID of {new_device.id}"
-                    )
-                    message = f"Unable to create device: {device_name}. A validation error occured. Enable debug for more information."
-                    if adapter.job.debug:
-                        logger.debug(error)
-                    logger.error(message)
+                if is_new and pending is not None:
+                    tonb_nbutils.stamp_synced(new_device, LAST_SYNCHRONIZED_CF_NAME)
+                    pending.add(new_device, key=device_name)
+                    tonb_nbutils.queue_synced_tag(pending, new_device)
+                else:
+                    try:
+                        # Validated save happens inside of tag_objet
+                        tonb_nbutils.tag_object(nautobot_object=new_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+                    except (DjangoBaseDBError, ValidationError) as error:
+                        adapter.job.logger.error(
+                            f"Unable to perform a validated_save() on Device {device_name} with an ID of {new_device.id}"
+                        )
+                        message = f"Unable to create device: {device_name}. A validation error occured. Enable debug for more information."
+                        if adapter.job.debug:
+                            logger.debug(error)
+                        logger.error(message)
 
                 vc_name = attrs.get("vc_name")
                 if vc_name:
@@ -424,6 +445,7 @@ class Device(DiffSyncExtras):
                                 master=attrs.get("vc_master", False),
                                 position=attrs.get("vc_position"),
                                 priority=attrs.get("vc_priority"),
+                                pending=pending,
                             )
                     except (DjangoBaseDBError, ValidationError):
                         adapter.job.logger.error(f"Unable to update Device {device_name} with VirtualChassis data")
@@ -587,7 +609,13 @@ class Interface(DiffSyncExtras):
         interface_name = ids["name"]
         ip_address = attrs["ip_address"]
         subnet_mask = attrs["subnet_mask"]  # TODO: switch to cidr notation since both APIs use that format
-        device_obj = tonb_nbutils.get_tagged_device(device_name)
+        # A Device queued earlier in this run is not in the database yet, so it is looked for there
+        # first. `get_tagged_device` is cached, so it is asked second rather than taught about the
+        # queue.
+        device_obj = None
+        if adapter.pending_writes is not None:
+            device_obj = adapter.pending_writes.find(NautobotDevice, device_name)
+        device_obj = device_obj or tonb_nbutils.get_tagged_device(device_name)
         if device_obj:
             return_super = True
             if not attrs.get("mac_address"):

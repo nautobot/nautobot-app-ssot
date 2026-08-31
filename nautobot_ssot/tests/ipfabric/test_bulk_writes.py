@@ -10,8 +10,9 @@ from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.testing import TestCase
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
+from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.management import populate_status_choices
-from nautobot.extras.models import Role, Status, Tag, TaggedItem
+from nautobot.extras.models import CustomField, Role, Status, Tag, TaggedItem
 from nautobot.ipam.choices import PrefixTypeChoices
 from nautobot.ipam.models import (
     VLAN,
@@ -24,6 +25,7 @@ from nautobot.ipam.models import (
 
 from nautobot_ssot.integrations.ipfabric.bulk_writes import LEVELS, PendingWrites
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
+from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Device as DeviceModel
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
@@ -449,3 +451,127 @@ class BulkModeLocationAndVlanTestCase(TestCase):
 
         self.assertEqual(found.pk, existing.pk)
         self.assertEqual(self.pending.counts(), {}, "Nothing should have been queued for an existing Location.")
+
+
+class BulkModeDeviceTestCase(TestCase):
+    """Test the Device bulk path, including an Interface hung off a Device that is only queued."""
+
+    def setUp(self):
+        populate_status_choices()
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
+        self.active = Status.objects.get(name="Active")
+        device_ct = ContentType.objects.get_for_model(Device)
+        site_type, _ = LocationType.objects.get_or_create(name="Site")
+        site_type.content_types.add(device_ct, ContentType.objects.get_for_model(VLAN))
+        ssot_tag, _ = Tag.objects.get_or_create(
+            name="SSoT Synced from IPFabric",
+            defaults={"color": ColorChoices.COLOR_LIGHT_GREEN, "description": "Synced"},
+        )
+        ssot_tag.content_types.add(
+            device_ct,
+            ContentType.objects.get_for_model(Interface),
+            ContentType.objects.get_for_model(Location),
+        )
+        self.role = Role.objects.create(name="dev-role")
+        self.role.content_types.add(device_ct)
+        # `get_or_create_device_role_object` matches on this custom field.
+        role_cf, _ = CustomField.objects.get_or_create(
+            type=CustomFieldTypeChoices.TYPE_TEXT, key="ipfabric_type", defaults={"label": "IPFabric Type"}
+        )
+        role_cf.content_types.add(ContentType.objects.get_for_model(Role))
+        self.role.cf["ipfabric_type"] = "dev-role"
+        self.role.validated_save()
+        manufacturer = Manufacturer.objects.create(name="dev-vendor")
+        DeviceType.objects.create(model="dev-model", manufacturer=manufacturer)
+        self.location = Location.objects.create(name="dev-site", location_type=site_type, status=self.active)
+
+    def adapter(self, bulk_write_mode):
+        """Return an adapter in the given mode, with a mocked job."""
+        job = unittest.mock.MagicMock()
+        job.debug = False
+        return NautobotDiffSync(
+            job=job,
+            sync=unittest.mock.MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+            bulk_write_mode=bulk_write_mode,
+        )
+
+    def device_attrs(self, **overrides):
+        """Return the attrs an IP Fabric Device create supplies."""
+        attrs = {
+            "location_name": "dev-site",
+            "model": "dev-model",
+            "vendor": "dev-vendor",
+            "role": "dev-role",
+            "status": "Active",
+            "platform": None,
+            "serial_number": "abc123",
+        }
+        attrs.update(overrides)
+        return attrs
+
+    def test_a_queued_device_lands_tagged_and_stamped(self):
+        adapter = self.adapter(bulk_write_mode=True)
+        DeviceModel.create(adapter, ids={"name": "queued-dev"}, attrs=self.device_attrs())
+        self.assertFalse(Device.objects.filter(name="queued-dev").exists())
+
+        adapter.flush_pending_writes()
+
+        written = Device.objects.get(name="queued-dev")
+        self.assertEqual(written.location.name, "dev-site")
+        self.assertEqual(written.serial, "abc123")
+        self.assertEqual(written.cf["system_of_record"], "IPFabric")
+        self.assertTrue(written.tags.filter(name="SSoT Synced from IPFabric").exists())
+
+    def test_an_interface_is_hung_off_a_queued_device(self):
+        """`Interface.create` looks its Device up by name, which has to find the queued one."""
+        adapter = self.adapter(bulk_write_mode=True)
+        DeviceModel.create(adapter, ids={"name": "parent-dev"}, attrs=self.device_attrs())
+        InterfaceModel.create(
+            adapter,
+            ids={"name": "eth0", "device_name": "parent-dev"},
+            attrs={"ip_address": None, "subnet_mask": None, "status": "Active", "type": "1000base-t"},
+        )
+
+        adapter.flush_pending_writes()
+
+        interface = Interface.objects.get(name="eth0")
+        self.assertEqual(interface.device.name, "parent-dev")
+
+    def test_a_virtual_chassis_master_is_applied_after_its_device(self):
+        """The master points back at the Device, so it cannot be set until the Device exists."""
+        adapter = self.adapter(bulk_write_mode=True)
+        DeviceModel.create(
+            adapter,
+            ids={"name": "stack-member"},
+            attrs=self.device_attrs(vc_name="stack-1", vc_master=True, vc_position=1, vc_priority=1),
+        )
+
+        adapter.flush_pending_writes()
+
+        device = Device.objects.get(name="stack-member")
+        self.assertEqual(device.virtual_chassis.name, "stack-1")
+        self.assertEqual(device.vc_position, 1)
+        self.assertEqual(device.virtual_chassis.master, device)
+
+    def test_bulk_mode_lands_what_per_object_mode_does(self):
+        DeviceModel.create(self.adapter(bulk_write_mode=False), ids={"name": "per-object"}, attrs=self.device_attrs())
+        bulk_adapter = self.adapter(bulk_write_mode=True)
+        DeviceModel.create(bulk_adapter, ids={"name": "batched"}, attrs=self.device_attrs())
+        bulk_adapter.flush_pending_writes()
+
+        def state(name):
+            device = Device.objects.get(name=name)
+            return {
+                "location": device.location.name,
+                "role": device.role.name,
+                "device_type": device.device_type.model,
+                "serial": device.serial,
+                "status": device.status.name,
+                "stamped": device.cf["system_of_record"],
+                "tagged": device.tags.filter(name="SSoT Synced from IPFabric").exists(),
+            }
+
+        self.assertEqual(state("batched"), state("per-object"))

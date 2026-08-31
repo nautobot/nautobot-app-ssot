@@ -607,8 +607,13 @@ def get_or_create_virtual_chassis_object(name: str, logger=None) -> Optional[Vir
     return None
 
 
-def assign_device_to_virtual_chassis(device, virtual_chassis, position, master=False, priority=None):  # pylint: disable=too-many-arguments
-    """Assign an existing device to an existing VirtualChassis. Update attributes if required."""
+def assign_device_to_virtual_chassis(device, virtual_chassis, position, master=False, priority=None, pending=None):  # pylint: disable=too-many-arguments
+    """Assign an existing device to an existing VirtualChassis. Update attributes if required.
+
+    With `pending`, the Device is queued rather than saved, so its membership fields go in with the
+    insert instead of needing a save of their own. The VirtualChassis master points back at the
+    Device, so that one is deferred until the Device's row exists.
+    """
     updated = False
     if device.virtual_chassis != virtual_chassis:
         device.virtual_chassis = virtual_chassis
@@ -619,11 +624,14 @@ def assign_device_to_virtual_chassis(device, virtual_chassis, position, master=F
     if priority and device.vc_priority != priority:
         device.vc_priority = priority
         updated = True
-    if updated:
+    if updated and pending is None:
         device.validated_save()
     if master and virtual_chassis.master != device:
         virtual_chassis.master = device
-        virtual_chassis.validated_save()
+        if pending is None:
+            virtual_chassis.validated_save()
+        else:
+            pending.defer_update(virtual_chassis, ["master"])
     return virtual_chassis
 
 
