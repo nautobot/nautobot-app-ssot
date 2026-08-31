@@ -1,0 +1,1 @@
+Updated the `meraki` dependency to `>=3.0.2,<4` on Python 3.11+, retaining `1.x` on Python 3.10 as `meraki` 3.x requires Python 3.11 or later.

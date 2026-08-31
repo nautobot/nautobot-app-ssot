@@ -4,6 +4,38 @@ from typing import Dict, List, Optional, Tuple
 
 import meraki
 
+try:
+    from meraki.exceptions import SessionInputError
+except ImportError:  # meraki < 2.0, which is what Python 3.10 resolves to.
+
+    class SessionInputError(Exception):
+        """Placeholder so exception handling stays uniform across meraki SDK majors."""
+
+
+# meraki >= 2.0 validates the user agent and raises SessionInputError from DashboardAPI() unless
+# `caller` matches the format at https://developer.cisco.com/meraki/api-v1/user-agents-overview/.
+# Hyphens and spaces are rejected in the first token, so "nautobot-ssot" would not be accepted.
+# A valid `caller` also takes precedence over the deprecated BE_GEO_ID environment variable, which
+# would otherwise raise on client construction for anyone using it for partner tracking.
+MERAKI_API_CALLER = "NautobotSSoT NetworkToCode"
+
+
+def format_sdk_error(err: Exception) -> str:
+    """Build a log message from a Meraki SDK exception.
+
+    Args:
+        err (Exception): Exception raised by the Meraki SDK.
+
+    Returns:
+        str: Multi-line description of the error.
+    """
+    details = [f"Meraki API error: {err}"]
+    for attr, label in (("status", "status code"), ("reason", "reason"), ("message", "error")):
+        value = getattr(err, attr, None)
+        if value is not None:
+            details.append(f"{label} = {value}")
+    return "\n".join(details)
+
 
 class DashboardClient:
     """Client for interacting with Meraki dashboard."""
@@ -20,7 +52,7 @@ class DashboardClient:
         """Connect to Meraki dashboard and return connection object.
 
         Raises:
-            err: APIError if issue with connecting to Meraki dashboard.
+            err: APIError or SessionInputError if issue with connecting to Meraki dashboard.
 
         Returns:
             meraki.DashboardAPI: Connection to Meraki dashboard.
@@ -33,10 +65,11 @@ class DashboardClient:
                 print_console=False,
                 wait_on_rate_limit=True,
                 maximum_retries=100,
+                caller=MERAKI_API_CALLER,
             )
             return dashboard
-        except meraki.APIError as err:
-            self.logger.log.error(f"Unable to connect to Meraki dashboard: {err.message}")
+        except (meraki.APIError, SessionInputError) as err:
+            self.logger.logger.error(f"Unable to connect to Meraki dashboard: {format_sdk_error(err)}")
             raise err
 
     def validate_organization_exists(self) -> bool:
@@ -61,10 +94,8 @@ class DashboardClient:
         try:
             networks = self.conn.organizations.getOrganizationNetworks(organizationId=self.org_id)
             self.network_map = {net["id"]: net for net in networks}
-        except meraki.APIError as err:
-            self.logger.logger.warning(
-                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
-            )
+        except (meraki.APIError, SessionInputError) as err:
+            self.logger.logger.warning(format_sdk_error(err))
         return networks
 
     def get_org_devices(self, total_pages="all", page_size=1000) -> list:
@@ -78,10 +109,8 @@ class DashboardClient:
             devices = self.conn.organizations.getOrganizationDevices(
                 organizationId=self.org_id, total_pages=total_pages, perPage=page_size
             )
-        except meraki.APIError as err:
-            self.logger.logger.warning(
-                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
-            )
+        except (meraki.APIError, SessionInputError) as err:
+            self.logger.logger.warning(format_sdk_error(err))
         return devices
 
     def get_org_uplink_statuses(self, total_pages="all", page_size=1000) -> dict:
@@ -96,10 +125,8 @@ class DashboardClient:
                 organizationId=self.org_id, total_pages=total_pages, perPage=page_size
             )
             settings_map = {net["serial"]: net for net in result}
-        except meraki.APIError as err:
-            self.logger.logger.warning(
-                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
-            )
+        except (meraki.APIError, SessionInputError) as err:
+            self.logger.logger.warning(format_sdk_error(err))
         return settings_map
 
     def get_org_uplink_addresses_by_device(self, serial: str) -> List[dict]:
@@ -116,10 +143,8 @@ class DashboardClient:
             addresses = self.conn.organizations.getOrganizationDevicesUplinksAddressesByDevice(
                 organizationId=self.org_id, serials=[serial]
             )
-        except meraki.APIError as err:
-            self.logger.logger.warning(
-                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
-            )
+        except (meraki.APIError, SessionInputError) as err:
+            self.logger.logger.warning(format_sdk_error(err))
         return addresses
 
     def get_org_switchports(self, total_pages="all") -> dict:
@@ -134,10 +159,8 @@ class DashboardClient:
                 organizationId=self.org_id, total_pages=total_pages
             )
             port_map = {switch["serial"]: switch for switch in result}
-        except meraki.APIError as err:
-            self.logger.logger.warning(
-                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
-            )
+        except (meraki.APIError, SessionInputError) as err:
+            self.logger.logger.warning(format_sdk_error(err))
         return port_map
 
     def get_org_device_statuses(self, total_pages="all", page_size=1000) -> dict:
@@ -152,10 +175,8 @@ class DashboardClient:
                 organizationId=self.org_id, total_pages=total_pages, perPage=page_size
             )
             statuses = {dev["name"]: dev["status"] for dev in response}
-        except meraki.APIError as err:
-            self.logger.logger.warning(
-                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
-            )
+        except (meraki.APIError, SessionInputError) as err:
+            self.logger.logger.warning(format_sdk_error(err))
         return statuses
 
     def get_management_ports(self, serial: str) -> dict:
@@ -172,10 +193,8 @@ class DashboardClient:
             ports = self.conn.devices.getDeviceManagementInterface(serial=serial)
             if ports.get("ddnsHostnames"):
                 ports.pop("ddnsHostnames")
-        except meraki.APIError as err:
-            self.logger.logger.warning(
-                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
-            )
+        except (meraki.APIError, SessionInputError) as err:
+            self.logger.logger.warning(format_sdk_error(err))
         return ports
 
     def get_uplink_settings(self, serial: str) -> dict:
@@ -191,10 +210,8 @@ class DashboardClient:
         try:
             ports = self.conn.appliance.getDeviceApplianceUplinksSettings(serial=serial)
             ports = ports["interfaces"]
-        except meraki.APIError as err:
-            self.logger.logger.warning(
-                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
-            )
+        except (meraki.APIError, SessionInputError) as err:
+            self.logger.logger.warning(format_sdk_error(err))
         return ports
 
     def get_switchport_statuses(self, serial: str) -> dict:
@@ -210,10 +227,8 @@ class DashboardClient:
         try:
             result = self.conn.switch.getDeviceSwitchPortsStatuses(serial=serial)
             port_statuses = {port["portId"]: port for port in result}
-        except meraki.APIError as err:
-            self.logger.logger.warning(
-                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
-            )
+        except (meraki.APIError, SessionInputError) as err:
+            self.logger.logger.warning(format_sdk_error(err))
         return port_statuses
 
     def get_appliance_switchports(self, network_id: str) -> list:
@@ -228,10 +243,8 @@ class DashboardClient:
         ports = []
         try:
             ports = self.conn.appliance.getNetworkAppliancePorts(networkId=network_id)
-        except meraki.APIError as err:
-            self.logger.logger.warning(
-                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
-            )
+        except (meraki.APIError, SessionInputError) as err:
+            self.logger.logger.warning(format_sdk_error(err))
         return ports
 
     def get_appliance_vlans(self, network_id: str) -> list:
@@ -246,10 +259,8 @@ class DashboardClient:
         vlans = []
         try:
             vlans = self.conn.appliance.getNetworkApplianceVlans(networkId=network_id)
-        except meraki.APIError as err:
-            self.logger.logger.warning(
-                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
-            )
+        except (meraki.APIError, SessionInputError) as err:
+            self.logger.logger.warning(format_sdk_error(err))
         return vlans
 
     def get_appliance_single_lan(self, network_id: str) -> dict:
@@ -264,10 +275,8 @@ class DashboardClient:
         lan = {}
         try:
             lan = self.conn.appliance.getNetworkApplianceSingleLan(networkId=network_id)
-        except meraki.APIError as err:
-            self.logger.logger.warning(
-                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
-            )
+        except (meraki.APIError, SessionInputError) as err:
+            self.logger.logger.warning(format_sdk_error(err))
         return lan
 
     def get_appliance_vlans_settings(self, network_id: str) -> dict:
@@ -275,10 +284,8 @@ class DashboardClient:
         settings = {}
         try:
             settings = self.conn.appliance.getNetworkApplianceVlansSettings(networkId=network_id)
-        except meraki.APIError as err:
-            self.logger.logger.warning(
-                f"Meraki API error: {err}\nstatus code = {err.status}\nreason = {err.reason}\nerror = {err.message}"
-            )
+        except (meraki.APIError, SessionInputError) as err:
+            self.logger.logger.warning(format_sdk_error(err))
         return settings
 
 
