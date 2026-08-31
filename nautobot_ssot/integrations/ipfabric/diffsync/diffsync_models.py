@@ -139,6 +139,18 @@ class DiffSyncExtras(DiffSyncModel):
 
     safe_delete_mode: ClassVar[bool] = True
 
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Record the object in the store, writing any batch that has grown large enough first.
+
+        Every model reaches here through `super().create()` once its own work is done, which is the
+        one point at which writing a queued batch is safe: flushed any earlier, the batch would miss
+        whatever the model went on to set.
+        """
+        if adapter.pending_writes is not None:
+            adapter.flush_pending_writes_if_full()
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+
     def safe_delete(
         self,
         nautobot_object: Any,

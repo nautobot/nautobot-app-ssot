@@ -575,3 +575,134 @@ class BulkModeDeviceTestCase(TestCase):
             }
 
         self.assertEqual(state("batched"), state("per-object"))
+
+
+class HighWaterFlushTestCase(TestCase):
+    """Test that a queue written part way through a sync loses nothing."""
+
+    def setUp(self):
+        populate_status_choices()
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
+        self.active = Status.objects.get(name="Active")
+        device_ct = ContentType.objects.get_for_model(Device)
+        site_type, _ = LocationType.objects.get_or_create(name="Site")
+        site_type.content_types.add(device_ct, ContentType.objects.get_for_model(VLAN))
+        ssot_tag, _ = Tag.objects.get_or_create(
+            name="SSoT Synced from IPFabric",
+            defaults={"color": ColorChoices.COLOR_LIGHT_GREEN, "description": "Synced"},
+        )
+        ssot_tag.content_types.add(
+            device_ct, ContentType.objects.get_for_model(Interface), ContentType.objects.get_for_model(Location)
+        )
+        role = Role.objects.create(name="hw-role")
+        role.content_types.add(device_ct)
+        role_cf, _ = CustomField.objects.get_or_create(
+            type=CustomFieldTypeChoices.TYPE_TEXT, key="ipfabric_type", defaults={"label": "IPFabric Type"}
+        )
+        role_cf.content_types.add(ContentType.objects.get_for_model(Role))
+        role.cf["ipfabric_type"] = "hw-role"
+        role.validated_save()
+        manufacturer = Manufacturer.objects.create(name="hw-vendor")
+        DeviceType.objects.create(model="hw-model", manufacturer=manufacturer)
+        Location.objects.create(name="hw-site", location_type=site_type, status=self.active)
+        job = unittest.mock.MagicMock()
+        job.debug = False
+        self.adapter = NautobotDiffSync(
+            job=job,
+            sync=unittest.mock.MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+            bulk_write_mode=True,
+        )
+
+    def test_the_queue_is_written_once_it_grows_past_the_ceiling(self):
+        """Otherwise a hundred thousand Interfaces are all held until the end of the sync."""
+        DeviceModel.create(
+            self.adapter,
+            ids={"name": "hw-dev"},
+            attrs={
+                "location_name": "hw-site",
+                "model": "hw-model",
+                "vendor": "hw-vendor",
+                "role": "hw-role",
+                "status": "Active",
+                "platform": None,
+                "serial_number": "s",
+            },
+        )
+        with unittest.mock.patch(
+            "nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot.PENDING_WRITE_HIGH_WATER", 4
+        ):
+            for index in range(6):
+                InterfaceModel.create(
+                    self.adapter,
+                    ids={"name": f"eth{index}", "device_name": "hw-dev"},
+                    attrs={"ip_address": None, "subnet_mask": None, "status": "Active", "type": "1000base-t"},
+                )
+
+        # Some Interfaces landed before the sync finished, rather than all of them waiting.
+        self.assertGreater(Interface.objects.filter(device__name="hw-dev").count(), 0)
+        self.adapter.flush_pending_writes()
+        self.assertEqual(Interface.objects.filter(device__name="hw-dev").count(), 6)
+
+    def test_a_mid_sync_flush_does_not_lose_what_is_set_after_queueing(self):
+        """A Device's chassis fields are set after it is queued, so an early flush would drop them.
+
+        The flush is triggered from `super().create()`, once the model has finished, which is what
+        makes that impossible.
+        """
+        with unittest.mock.patch(
+            "nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot.PENDING_WRITE_HIGH_WATER", 1
+        ):
+            DeviceModel.create(
+                self.adapter,
+                ids={"name": "hw-stack"},
+                attrs={
+                    "location_name": "hw-site",
+                    "model": "hw-model",
+                    "vendor": "hw-vendor",
+                    "role": "hw-role",
+                    "status": "Active",
+                    "platform": None,
+                    "serial_number": "s",
+                    "vc_name": "hw-chassis",
+                    "vc_master": True,
+                    "vc_position": 2,
+                    "vc_priority": 3,
+                },
+            )
+        self.adapter.flush_pending_writes()
+
+        device = Device.objects.get(name="hw-stack")
+        self.assertEqual(device.virtual_chassis.name, "hw-chassis")
+        self.assertEqual(device.vc_position, 2, "The chassis position was set after queueing and must survive.")
+        self.assertEqual(device.vc_priority, 3)
+        self.assertEqual(device.virtual_chassis.master, device)
+
+    def test_an_interface_still_finds_its_device_after_a_flush(self):
+        """Once flushed the Device is in the database, so the lookup has to fall through to it."""
+        DeviceModel.create(
+            self.adapter,
+            ids={"name": "flushed-dev"},
+            attrs={
+                "location_name": "hw-site",
+                "model": "hw-model",
+                "vendor": "hw-vendor",
+                "role": "hw-role",
+                "status": "Active",
+                "platform": None,
+                "serial_number": "s",
+            },
+        )
+        self.adapter.flush_pending_writes()
+        self.assertTrue(Device.objects.filter(name="flushed-dev").exists())
+
+        InterfaceModel.create(
+            self.adapter,
+            ids={"name": "after-flush", "device_name": "flushed-dev"},
+            attrs={"ip_address": None, "subnet_mask": None, "status": "Active", "type": "1000base-t"},
+        )
+        self.adapter.flush_pending_writes()
+
+        self.assertEqual(Interface.objects.get(name="after-flush").device.name, "flushed-dev")

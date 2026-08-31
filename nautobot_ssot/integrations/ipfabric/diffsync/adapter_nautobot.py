@@ -38,6 +38,10 @@ logger = logging.getLogger("nautobot.ssot.ipfabric")
 # larger batches cost fewer queries, at the price of a longer `IN` list and a wider lock.
 DELETE_BATCH_SIZE = 1000
 
+# How many rows bulk mode will hold before writing them. Without a ceiling a sync of a hundred
+# thousand Interfaces would keep every one of them, and their addresses, in memory until the end.
+PENDING_WRITE_HIGH_WATER = 5000
+
 
 def delete_objects(nautobot_objects: List):
     """Delete the given Nautobot objects, in as few statements as their relations allow.
@@ -153,6 +157,17 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         # is the run that has to empty them.
         job_scoped_cache.clear_all()
         return super().sync_complete(source, *args, **kwargs)
+
+    def flush_pending_writes_if_full(self) -> int:
+        """Write the queue if it has grown past what is worth holding in memory.
+
+        Called once a model has finished its own work, which is the only safe point: a queue flushed
+        part way through an operation would miss whatever that operation went on to set, such as a
+        Device's virtual chassis fields.
+        """
+        if len(self.pending) < PENDING_WRITE_HIGH_WATER:
+            return 0
+        return self.flush_pending_writes()
 
     def flush_pending_writes(self) -> int:
         """Write whatever bulk mode has queued, and report what was written.
