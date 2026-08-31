@@ -1,0 +1,1 @@
+Fixed the Meraki integration raising an unhandled `SessionInputError` on job start.
