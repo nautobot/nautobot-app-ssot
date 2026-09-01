@@ -11,6 +11,7 @@ from nautobot.dcim.constants import NONCONNECTABLE_IFACE_TYPES
 from nautobot.dcim.models import Device
 from nautobot.ipam.models import VLAN
 from netutils.interface import canonical_interface_name
+from netutils.ip import cidr_to_netmask
 from netutils.mac import mac_to_format
 
 from nautobot_ssot.integrations.ipfabric.constants import (
@@ -67,38 +68,6 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 self.add(self.location_model(site["siteName"], site_id=site["id"], status="Active"))
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Location discovered, {site}")
-
-    def subnet_masks_by_address(self, managed_ipv4):
-        """Return one subnet mask per address, the narrowest of those reported for it.
-
-        IP Fabric indexes addressing by serial number and so describes a subnet per device. An
-        address on two devices can therefore be reported in two subnets, and Nautobot holds one mask
-        per address: two Interfaces sharing that address cannot each have the mask they were reported
-        with, so whichever was written last won and the sync reported the difference for the other on
-        every run, alternating as the write order did.
-
-        The narrowest report is chosen because it is the one that agrees with the address's parent:
-        Nautobot parents an address to the most specific Prefix containing it. Choosing once, here,
-        is what lets a second sync settle.
-        """
-        lengths = {}
-        contested = set()
-        for by_address in managed_ipv4.values():
-            for address, record in by_address.items():
-                if not record.get("net"):
-                    continue
-                length = ipaddress.ip_network(record["net"], strict=False).prefixlen
-                if address in lengths and lengths[address] != length:
-                    contested.add(address)
-                lengths[address] = max(length, lengths.get(address, 0))
-        for address in sorted(contested):
-            logger.warning(
-                "IP Fabric reports %s in more than one subnet, so its Interfaces cannot each carry "
-                "the mask reported for them; using the narrowest, /%d",
-                address,
-                lengths[address],
-            )
-        return {address: str(ipaddress.ip_network(f"0.0.0.0/{length}").netmask) for address, length in lengths.items()}
 
     def load_device_interfaces(self, device_model, device_interfaces, device_primary_ip):
         """Create and load DiffSync Interface model objects for a specific device."""
@@ -286,7 +255,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 columns=ip_columns, filters=ip_filter
             ):
                 managed_ipv4[ip_address["sn"]].update({ip_address["ip"]: ip_address})
-            self.subnet_mask_by_address = self.subnet_masks_by_address(managed_ipv4)
+            self.subnet_mask_by_address = subnet_masks_by_address(managed_ipv4)
 
         # Get all interfaces for devices
         if self.scope.interfaces:
@@ -422,3 +391,35 @@ def pseudo_management_interface(hostname, device_interfaces, device_primary_ip):
         "type": "virtual",
         "mgmt_only": True,
     }
+
+
+def subnet_masks_by_address(managed_ipv4):
+    """Return one subnet mask per address, the narrowest of those reported for it.
+
+    IP Fabric indexes addressing by serial number and so describes a subnet per device. An address
+    on two devices can therefore be reported in two subnets, while Nautobot holds one mask per
+    address, so two Interfaces sharing an address cannot each carry the mask reported for them. One
+    mask is chosen here, for every Interface holding that address, so that the two sides agree.
+
+    The narrowest report is the one chosen, because it agrees with the address's parent: Nautobot
+    parents an address to the most specific Prefix containing it. A fixed rule rather than the order
+    IP Fabric answers in, which is not guaranteed.
+    """
+    lengths = {}
+    contested = set()
+    for by_address in managed_ipv4.values():
+        for address, record in by_address.items():
+            if not record.get("net"):
+                continue
+            length = ipaddress.ip_network(record["net"], strict=False).prefixlen
+            if address in lengths and lengths[address] != length:
+                contested.add(address)
+            lengths[address] = max(length, lengths.get(address, 0))
+    for address in sorted(contested):
+        logger.warning(
+            "IP Fabric reports %s in more than one subnet, so its Interfaces cannot each carry "
+            "the mask reported for them; using the narrowest, /%d",
+            address,
+            lengths[address],
+        )
+    return {address: cidr_to_netmask(length) for address, length in lengths.items()}

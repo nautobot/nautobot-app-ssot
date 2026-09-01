@@ -26,7 +26,7 @@ from typing import Any, Dict, List, Mapping, Optional, Set, Tuple
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import Error as DjangoBaseDBError
-from django.db import IntegrityError, connection, transaction
+from django.db import connection, transaction
 from nautobot.dcim.models import Device, Interface, Location
 from nautobot.extras.models import TaggedItem
 from nautobot.ipam.models import VLAN, IPAddress, IPAddressToInterface, VLANLocationAssignment
@@ -170,7 +170,7 @@ class PendingWrites:
                 with transaction.atomic():
                     model.objects.bulk_create(batch)
                     _check_deferred_constraints(model)
-            except (IntegrityError, DjangoBaseDBError):
+            except DjangoBaseDBError:
                 written += self._insert_one_at_a_time(model, batch, missing)
             else:
                 written += len(batch)
@@ -195,7 +195,7 @@ class PendingWrites:
                 with transaction.atomic():
                     instance.validated_save()
                     _check_deferred_constraints(model)
-            except (IntegrityError, DjangoBaseDBError, ValidationError, ObjectDoesNotExist) as error:
+            except (DjangoBaseDBError, ValidationError, ObjectDoesNotExist) as error:
                 logger.warning("Unable to write %s %s in bulk mode: %s", model.__name__, instance, error)
                 missing.add(instance.pk)
             else:
@@ -227,7 +227,7 @@ class PendingWrites:
             try:
                 with transaction.atomic():
                     model.objects.bulk_update(instances, fields, batch_size=self.batch_size)
-            except (IntegrityError, DjangoBaseDBError) as error:
+            except DjangoBaseDBError as error:
                 logger.warning(
                     "Unable to update %s on %d %s objects in bulk mode: %s",
                     ", ".join(fields),

@@ -6,7 +6,7 @@ import datetime
 import ipaddress
 import logging
 from contextlib import contextmanager
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -145,10 +145,7 @@ def get_or_create_location_object(
             location_obj.cf["ipfabric_site_id"] = location_id
 
     if is_new and pending is not None:
-        stamp_synced(location_obj, LAST_SYNCHRONIZED_CF_NAME)
-        pending.add(location_obj, key=location_name)
-        queue_synced_tag(pending, location_obj)
-        return location_obj
+        return queue_new_object(pending, location_obj, key=location_name)
 
     # tag_object performs validated_save(), which is the only save a new Location takes.
     try:
@@ -659,13 +656,17 @@ def get_global_namespace() -> Namespace:
 
 
 @job_scoped_cache(group=BULK_WRITTEN_LOOKUPS)
-def get_syncable_device(device_name: str, tagged_only: bool = True) -> Optional[Device]:
+def get_syncable_device(device_name: str, *, tagged_only: bool) -> Optional[Device]:
     """Return the Device an Interface or Cable operation is for, or None when it is out of scope.
 
     `tagged_only` mirrors the job option of that name, and has to, because the Nautobot adapter reads
     Devices under the same condition. A run that loads every Device must be able to write to every
     Device: matching on the Tag while the adapter loaded without it leaves those Devices' Interfaces
     reported as changed on every run and never written, and reported only as a warning.
+
+    Required rather than defaulted, so that a write path added later cannot quietly reintroduce that
+    by omitting it. The adapter also scopes Devices by Location, which this does not; a Device whose
+    Location is outside the run is still matched by name.
     """
     devices = Device.objects.filter(name=device_name)
     if tagged_only:
@@ -694,8 +695,9 @@ def get_device_interfaces_by_name(device: Device) -> dict:
 def get_tagged_interface(
     device_name: str,
     interface_name: str,
+    *,
+    tagged_only: bool,
     logger: Optional[logging.Logger] = None,
-    tagged_only: bool = True,
 ) -> Optional[Interface]:
     """Retrieve an Interface belonging to a Device this run covers.
 
@@ -773,7 +775,6 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
             )
     else:
         cidr = netmask_to_cidr(subnet_mask)
-        ip_obj = None
         if pending is not None:
             return queue_ip(
                 address=f"{ip_address}/{cidr}",
@@ -784,51 +785,51 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
             )
         ip_obj = resolve_ip(f"{ip_address}/{cidr}", status_obj, logger=logger)
         if ip_obj is None:
-            pass
-        elif not ip_obj.present_in_database:
+            return None
+
+        if not ip_obj.present_in_database:
+            # Stamped before the one save a new address takes, so the Tag row that follows is the
+            # only further write.
+            stamp_synced(ip_obj, LAST_SYNCHRONIZED_CF_NAME)
             try:
                 ip_obj.validated_save()
+                ip_obj.tags.add(synced_tag_for(ip_obj))
             except (DjangoBaseDBError, ValidationError) as err:
                 if logger:
                     logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}. Error: {err}")
-                ip_obj = None
-        elif ip_obj.mask_length != cidr:
+                return None
+        else:
+            # The mask IP Fabric reports rides the tagging save rather than taking one of its own.
+            mask_changed = ip_obj.mask_length != cidr
             ip_obj.mask_length = cidr
             try:
-                ip_obj.validated_save()
+                tag_object(nautobot_object=ip_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
             except (DjangoBaseDBError, ValidationError) as err:
-                if logger:
+                if logger and mask_changed:
                     logger.error(
                         f"Unable to change the mask of IPAddress {ip_address} to /{cidr}, "
                         f"which IP Fabric reports as {subnet_mask}. Error: {err}"
                     )
-                ip_obj.refresh_from_db()
-
-        if ip_obj:
-            if object_pk:
-                assign_ip = IPAddressToInterface(ip_address=ip_obj, interface_id=object_pk.pk)
-                try:
-                    assign_ip.validated_save()
-                except (DjangoBaseDBError, ValidationError):
-                    if logger:
-                        logger.error(
-                            f"Unable to assign IPAddress {ip_obj.address} with ID {ip_obj.id}"
-                            f"to interface {object_pk.name} with ID {object_pk.id}"
-                        )
-                # The Interface is deliberately not tagged here. Both callers tag it themselves
-                # once they are done with it, and `tag_object` runs a full `validated_save()`, so
-                # tagging it twice doubles the write cost of every Interface that carries an address.
-
-            try:
-                # Tag IP Addr
-                tag_object(nautobot_object=ip_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-            except (DjangoBaseDBError, ValidationError):
-                if logger:
+                elif logger:
                     logger.warning(
                         f"Unable to perform validated_save() on IPAddress {ip_obj.address} with an ID of {ip_obj.id}"
                     )
+                ip_obj.refresh_from_db()
 
-            return ip_obj
+        if object_pk:
+            assign_ip = IPAddressToInterface(ip_address=ip_obj, interface_id=object_pk.pk)
+            try:
+                assign_ip.validated_save()
+            except (DjangoBaseDBError, ValidationError):
+                if logger:
+                    logger.error(
+                        f"Unable to assign IPAddress {ip_obj.address} with ID {ip_obj.id}"
+                        f"to interface {object_pk.name} with ID {object_pk.id}"
+                    )
+            # The Interface is deliberately not tagged here. Both callers tag it themselves once
+            # they are done with it, and `tag_object` runs a full `validated_save()`, so tagging it
+            # twice doubles the write cost of every Interface that carries an address.
+        return ip_obj
     return None
 
 
@@ -976,9 +977,7 @@ def queue_ip(
         if queued is not None:
             ip_obj = queued
         else:
-            stamp_synced(ip_obj, LAST_SYNCHRONIZED_CF_NAME)
-            pending.add(ip_obj, key=key)
-            queue_synced_tag(pending, ip_obj)
+            queue_new_object(pending, ip_obj, key=key)
     elif ip_obj.mask_length != mask_length_of(address):
         pending.defer_update(ip_obj, {"mask_length": mask_length_of(address)})
 
@@ -1026,17 +1025,18 @@ def create_interface(
     )
     defaults = {k: v for k, v in interface_details.items() if k in interface_fields and v}
     try:
-        interface_obj = device_obj.interfaces.filter(name=interface_name, status=status_obj).first()
+        if pending is not None and device_obj._state.adding:  # pylint: disable=protected-access
+            # The Device is queued and has no rows of its own yet, so it can hold no Interface.
+            interface_obj = None
+        else:
+            interface_obj = device_obj.interfaces.filter(name=interface_name, status=status_obj).first()
         if interface_obj is None:
             interface_obj = Interface(device=device_obj, name=interface_name, status=status_obj, **defaults)
-            # Stamped before the one save a new Interface takes. Applying the Tag afterwards writes
-            # the Tag's own row rather than the Interface again, so this costs a single validated
-            # save where a get or create followed by `tag_object` cost two.
-            stamp_synced(interface_obj, LAST_SYNCHRONIZED_CF_NAME)
             if pending is not None:
-                pending.add(interface_obj, key=(device_obj.pk, interface_name))
-                queue_synced_tag(pending, interface_obj)
-                return interface_obj
+                return queue_new_object(pending, interface_obj, key=(device_obj.pk, interface_name))
+            # Stamped before the one save a new Interface takes, so the Tag row that follows is
+            # the only further write.
+            stamp_synced(interface_obj, LAST_SYNCHRONIZED_CF_NAME)
             interface_obj.validated_save()
             interface_obj.tags.add(synced_tag_for(interface_obj))
             return interface_obj
@@ -1112,12 +1112,10 @@ def create_vlan(  # pylint: disable=too-many-arguments
         return None
 
     if is_new and pending is not None:
-        stamp_synced(vlan_obj, LAST_SYNCHRONIZED_CF_NAME)
-        pending.add(vlan_obj)
-        if location_obj is not None:
-            pending.add_through(VLANLocationAssignment(vlan=vlan_obj, location_id=location_obj.pk))
-        queue_synced_tag(pending, vlan_obj)
-        return vlan_obj
+        assignments = (
+            (VLANLocationAssignment(vlan=vlan_obj, location_id=location_obj.pk),) if location_obj is not None else ()
+        )
+        return queue_new_object(pending, vlan_obj, through_rows=assignments)
 
     # tag_object performs validated_save(), which is the only save a new VLAN takes.
     try:
@@ -1164,6 +1162,21 @@ def queue_synced_tag(pending: Any, nautobot_object: Any, tag_name: str = "SSoT S
             tag=synced_tag_for(nautobot_object, tag_name=tag_name),
         )
     )
+
+
+def queue_new_object(pending: Any, instance: Any, key: Optional[Any] = None, through_rows: Iterable[Any] = ()):
+    """Queue a newly built object for a batched write, with its stamp, Tag row and any join rows.
+
+    The three go together: a queued object is never saved, so the stamp has to be on it before it is
+    inserted and the Tag has to arrive as its own row. Kept in one place so that a model added later
+    cannot queue a row without them.
+    """
+    stamp_synced(instance, LAST_SYNCHRONIZED_CF_NAME)
+    pending.add(instance, key=key)
+    for row in through_rows:
+        pending.add_through(row)
+    queue_synced_tag(pending, instance)
+    return instance
 
 
 def stamp_synced(nautobot_object: Any, custom_field: str):

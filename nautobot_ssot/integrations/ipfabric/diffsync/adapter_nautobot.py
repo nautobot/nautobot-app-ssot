@@ -49,9 +49,6 @@ def delete_objects(nautobot_objects: List):
     Deleting one at a time makes Django walk that object's relations and issue its own statements;
     deleting a batch walks them once. A batch Nautobot refuses is retried an object at a time, so one
     protected object neither takes the rest with it nor goes unreported.
-
-    Nothing here is specific to IP Fabric, and six other integrations in this repository run the
-    same per-object loop, so this is written to lift into a shared module when one wants it.
     """
     by_model = defaultdict(list)
     for nautobot_object in nautobot_objects:
@@ -65,7 +62,7 @@ def delete_objects(nautobot_objects: List):
                 # change log within it turns one entry per deleted object into one bulk insert.
                 with transaction.atomic(), tonb_utils.deferred_change_logging():
                     model.objects.filter(pk__in=[nautobot_object.pk for nautobot_object in batch]).delete()
-            except (ProtectedError, IntegrityError):
+            except IntegrityError:
                 delete_objects_one_at_a_time(batch)
 
 
@@ -105,12 +102,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         self.sync = sync
         self.sync_ipfabric_tagged_only = sync_ipfabric_tagged_only
         self.location_filter = location_filter
-        # Passed in rather than set on the class, so two runs in one worker cannot see each other's
-        # choice. `safe_delete_mode` predates that and still lives on the class.
-        self.bulk_write_mode = bulk_write_mode
-        # Always present, so a caller can queue without asking which mode is on; only bulk mode
-        # routes writes into it.
-        self.pending = PendingWrites()
+        # Present only in bulk write mode, so that whether writes are batched is one fact rather
+        # than two. Passed in rather than set on the class, so two runs in one worker cannot see
+        # each other's choice; `safe_delete_mode` is still set on the class, so two runs share it.
+        self.pending = PendingWrites() if bulk_write_mode else None
         # Per adapter rather than per class, so that a run which fails before `sync_complete` cannot
         # leave objects queued for a later run in the same worker to delete.
         self.objects_to_delete = defaultdict(list)

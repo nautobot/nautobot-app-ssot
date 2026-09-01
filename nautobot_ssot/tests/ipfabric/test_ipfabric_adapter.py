@@ -8,7 +8,10 @@ from ipfabric.models.device import Device
 from nautobot.apps.testing import TestCase
 from nautobot.extras.models import JobResult
 
-from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
+from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import (
+    IPFabricDiffSync,
+    subnet_masks_by_address,
+)
 from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
 from nautobot_ssot.integrations.ipfabric.sync_scope import (
     UNSYNCED_LOCATION_ATTRS,
@@ -443,33 +446,30 @@ class SubnetMaskChoiceTestCase(TestCase):
         "sn-b": {"10.0.0.1": {"ip": "10.0.0.1", "net": "10.0.0.0/25"}},
     }
 
-    def setUp(self):
-        self.ipfabric = build_adapter()
-
     def test_the_narrowest_reported_subnet_is_chosen(self):
         """Nautobot parents an address to the most specific Prefix containing it, so this agrees."""
-        chosen = self.ipfabric.subnet_masks_by_address(self.CONTESTED)
+        chosen = subnet_masks_by_address(self.CONTESTED)
         self.assertEqual(chosen["10.0.0.1"], "255.255.255.128")
 
     def test_the_choice_does_not_follow_the_order_reported(self):
         """IP Fabric's order is not guaranteed, and a choice that followed it would flip each run."""
         reversed_order = {key: self.CONTESTED[key] for key in reversed(list(self.CONTESTED))}
         self.assertEqual(
-            self.ipfabric.subnet_masks_by_address(self.CONTESTED),
-            self.ipfabric.subnet_masks_by_address(reversed_order),
+            subnet_masks_by_address(self.CONTESTED),
+            subnet_masks_by_address(reversed_order),
         )
 
     def test_an_address_reported_in_two_subnets_is_named(self):
         """One Interface will carry a mask it was not reported with, so the operator is told which."""
         with self.assertLogs("nautobot.jobs", level="WARNING") as logs:
-            self.ipfabric.subnet_masks_by_address(self.CONTESTED)
+            subnet_masks_by_address(self.CONTESTED)
 
         self.assertIn("10.0.0.1", " ".join(logs.output))
 
     def test_an_address_reported_once_is_left_as_reported(self):
-        chosen = self.ipfabric.subnet_masks_by_address({"sn-a": self.CONTESTED["sn-a"]})
+        chosen = subnet_masks_by_address({"sn-a": self.CONTESTED["sn-a"]})
         self.assertEqual(chosen["10.0.0.1"], "255.255.255.0")
 
     def test_a_record_without_a_subnet_is_skipped(self):
-        chosen = self.ipfabric.subnet_masks_by_address({"sn-a": {"10.0.0.9": {"ip": "10.0.0.9", "net": None}}})
+        chosen = subnet_masks_by_address({"sn-a": {"10.0.0.9": {"ip": "10.0.0.9", "net": None}}})
         self.assertEqual(chosen, {})

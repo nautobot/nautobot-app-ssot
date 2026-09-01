@@ -59,7 +59,7 @@ def resolve_location(adapter, location_name: str, location_id: Optional[str] = N
             location_name=location_name,
             location_id=location_id,
             logger=adapter.job.logger,
-            pending=adapter.pending_writes,
+            pending=adapter.pending,
         )
     return tonb_nbutils.get_location_object(location_name, logger=adapter.job.logger)
 
@@ -147,7 +147,7 @@ class DiffSyncExtras(DiffSyncModel):
         one point at which writing a queued batch is safe: flushed any earlier, the batch would miss
         whatever the model went on to set.
         """
-        if adapter.pending_writes is not None:
+        if adapter.pending is not None:
             adapter.flush_pending_writes_if_full()
         return super().create(adapter=adapter, ids=ids, attrs=attrs)
 
@@ -394,7 +394,7 @@ class Device(DiffSyncExtras):
             )
 
         if device_type_object and location_object and device_role_object and device_status_object:
-            pending = adapter.pending_writes
+            pending = adapter.pending
             lookup = {
                 "name": device_name,
                 "serial": attrs.get("serial_number", ""),
@@ -409,17 +409,17 @@ class Device(DiffSyncExtras):
                     # owned by another system may name a different Manufacturer to the DeviceType,
                     # which `Device.clean()` rejects but this integration accepts; validating before
                     # the insert would stop such a Device being written at all.
-                    new_device, created = NautobotDevice.objects.get_or_create(
+                    new_device, _ = NautobotDevice.objects.get_or_create(
                         defaults={"platform": platform_object}, **lookup
                     )
-                    is_new = created
+                    queue_new = False
                 else:
                     try:
                         new_device = NautobotDevice.objects.get(**lookup)
-                        is_new = False
+                        queue_new = False
                     except NautobotDevice.DoesNotExist:
                         new_device = NautobotDevice(platform=platform_object, **lookup)
-                        is_new = True
+                        queue_new = True
             except NautobotDevice.MultipleObjectsReturned:
                 adapter.job.logger.error(
                     f"Multiple Devices returned with name {device_name} at Location {location_name}"
@@ -429,10 +429,8 @@ class Device(DiffSyncExtras):
                     f"Unable to create a new Device named {device_name} at Location {location_name}"
                 )
             else:
-                if is_new and pending is not None:
-                    tonb_nbutils.stamp_synced(new_device, LAST_SYNCHRONIZED_CF_NAME)
-                    pending.add(new_device, key=device_name)
-                    tonb_nbutils.queue_synced_tag(pending, new_device)
+                if queue_new:
+                    tonb_nbutils.queue_new_object(pending, new_device, key=device_name)
                 else:
                     try:
                         # Validated save happens inside of tag_objet
@@ -625,8 +623,8 @@ class Interface(DiffSyncExtras):
         # first. `get_syncable_device` is cached, so it is asked second rather than taught about the
         # queue.
         device_obj = None
-        if adapter.pending_writes is not None:
-            device_obj = adapter.pending_writes.find(NautobotDevice, device_name)
+        if adapter.pending is not None:
+            device_obj = adapter.pending.find(NautobotDevice, device_name)
         device_obj = device_obj or tonb_nbutils.get_syncable_device(
             device_name, tagged_only=adapter.sync_ipfabric_tagged_only
         )
@@ -634,7 +632,7 @@ class Interface(DiffSyncExtras):
             return_super = True
             if not attrs.get("mac_address"):
                 attrs["mac_address"] = DEFAULT_INTERFACE_MAC
-            pending = adapter.pending_writes
+            pending = adapter.pending
             interface_obj = tonb_nbutils.create_interface(
                 device_obj=device_obj,
                 interface_details={**ids, **attrs},
@@ -882,8 +880,8 @@ class Vlan(DiffSyncExtras):
         # A Location queued earlier in this run is not in the database yet, so it is looked for
         # there first. Falls through to the database, which is where it is on any other run.
         location = None
-        if adapter.pending_writes is not None:
-            location = adapter.pending_writes.find(NautobotLocation, location_name)
+        if adapter.pending is not None:
+            location = adapter.pending.find(NautobotLocation, location_name)
         try:
             location = location or NautobotLocation.objects.get(name=ids["location"])
         except NautobotLocation.MultipleObjectsReturned:
@@ -907,7 +905,7 @@ class Vlan(DiffSyncExtras):
                 location_obj=location,
                 description=description,
                 logger=adapter.job.logger,
-                pending=adapter.pending_writes,
+                pending=adapter.pending,
             )
             if vlan:
                 return super().create(ids=ids, adapter=adapter, attrs=attrs)
@@ -1021,7 +1019,7 @@ class Cable(DiffSyncExtras):
         The Devices and Interfaces a link terminates on are created earlier in the same sync, and in
         bulk mode that means queued rather than written, so anything still queued is written first.
         """
-        if adapter.pending_writes is not None:
+        if adapter.pending is not None:
             adapter.flush_pending_writes()
         job_logger = adapter.job.logger
         tagged_only = adapter.sync_ipfabric_tagged_only

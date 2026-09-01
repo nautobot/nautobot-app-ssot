@@ -19,6 +19,7 @@ from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import ObjectChange, Role, Status, Tag
+from nautobot.ipam.models import IPAddress
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync, delete_objects
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
@@ -28,6 +29,7 @@ from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 # The trailing boundary keeps this off tables whose names merely start with "dcim_interface",
 # such as the tagged VLAN join table.
 WRITE_TO_INTERFACE = re.compile(r'^(INSERT INTO|UPDATE)\s+"?dcim_interface"?(\s|$)', re.IGNORECASE)
+WRITE_TO_IP_ADDRESS = re.compile(r'^(INSERT INTO|UPDATE)\s+"?ipam_ipaddress"?(\s|$)', re.IGNORECASE)
 
 
 class _CostTestCase(TestCase):
@@ -135,6 +137,40 @@ class InterfaceWriteCostTestCase(_CostTestCase):
         )
         self.assertEqual(len(writes), 1, f"Expected one write to the Interface table, got {writes}")
         self.assertEqual(Interface.objects.get(name="eth1").ip_addresses.count(), 1)
+
+    def test_creating_an_address_does_not_save_it_a_second_time(self):
+        """The stamp rides the INSERT, rather than a second save applying it afterwards.
+
+        Each write is a full `validated_save()`, and `IPAddress.save()` calls `clean()` itself, so a
+        redundant one is worth about eleven queries on every address a first sync creates.
+
+        Measured as writes following the INSERT, because creating the parent Prefix makes Nautobot
+        reparent the addresses it now contains, which writes to the same table beforehand.
+        """
+        with CaptureQueriesContext(connection) as queries:
+            InterfaceModel.create(
+                self.adapter,
+                ids={"name": "eth2", "device_name": self.device.name},
+                attrs={
+                    "ip_address": "10.0.0.2",
+                    "subnet_mask": "255.255.255.0",
+                    "status": "Active",
+                    "type": "1000base-t",
+                },
+            )
+        writes = [
+            query["sql"].split(None, 3)[0].upper()
+            for query in queries.captured_queries
+            if WRITE_TO_IP_ADDRESS.match(query["sql"].strip())
+        ]
+
+        self.assertIn("INSERT", writes, f"Expected the address to be inserted, got {writes}")
+        after_insert = writes[writes.index("INSERT") + 1 :]
+        self.assertEqual(after_insert, [], f"Expected no further write after the INSERT, got {after_insert}")
+
+        address = IPAddress.objects.get(host="10.0.0.2")
+        self.assertEqual(address.cf["system_of_record"], "IPFabric")
+        self.assertTrue(address.tags.filter(name="SSoT Synced from IPFabric").exists())
 
     def test_updating_an_interface_with_an_address_writes_it_once(self):
         """Only `update` tags the Interface, so assigning an address adds no second write."""
