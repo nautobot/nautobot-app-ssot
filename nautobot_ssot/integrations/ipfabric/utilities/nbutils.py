@@ -770,25 +770,14 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
                 pending=pending,
                 logger=logger,
             )
-        address = f"{ip_address}/{cidr}"
-        try:
-            ip_obj = IPAddress.objects.filter(address=address).first()
-        except IPAddress.MultipleObjectsReturned:
-            if logger:
-                logger.error(f"Multiple IPAddresses returned with the address of {ip_address}/{subnet_mask}")
-            ip_obj = None
-        else:
-            if ip_obj is None:
-                ip_obj = resolve_new_ip(address, status_obj, logger=logger)
-                if ip_obj is not None:
-                    try:
-                        ip_obj.validated_save()
-                    except (DjangoBaseDBError, ValidationError) as err:
-                        if logger:
-                            logger.error(
-                                f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}. Error: {err}"
-                            )
-                        ip_obj = None
+        ip_obj = resolve_ip(f"{ip_address}/{cidr}", status_obj, logger=logger)
+        if ip_obj is not None and not ip_obj.present_in_database:
+            try:
+                ip_obj.validated_save()
+            except (DjangoBaseDBError, ValidationError) as err:
+                if logger:
+                    logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}. Error: {err}")
+                ip_obj = None
 
         if ip_obj:
             if object_pk:
@@ -871,6 +860,13 @@ def create_parent_prefix(address: str, logger: Optional[logging.Logger] = None) 
     Returns:
         bool: Whether a Prefix now exists for the address.
     """
+    host = address.split("/")[0]
+    if Prefix.objects.filter(namespace=get_global_namespace()).net_contains_or_equals(f"{host}/32").exists():
+        # Checked rather than inferred from a failure to build the address. Nautobot 3.2 also reports
+        # a duplicate address from `clean()`, and reading that as a missing Prefix created a second,
+        # wider one that could never become the parent: Nautobot parents an address to the most
+        # specific Prefix containing it.
+        return True
     try:
         network_obj = ipaddress.ip_network(address, strict=False)
         if logger:
@@ -889,6 +885,30 @@ def create_parent_prefix(address: str, logger: Optional[logging.Logger] = None) 
     return True
 
 
+def resolve_ip(address: str, status_obj: Status, logger: Optional[logging.Logger] = None) -> Optional[IPAddress]:
+    """Return the IPAddress to use for `address`, whether Nautobot already holds one or not.
+
+    One that `present_in_database` reports as saved is Nautobot's own, to be reused. A new one comes
+    back unsaved, for the caller to write or to queue.
+
+    Nautobot makes an address unique within its parent Prefix, and the mask IP Fabric reports for an
+    address need not be the mask Nautobot holds it under, so matching on the address misses the very
+    row that uniqueness covers. The host within the Namespace is matched as well, which is what
+    decides the parent and therefore what decides the collision.
+
+    Asked before anything is built, rather than after. Nautobot 3.2 reports a duplicate from
+    `clean()`, so building first cannot tell an address that needs a Prefix from one that already
+    exists.
+    """
+    existing = IPAddress.objects.filter(address=address).first()
+    if existing is not None:
+        return existing
+    existing = IPAddress.objects.filter(host=address.split("/")[0], parent__namespace=get_global_namespace()).first()
+    if existing is not None:
+        return existing
+    return resolve_new_ip(address, status_obj, logger=logger)
+
+
 def queue_ip(
     address: str,
     status_obj: Status,
@@ -900,23 +920,31 @@ def queue_ip(
 
     An address already written, or already queued by this run, is reused rather than queued again.
     Nautobot makes an address unique within its parent Prefix, so queueing a second one for an
-    address IP Fabric reports on two Interfaces would have the database refuse it.
+    address IP Fabric reports on two Interfaces would have the database refuse it. See `resolve_ip`
+    for why the match is not on the address alone.
 
     `IPAddress.save()` calls `clean()` to work out which Prefix the address belongs under, and a
     batched insert calls neither, so `clean()` is run here. It is also what rejects an address the
     sync should not be writing, which is worth keeping even in bulk mode: the alternative is a row
     with no parent Prefix, which leaves the address orphaned in IPAM.
     """
-    ip_obj = IPAddress.objects.filter(address=address).first() or pending.find(IPAddress, address)
+    ip_obj = resolve_ip(address, status_obj, logger=logger)
     if ip_obj is None:
-        ip_obj = resolve_new_ip(address, status_obj, logger=logger)
-        if ip_obj is None:
-            if logger:
-                logger.error(f"Unable to queue an IPAddress of {address} for a bulk write")
-            return None
-        stamp_synced(ip_obj, LAST_SYNCHRONIZED_CF_NAME)
-        pending.add(ip_obj, key=address)
-        queue_synced_tag(pending, ip_obj)
+        if logger:
+            logger.error(f"Unable to queue an IPAddress of {address} for a bulk write")
+        return None
+    if not ip_obj.present_in_database:
+        # Keyed on what the uniqueness constraint covers rather than on the address, so that an
+        # address this run has already queued is reused even where IP Fabric reported the two with
+        # different masks.
+        key = (ip_obj.parent_id, str(ip_obj.host))
+        queued = pending.find(IPAddress, key)
+        if queued is not None:
+            ip_obj = queued
+        else:
+            stamp_synced(ip_obj, LAST_SYNCHRONIZED_CF_NAME)
+            pending.add(ip_obj, key=key)
+            queue_synced_tag(pending, ip_obj)
 
     if interface is not None:
         pending.add_through(IPAddressToInterface(ip_address=ip_obj, interface_id=interface.pk))

@@ -930,11 +930,10 @@ class MissingParentPrefixTestCase(TestCase):
 
 
 class NewAddressResolutionTestCase(TestCase):
-    """Test how a new IP Address is resolved, which both write paths now share.
+    """Test how an IP Address is resolved, which both write paths share.
 
-    These replace a set of tests that mocked `IPAddress.objects.get_or_create` to walk each internal
-    branch. The branches have changed shape; what matters is the behaviour, and it is the same in
-    both modes because both go through `resolve_new_ip`.
+    Asserted through the behaviour a caller sees, and in both modes, since the two go through the
+    same resolution.
     """
 
     def setUp(self):
@@ -1035,6 +1034,65 @@ class NewAddressResolutionTestCase(TestCase):
 
         self.assertIsNone(result)
         self.assertTrue(any("No-Such-Status" in line for line in self.errors()), self.errors())
+
+    def test_an_address_nautobot_holds_under_another_mask_is_reused(self):
+        """IP Fabric's mask for an address need not be the one Nautobot holds it under.
+
+        The uniqueness Nautobot enforces covers the parent Prefix and the host, not the mask, so
+        matching on the address alone finds nothing and the insert is then refused.
+        """
+        self.make_prefix("10.50.0.0/25")
+        existing = IPAddress(address="10.50.0.1/25", namespace=self.namespace, status=self.active)
+        existing.validated_save()
+
+        result = nbutils.create_ip("10.50.0.1", "255.255.255.0", logger=self.logger)
+
+        self.assertEqual(result.pk, existing.pk)
+        self.assertEqual(IPAddress.objects.filter(host="10.50.0.1").count(), 1)
+        self.assertEqual(self.errors(), [])
+
+    def test_an_address_held_under_another_mask_is_reused_in_bulk_mode_too(self):
+        self.make_prefix("10.52.0.0/25")
+        existing = IPAddress(address="10.52.0.1/25", namespace=self.namespace, status=self.active)
+        existing.validated_save()
+        pending = PendingWrites()
+
+        result = nbutils.create_ip("10.52.0.1", "255.255.255.0", logger=self.logger, pending=pending)
+        pending.flush()
+
+        self.assertEqual(result.pk, existing.pk)
+        self.assertEqual(IPAddress.objects.filter(host="10.52.0.1").count(), 1)
+        self.assertEqual(self.errors(), [])
+
+    def test_one_host_reported_with_two_masks_is_written_once(self):
+        """Both reports resolve to the same parent, so the second would be refused as a duplicate."""
+        self.make_prefix("10.53.0.0/25")
+        pending = PendingWrites()
+
+        first = nbutils.create_ip("10.53.0.1", "255.255.255.128", logger=self.logger, pending=pending)
+        second = nbutils.create_ip("10.53.0.1", "255.255.255.0", logger=self.logger, pending=pending)
+        pending.flush()
+
+        self.assertEqual(first.pk, second.pk)
+        self.assertEqual(IPAddress.objects.filter(host="10.53.0.1").count(), 1)
+        self.assertEqual(self.errors(), [])
+
+    def test_no_wider_prefix_is_created_for_an_address_nautobot_already_holds(self):
+        """A wider Prefix could never be the parent anyway, as the most specific containing one wins.
+
+        Nautobot 3.2 reports a duplicate address from `clean()`, and reading that as a missing Prefix
+        is what created one.
+        """
+        self.make_prefix("10.54.0.0/25")
+        existing = IPAddress(address="10.54.0.1/25", namespace=self.namespace, status=self.active)
+        existing.validated_save()
+
+        nbutils.create_ip("10.54.0.1", "255.255.255.0", logger=self.logger)
+
+        self.assertEqual(
+            sorted(str(prefix.prefix) for prefix in Prefix.objects.filter(network="10.54.0.0")),
+            ["10.54.0.0/25"],
+        )
 
 
 class CommitTimeRefusalTestCase(TransactionTestCase):
