@@ -79,6 +79,14 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
         """Return an unsaved Interface referencing a Device that may itself be unsaved."""
         return Interface(device_id=device.pk, name=name, status=self.active, type="1000base-t")
 
+    def build_address(self, address):
+        """Return an unsaved IPAddress with the parent Prefix a batched insert has to be handed.
+
+        Built through the helper the sync itself uses, so that the way the parent is resolved stays
+        in one place rather than being reproduced here against Nautobot's internals.
+        """
+        return nbutils.resolve_new_ip(address, self.active)
+
     # --- ordering ---
 
     def test_a_child_written_with_its_parent_in_the_same_flush(self):
@@ -140,10 +148,7 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
         location = self.pending.add(self.build_location("addr"))
         device = self.pending.add(self.build_device("addr-device", location))
         interface = self.pending.add(self.build_interface("eth0", device))
-        address = IPAddress(address="10.0.0.1/24", namespace=self.namespace, status=self.active)
-        # `IPAddress.save()` resolves this; a batched insert has to be handed it.
-        address.parent = address._get_closest_parent()  # pylint: disable=protected-access
-        self.pending.add(address)
+        address = self.pending.add(self.build_address("10.0.0.1/24"))
         self.pending.add_through(IPAddressToInterface(ip_address=address, interface_id=interface.pk))
 
         self.pending.flush()
@@ -175,9 +180,7 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
         location = self.pending.add(self.build_location("primary"))
         device = self.pending.add(self.build_device("primary-device", location))
         interface = self.pending.add(self.build_interface("eth0", device))
-        address = IPAddress(address="10.0.0.5/24", namespace=self.namespace, status=self.active)
-        address.parent = address._get_closest_parent()  # pylint: disable=protected-access
-        self.pending.add(address)
+        address = self.pending.add(self.build_address("10.0.0.5/24"))
         self.pending.add_through(IPAddressToInterface(ip_address=address, interface_id=interface.pk))
         self.pending.defer_update(device, {"primary_ip4": address})
 
@@ -193,9 +196,7 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
         """
         location = self.pending.add(self.build_location("unset"))
         device = self.pending.add(self.build_device("unset-device", location))
-        address = IPAddress(address="10.0.0.6/24", namespace=self.namespace, status=self.active)
-        address.parent = address._get_closest_parent()  # pylint: disable=protected-access
-        self.pending.add(address)
+        address = self.pending.add(self.build_address("10.0.0.6/24"))
 
         self.pending.defer_update(device, {"primary_ip4": address})
 
@@ -206,12 +207,8 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
 
         Nautobot makes an address unique within its parent Prefix.
         """
-        first = IPAddress(address="10.0.0.7/24", namespace=self.namespace, status=self.active)
-        first.parent = first._get_closest_parent()  # pylint: disable=protected-access
-        duplicate = IPAddress(address="10.0.0.7/24", namespace=self.namespace, status=self.active)
-        duplicate.parent = duplicate._get_closest_parent()  # pylint: disable=protected-access
-        self.pending.add(first)
-        self.pending.add(duplicate)
+        first = self.pending.add(self.build_address("10.0.0.7/24"))
+        duplicate = self.pending.add(self.build_address("10.0.0.7/24"))
         return first, duplicate
 
     def test_a_join_row_is_dropped_when_the_object_it_points_at_is_refused(self):
@@ -264,29 +261,26 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
     def test_one_bad_row_does_not_lose_the_rest_of_its_batch(self):
         """A batch is all or nothing, so a refused one is retried an object at a time.
 
-        Uses a duplicate Interface name, which `dcim_interface_device_name_unique` refuses in the
-        database rather than only in `clean()`.
+        Uses a duplicate address, which every version this app supports refuses in the database
+        through `unique_together` on an IP Address's parent and host, rather than only in `clean()`.
         """
-        location = self.pending.add(self.build_location("refusal"))
-        device = self.pending.add(self.build_device("refusal-device", location))
-        good = self.pending.add(self.build_interface("eth0", device))
-        self.pending.add(self.build_interface("eth1", device))
-        self.pending.add(self.build_interface("eth1", device))  # a second eth1 on the same Device
-        another = self.pending.add(self.build_interface("eth2", device))
+        good = self.pending.add(self.build_address("10.0.0.11/24"))
+        self.pending.add(self.build_address("10.0.0.12/24"))
+        self.pending.add(self.build_address("10.0.0.12/24"))  # the same address a second time
+        another = self.pending.add(self.build_address("10.0.0.13/24"))
 
         with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
             self.pending.flush()
 
-        # The Location and Device are their own batches and are unaffected.
-        self.assertTrue(Device.objects.filter(pk=device.pk).exists())
-        # Of the four Interfaces, the three distinct names survive the retry.
+        # The three distinct addresses survive the retry, and the duplicate is named.
+        queued = ["10.0.0.11", "10.0.0.12", "10.0.0.13"]
         self.assertEqual(
-            sorted(Interface.objects.filter(device_id=device.pk).values_list("name", flat=True)),
-            ["eth0", "eth1", "eth2"],
+            sorted(str(each.host) for each in IPAddress.objects.filter(host__in=queued)),
+            queued,
         )
-        self.assertTrue(Interface.objects.filter(pk=good.pk).exists())
-        self.assertTrue(Interface.objects.filter(pk=another.pk).exists())
-        self.assertTrue(any("eth1" in line for line in logs.output), logs.output)
+        self.assertTrue(IPAddress.objects.filter(pk=good.pk).exists())
+        self.assertTrue(IPAddress.objects.filter(pk=another.pk).exists())
+        self.assertTrue(any("10.0.0.12" in line for line in logs.output), logs.output)
 
     def test_a_batch_is_split_by_batch_size(self):
         pending = PendingWrites(batch_size=2)
@@ -1090,9 +1084,7 @@ class CommitTimeRefusalTestCase(TransactionTestCase):
         location = self.pending.add(self.build_location("primary-commit"))
         device = self.pending.add(self.build_device("primary-commit-device", location))
         interface = self.pending.add(Interface(device_id=device.pk, name="eth0", status=self.active, type="1000base-t"))
-        address = IPAddress(address="10.0.0.5/24", namespace=namespace, status=self.active)
-        address.parent = address._get_closest_parent()  # pylint: disable=protected-access
-        self.pending.add(address)
+        address = self.pending.add(nbutils.resolve_new_ip("10.0.0.5/24", self.active))
         self.pending.add_through(IPAddressToInterface(ip_address=address, interface_id=interface.pk))
         self.pending.defer_update(device, {"primary_ip4": address})
 

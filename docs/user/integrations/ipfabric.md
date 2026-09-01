@@ -186,6 +186,10 @@ siblings, and the sites this integration creates have no parent; PostgreSQL trea
 so two sites of the same name would both be written where a per-object sync would have rejected the
 second. IP Fabric reports each site once, so this is a difference rather than an outcome to expect.
 
+On Nautobot 3.2 the same applies to two Interfaces of one name on a Device. Nautobot 3.1 refuses that
+in the database, and 3.2 moved the check into Python, which a batched insert does not run. IP Fabric
+reports each interface once, so this too is a difference rather than an outcome to expect.
+
 ### What it does not change
 
 Cables are always written one at a time, whichever mode is selected. Creating a Cable also sets the
