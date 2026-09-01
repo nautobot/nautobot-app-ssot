@@ -1,0 +1,1 @@
+Fixed the IP Fabric sync reporting Interface changes on every run without applying them, for Devices not tagged as synced from IP Fabric, which the Nautobot adapter loads whenever Sync Tagged Only is deselected.

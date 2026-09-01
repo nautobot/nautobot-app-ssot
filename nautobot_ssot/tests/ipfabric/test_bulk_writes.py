@@ -648,11 +648,11 @@ class BulkModeDeviceTestCase(TestCase):
         """A lookup that ran before the flush cached an answer the flush has invalidated."""
         adapter = self.adapter(bulk_write_mode=True)
         DeviceModel.create(adapter, ids={"name": "stale-dev"}, attrs=self.device_attrs())
-        self.assertIsNone(nbutils.get_tagged_device("stale-dev"))
+        self.assertIsNone(nbutils.get_syncable_device("stale-dev"))
 
         adapter.flush_pending_writes()
 
-        self.assertIsNotNone(nbutils.get_tagged_device("stale-dev"))
+        self.assertIsNotNone(nbutils.get_syncable_device("stale-dev"))
 
     def test_a_virtual_chassis_master_is_applied_after_its_device(self):
         """The master points back at the Device, so it cannot be set until the Device exists."""

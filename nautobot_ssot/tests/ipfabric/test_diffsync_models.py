@@ -643,7 +643,7 @@ class TestInterfaceModel(_ModelTestBase):
         attrs.update(attr_overrides)
         return Interface.create(adapter=self.adapter, ids=self._BASE_CREATE_IDS, attrs=attrs)
 
-    @_nb_patch("get_tagged_device", return_value=None)
+    @_nb_patch("get_syncable_device", return_value=None)
     def test_create_warns_when_tagged_device_not_found(self, _mock_get_device):
         """Missing parent device -> warning logged, no super().create()."""
         with mock.patch.object(diffsync_models.DiffSyncModel, "create") as mock_super:
@@ -660,7 +660,7 @@ class TestInterfaceModel(_ModelTestBase):
         ip_obj.ip_version = ip_version
 
         with (
-            _nb_patch("get_tagged_device", return_value=device_obj),
+            _nb_patch("get_syncable_device", return_value=device_obj),
             _nb_patch("create_interface", return_value=interface_obj),
             _nb_patch("create_ip", return_value=ip_obj),
             mock.patch.object(diffsync_models.DiffSyncModel, "create"),
@@ -706,7 +706,7 @@ class TestInterfaceModel(_ModelTestBase):
         diff_model.adapter = self.adapter
 
         with (
-            _nb_patch("get_tagged_device", return_value=device),
+            _nb_patch("get_syncable_device", return_value=device),
             _nb_patch("get_device_interfaces_by_name", return_value={"eth0": interface_obj}),
             mock.patch.object(DiffSyncExtras, "safe_delete") as mock_safe_delete,
             mock.patch.object(diffsync_models.DiffSyncModel, "delete"),
@@ -734,7 +734,7 @@ class TestInterfaceModel(_ModelTestBase):
         new_ip = mock.MagicMock()
 
         with (
-            _nb_patch("get_tagged_device", return_value=device),
+            _nb_patch("get_syncable_device", return_value=device),
             _nb_patch("get_device_interfaces_by_name", return_value={"eth0": interface_obj}),
             _nb_patch("create_ip", return_value=new_ip) as create_ip,
             _nb_patch("tag_object"),
@@ -755,7 +755,7 @@ class TestInterfaceModel(_ModelTestBase):
         interface_obj.ip_addresses.first.return_value = existing_ip
 
         with (
-            _nb_patch("get_tagged_device", return_value=device),
+            _nb_patch("get_syncable_device", return_value=device),
             _nb_patch("get_device_interfaces_by_name", return_value={"eth0": interface_obj}),
             _nb_patch("tag_object"),
             mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),

@@ -16,9 +16,9 @@ from collections import defaultdict
 from diffsync.enum import DiffSyncFlags
 from ipfabric.models.device import Device as IPFDevice
 from nautobot.apps.testing import TestCase
-from nautobot.dcim.models import Interface
+from nautobot.dcim.models import Device, Interface
 from nautobot.extras.management import populate_status_choices
-from nautobot.extras.models import JobResult, Status
+from nautobot.extras.models import JobResult, Status, Tag
 from nautobot.ipam.choices import PrefixTypeChoices
 from nautobot.ipam.models import IPAddress, Prefix, get_default_namespace
 
@@ -196,3 +196,54 @@ class SyncConvergenceTestCase(TestCase):
         self.assertTrue(addressed, "Expected the fixtures to put an address on at least one Interface.")
         for interface, addresses in addressed.items():
             self.assertEqual(len(addresses), 1, f"{interface} holds {addresses}")
+
+    def test_a_changed_subnet_mask_is_applied_and_then_settles(self):
+        """The reported case: the Interface exists and only the subnet mask disagrees.
+
+        IP Fabric reports the mask of the subnet an address sits in, so a subnet re-described in IP
+        Fabric changes that mask while the address in Nautobot keeps the old one. The run that sees
+        the difference has to apply it, or every later run reports it again.
+        """
+        self.sync_once()
+        # IP Fabric now describes the same address as sitting in a narrower subnet.
+        self.networks = [
+            dict(entry, net="10.10.0.0/25") if entry["ip"] == "10.10.0.10" else entry for entry in self.networks
+        ]
+
+        first = self.remaining_diff()
+        self.assertIn(
+            "interface",
+            self.changed_attributes(first),
+            "Expected the narrower subnet to be reported before it is applied.",
+        )
+
+        self.sync_once()
+        second = self.remaining_diff()
+
+        self.assertEqual(
+            self.changed_attributes(second),
+            {},
+            f"Applied once, the mask still differs: {second.str()}",
+        )
+
+    def test_a_change_is_applied_to_a_device_this_integration_did_not_tag(self):
+        """With Sync Tagged Only off, Nautobot loads untagged Devices, so writes must reach them.
+
+        `get_tagged_device` matches on the Tag, and a miss is reported as a warning rather than an
+        error, so the change is reported on every run and quietly never applied.
+        """
+        self.sync_once()
+        device = Device.objects.get(name="jcy-rtr-02")
+        device.tags.remove(Tag.objects.get(name="SSoT Synced from IPFabric"))
+        self.networks = [
+            dict(entry, net="10.10.0.0/25") if entry["ip"] == "10.10.0.10" else entry for entry in self.networks
+        ]
+
+        self.sync_once()
+        diff = self.remaining_diff()
+
+        self.assertEqual(
+            self.changed_attributes(diff),
+            {},
+            f"An untagged Device never has the change applied: {diff.str()}",
+        )

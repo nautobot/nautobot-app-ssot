@@ -622,12 +622,14 @@ class Interface(DiffSyncExtras):
         ip_address = attrs["ip_address"]
         subnet_mask = attrs["subnet_mask"]  # TODO: switch to cidr notation since both APIs use that format
         # A Device queued earlier in this run is not in the database yet, so it is looked for there
-        # first. `get_tagged_device` is cached, so it is asked second rather than taught about the
+        # first. `get_syncable_device` is cached, so it is asked second rather than taught about the
         # queue.
         device_obj = None
         if adapter.pending_writes is not None:
             device_obj = adapter.pending_writes.find(NautobotDevice, device_name)
-        device_obj = device_obj or tonb_nbutils.get_tagged_device(device_name)
+        device_obj = device_obj or tonb_nbutils.get_syncable_device(
+            device_name, tagged_only=adapter.sync_ipfabric_tagged_only
+        )
         if device_obj:
             return_super = True
             if not attrs.get("mac_address"):
@@ -697,7 +699,7 @@ class Interface(DiffSyncExtras):
     @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete Interface Object."""
-        device = tonb_nbutils.get_tagged_device(self.device_name)
+        device = tonb_nbutils.get_syncable_device(self.device_name, tagged_only=self.adapter.sync_ipfabric_tagged_only)
         if device:
             return_super = True
             # Every Interface of the Device at once, so removing many of them costs one lookup
@@ -736,7 +738,7 @@ class Interface(DiffSyncExtras):
     @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):  # pylint: disable=too-many-branches
         """Update Interface object in Nautobot."""
-        device = tonb_nbutils.get_tagged_device(self.device_name)
+        device = tonb_nbutils.get_syncable_device(self.device_name, tagged_only=self.adapter.sync_ipfabric_tagged_only)
         if device:  # pylint: disable=too-many-nested-blocks
             return_super = True
             # Every Interface of the Device at once, so a Device with many of them changing costs
@@ -1022,11 +1024,12 @@ class Cable(DiffSyncExtras):
         if adapter.pending_writes is not None:
             adapter.flush_pending_writes()
         job_logger = adapter.job.logger
+        tagged_only = adapter.sync_ipfabric_tagged_only
         interface_a = tonb_nbutils.get_tagged_interface(
-            ids["termination_a_device"], ids["termination_a_name"], logger=job_logger
+            ids["termination_a_device"], ids["termination_a_name"], logger=job_logger, tagged_only=tagged_only
         )
         interface_b = tonb_nbutils.get_tagged_interface(
-            ids["termination_b_device"], ids["termination_b_name"], logger=job_logger
+            ids["termination_b_device"], ids["termination_b_name"], logger=job_logger, tagged_only=tagged_only
         )
         if not interface_a or not interface_b:
             return None, None

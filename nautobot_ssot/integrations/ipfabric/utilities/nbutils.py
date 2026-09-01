@@ -11,7 +11,6 @@ from typing import Any, Optional
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
-from django.db.models import Q
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import (
     Device,
@@ -660,10 +659,18 @@ def get_global_namespace() -> Namespace:
 
 
 @job_scoped_cache(group=BULK_WRITTEN_LOOKUPS)
-def get_tagged_device(device_name: str) -> Device:
-    """Cached lookup for Devices, used in interface operations."""
-    ssot_tag = get_or_create_tag_object(tag_name="SSoT Synced from IPFabric")
-    return Device.objects.filter(Q(name=device_name) & Q(tags=ssot_tag)).first()
+def get_syncable_device(device_name: str, tagged_only: bool = True) -> Optional[Device]:
+    """Return the Device an Interface or Cable operation is for, or None when it is out of scope.
+
+    `tagged_only` mirrors the job option of that name, and has to, because the Nautobot adapter reads
+    Devices under the same condition. A run that loads every Device must be able to write to every
+    Device: matching on the Tag while the adapter loaded without it leaves those Devices' Interfaces
+    reported as changed on every run and never written, and reported only as a warning.
+    """
+    devices = Device.objects.filter(name=device_name)
+    if tagged_only:
+        devices = devices.filter(tags=get_or_create_tag_object(tag_name="SSoT Synced from IPFabric"))
+    return devices.first()
 
 
 @job_scoped_cache(group=BULK_WRITTEN_LOOKUPS, maxsize=2)
@@ -685,24 +692,29 @@ def get_device_interfaces_by_name(device: Device) -> dict:
 
 # Not cached, so that callers which mutate an Interface's relations see them afresh
 def get_tagged_interface(
-    device_name: str, interface_name: str, logger: Optional[logging.Logger] = None
+    device_name: str,
+    interface_name: str,
+    logger: Optional[logging.Logger] = None,
+    tagged_only: bool = True,
 ) -> Optional[Interface]:
-    """Retrieve an Interface belonging to a Device tagged as synced from IP Fabric.
+    """Retrieve an Interface belonging to a Device this run covers.
 
     Args:
         device_name: Name of the Device the Interface belongs to.
         interface_name: Name of the Interface.
         logger: Logger to use for messaging.
+        tagged_only: Whether only Devices tagged as synced from IP Fabric are in scope, mirroring
+            the job option of that name.
 
     Returns:
         Interface: When the Interface is found.
         None: When either the Device or the Interface cannot be found.
     """
-    device = get_tagged_device(device_name)
+    device = get_syncable_device(device_name, tagged_only=tagged_only)
     if not device:
         if logger:
             logger.warning(
-                f"Unable to find a Device named {device_name} tagged as synced from IPFabric, "
+                f"Unable to find a Device named {device_name} in the scope of this sync, "
                 f"so its Interface named {interface_name} cannot be retrieved"
             )
         return None

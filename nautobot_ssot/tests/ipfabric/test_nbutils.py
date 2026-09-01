@@ -37,7 +37,7 @@ from nautobot_ssot.integrations.ipfabric.utilities import (
     get_or_create_tag_object,
     get_or_create_virtual_chassis_object,
     get_platform_object,
-    get_tagged_device,
+    get_syncable_device,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
     deferred_change_logging,
@@ -962,33 +962,38 @@ class TestNautobotUtils(TestCase):
         vc.refresh_from_db()
         self.assertEqual(vc.master_id, second.id)
 
-    # ===== get_tagged_device =====
+    # ===== get_syncable_device =====
 
-    def test_get_tagged_device_match(self):
+    def test_get_syncable_device_match(self):
         """Test returns the device when name and SSoT tag match."""
         ssot_tag, _ = Tag.objects.get_or_create(
             name="SSoT Synced from IPFabric", defaults={"color": ColorChoices.COLOR_LIGHT_GREEN}
         )
         ssot_tag.content_types.add(self.content_type)
         self.device.tags.add(ssot_tag)
-        result = get_tagged_device(self.device.name)
+        result = get_syncable_device(self.device.name)
         self.assertEqual(result.id, self.device.id)
 
-    def test_get_tagged_device_no_match(self):
+    def test_get_syncable_device_no_match(self):
         """Test returns None when device has no SSoT tag."""
-        result = get_tagged_device("Test-Device")
+        result = get_syncable_device("Test-Device")
         self.assertIsNone(result)
 
-    def test_get_tagged_device_cache_reuse(self):
+    def test_get_syncable_device_finds_an_untagged_device_when_the_run_is_not_tagged_only(self):
+        """The Nautobot adapter loads every Device then, so every Device has to be writable."""
+        result = get_syncable_device(self.device.name, tagged_only=False)
+        self.assertEqual(result.id, self.device.id)
+
+    def test_get_syncable_device_cache_reuse(self):
         """Test second call hits the cache and skips DB."""
         ssot_tag, _ = Tag.objects.get_or_create(
             name="SSoT Synced from IPFabric", defaults={"color": ColorChoices.COLOR_LIGHT_GREEN}
         )
         ssot_tag.content_types.add(self.content_type)
         self.device.tags.add(ssot_tag)
-        first = get_tagged_device(self.device.name)
+        first = get_syncable_device(self.device.name)
         with mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Device.objects.filter") as mock_filter:
-            second = get_tagged_device(self.device.name)
+            second = get_syncable_device(self.device.name)
             mock_filter.assert_not_called()
         self.assertIs(first, second)
 
