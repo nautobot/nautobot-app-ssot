@@ -6,3 +6,4 @@ Fixed Bulk Write Mode failing an entire batch of Devices, and ending the job wit
 Fixed the IP Fabric job reusing the object caches of an earlier run in the same worker when that run failed before clearing them.
 Fixed Bulk Write Mode failing every Cable in a sync, because a Cable reads back Interfaces that the mode had only queued.
 Fixed Bulk Write Mode ending a job with a foreign key violation when IP Fabric reported one IP Address on more than one Interface, and writing a row that referenced an object the database had refused.
+Fixed the IP Fabric sync recording a Cable for only one of the links on an Interface IP Fabric reports several times, such as a cloud subnet's, and choosing a different one on each run so that a re-sync replaced the Cable the previous one had made.

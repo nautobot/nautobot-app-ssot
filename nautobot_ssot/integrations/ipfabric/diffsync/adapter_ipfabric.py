@@ -164,8 +164,13 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 return False
         return True
 
-    def load_cables(self):
-        """Add IP Fabric connectivity matrix entries as DiffSync Cable models."""
+    def reported_links(self):
+        """Return the links the connectivity matrix describes, as canonically ordered endpoint pairs.
+
+        A set, because the matrix reports each link once from each of its two devices and both
+        reports reduce to the same pair.
+        """
+        links = set()
         for link in self.client.technology.interfaces.connectivity_matrix.all():
             local = self.link_endpoint(link, "local")
             remote = self.link_endpoint(link, "remote")
@@ -176,23 +181,56 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             if local == remote:
                 logger.warning(f"Skipping connectivity matrix entry that links an Interface to itself, {link}")
                 continue
-            endpoint_a, endpoint_b = canonical_endpoints(local, remote)
-            if not self.endpoints_are_cableable(endpoint_a, endpoint_b):
+            links.add(canonical_endpoints(local, remote))
+        return links
+
+    def recordable_links(self):
+        """Return the reported links Nautobot can record, which is at most one per Interface.
+
+        An Interface terminates at most one Cable in every version this app supports. The versions
+        that model breakout cables give one Cable several terminations per side; they do not give an
+        Interface several Cables. IP Fabric describes a cloud subnet as a link from each Interface in
+        it to the subnet, so one Interface can be reported on many links and only one can be kept.
+
+        Taken in sorted order, so that the link kept is the same one on every run. Choosing
+        differently between runs would leave each run deleting the Cable the run before it made.
+        """
+        taken = set()
+        recordable = []
+        unrecordable = defaultdict(int)
+        for endpoints in sorted(self.reported_links()):
+            if not self.endpoints_are_cableable(*endpoints):
                 continue
-            cable = self.cable(
-                termination_a_device=endpoint_a[0],
-                termination_a_name=endpoint_a[1],
-                termination_b_device=endpoint_b[0],
-                termination_b_name=endpoint_b[1],
-                status=DEFAULT_CABLE_STATUS,
+            occupied = [endpoint for endpoint in endpoints if endpoint in taken]
+            if occupied:
+                for endpoint in occupied:
+                    unrecordable[endpoint] += 1
+                continue
+            taken.update(endpoints)
+            recordable.append(endpoints)
+
+        for (device_name, interface_name), count in sorted(unrecordable.items()):
+            logger.warning(
+                "%s:%s is reported on %d further link(s), which Nautobot cannot record because an "
+                "Interface terminates at most one Cable",
+                device_name,
+                interface_name,
+                count,
             )
-            try:
-                self.add(cable)
-            except ObjectAlreadyExists:
-                # Expected: the matrix reports each link from both devices, and both resolve to
-                # the same Cable.
-                if self.job.debug:
-                    logger.debug("Already loaded a Cable for %s", cable.get_unique_id())
+        return recordable
+
+    def load_cables(self):
+        """Add IP Fabric connectivity matrix entries as DiffSync Cable models."""
+        for endpoint_a, endpoint_b in self.recordable_links():
+            self.add(
+                self.cable(
+                    termination_a_device=endpoint_a[0],
+                    termination_a_name=endpoint_a[1],
+                    termination_b_device=endpoint_b[0],
+                    termination_b_name=endpoint_b[1],
+                    status=DEFAULT_CABLE_STATUS,
+                )
+            )
 
     def load_data(self):
         """Load shared data from IP Fabric.

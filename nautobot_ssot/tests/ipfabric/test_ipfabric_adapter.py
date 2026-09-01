@@ -369,3 +369,67 @@ class IPFabricDiffSyncCableTestCase(TestCase):
         self.assertIsNone(self.ipfabric.link_endpoint({"localHost": "nyc-rtr-01", "localInt": None}, "local"))
         self.assertIsNone(self.ipfabric.link_endpoint({"localHost": None, "localInt": "eth1"}, "local"))
         self.assertIsNone(self.ipfabric.link_endpoint({}, "remote"))
+
+
+class IPFabricDiffSyncSharedEndpointTestCase(TestCase):
+    """Test a topology Nautobot's one Cable per Interface rule cannot hold.
+
+    IP Fabric describes a cloud subnet as a link from every Interface in it to the subnet, so the
+    subnet's own Interface is reported on as many links as the subnet has members.
+    """
+
+    EXTRA_INTERFACES = [
+        {"hostname": "nyc-leaf-01", "sn": "5254.0029.fbf2", "intName": "Et20", "media": None, "mtu": 9214},
+    ] + [
+        {"hostname": "nyc-spine-02", "sn": "5254.00d3.a91d", "intName": peer, "media": None, "mtu": 9214}
+        for peer in ("Et5", "Et6", "Et7")
+    ]
+
+    FAN_OUT = [
+        {
+            "localHost": "nyc-leaf-01",
+            "localInt": "Et20",
+            "localSn": "5254.0029.fbf2",
+            "localMedia": "10GBase-SR",
+            "protocol": "lldp",
+            "remoteHost": "nyc-spine-02",
+            "remoteInt": peer,
+            "remoteSn": "5254.00d3.a91d",
+            "remoteMedia": "10GBase-SR",
+            "siteName": "NYC-LEAF-01",
+        }
+        for peer in ("Et5", "Et6", "Et7")
+    ]
+
+    @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
+    def setUp(self):
+        client = mock_ipfabric_client()
+        client.inventory.interfaces.all.return_value = INTERFACE_FIXTURE + self.EXTRA_INTERFACES
+        client.technology.interfaces.connectivity_matrix.all.return_value = self.FAN_OUT
+        self.ipfabric = build_adapter(client=client, sync_cables=True)
+
+    def test_a_shared_interface_yields_one_cable(self):
+        self.assertEqual(len(self.ipfabric.get_all("cable")), 1)
+
+    def test_the_link_kept_is_the_lowest_sorting_one(self):
+        """Deterministic, so a re-sync settles rather than replacing the Cable the last run made."""
+        cable = self.ipfabric.get_all("cable")[0]
+        self.assertEqual(
+            {
+                (cable.termination_a_device, cable.termination_a_name),
+                (cable.termination_b_device, cable.termination_b_name),
+            },
+            {("nyc-leaf-01", "Ethernet20"), ("nyc-spine-02", "Ethernet5")},
+        )
+
+    def test_the_same_link_is_kept_on_every_run(self):
+        self.assertEqual(self.ipfabric.recordable_links(), self.ipfabric.recordable_links())
+
+    def test_the_links_that_cannot_be_recorded_are_reported(self):
+        """An operator seeing fewer Cables than IP Fabric reports needs to be told why."""
+        with self.assertLogs("nautobot.jobs", level="WARNING") as logs:
+            self.ipfabric.recordable_links()
+
+        logged = " ".join(logs.output)
+        self.assertIn("nyc-leaf-01:Ethernet20", logged)
+        self.assertIn("2 further link", logged)

@@ -144,6 +144,7 @@ Only links with both endpoints in scope are synced, since a Cable with one end o
 - Either Interface was not loaded, because a Site filter excludes the far end, or because the far end is a stack member whose interfaces IP Fabric reports against the stack master.
 - Either Interface is virtual or wireless. Nautobot refuses to cable these types, and IP Fabric reports links over tunnel interfaces.
 - The entry does not name both a device and an interface on each side.
+- The Interface at either end is already recorded on a link kept earlier in the same run. IP Fabric describes a shared segment, such as a cloud subnet, as a link from every Interface in it to the segment, so one Interface can be reported on many links. Nautobot terminates at most one Cable on an Interface, so the lowest sorting of those links is kept and the rest are logged. The choice is by sort order rather than by whichever came first in the data, so that a re-sync keeps the same link instead of replacing the Cable the previous run recorded.
 
 When IP Fabric reports a link that has moved, the Cable holding the Interface must be removed before the new one can be recorded. With **Safe Delete Mode** enabled, this does not happen; the conflict is logged as a warning and the new Cable is not created, leaving the change for an operator to review. With Safe Delete Mode disabled, the stale Cable is deleted and the new one is created.
 
