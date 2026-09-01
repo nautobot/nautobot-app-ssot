@@ -771,13 +771,26 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
                 logger=logger,
             )
         ip_obj = resolve_ip(f"{ip_address}/{cidr}", status_obj, logger=logger)
-        if ip_obj is not None and not ip_obj.present_in_database:
+        if ip_obj is None:
+            pass
+        elif not ip_obj.present_in_database:
             try:
                 ip_obj.validated_save()
             except (DjangoBaseDBError, ValidationError) as err:
                 if logger:
                     logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}. Error: {err}")
                 ip_obj = None
+        elif ip_obj.mask_length != cidr:
+            ip_obj.mask_length = cidr
+            try:
+                ip_obj.validated_save()
+            except (DjangoBaseDBError, ValidationError) as err:
+                if logger:
+                    logger.error(
+                        f"Unable to change the mask of IPAddress {ip_address} to /{cidr}, "
+                        f"which IP Fabric reports as {subnet_mask}. Error: {err}"
+                    )
+                ip_obj.refresh_from_db()
 
         if ip_obj:
             if object_pk:
@@ -885,6 +898,11 @@ def create_parent_prefix(address: str, logger: Optional[logging.Logger] = None) 
     return True
 
 
+def mask_length_of(address: str) -> int:
+    """Return the mask length from an address in CIDR notation."""
+    return int(address.split("/")[1])
+
+
 def resolve_ip(address: str, status_obj: Status, logger: Optional[logging.Logger] = None) -> Optional[IPAddress]:
     """Return the IPAddress to use for `address`, whether Nautobot already holds one or not.
 
@@ -923,6 +941,10 @@ def queue_ip(
     address IP Fabric reports on two Interfaces would have the database refuse it. See `resolve_ip`
     for why the match is not on the address alone.
 
+    An address Nautobot holds under a different mask has that mask corrected. IP Fabric reports the
+    subnet an address sits in, and that mask is the attribute the sync keeps, so leaving it alone
+    would have the difference reported on every run without ever settling.
+
     `IPAddress.save()` calls `clean()` to work out which Prefix the address belongs under, and a
     batched insert calls neither, so `clean()` is run here. It is also what rejects an address the
     sync should not be writing, which is worth keeping even in bulk mode: the alternative is a row
@@ -945,6 +967,8 @@ def queue_ip(
             stamp_synced(ip_obj, LAST_SYNCHRONIZED_CF_NAME)
             pending.add(ip_obj, key=key)
             queue_synced_tag(pending, ip_obj)
+    elif ip_obj.mask_length != mask_length_of(address):
+        pending.defer_update(ip_obj, {"mask_length": mask_length_of(address)})
 
     if interface is not None:
         pending.add_through(IPAddressToInterface(ip_address=ip_obj, interface_id=interface.pk))

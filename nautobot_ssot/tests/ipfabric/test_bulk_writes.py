@@ -1094,6 +1094,32 @@ class NewAddressResolutionTestCase(TestCase):
             ["10.54.0.0/25"],
         )
 
+    def test_the_mask_of_a_reused_address_is_corrected(self):
+        """IP Fabric reports the subnet an address sits in, and that mask is what the sync keeps.
+
+        Left as Nautobot holds it, the difference is reported on every run and never settles.
+        """
+        self.make_prefix("10.55.0.0/25")
+        existing = IPAddress(address="10.55.0.1/25", namespace=self.namespace, status=self.active)
+        existing.validated_save()
+
+        nbutils.create_ip("10.55.0.1", "255.255.255.0", logger=self.logger)
+
+        self.assertEqual(IPAddress.objects.get(pk=existing.pk).mask_length, 24)
+        self.assertEqual(self.errors(), [])
+
+    def test_the_mask_of_a_reused_address_is_corrected_in_bulk_mode_too(self):
+        self.make_prefix("10.56.0.0/25")
+        existing = IPAddress(address="10.56.0.1/25", namespace=self.namespace, status=self.active)
+        existing.validated_save()
+        pending = PendingWrites()
+
+        nbutils.create_ip("10.56.0.1", "255.255.255.0", logger=self.logger, pending=pending)
+        pending.flush()
+
+        self.assertEqual(IPAddress.objects.get(pk=existing.pk).mask_length, 24)
+        self.assertEqual(self.errors(), [])
+
 
 class CommitTimeRefusalTestCase(TransactionTestCase):
     """Test what a batch does when PostgreSQL refuses it at `COMMIT` rather than at the insert.
