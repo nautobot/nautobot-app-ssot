@@ -34,7 +34,7 @@ from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 
-class PendingWritesTestCase(TestCase):
+class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-methods
     """Test queueing and flushing."""
 
     def setUp(self):
@@ -201,6 +201,50 @@ class PendingWritesTestCase(TestCase):
 
         self.assertIsNone(device.primary_ip4)
 
+    def _duplicate_addresses(self):
+        """Queue two IPAddress objects for one address, the second of which the database refuses.
+
+        Nautobot makes an address unique within its parent Prefix.
+        """
+        first = IPAddress(address="10.0.0.7/24", namespace=self.namespace, status=self.active)
+        first.parent = first._get_closest_parent()  # pylint: disable=protected-access
+        duplicate = IPAddress(address="10.0.0.7/24", namespace=self.namespace, status=self.active)
+        duplicate.parent = duplicate._get_closest_parent()  # pylint: disable=protected-access
+        self.pending.add(first)
+        self.pending.add(duplicate)
+        return first, duplicate
+
+    def test_a_join_row_is_dropped_when_the_object_it_points_at_is_refused(self):
+        """Writing it anyway leaves a foreign key pointing at nothing.
+
+        PostgreSQL only checks that at `COMMIT`, which belongs to whichever operation triggered the
+        flush, so the row that gets reported is not the one at fault and the job ends.
+        """
+        location = self.pending.add(self.build_location("orphan-join"))
+        device = self.pending.add(self.build_device("orphan-join-device", location))
+        interface = self.pending.add(self.build_interface("eth0", device))
+        _first, duplicate = self._duplicate_addresses()
+        self.pending.add_through(IPAddressToInterface(ip_address=duplicate, interface_id=interface.pk))
+
+        with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
+            self.pending.flush()
+
+        self.assertEqual(IPAddress.objects.filter(host="10.0.0.7").count(), 1)
+        self.assertFalse(IPAddressToInterface.objects.filter(ip_address_id=duplicate.pk).exists())
+        self.assertIn("could not be written", " ".join(logs.output))
+
+    def test_a_deferred_update_is_dropped_when_the_value_it_sets_is_refused(self):
+        location = self.pending.add(self.build_location("orphan-update"))
+        device = self.pending.add(self.build_device("orphan-update-device", location))
+        _first, duplicate = self._duplicate_addresses()
+        self.pending.defer_update(device, {"primary_ip4": duplicate})
+
+        with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
+            self.pending.flush()
+
+        self.assertIsNone(Device.objects.get(pk=device.pk).primary_ip4)
+        self.assertIn("primary_ip4", " ".join(logs.output))
+
     # --- bookkeeping ---
 
     def test_counts_report_what_is_waiting(self):
@@ -335,6 +379,21 @@ class BulkModeInterfaceTestCase(TestCase):
             "address_stamped": address.cf.get("system_of_record"),
             "primary_ip": str(self.device.primary_ip4.host),
         }
+
+    def test_one_address_on_two_interfaces_is_queued_once(self):
+        """IP Fabric reports a shared address on each Interface holding it.
+
+        The address is unique within its Prefix, so queueing a second one has the database refuse it
+        and leaves its Interface assignment pointing at a row that was never written.
+        """
+        adapter = self.adapter(bulk_write_mode=True)
+        self.create_interface(adapter, "eth0", "10.0.0.9")
+        self.create_interface(adapter, "eth1", "10.0.0.9")
+
+        adapter.flush_pending_writes()
+
+        address = IPAddress.objects.get(host="10.0.0.9")
+        self.assertEqual(sorted(interface.name for interface in address.interfaces.all()), ["eth0", "eth1"])
 
     def test_bulk_mode_lands_the_same_rows(self):
         """Every field a per-object write produces has to come out of the batched one too."""

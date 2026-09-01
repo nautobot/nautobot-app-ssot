@@ -5,3 +5,4 @@ Fixed the IP Fabric adapter rejecting an IP Address whose only containing Prefix
 Fixed Bulk Write Mode failing an entire batch of Devices, and ending the job with a `DoesNotExist` exception, when a Device carried a primary IP Address that the same run had yet to write.
 Fixed the IP Fabric job reusing the object caches of an earlier run in the same worker when that run failed before clearing them.
 Fixed Bulk Write Mode failing every Cable in a sync, because a Cable reads back Interfaces that the mode had only queued.
+Fixed Bulk Write Mode ending a job with a foreign key violation when IP Fabric reported one IP Address on more than one Interface, and writing a row that referenced an object the database had refused.

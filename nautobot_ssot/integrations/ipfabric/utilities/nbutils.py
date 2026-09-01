@@ -898,26 +898,25 @@ def queue_ip(
 ) -> Optional[IPAddress]:
     """Queue an IPAddress, and its assignment to an Interface, for a batched write.
 
-    An address Nautobot already holds is reused rather than queued, so a re-sync does not try to
-    insert it again.
+    An address already written, or already queued by this run, is reused rather than queued again.
+    Nautobot makes an address unique within its parent Prefix, so queueing a second one for an
+    address IP Fabric reports on two Interfaces would have the database refuse it.
 
     `IPAddress.save()` calls `clean()` to work out which Prefix the address belongs under, and a
     batched insert calls neither, so `clean()` is run here. It is also what rejects an address the
     sync should not be writing, which is worth keeping even in bulk mode: the alternative is a row
     with no parent Prefix, which leaves the address orphaned in IPAM.
     """
-    existing = IPAddress.objects.filter(address=address).first()
-    if existing is None:
+    ip_obj = IPAddress.objects.filter(address=address).first() or pending.find(IPAddress, address)
+    if ip_obj is None:
         ip_obj = resolve_new_ip(address, status_obj, logger=logger)
         if ip_obj is None:
             if logger:
                 logger.error(f"Unable to queue an IPAddress of {address} for a bulk write")
             return None
         stamp_synced(ip_obj, LAST_SYNCHRONIZED_CF_NAME)
-        pending.add(ip_obj)
+        pending.add(ip_obj, key=address)
         queue_synced_tag(pending, ip_obj)
-    else:
-        ip_obj = existing
 
     if interface is not None:
         pending.add_through(IPAddressToInterface(ip_address=ip_obj, interface_id=interface.pk))

@@ -22,11 +22,11 @@ does not fire. They keep the per-object path.
 
 import logging
 from collections import defaultdict
-from typing import Any, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Set, Tuple
 
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import Error as DjangoBaseDBError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from nautobot.dcim.models import Device, Interface, Location
 from nautobot.extras.models import TaggedItem
 from nautobot.ipam.models import VLAN, IPAddress, IPAddressToInterface, VLANLocationAssignment
@@ -44,6 +44,18 @@ LEVELS: Tuple[Any, ...] = (Location, Device, Interface, IPAddress, VLAN)
 # Join tables, written once the rows they point at exist. None of these define `save()`, so there is
 # nothing for a batched insert to skip.
 THROUGH_LEVELS: Tuple[Any, ...] = (TaggedItem, IPAddressToInterface, VLANLocationAssignment)
+
+
+def _check_deferred_constraints(model: Any) -> None:
+    """Check the foreign keys of a just written batch, where the database would otherwise defer them.
+
+    PostgreSQL declares foreign keys deferrable and checks them at `COMMIT`, and that commit belongs
+    to whichever model operation triggered the flush, not to the collector. Checking here turns a
+    broken reference into a refusal this batch can report and retry, instead of a failure that ends
+    the job and loses every write in the enclosing transaction.
+    """
+    if connection.features.can_defer_constraint_checks:
+        connection.check_constraints(table_names=[model._meta.db_table])  # pylint: disable=protected-access
 
 
 class PendingWrites:
@@ -112,20 +124,44 @@ class PendingWrites:
         """Write everything queued, parents before children, and return how many rows were written.
 
         Empties the collector as it goes, so a caller may flush repeatedly.
+
+        A row the database refuses is reported and skipped rather than ending the flush, so the join
+        rows and updates that reference it are dropped with it. Writing them anyway would point them
+        at nothing, and a foreign key to nothing fails the transaction the flush is running inside.
         """
         written = 0
+        missing: Set[Any] = set()
         for model in LEVELS:
-            written += self._insert(model, self._queued[model])
+            written += self._insert(model, self._queued[model], missing)
             self._queued[model] = []
             self._keys[model] = {}
         for model in THROUGH_LEVELS:
-            written += self._insert(model, self._through[model])
+            rows = self._without_missing_references(model, self._through[model], missing)
+            written += self._insert(model, rows, missing)
             self._through[model] = []
-        written += self._apply_updates()
+        written += self._apply_updates(missing)
         return written
 
-    def _insert(self, model: Any, objects: List[Any]) -> int:
-        """Insert the given objects in batches, falling back to one at a time on refusal."""
+    @staticmethod
+    def _without_missing_references(model: Any, rows: List[Any], missing: Set[Any]) -> List[Any]:
+        """Return the rows that reference only objects which were written, reporting the rest."""
+        if not missing:
+            return rows
+        foreign_keys = [field for field in model._meta.concrete_fields if field.many_to_one]  # pylint: disable=protected-access
+        kept = [row for row in rows if not any(getattr(row, field.attname) in missing for field in foreign_keys)]
+        if len(kept) != len(rows):
+            logger.warning(
+                "Skipped %d %s rows in bulk mode because an object they reference could not be written",
+                len(rows) - len(kept),
+                model.__name__,
+            )
+        return kept
+
+    def _insert(self, model: Any, objects: List[Any], missing: Set[Any]) -> int:
+        """Insert the given objects in batches, falling back to one at a time on refusal.
+
+        The primary keys of any objects that could not be written are added to `missing`.
+        """
         written = 0
         for start in range(0, len(objects), self.batch_size):
             batch = objects[start : start + self.batch_size]
@@ -133,14 +169,15 @@ class PendingWrites:
                 # Its own savepoint, so a refused batch leaves the transaction usable.
                 with transaction.atomic():
                     model.objects.bulk_create(batch)
+                    _check_deferred_constraints(model)
             except (IntegrityError, DjangoBaseDBError):
-                written += self._insert_one_at_a_time(model, batch)
+                written += self._insert_one_at_a_time(model, batch, missing)
             else:
                 written += len(batch)
         return written
 
     @staticmethod
-    def _insert_one_at_a_time(model: Any, objects: List[Any]) -> int:
+    def _insert_one_at_a_time(model: Any, objects: List[Any], missing: Set[Any]) -> int:
         """Insert objects individually, so one row a batch refused does not lose the rest.
 
         Validated on the way in, since a batch is only retried like this because something in it was
@@ -157,17 +194,30 @@ class PendingWrites:
             try:
                 with transaction.atomic():
                     instance.validated_save()
+                    _check_deferred_constraints(model)
             except (IntegrityError, DjangoBaseDBError, ValidationError, ObjectDoesNotExist) as error:
                 logger.warning("Unable to write %s %s in bulk mode: %s", model.__name__, instance, error)
+                missing.add(instance.pk)
             else:
                 written += 1
         return written
 
-    def _apply_updates(self) -> int:
-        """Apply the deferred field updates, grouped by model and by the fields they touch."""
+    def _apply_updates(self, missing: Set[Any]) -> int:
+        """Apply the deferred field updates, grouped by model and by the fields they touch.
+
+        An update is dropped when its own object or the object it points at could not be written.
+        """
         written = 0
         by_model_and_fields = defaultdict(list)
         for instance, values in self._updates:
+            if instance.pk in missing or any(getattr(value, "pk", None) in missing for value in values.values()):
+                logger.warning(
+                    "Unable to set %s on %s %s in bulk mode, as an object it references could not be written",
+                    ", ".join(values),
+                    type(instance).__name__,
+                    instance,
+                )
+                continue
             for field, value in values.items():
                 setattr(instance, field, value)
             by_model_and_fields[(type(instance), tuple(sorted(values)))].append(instance)
