@@ -49,6 +49,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         self.job = job
         self.sync = sync
         self.client = client
+        # Resolved once addressing is read, and empty when addresses are out of scope.
+        self.subnet_mask_by_address = {}
         if location_filter:
             self.client.attribute_filters = {"siteName": ["ieq", location_filter]}
             logging.info("Applied IP Fabric Attribute Filter: %s", self.client.attribute_filters)
@@ -66,7 +68,39 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Location discovered, {site}")
 
-    def load_device_interfaces(self, device_model, device_interfaces, device_primary_ip, managed_ipv4):
+    def subnet_masks_by_address(self, managed_ipv4):
+        """Return one subnet mask per address, the narrowest of those reported for it.
+
+        IP Fabric indexes addressing by serial number and so describes a subnet per device. An
+        address on two devices can therefore be reported in two subnets, and Nautobot holds one mask
+        per address: two Interfaces sharing that address cannot each have the mask they were reported
+        with, so whichever was written last won and the sync reported the difference for the other on
+        every run, alternating as the write order did.
+
+        The narrowest report is chosen because it is the one that agrees with the address's parent:
+        Nautobot parents an address to the most specific Prefix containing it. Choosing once, here,
+        is what lets a second sync settle.
+        """
+        lengths = {}
+        contested = set()
+        for by_address in managed_ipv4.values():
+            for address, record in by_address.items():
+                if not record.get("net"):
+                    continue
+                length = ipaddress.ip_network(record["net"], strict=False).prefixlen
+                if address in lengths and lengths[address] != length:
+                    contested.add(address)
+                lengths[address] = max(length, lengths.get(address, 0))
+        for address in sorted(contested):
+            logger.warning(
+                "IP Fabric reports %s in more than one subnet, so its Interfaces cannot each carry "
+                "the mask reported for them; using the narrowest, /%d",
+                address,
+                lengths[address],
+            )
+        return {address: str(ipaddress.ip_network(f"0.0.0.0/{length}").netmask) for address, length in lengths.items()}
+
+    def load_device_interfaces(self, device_model, device_interfaces, device_primary_ip):
         """Create and load DiffSync Interface model objects for a specific device."""
         # The pseudo interface exists only to carry a NAT management address, so with addresses out
         # of scope there is nothing for it to hold. Skipped rather than passed a null address, which
@@ -89,10 +123,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 ip_address = None
                 subnet_mask = None
             elif ip_address := iface.get("primaryIp") or iface.get("loginIpv4"):
-                if ip_address in managed_ipv4 and managed_ipv4[ip_address].get("net"):
-                    subnet_mask = str(ipaddress.ip_interface(managed_ipv4[ip_address]["net"]).netmask)
-                else:
-                    subnet_mask = "255.255.255.255"
+                # One mask per address rather than per device: see `subnet_masks_by_address`.
+                subnet_mask = self.subnet_mask_by_address.get(ip_address, "255.255.255.255")
             else:
                 subnet_mask = None
 
@@ -254,6 +286,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 columns=ip_columns, filters=ip_filter
             ):
                 managed_ipv4[ip_address["sn"]].update({ip_address["ip"]: ip_address})
+            self.subnet_mask_by_address = self.subnet_masks_by_address(managed_ipv4)
 
         # Get all interfaces for devices
         if self.scope.interfaces:
@@ -266,12 +299,12 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             columns=["master", "member", "memberSn", "pn", "sn"]
         ):
             stacks[stack["sn"]].append(stack)
-        return managed_ipv4, vlans_by_location, stacks, interfaces
+        return vlans_by_location, stacks, interfaces
 
     def load(self):  # pylint: disable=too-many-locals,too-many-statements
         """Load data from IP Fabric."""
         self.load_sites()
-        managed_ipv4, vlans_by_location, stacks, interfaces = self.load_data()
+        vlans_by_location, stacks, interfaces = self.load_data()
 
         for location in self.get_all(self.location):
             if location.name is None:
@@ -369,7 +402,6 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                                     device_model,
                                     interfaces.get(device.sn, []),
                                     device_primary_ip,
-                                    managed_ipv4.get(device.sn, {}),
                                 )
                     except ObjectAlreadyExists:
                         logger.warning(f"Duplicate Device discovered, {device.model_dump()}")

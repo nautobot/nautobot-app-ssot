@@ -247,3 +247,43 @@ class SyncConvergenceTestCase(TestCase):
             {},
             f"An untagged Device never has the change applied: {diff.str()}",
         )
+
+    def test_one_address_reported_with_two_subnets_does_not_oscillate(self):
+        """IP Fabric describes a subnet per device, so a shared address can be given two of them.
+
+        `managed_ip_ipv4` is indexed by serial number, so the same address carries whatever subnet
+        each device reports for it. Nautobot holds one mask per address, so two Interfaces sharing
+        that address cannot both have the mask they were reported with, and each run rewrites what
+        the last one wrote.
+        """
+        shared = "10.10.0.10"
+        self.interfaces = self.interfaces + [
+            {
+                "id": "99999999",
+                "hostname": "jcy-rtr-01",
+                "sn": "a000a01",
+                "intName": "Gi9",
+                "dscr": None,
+                "mac": "5254.0090.4b0b",
+                "duplex": "full",
+                "speed": 1000000000,
+                "media": None,
+                "mtu": 1500,
+                "primaryIp": shared,
+            }
+        ]
+        # The same address, in a different subnet according to each device.
+        self.networks = [
+            {"net": "10.10.0.0/24", "sn": "a000a02", "ip": shared},
+            {"net": "10.10.0.0/25", "sn": "a000a01", "ip": shared},
+        ]
+
+        self.sync_once()
+        self.sync_once()
+        diff = self.remaining_diff()
+
+        self.assertEqual(
+            self.changed_attributes(diff),
+            {},
+            f"One address reported with two subnets never settles: {diff.str()}",
+        )

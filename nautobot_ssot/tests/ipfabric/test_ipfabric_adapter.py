@@ -433,3 +433,43 @@ class IPFabricDiffSyncSharedEndpointTestCase(TestCase):
         logged = " ".join(logs.output)
         self.assertIn("nyc-leaf-01:Ethernet20", logged)
         self.assertIn("2 further link", logged)
+
+
+class SubnetMaskChoiceTestCase(TestCase):
+    """Test choosing one subnet mask for an address IP Fabric reports in more than one subnet."""
+
+    CONTESTED = {
+        "sn-a": {"10.0.0.1": {"ip": "10.0.0.1", "net": "10.0.0.0/24"}},
+        "sn-b": {"10.0.0.1": {"ip": "10.0.0.1", "net": "10.0.0.0/25"}},
+    }
+
+    def setUp(self):
+        self.ipfabric = build_adapter()
+
+    def test_the_narrowest_reported_subnet_is_chosen(self):
+        """Nautobot parents an address to the most specific Prefix containing it, so this agrees."""
+        chosen = self.ipfabric.subnet_masks_by_address(self.CONTESTED)
+        self.assertEqual(chosen["10.0.0.1"], "255.255.255.128")
+
+    def test_the_choice_does_not_follow_the_order_reported(self):
+        """IP Fabric's order is not guaranteed, and a choice that followed it would flip each run."""
+        reversed_order = {key: self.CONTESTED[key] for key in reversed(list(self.CONTESTED))}
+        self.assertEqual(
+            self.ipfabric.subnet_masks_by_address(self.CONTESTED),
+            self.ipfabric.subnet_masks_by_address(reversed_order),
+        )
+
+    def test_an_address_reported_in_two_subnets_is_named(self):
+        """One Interface will carry a mask it was not reported with, so the operator is told which."""
+        with self.assertLogs("nautobot.jobs", level="WARNING") as logs:
+            self.ipfabric.subnet_masks_by_address(self.CONTESTED)
+
+        self.assertIn("10.0.0.1", " ".join(logs.output))
+
+    def test_an_address_reported_once_is_left_as_reported(self):
+        chosen = self.ipfabric.subnet_masks_by_address({"sn-a": self.CONTESTED["sn-a"]})
+        self.assertEqual(chosen["10.0.0.1"], "255.255.255.0")
+
+    def test_a_record_without_a_subnet_is_skipped(self):
+        chosen = self.ipfabric.subnet_masks_by_address({"sn-a": {"10.0.0.9": {"ip": "10.0.0.9", "net": None}}})
+        self.assertEqual(chosen, {})

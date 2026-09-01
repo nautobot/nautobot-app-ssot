@@ -133,6 +133,12 @@ Cables are built from IP Fabric's connectivity matrix (`tables/interfaces/connec
 | localInt/remoteInt   | Cable.termination_b_name     | Cable.termination_b.name    |
 | N/A                  | Cable.status                 | Cable.status                |
 
+## Subnet Masks
+
+IP Fabric describes a subnet per Device, so an address on several Devices carries whatever subnet each of them reports for it. Nautobot holds one mask per IP Address, and parents an address to the most specific Prefix containing it, so two records for one address in a Namespace cannot coexist.
+
+Where the reports disagree, the sync takes the narrowest of them for every Interface carrying that address, which is the report that agrees with the address's parent Prefix, and logs the address it did this for. Choosing once rather than per Device is what lets the mask settle; following each Device's own report left every run rewriting what the last had written.
+
 ## Sync Tagged Only
 
 With **Sync Tagged Only** selected, which is the default, the sync reads and writes only Devices carrying the `SSoT Synced from IPFabric` Tag. Deselecting it brings every Device in the selected Locations into scope, including Devices another process created, and the sync then updates their Interfaces as well as those of the Devices it created itself.
