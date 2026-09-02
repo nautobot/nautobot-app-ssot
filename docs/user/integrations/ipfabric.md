@@ -135,9 +135,21 @@ Cables are built from IP Fabric's connectivity matrix (`tables/interfaces/connec
 
 ## Subnet Masks
 
+An address has no mask of its own in IP Fabric. The mask comes from the managed address table (`technology.addressing.managed_ip_ipv4`, filtered to primary addresses), which is the only place IP Fabric says what subnet an address was configured with.
+
 IP Fabric describes a subnet per Device, so an address on several Devices carries whatever subnet each of them reports for it. Nautobot holds one mask per IP Address, and parents an address to the most specific Prefix containing it, so two records for one address in a Namespace cannot coexist.
 
 Where the reports disagree, the sync takes the narrowest of them for every Interface carrying that address, which is the report that agrees with the address's parent Prefix, and logs the address it did this for. Choosing once rather than per Device is what lets the mask settle; following each Device's own report left every run rewriting what the last had written.
+
+### When no subnet is reported at all
+
+With **Strict Subnet Masks** selected, which is the default, an address the table does not cover is reported as absent. The mask Nautobot already holds is then left alone, and an address Nautobot does not hold is not created. The job logs how many Interfaces this applied to; enable **Debug** to see which addresses they were and on which Interface each was found.
+
+The option governs reading on both sides, as **Sync Tagged Only** does, so that an address withheld from writing is not reported as a difference on every run.
+
+Deselecting it restores the previous behaviour: the address is synced with a `/32`. That puts it under the wrong parent Prefix and leaves nothing to distinguish it from an address genuinely configured as a host route, so every use of the fallback is logged as a warning naming the address. Turn it off only where a host mask is preferable to no change at all.
+
+A NAT management address is unaffected by either setting. It belongs to no interface, so IP Fabric reports no subnet for it and a host mask is the whole of it. It is always synced as a `/32`.
 
 ## Sync Tagged Only
 

@@ -52,16 +52,19 @@ def mock_ipfabric_client():
     return ipfabric_client
 
 
-def build_adapter(client=None, **scope_kwargs):
+def build_adapter(client=None, logger=None, strict_subnet_masks=True, **scope_kwargs):
     """Return a loaded IPFabricDiffSync over the JSON fixtures, scoped by `scope_kwargs`."""
     job = IpFabricDataSource()
     job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
+    if logger is not None:
+        job.logger = logger
     adapter = IPFabricDiffSync(
         job=job,
         sync=None,
         client=client if client is not None else mock_ipfabric_client(),
         location_filter=None,
         scope=SyncScope.from_job_kwargs(scope_kwargs),
+        strict_subnet_masks=strict_subnet_masks,
     )
     adapter.load()
     return adapter
@@ -129,17 +132,22 @@ class IPFabricDiffSyncTestCase(TestCase):
             self.assertTrue(hasattr(interface, "ip_address"))
             self.assertTrue(hasattr(interface, "subnet_mask"))
             self.assertTrue(hasattr(interface, "type"))
-            # Test network not in NETWORKS_FIXTURE uses default of /32
-            if interface.name in ["pseudo_mgmt", "Ethernet1"]:
+            # Test a NAT management address, which belongs to no subnet, uses a host mask
+            if interface.name == "pseudo_mgmt":
                 self.assertEqual(interface.subnet_mask, "255.255.255.255")
             # Test mask from NETWORKS_FIXTURE is used
             elif interface.name == "GigabitEthernet4":
                 self.assertEqual(interface.subnet_mask, "255.255.255.0")
+            # Test a network not in NETWORKS_FIXTURE reports no address rather than a host mask
+            elif interface.name == "Ethernet1":
+                self.assertIsNone(interface.subnet_mask)
+                self.assertIsNone(interface.ip_address)
             interface_names.add(interface.name)
 
         # Test that subnet masks tests were ran
         self.assertTrue("pseudo_mgmt" in interface_names)
         self.assertTrue("GigabitEthernet4" in interface_names)
+        self.assertTrue("Ethernet1" in interface_names)
 
     def test_data_loading_elongate_interface_names(self):
         """Test the load() function with using long form interface names."""
@@ -473,3 +481,88 @@ class SubnetMaskChoiceTestCase(TestCase):
     def test_a_record_without_a_subnet_is_skipped(self):
         chosen = subnet_masks_by_address({"sn-a": {"10.0.0.9": {"ip": "10.0.0.9", "net": None}}})
         self.assertEqual(chosen, {})
+
+
+class UnresolvableSubnetMaskTestCase(TestCase):
+    """Test what the adapter reports for an address IP Fabric gives no subnet for.
+
+    `NETWORKS_FIXTURE` covers 10.10.0.10 only, so the address on `eth1`, loaded here under its
+    canonical name `Ethernet1`, has no reported subnet.
+    """
+
+    def setUp(self):
+        # Pinned rather than left to the deployed setting, since the Interface names the register
+        # holds are the canonical ones the diff matches on.
+        canonical_names = patch(
+            "nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME",
+            True,
+        )
+        canonical_names.start()
+        self.addCleanup(canonical_names.stop)
+        self.ipfabric = build_adapter()
+
+    def test_the_interface_is_recorded_as_having_no_subnet(self):
+        self.assertIn(("nyc-rtr-01", "Ethernet1"), self.ipfabric.interfaces_without_a_subnet)
+
+    def test_an_interface_with_a_reported_subnet_is_not_recorded(self):
+        self.assertNotIn(("jcy-rtr-02", "GigabitEthernet4"), self.ipfabric.interfaces_without_a_subnet)
+
+    def test_a_nat_management_address_is_not_recorded(self):
+        """A NAT address belongs to no subnet, so a host mask is the whole of it, not a fallback."""
+        pseudo = self.ipfabric.get("interface", {"name": "pseudo_mgmt", "device_name": "nyc-rtr-01"})
+
+        self.assertEqual(pseudo.ip_address, "172.18.0.14")
+        self.assertEqual(pseudo.subnet_mask, "255.255.255.255")
+        self.assertNotIn(("nyc-rtr-01", "pseudo_mgmt"), self.ipfabric.interfaces_without_a_subnet)
+
+    def test_the_interface_still_loads_without_its_address(self):
+        interface = self.ipfabric.get("interface", {"name": "Ethernet1", "device_name": "nyc-rtr-01"})
+
+        self.assertIsNone(interface.ip_address)
+        self.assertIsNone(interface.subnet_mask)
+        self.assertFalse(interface.ip_is_primary)
+
+    def test_an_interface_with_a_reported_subnet_keeps_its_address(self):
+        interface = self.ipfabric.get("interface", {"name": "GigabitEthernet4", "device_name": "jcy-rtr-02"})
+
+        self.assertEqual(interface.ip_address, "10.10.0.10")
+        self.assertEqual(interface.subnet_mask, "255.255.255.0")
+
+    def test_the_count_is_reported_as_a_warning(self):
+        adapter = build_adapter(logger=MagicMock())
+
+        self.assertTrue(
+            any("Not syncing" in str(call) for call in adapter.job.logger.warning.call_args_list),
+            adapter.job.logger.warning.call_args_list,
+        )
+
+    def test_the_fallback_applies_a_host_mask_when_strictness_is_off(self):
+        adapter = build_adapter(logger=MagicMock(), strict_subnet_masks=False)
+        interface = adapter.get("interface", {"name": "Ethernet1", "device_name": "nyc-rtr-01"})
+
+        self.assertEqual(interface.ip_address, "10.10.0.11")
+        self.assertEqual(interface.subnet_mask, "255.255.255.255")
+        self.assertEqual(adapter.interfaces_without_a_subnet, set())
+
+    def test_every_use_of_the_fallback_is_reported_as_a_warning(self):
+        """The address has to be named, since a `/32` written for it is the wrong value."""
+        adapter = build_adapter(logger=MagicMock(), strict_subnet_masks=False)
+
+        warnings = " ".join(str(call) for call in adapter.job.logger.warning.call_args_list)
+        self.assertIn("10.10.0.11", warnings)
+        self.assertIn("host mask", warnings)
+
+    def test_nothing_is_reported_when_every_address_has_a_subnet(self):
+        client = mock_ipfabric_client()
+        client.technology.addressing.managed_ip_ipv4.all.return_value = [
+            {"net": f"{interface['primaryIp']}/24", "sn": interface["sn"], "ip": interface["primaryIp"]}
+            for interface in INTERFACE_FIXTURE
+            if interface.get("primaryIp")
+        ]
+        adapter = build_adapter(client=client, logger=MagicMock())
+
+        self.assertEqual(adapter.interfaces_without_a_subnet, set())
+        self.assertFalse(
+            any("Not syncing" in str(call) for call in adapter.job.logger.warning.call_args_list),
+            adapter.job.logger.warning.call_args_list,
+        )

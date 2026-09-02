@@ -1,0 +1,1 @@
+Added a `Strict Subnet Masks` option to the IP Fabric job, selected by default. Deselecting it restores the previous behaviour of syncing an address IP Fabric reports no subnet for with a `/32`, logged as a warning on every use.
