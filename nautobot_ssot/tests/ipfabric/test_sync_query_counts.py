@@ -26,10 +26,20 @@ from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interfa
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
-# The trailing boundary keeps this off tables whose names merely start with "dcim_interface",
+
+# The trailing boundary keeps these off tables whose names merely start with the one asked for,
 # such as the tagged VLAN join table.
-WRITE_TO_INTERFACE = re.compile(r'^(INSERT INTO|UPDATE)\s+"?dcim_interface"?(\s|$)', re.IGNORECASE)
-WRITE_TO_IP_ADDRESS = re.compile(r'^(INSERT INTO|UPDATE)\s+"?ipam_ipaddress"?(\s|$)', re.IGNORECASE)
+def write_to(table):
+    """Match an INSERT or UPDATE against `table`, however the backend quotes identifiers.
+
+    PostgreSQL quotes with `"` and MySQL with a backtick, and this app supports both, so a pattern
+    that admits only one of them silently matches nothing on the other and the count comes out zero.
+    """
+    return re.compile(rf'^(INSERT INTO|UPDATE)\s+[`"]?{table}[`"]?(\s|$)', re.IGNORECASE)
+
+
+WRITE_TO_INTERFACE = write_to("dcim_interface")
+WRITE_TO_IP_ADDRESS = write_to("ipam_ipaddress")
 
 
 class _CostTestCase(TestCase):
