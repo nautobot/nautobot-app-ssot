@@ -236,8 +236,9 @@ class SyncConvergenceTestCase(TestCase):
     def test_a_change_is_applied_to_a_device_this_integration_did_not_tag(self):
         """With Sync Tagged Only off, Nautobot loads untagged Devices, so writes must reach them.
 
-        `get_tagged_device` matches on the Tag, and a miss is reported as a warning rather than an
-        error, so the change is reported on every run and quietly never applied.
+        Resolving the Device for a write matched on the Tag whatever the option said, and a miss is
+        reported as a warning rather than an error, so the change was reported on every run and
+        quietly never applied.
         """
         self.sync_once()
         device = Device.objects.get(name="jcy-rtr-02")

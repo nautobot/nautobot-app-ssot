@@ -157,6 +157,20 @@ class TestNautobotAdapter(TestCase):
             location_filter=None,
         )
 
+    @unittest.mock.patch.object(NautobotDiffSync, "load_interfaces")
+    def test_load_devices_reports_a_device_whose_location_did_not_load(self, mock_load_interfaces):
+        """Devices come from one query for every Location, so each is matched back to its own.
+
+        A Location that failed to load leaves its Devices with no parent to hang off, which has to
+        be reported rather than silently dropping them or raising.
+        """
+        with self.assertLogs("nautobot.ssot.ipfabric", level="ERROR") as logs:
+            self.nb_adapter.load_devices(Device.objects.filter(location=self.site1), {})
+
+        self.assertEqual(self.nb_adapter.get_all("device"), [])
+        mock_load_interfaces.assert_not_called()
+        self.assertTrue(any("site1" in message for message in logs.output), logs.output)
+
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models.Location", autospec=True)
     @unittest.mock.patch.object(NautobotDiffSync, "load_interfaces")
     def test_load_device(self, mock_load_interfaces, mock_location):
