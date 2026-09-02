@@ -154,6 +154,7 @@ class IPFabricSyncDataTest(TestCase):
             "safe_delete_mode": True,
             "sync_ipfabric_tagged_only": True,
             "bulk_write_mode": False,
+            "strict_subnet_masks": True,
             "location_filter": None,
             "debug": False,
             "scope": SyncScope(scope) if scope is not None else SyncScope.from_job_kwargs({}),
@@ -180,6 +181,17 @@ class IPFabricSyncDataTest(TestCase):
         job = self._job()
         _source, dest = self._run(job)
         self.assertFalse(dest.call_args.kwargs["bulk_write_mode"])
+
+    def test_sync_data_passes_strictness_to_the_ip_fabric_adapter(self):
+        """The source adapter is the one that resolves a mask, so it is the one that has to know."""
+        job = self._job(strict_subnet_masks=False)
+        source, _dest = self._run(job)
+        self.assertFalse(source.call_args.kwargs["strict_subnet_masks"])
+
+    def test_sync_data_defaults_strictness_on(self):
+        job = self._job()
+        source, _dest = self._run(job)
+        self.assertTrue(source.call_args.kwargs["strict_subnet_masks"])
 
     def test_sync_data_passes_the_same_scope_to_both_adapters(self):
         """Both adapters must be given one scope object, or they can disagree about what is in scope."""

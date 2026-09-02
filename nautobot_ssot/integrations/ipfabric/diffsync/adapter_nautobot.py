@@ -197,11 +197,15 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 continue
             # Avoid .first() to preserve prefetch cache
             ip_addresses = interface_record.ip_addresses.all() if self.scope.ip_addresses else []
-            if ip_addresses:
+            has_a_subnet = (device_record.name, interface_record.name) not in self.interfaces_without_a_subnet
+            if ip_addresses and has_a_subnet:
                 ip_address_obj = ip_addresses[0]
                 ip_address = ip_address_obj.host
                 subnet_mask = cidr_to_netmask(ip_address_obj.mask_length)
             else:
+                # An Interface IP Fabric reports no subnet for reports no address on either side, so
+                # that the mask Nautobot holds is left alone rather than diffed against one the
+                # source does not have. See `interfaces_without_a_subnet`.
                 ip_address_obj = None
                 ip_address = None
                 subnet_mask = None

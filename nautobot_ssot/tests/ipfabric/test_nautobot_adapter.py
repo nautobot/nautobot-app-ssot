@@ -298,6 +298,29 @@ class TestNautobotAdapter(TestCase):
         self.assertIsNone(loaded["eth1"].subnet_mask)
         self.assertFalse(loaded["eth1"].ip_is_primary)
 
+    def test_an_interface_the_source_has_no_subnet_for_reports_no_address(self):
+        """Matches what the source reports for it, so that the two sides diff as equal."""
+        stack_master = self._address_a_primary_interface()
+        self.nb_adapter.interfaces_without_a_subnet.add((stack_master.name, "eth0"))
+
+        self.nb_adapter.load_interfaces(device_record=stack_master, diffsync_device=unittest.mock.Mock())
+
+        loaded = {interface.name: interface for interface in self.nb_adapter.get_all("interface")}
+        self.assertIsNone(loaded["eth0"].ip_address)
+        self.assertIsNone(loaded["eth0"].subnet_mask)
+        self.assertFalse(loaded["eth0"].ip_is_primary)
+
+    def test_an_interface_the_source_has_a_subnet_for_still_reports_its_address(self):
+        """Only the recorded Interfaces are withheld; the register defaults to holding none."""
+        stack_master = self._address_a_primary_interface()
+        self.nb_adapter.interfaces_without_a_subnet.add((stack_master.name, "eth1"))
+
+        self.nb_adapter.load_interfaces(device_record=stack_master, diffsync_device=unittest.mock.Mock())
+
+        loaded = {interface.name: interface for interface in self.nb_adapter.get_all("interface")}
+        self.assertEqual(loaded["eth0"].ip_address, "10.0.0.5")
+        self.assertEqual(loaded["eth0"].subnet_mask, "255.255.255.0")
+
     def _address_a_primary_interface(self):
         """Give the stack master's `eth0` an IP Address and make it the Device's primary."""
         stack_master = self.stack.master

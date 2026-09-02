@@ -39,17 +39,30 @@ logger = logging.getLogger("nautobot.jobs")
 device_serial_max_length = Device._meta.get_field("serial").max_length
 name_max_length = VLAN._meta.get_field("name").max_length
 
+# The mask of an address that is the whole of its subnet.
+HOST_MASK = "255.255.255.255"
+
 
 # pylint: disable=too-many-locals,too-many-nested-blocks,too-many-branches
 class IPFabricDiffSync(DiffSyncModelAdapters):
     """IPFabric adapter for DiffSync."""
 
-    def __init__(self, job, sync, client: IPFClient, location_filter, *args, **kwargs):
+    def __init__(
+        self,
+        job,
+        sync,
+        client: IPFClient,
+        location_filter,
+        *args,
+        strict_subnet_masks: bool = True,
+        **kwargs,
+    ):
         """Initialize the NautobotDiffSync."""
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
         self.client = client
+        self.strict_subnet_masks = strict_subnet_masks
         # Resolved once addressing is read, and empty when addresses are out of scope.
         self.subnet_mask_by_address = {}
         if location_filter:
@@ -85,6 +98,10 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             logger.info("Pseudo MGMT Interface: %s", pseudo_interface)
 
         for iface in device_interfaces:
+            iface_name = iface["intName"]
+            if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
+                iface_name = canonical_interface_name(iface_name)
+
             # loginIpv4 is available in 7.3+, fallback to primaryIp for older versions
             if not self.scope.ip_addresses:
                 # Reported as absent rather than skipped, so that the Nautobot adapter's matching
@@ -92,14 +109,16 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 ip_address = None
                 subnet_mask = None
             elif ip_address := iface.get("primaryIp") or iface.get("loginIpv4"):
-                # One mask per address rather than per device: see `subnet_masks_by_address`.
-                subnet_mask = self.subnet_mask_by_address.get(ip_address, "255.255.255.255")
+                subnet_mask = self.subnet_mask_of(iface, iface_name, ip_address)
+                if subnet_mask is None:
+                    # Reported as absent rather than carrying a mask this side does not know, so
+                    # that the Nautobot adapter's matching `None` leaves the mask Nautobot holds
+                    # alone. Written, the address would land under the wrong parent Prefix.
+                    self.interfaces_without_a_subnet.add((iface.get("hostname"), iface_name))
+                    ip_address = None
             else:
                 subnet_mask = None
 
-            iface_name = iface["intName"]
-            if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
-                iface_name = canonical_interface_name(iface_name)
             try:
                 interface = self.interface(
                     name=iface_name,
@@ -125,6 +144,39 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 device_model.add_child(interface)
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Interface discovered, {iface}")
+
+    def subnet_mask_of(self, iface, iface_name, ip_address):
+        """Return the subnet mask IP Fabric reports for `ip_address`, or None if it reports none.
+
+        The mask comes from the managed address table, which is the only place IP Fabric says what
+        subnet an address was configured with. A NAT management address is the exception: it belongs
+        to no interface, so no subnet is reported for it and a host mask is the whole of it.
+
+        With `strict_subnet_masks` off, an address the table does not cover falls back to a host
+        mask, reported every time so that the address it is applied to can be found.
+        """
+        # One mask per address rather than per device: see `subnet_masks_by_address`.
+        subnet_mask = self.subnet_mask_by_address.get(ip_address)
+        if subnet_mask:
+            return subnet_mask
+        if iface["intName"] == PSEUDO_MANAGEMENT_INTERFACE_NAME:
+            return HOST_MASK
+        if not self.strict_subnet_masks:
+            self.job.logger.warning(
+                "IP Fabric reports no subnet for %s on Interface %s of Device %s, so it is synced "
+                "with a host mask. Enable Strict Subnet Masks to leave the address alone instead.",
+                ip_address,
+                iface_name,
+                iface.get("hostname"),
+            )
+            return HOST_MASK
+        self.job.logger.debug(
+            "IP Fabric reports no subnet for %s on Interface %s of Device %s, so the address is not synced",
+            ip_address,
+            iface_name,
+            iface.get("hostname"),
+        )
+        return None
 
     @staticmethod
     def link_endpoint(link, side):
@@ -377,6 +429,13 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
 
         if self.scope.cables:
             self.load_cables()
+
+        if self.interfaces_without_a_subnet:
+            self.job.logger.warning(
+                "Not syncing the IP Address of %d Interfaces because IP Fabric reports no subnet "
+                "for it. Enable debug logging to see which addresses those were.",
+                len(self.interfaces_without_a_subnet),
+            )
 
 
 def pseudo_management_interface(hostname, device_interfaces, device_primary_ip):

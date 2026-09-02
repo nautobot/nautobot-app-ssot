@@ -1,6 +1,6 @@
 """Diff sync shared adapter class attritbutes to synchronize applications."""
 
-from typing import ClassVar, Optional
+from typing import ClassVar, Optional, Set, Tuple
 
 from diffsync import Adapter
 
@@ -34,14 +34,28 @@ class DiffSyncModelAdapters(Adapter):
         "cable",
     ]
 
-    def __init__(self, *args, scope: Optional[SyncScope] = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        scope: Optional[SyncScope] = None,
+        interfaces_without_a_subnet: Optional[Set[Tuple[str, str]]] = None,
+        **kwargs,
+    ):
         """Initialize the adapter with the object types this run covers.
 
         Held on the shared base so that both adapters read one scope. They only agree about what is
         in scope by construction if there is one place for it to come from.
+
+        `interfaces_without_a_subnet` holds the `(device name, interface name)` of every Interface
+        whose address IP Fabric reports no subnet for. The IP Fabric adapter fills it while loading
+        and reports no address for those Interfaces; the Nautobot adapter is handed it afterwards so
+        that it reports none either. Reporting one side and not the other would leave the address
+        diffed on every run without ever being applied, and the mask Nautobot holds is the better of
+        the two values anyway.
         """
         super().__init__(*args, **kwargs)
         self.scope = scope if scope is not None else SyncScope.from_job_kwargs({})
+        self.interfaces_without_a_subnet = set() if interfaces_without_a_subnet is None else interfaces_without_a_subnet
 
     def location_model(self, name: str, *, site_id: Optional[str], status: str):
         """Return the Location model to load, in scope or out of it.

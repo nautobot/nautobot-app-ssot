@@ -131,6 +131,15 @@ class IpFabricDataSource(DataSource):
             "Database constraints still apply. Leave off unless a sync is too slow without it."
         ),
     )
+    strict_subnet_masks = BooleanVar(
+        default=True,
+        label="Strict Subnet Masks",
+        description=(
+            "Leave an IP Address alone when IP Fabric reports no subnet for it, rather than syncing "
+            "it with a /32. Turn off only where a host mask is preferable to no change; every use "
+            "of it is logged as a warning."
+        ),
+    )
     location_filter = OptionalObjectVar(
         description="Only sync Nautobot records belonging to a single Location.",
         model=Location,
@@ -151,6 +160,7 @@ class IpFabricDataSource(DataSource):
             "safe_delete_mode",
             "sync_ipfabric_tagged_only",
             "bulk_write_mode",
+            "strict_subnet_masks",
             *scope_field_order(),
             "dryrun",
         )
@@ -250,6 +260,9 @@ class IpFabricDataSource(DataSource):
             "safe_delete_mode": kwargs.get("safe_delete_mode"),
             "sync_ipfabric_tagged_only": kwargs.get("sync_ipfabric_tagged_only"),
             "bulk_write_mode": kwargs.get("bulk_write_mode"),
+            # Defaulted rather than left to `get`, since absent has to mean strict here: reading a
+            # missing value as False would turn the fallback on for a caller that never asked.
+            "strict_subnet_masks": kwargs.get("strict_subnet_masks", True),
             "location_filter": kwargs.get("location_filter"),
             "debug": kwargs.get("debug"),
             "scope": SyncScope.from_job_kwargs(kwargs),
@@ -283,6 +296,7 @@ class IpFabricDataSource(DataSource):
         safe_mode = self.kwargs["safe_delete_mode"]
         tagged_only = self.kwargs["sync_ipfabric_tagged_only"]
         bulk_write_mode = self.kwargs["bulk_write_mode"]
+        strict_masks = self.kwargs["strict_subnet_masks"]
         scope = self.kwargs["scope"]
         location_filter = self.kwargs["location_filter"]
         debug_mode = self.kwargs["debug"]
@@ -291,7 +305,7 @@ class IpFabricDataSource(DataSource):
             location_filter_object = Location.objects.get(pk=location_filter)
         else:
             location_filter_object = None
-        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Bulk Write Mode`: {bulk_write_mode}, `Location Filter`: {location_filter_object}"
+        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Bulk Write Mode`: {bulk_write_mode}, `Strict Subnet Masks`: {strict_masks}, `Location Filter`: {location_filter_object}"
         self.logger.info(f"Starting job with the following options: {options}")
         self.logger.info("Object types in scope: %s", scope.describe())
         for explanation in scope.explanations():
@@ -303,6 +317,7 @@ class IpFabricDataSource(DataSource):
             client=self.client,
             location_filter=location_filter_object.name if location_filter_object else None,
             scope=scope,
+            strict_subnet_masks=strict_masks,
         )
         self.logger.info("Loading current data from IP Fabric...")
         ipfabric_source.load()
@@ -311,6 +326,8 @@ class IpFabricDataSource(DataSource):
         DiffSyncModelAdapters.safe_delete_mode = safe_mode
         DiffSyncExtras.safe_delete_mode = safe_mode
 
+        # Constructed after the source has loaded, so that the Interfaces it could not find a subnet
+        # for are known and this side can report no address for the same ones.
         dest = NautobotDiffSync(
             job=self,
             sync=self.sync,
@@ -318,6 +335,7 @@ class IpFabricDataSource(DataSource):
             bulk_write_mode=bulk_write_mode,
             location_filter=location_filter_object,
             scope=scope,
+            interfaces_without_a_subnet=ipfabric_source.interfaces_without_a_subnet,
         )
 
         self.logger.info("Loading current data from Nautobot...")
