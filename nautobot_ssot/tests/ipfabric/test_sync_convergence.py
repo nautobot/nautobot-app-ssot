@@ -14,6 +14,7 @@ import unittest.mock
 from collections import defaultdict
 
 from diffsync.enum import DiffSyncFlags
+from django.apps import apps as global_apps
 from ipfabric.models.device import Device as IPFDevice
 from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device, Interface
@@ -25,6 +26,7 @@ from nautobot.ipam.models import IPAddress, Prefix, get_default_namespace
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
+from nautobot_ssot.integrations.ipfabric.signals import nautobot_database_ready_callback
 from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
@@ -44,6 +46,11 @@ class SyncConvergenceTestCase(TestCase):
 
     def setUp(self):
         populate_status_choices()
+        # The integration's own `nautobot_database_ready` signal makes the "Site" LocationType, the
+        # SSoT Tags and the custom fields the sync stamps. It runs at migrate time only when the
+        # integration is enabled, so a test database built with it disabled has none of them. Run
+        # here so that this starts from the state a deployment is in either way.
+        nautobot_database_ready_callback(sender=None, apps=global_apps)
         job_scoped_cache.clear_all()
         self.addCleanup(job_scoped_cache.clear_all)
         self.sites = load_json(f"{FIXTURES}/get_sites.json")
