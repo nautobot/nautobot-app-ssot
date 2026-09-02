@@ -745,6 +745,23 @@ class TestInterfaceModel(_ModelTestBase):
         interface_obj.ip_addresses.add.assert_not_called()
         self.assertEqual(result, "ok")
 
+    def test_update_keeps_the_recorded_mask_when_only_the_address_changed(self):
+        """An address whose mask the source did not report keeps its recorded mask, not a host one."""
+        diff_model, device, interface_obj = self._setup_interface_update()
+        diff_model.subnet_mask = "255.255.255.0"
+        interface_obj.ip_addresses.all.return_value = []
+
+        with (
+            _nb_patch("get_syncable_device", return_value=device),
+            _nb_patch("get_device_interfaces_by_name", return_value={"eth0": interface_obj}),
+            _nb_patch("create_ip", return_value=mock.MagicMock()) as mock_create_ip,
+            _nb_patch("tag_object"),
+            mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
+        ):
+            diff_model.update({"ip_address": "10.0.0.6"})
+
+        self.assertEqual(mock_create_ip.call_args.kwargs["subnet_mask"], "255.255.255.0")
+
     def test_update_primary_ipv6_saves_device(self):
         """`ip_version == 6` -> primary_ip6 set and `device.save()` called once."""
         diff_model, device, interface_obj = self._setup_interface_update()

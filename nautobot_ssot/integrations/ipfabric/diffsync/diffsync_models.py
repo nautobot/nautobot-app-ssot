@@ -768,7 +768,9 @@ class Interface(DiffSyncExtras):
                 if attrs.get("mgmt_only"):
                     interface.mgmt_only = attrs["mgmt_only"]
                 ip_address = attrs.get("ip_address")
-                subnet_mask = attrs.get("subnet_mask", "255.255.255.255")
+                # Falls back to the mask already recorded, not to a host mask: an address whose
+                # mask the source did not report as changed keeps the one it has.
+                subnet_mask = attrs.get("subnet_mask") or self.subnet_mask
                 if ip_address:
                     if interface.ip_addresses.all():
                         logger.info(f"Replacing IP from interface {self.name} on {device.name}")
