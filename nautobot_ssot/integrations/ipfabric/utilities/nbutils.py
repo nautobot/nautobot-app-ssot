@@ -759,6 +759,12 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
         IPAddress: When a IPAddress Object is retrieved or created.
         None: When there is a failure in getting or creating a IPAddress.
     """
+    if not subnet_mask:
+        # Refused rather than given a host mask, which would put the address under the wrong parent
+        # Prefix and leave nothing to distinguish it from an address genuinely configured as one.
+        if logger:
+            logger.warning(f"Unable to create an IPAddress of {ip_address} because no subnet mask was reported for it")
+        return None
     try:
         status_obj = get_status_for_model(IPAddress, status)
     except Status.MultipleObjectsReturned:

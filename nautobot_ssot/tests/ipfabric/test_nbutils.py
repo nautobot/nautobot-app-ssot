@@ -493,6 +493,24 @@ class TestNautobotUtils(TestCase):
             f"Unable to perform validated_save() on IPAddress {test_ip.address} with an ID of {test_ip.id}"
         )
 
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_ip_refuses_an_address_with_no_subnet_mask(self, mock_logger, mock_ip_get_or_create):
+        logger = mock_logger("nb_job")
+
+        self.assertIsNone(create_ip("10.0.0.1", None, logger=logger))
+        self.assertIsNone(create_ip("10.0.0.1", "", logger=logger))
+
+        mock_ip_get_or_create.assert_not_called()
+        self.assertEqual(logger.warning.call_count, 2)
+        self.assertIn("no subnet mask", logger.warning.call_args[0][0])
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create")
+    def test_create_ip_refuses_an_address_with_no_subnet_mask_and_no_logger(self, mock_ip_get_or_create):
+        self.assertIsNone(create_ip("10.0.0.1", None))
+
+        mock_ip_get_or_create.assert_not_called()
+
     def test_create_vlan_updates_location_content_types(self):
         """Test `create_vlan` ensures location type allows VLAN content type."""
         # Create a location type that doesn't allow VLANs initially
