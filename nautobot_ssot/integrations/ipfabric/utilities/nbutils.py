@@ -1045,8 +1045,8 @@ def create_interface(
             logger.error(f"Unable to create a new Interface named {interface_name} on Device named {device_obj.name}")
         return None
 
-    # An Interface Nautobot already holds is re-stamped in place. Kept separate from the creation
-    # above so that a failure here leaves the existing Interface returned, as it was before.
+    # An Interface Nautobot already holds is re-stamped in place. Separate from the creation above
+    # so that a failure here still returns the existing Interface rather than None.
     try:
         tag_object(nautobot_object=interface_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
     except (DjangoBaseDBError, ValidationError):

@@ -189,10 +189,10 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
         self.assertEqual(str(Device.objects.get(pk=device.pk).primary_ip4.host), "10.0.0.5")
 
     def test_a_deferred_value_is_not_set_until_the_update_is_applied(self):
-        """Queued now, the value would go in with the object's own insert, before what it points at.
+        """A value set at queue time would ride the object's own insert, ahead of what it points at.
 
-        Setting it at queue time is what wrote a Device holding a foreign key to an IP Address that
-        had not been inserted yet.
+        A Device inserted holding a foreign key to an IP Address the run has yet to write refers to
+        nothing, which PostgreSQL refuses at `COMMIT`.
         """
         location = self.pending.add(self.build_location("unset"))
         device = self.pending.add(self.build_device("unset-device", location))
@@ -899,7 +899,7 @@ class MissingParentPrefixTestCase(TestCase):
         adapter.job.logger.error.assert_not_called()
 
     def test_the_parent_prefix_is_created_in_per_object_mode(self):
-        """The path that already worked, kept covered now that both share one helper."""
+        """Both modes resolve a new address through one helper, so both create the Prefix it needs."""
         adapter = self.adapter(bulk_write_mode=False)
         self.create_addressed_interface(adapter, "eth1", "172.31.32.1", "255.255.240.0")
 
