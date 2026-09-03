@@ -47,24 +47,17 @@ HOST_MASK = "255.255.255.255"
 class IPFabricDiffSync(DiffSyncModelAdapters):
     """IPFabric adapter for DiffSync."""
 
-    def __init__(
-        self,
-        job,
-        sync,
-        client: IPFClient,
-        location_filter,
-        *args,
-        strict_subnet_masks: bool = True,
-        **kwargs,
-    ):
+    def __init__(self, job, sync, client: IPFClient, location_filter, *args, **kwargs):
         """Initialize the NautobotDiffSync."""
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
         self.client = client
-        self.strict_subnet_masks = strict_subnet_masks
         # Resolved once addressing is read, and empty when addresses are out of scope.
         self.subnet_mask_by_address = {}
+        # Addresses already reported as having no subnet, so that an address on many Interfaces is
+        # reported once. A job log entry is a database write, so this is I/O rather than noise.
+        self._addresses_without_a_subnet = set()
         if location_filter:
             self.client.attribute_filters = {"siteName": ["ieq", location_filter]}
             logging.info("Applied IP Fabric Attribute Filter: %s", self.client.attribute_filters)
@@ -85,11 +78,12 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
     def load_device_interfaces(self, device_model, device_interfaces, device_primary_ip):
         """Create and load DiffSync Interface model objects for a specific device."""
         # The pseudo interface exists only to carry a NAT management address, so with addresses out
-        # of scope there is nothing for it to hold. Skipped rather than passed a null address, which
-        # `pseudo_management_interface` reads as "no Interface claims it" and so fabricates one for.
+        # of scope there is nothing for it to hold, and strict about Interfaces there is nothing this
+        # side may invent. Skipped rather than passed a null address, which
+        # `pseudo_management_interface` reads as "no Interface claims it", fabricating one for it.
         pseudo_interface = (
             pseudo_management_interface(device_model.name, device_interfaces, device_primary_ip)
-            if self.scope.ip_addresses
+            if self.carries_pseudo_management_interface()
             else None
         )
 
@@ -150,32 +144,45 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
 
         The mask comes from the managed address table, which is the only place IP Fabric says what
         subnet an address was configured with. A NAT management address is the exception: it belongs
-        to no interface, so no subnet is reported for it and a host mask is the whole of it.
+        to no interface, so no subnet is reported for it and a host mask is the whole of it, which is
+        the value rather than a fallback. Whether that address is carried at all is the separate
+        question `strict.interfaces` answers.
 
-        With `strict_subnet_masks` off, an address the table does not cover falls back to a host
-        mask, reported every time so that the address it is applied to can be found.
+        Where addresses are not among the object types this run is strict about, an address the
+        table does not cover falls back to a host mask, reported once per address so that every
+        address it was applied to can be found. Once per address rather than once per use, because
+        one address can be on many Interfaces and a job log entry is a database write; the mask is
+        chosen per address anyway, so there is nothing a second report would add.
         """
         # One mask per address rather than per device: see `subnet_masks_by_address`.
         subnet_mask = self.subnet_mask_by_address.get(ip_address)
         if subnet_mask:
             return subnet_mask
-        if iface["intName"] == PSEUDO_MANAGEMENT_INTERFACE_NAME:
+        # After the table, so a subnet IP Fabric does report still wins. Only the Interface this
+        # adapter fabricates carries one, and it says so itself.
+        own_length = reported_prefix_length(iface["net"]) if iface.get("net") else None
+        if own_length is not None:
+            return cidr_to_netmask(own_length)
+        first_sighting = ip_address not in self._addresses_without_a_subnet
+        self._addresses_without_a_subnet.add(ip_address)
+        if not self.strict.ip_addresses:
+            if first_sighting:
+                self.job.logger.warning(
+                    "IP Fabric reports no subnet for %s, so it is synced with a host mask, first seen "
+                    "on Interface %s of Device %s. Select IP Addresses under Strict Objects to leave "
+                    "it alone instead.",
+                    ip_address,
+                    iface_name,
+                    iface.get("hostname"),
+                )
             return HOST_MASK
-        if not self.strict_subnet_masks:
-            self.job.logger.warning(
-                "IP Fabric reports no subnet for %s on Interface %s of Device %s, so it is synced "
-                "with a host mask. Enable Strict Subnet Masks to leave the address alone instead.",
+        if first_sighting and self.job.debug:
+            self.job.logger.debug(
+                "IP Fabric reports no subnet for %s on Interface %s of Device %s, so the address is not synced",
                 ip_address,
                 iface_name,
                 iface.get("hostname"),
             )
-            return HOST_MASK
-        self.job.logger.debug(
-            "IP Fabric reports no subnet for %s on Interface %s of Device %s, so the address is not synced",
-            ip_address,
-            iface_name,
-            iface.get("hostname"),
-        )
         return None
 
     @staticmethod
@@ -447,9 +454,31 @@ def pseudo_management_interface(hostname, device_interfaces, device_primary_ip):
         "intName": PSEUDO_MANAGEMENT_INTERFACE_NAME,
         "dscr": "pseudo interface for NAT IP address",
         "primaryIp": device_primary_ip,
+        # Declared here rather than recognised by name in `subnet_mask_of`. A NAT address belongs to
+        # no interface, so the managed address table reports no subnet for it and a host mask is the
+        # whole of it: the value, not a fallback. Known for certain where the dict is built.
+        "net": f"{device_primary_ip}/32",
         "type": "virtual",
         "mgmt_only": True,
     }
+
+
+def reported_prefix_length(net):
+    """Return the prefix length of a subnet IP Fabric reported, or None if it did not report one.
+
+    A value that does not parse, or that is not IPv4, is not a subnet this table can describe an
+    address with, and a prefix length taken from it could not be turned into a mask. The caller
+    reports and skips it rather than raising: one unusable row would otherwise end the job while it
+    was still reading, losing every address that was fine.
+
+    Whether the subnet contains the address it was reported for is not checked here. That is a
+    different kind of wrong data, and one this sync has no better answer for than the mask itself.
+    """
+    try:
+        network = ipaddress.ip_network(net, strict=False)
+    except ValueError:
+        return None
+    return network.prefixlen if network.version == 4 else None
 
 
 def subnet_masks_by_address(managed_ipv4):
@@ -466,14 +495,26 @@ def subnet_masks_by_address(managed_ipv4):
     """
     lengths = {}
     contested = set()
+    unusable = set()
     for by_address in managed_ipv4.values():
         for address, record in by_address.items():
             if not record.get("net"):
                 continue
-            length = ipaddress.ip_network(record["net"], strict=False).prefixlen
+            length = reported_prefix_length(record["net"])
+            if length is None:
+                unusable.add(record["net"])
+                continue
             if address in lengths and lengths[address] != length:
                 contested.add(address)
             lengths[address] = max(length, lengths.get(address, 0))
+    if unusable:
+        # Per distinct value rather than per row: the table holds a record per device, so a column
+        # the appliance fills wrongly is one problem reported once, not once per device.
+        logger.warning(
+            "IP Fabric reports %d subnet values that are not usable IPv4 subnets: %s",
+            len(unusable),
+            ", ".join(repr(net) for net in sorted(unusable, key=str)),
+        )
     for address in sorted(contested):
         logger.warning(
             "IP Fabric reports %s in more than one subnet, so its Interfaces cannot each carry "

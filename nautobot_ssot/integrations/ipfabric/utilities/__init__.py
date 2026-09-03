@@ -19,6 +19,7 @@ from .nbutils import (
     get_or_create_virtual_chassis_object,
     get_platform_object,
     get_syncable_device,
+    get_virtual_chassis_object,
 )
 from .test_utils import clean_slate, json_fixture
 
@@ -42,5 +43,6 @@ __all__ = (
     "get_or_create_status_object",
     "get_or_create_tag_object",
     "get_or_create_virtual_chassis_object",
+    "get_virtual_chassis_object",
     "get_syncable_device",
 )
