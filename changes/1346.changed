@@ -1,0 +1,1 @@
+Changed the IP Fabric job to list Virtual Chassis among its data mappings. Stack members were already synced to one, but nothing in the job said so.

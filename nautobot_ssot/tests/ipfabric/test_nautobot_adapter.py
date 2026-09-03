@@ -31,6 +31,7 @@ except ImportError:
 import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
+from nautobot_ssot.integrations.ipfabric.strict_mode import StrictObjects
 from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
@@ -461,6 +462,80 @@ class TestNautobotAdapter(TestCase):
         deleted = _deleted_interfaces(diff.dict())
         self.assertNotIn("pseudo_mgmt", deleted, f"Diff would delete: {sorted(deleted)}")
         self.assertEqual(deleted, set(), "No Interface should be deleted; the source reports them all.")
+
+    def _leave_a_placeholder_interface(self):
+        """Give the stack master a real `pseudo_mgmt` Interface, as an unstrict run would have."""
+        stack_master = self.stack.master
+        Interface.objects.create(
+            name="pseudo_mgmt",
+            device=stack_master,
+            type="virtual",
+            status=self.active_status,
+        )
+        return stack_master
+
+    def test_strict_interfaces_drops_the_pseudo_interface(self):
+        """Mirrors the IP Fabric adapter, which invents no placeholder when strict about Interfaces."""
+        stack_master = self._leave_a_placeholder_interface()
+        self.nb_adapter.strict = StrictObjects(("interfaces",))
+
+        self.nb_adapter.load_interfaces(device_record=stack_master, diffsync_device=unittest.mock.Mock())
+
+        loaded = {interface.name for interface in self.nb_adapter.get_all("interface")}
+        self.assertNotIn("pseudo_mgmt", loaded)
+        self.assertIn("eth0", loaded, "Real Interfaces must still load.")
+
+    def test_a_placeholder_left_by_an_earlier_run_is_reported(self):
+        """Strictness stops new placeholders rather than removing old ones, so they need naming."""
+        self._leave_a_placeholder_interface()
+        self.nb_adapter.strict = StrictObjects(("interfaces",))
+        self.nb_adapter.location_filter = self.stack_site
+
+        self.nb_adapter.load_data()
+
+        logged = " ".join(str(call) for call in self.nb_adapter.job.logger.warning.call_args_list)
+        self.assertIn("pseudo_mgmt", logged)
+
+    def test_the_pseudo_interface_is_not_deleted_when_interfaces_become_strict(self):
+        """The consequence the symmetry exists to prevent, asserted on the diff itself."""
+        stack_master = self._leave_a_placeholder_interface()
+        scope = SyncScope.from_job_kwargs({"sync_vlans": False})
+        strict = StrictObjects(("interfaces",))
+
+        # A source that reports the Device but, being strict, no fabricated pseudo interface.
+        source = DiffSyncModelAdapters(scope=scope, strict=strict)
+        location = source.location_model(self.stack_site.name, site_id=None, status="Active")
+        source.add(location)
+        device = source.device(
+            name=stack_master.name,
+            location_name=self.stack_site.name,
+            model=stack_master.device_type.model,
+            vendor=stack_master.device_type.manufacturer.name,
+            serial_number=stack_master.serial,
+            role=stack_master.role.name,
+            status="Active",
+        )
+        source.add(device)
+        location.add_child(device)
+        for interface_record in stack_master.interfaces.exclude(name="pseudo_mgmt"):
+            interface = source.interface(
+                name=interface_record.name,
+                device_name=stack_master.name,
+                status="Active",
+                enabled=True,
+                type=interface_record.type,
+            )
+            source.add(interface)
+            device.add_child(interface)
+
+        self.nb_adapter.scope = scope
+        self.nb_adapter.strict = strict
+        self.nb_adapter.location_filter = self.stack_site
+        self.nb_adapter.load_data()
+        diff = self.nb_adapter.diff_from(source)
+
+        deleted = _deleted_interfaces(diff.dict())
+        self.assertNotIn("pseudo_mgmt", deleted, f"Diff would delete: {sorted(deleted)}")
 
     def test_vlans_out_of_scope_loads_none(self):
         """With VLANs deselected, an existing Nautobot VLAN is not loaded and so cannot be deleted."""

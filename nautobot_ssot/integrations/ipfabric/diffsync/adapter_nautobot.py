@@ -109,6 +109,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         # Per adapter rather than per class, so that a run which fails before `sync_complete` cannot
         # leave objects queued for a later run in the same worker to delete.
         self.objects_to_delete = defaultdict(list)
+        # Placeholder Interfaces found while strict about Interfaces, reported once loading is done.
+        self.placeholder_interfaces = []
         self.ssot_tag = tonb_utils.get_or_create_tag_object(
             tag_name="SSoT Synced from IPFabric",
             tag_color=ColorChoices.COLOR_LIGHT_GREEN,
@@ -190,10 +192,16 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             device_primary_ip = device_record.primary_ip4 or device_record.primary_ip6
 
         for interface_record in device_record.interfaces.all():
-            if not self.scope.ip_addresses and interface_record.name == PSEUDO_MANAGEMENT_INTERFACE_NAME:
+            if interface_record.name == PSEUDO_MANAGEMENT_INTERFACE_NAME and (
+                not self.carries_pseudo_management_interface()
+            ):
                 # The IP Fabric adapter only fabricates this Interface to carry a NAT management
-                # address, so out of scope it reports none. Skipped here to match: reporting one an
-                # earlier run created would leave it looking absent from the source, and deleted.
+                # address, and reports none either with addresses out of scope or while strict about
+                # Interfaces. Skipped here to match: reporting one an earlier run created would leave
+                # it looking absent from the source, and deleted. Counted so that the ones already in
+                # Nautobot can be found, since strictness stops new ones rather than removing old.
+                if self.strict.interfaces:
+                    self.placeholder_interfaces.append(f"{device_record.name}:{interface_record.name}")
                 continue
             # Avoid .first() to preserve prefetch cache
             ip_addresses = interface_record.ip_addresses.all() if self.scope.ip_addresses else []
@@ -440,6 +448,14 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         # Loaded after every Location, as a link may terminate on Devices in two of them.
         if self.scope.cables:
             self.load_cables(self.get_in_scope_devices(location_objects))
+
+        if self.placeholder_interfaces:
+            self.job.logger.warning(
+                "Leaving %d placeholder Interfaces in place, as being strict about Interfaces stops "
+                "new ones rather than removing those an earlier run created: %s",
+                len(self.placeholder_interfaces),
+                ", ".join(sorted(self.placeholder_interfaces)),
+            )
 
     def load(self):
         """Load data from Nautobot."""
