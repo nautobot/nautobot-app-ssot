@@ -37,6 +37,7 @@ There are several options available.
 - **Debug**: Enables more verbose logging that can be useful for troubleshooting synchronization issues.
 - **Safe Delete Mode**: Delete operations changes the object status to a predefined value (configurable via settings) and tags the object with `SSoT Safe Delete` Tag.
 - **Sync Tagged Only**: Only load Nautobot data into DiffSync adapters that has the `SSoT Synced from IPFabric` Tag.
+- **Bulk Write Mode**: Write objects in batches rather than one at a time. Much faster on a large sync, at the cost of change log entries, signals and per-object validation. Disabled by default; see [Bulk Write Mode](#bulk-write-mode) for what it does and does not give up.
 - **Sync Locations**: Create, update and delete Nautobot Locations from IP Fabric sites. Enabled by default. Deselect where another system owns the site list; see [Choosing what to sync](../../admin/integrations/ipfabric_setup.md#locations) for what that does and does not stop.
 - **Sync Manufacturers**: Create Nautobot Manufacturers for the vendors IP Fabric reports. Enabled by default.
 - **Sync Device Types**: Create Nautobot Device Types for the models IP Fabric reports. Enabled by default.
@@ -132,6 +133,18 @@ Cables are built from IP Fabric's connectivity matrix (`tables/interfaces/connec
 | localInt/remoteInt   | Cable.termination_b_name     | Cable.termination_b.name    |
 | N/A                  | Cable.status                 | Cable.status                |
 
+## Subnet Masks
+
+IP Fabric describes a subnet per Device, so an address on several Devices carries whatever subnet each of them reports for it. Nautobot holds one mask per IP Address, and parents an address to the most specific Prefix containing it, so two records for one address in a Namespace cannot coexist.
+
+Where the reports disagree, the sync takes the narrowest of them for every Interface carrying that address, which is the report that agrees with the address's parent Prefix, and logs the address it did this for. Choosing once rather than per Device is what lets the mask settle; following each Device's own report left every run rewriting what the last had written.
+
+## Sync Tagged Only
+
+With **Sync Tagged Only** selected, which is the default, the sync reads and writes only Devices carrying the `SSoT Synced from IPFabric` Tag. Deselecting it brings every Device in the selected Locations into scope, including Devices another process created, and the sync then updates their Interfaces as well as those of the Devices it created itself.
+
+The option governs reading and writing together. It has to: a Device loaded from Nautobot but excluded from writing would have every difference IP Fabric reports about it reported again on every run and never applied.
+
 ## Cables
 
 Cable synchronization is opt in via the **Sync Cables** job option, and is disabled by default because Nautobot allows only one Cable per Interface. Enabling it lets the sync replace connections that were recorded by hand.
@@ -143,8 +156,60 @@ Only links with both endpoints in scope are synced, since a Cable with one end o
 - Either Interface was not loaded, because a Site filter excludes the far end, or because the far end is a stack member whose interfaces IP Fabric reports against the stack master.
 - Either Interface is virtual or wireless. Nautobot refuses to cable these types, and IP Fabric reports links over tunnel interfaces.
 - The entry does not name both a device and an interface on each side.
+- The Interface at either end is already recorded on a link kept earlier in the same run. IP Fabric describes a shared segment, such as a cloud subnet, as a link from every Interface in it to the segment, so one Interface can be reported on many links. Nautobot terminates at most one Cable on an Interface, so the lowest sorting of those links is kept and the rest are logged. The choice is by sort order rather than by whichever came first in the data, so that a re-sync keeps the same link instead of replacing the Cable the previous run recorded.
 
 When IP Fabric reports a link that has moved, the Cable holding the Interface must be removed before the new one can be recorded. With **Safe Delete Mode** enabled, this does not happen; the conflict is logged as a warning and the new Cable is not created, leaving the change for an operator to review. With Safe Delete Mode disabled, the stale Cable is deleted and the new one is created.
+
+## Bulk Write Mode
+
+A sync writes each object on its own: Nautobot validates it, records a change log entry, and fires
+the signals any app has registered. For a few hundred objects that cost is invisible. An estate of a
+few thousand devices carries a hundred thousand Interfaces and about as many IP Addresses, and there
+the per-object cost is most of the job's run time.
+
+**Bulk Write Mode** writes them in batches instead. Measured over 200 Interfaces each carrying an IP
+address, a sync drops from 8.8 seconds to 0.5. It is disabled by default, because it gives up three
+things that are worth understanding before turning it on.
+
+### What it gives up
+
+**No change log entries.** Nothing written in bulk appears in an object's Change Log tab, or in the
+global change log, for that run. The objects themselves are still tagged `SSoT Synced from IPFabric`
+and still carry the `last_synced_from_sor` custom field, so what the sync touched is still visible on
+the object; what is missing is the before-and-after record of the change.
+
+**No signals.** Anything an app has hooked to object creation does not run for objects written in
+bulk. Webhooks do not fire.
+
+**No per-object validation.** Nautobot's `clean()` is not called, so a check written in Python is not
+applied. Database constraints still are: a row that violates one is refused, and a batch a refusal
+stops is retried an object at a time so the offending object is named in the job log and the rest are
+still written.
+
+### Two differences to expect
+
+Devices created in bulk do not get the components their Device Type templates define. IP Fabric
+reports the interfaces a device actually has, and those are what the sync creates, so for this
+integration that is usually what you want — but if you rely on Device Type templates populating
+components, do not use this mode.
+
+A duplicate Location name is not caught. Nautobot constrains a Location's name to be unique among its
+siblings, and the sites this integration creates have no parent; PostgreSQL treats those as distinct,
+so two sites of the same name would both be written where a per-object sync would have rejected the
+second. IP Fabric reports each site once, so this is a difference rather than an outcome to expect.
+
+On Nautobot 3.2 the same applies to two Interfaces of one name on a Device. Nautobot 3.1 refuses that
+in the database, and 3.2 moved the check into Python, which a batched insert does not run. IP Fabric
+reports each interface once, so this too is a difference rather than an outcome to expect.
+
+### What it does not change
+
+Cables are always written one at a time, whichever mode is selected. Creating a Cable also sets the
+cable, peer and path fields on both Interfaces it connects and builds Nautobot's cable paths, and all
+of that happens through signals a batched write does not fire. A Cable written in bulk would appear
+in the Cables list while showing no connection on either interface.
+
+Deletions are unaffected. **Safe Delete Mode** governs those, and it is independent of this setting.
 
 ## Safe Delete Mode
 

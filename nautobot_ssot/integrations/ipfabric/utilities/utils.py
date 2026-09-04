@@ -177,6 +177,11 @@ class job_scoped_cache:  # pylint: disable=invalid-name
         def get_service_type(code):
             return ServiceType.objects.filter(service_type_code=code).first()
 
+        # Keep only the most recent entries, for results too large to hold one of per key:
+        @job_scoped_cache(maxsize=2)
+        def get_interfaces(device):
+            return list(device.interfaces.all())
+
         # Clear only one group:
         job_scoped_cache.clear_group("facility_circuits")
 
@@ -188,9 +193,18 @@ class job_scoped_cache:  # pylint: disable=invalid-name
     _groups = defaultdict(list)
     _local = threading.local()
 
-    def __init__(self, fn=None, *, group=None):
-        """Initialize the cache."""
+    def __init__(self, fn=None, *, group=None, maxsize=None):
+        """Initialize the cache.
+
+        Args:
+            fn: The function to cache, when used without arguments.
+            group: Name of a group, so this cache can be cleared apart from the others.
+            maxsize: How many results to keep, oldest evicted first. Unbounded by default, which
+                suits small results keyed by a name; set it where one result is large enough that
+                keeping one per key over a whole run would cost real memory.
+        """
         self._group = group
+        self._maxsize = maxsize
         if fn is not None:
             # Called as @job_scoped_cache (no arguments)
             self._init_fn(fn)
@@ -217,7 +231,12 @@ class job_scoped_cache:  # pylint: disable=invalid-name
             return state["store"][key]
         state["misses"] += 1
         result = self._fn(*args, **kwargs)
-        state["store"][key] = result
+        store = state["store"]
+        store[key] = result
+        if self._maxsize is not None and len(store) > self._maxsize:
+            # One entry is added per miss, so the bound is exceeded by at most one. Insertion
+            # ordered, so the first key is the oldest.
+            del store[next(iter(store))]
         return result
 
     def _get_state(self):
@@ -243,7 +262,7 @@ class job_scoped_cache:  # pylint: disable=invalid-name
 
         state = self._get_state()
         _CacheInfo = namedtuple("CacheInfo", ["hits", "misses", "maxsize", "currsize"])
-        return _CacheInfo(state["hits"], state["misses"], None, len(state["store"]))
+        return _CacheInfo(state["hits"], state["misses"], self._maxsize, len(state["store"]))
 
     @classmethod
     def clear_group(cls, group):

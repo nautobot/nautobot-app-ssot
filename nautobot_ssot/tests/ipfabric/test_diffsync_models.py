@@ -7,13 +7,16 @@ calls, regression guards for fixed bugs. Nautobot ORM calls and the
 test suites.
 """
 
+import ast
 import contextlib
+import pathlib
 from types import SimpleNamespace
 from unittest import mock
 from uuid import UUID
 
 from django.test import SimpleTestCase
 
+from nautobot_ssot.integrations.ipfabric.bulk_writes import PendingWrites
 from nautobot_ssot.integrations.ipfabric.diffsync import diffsync_models
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
     Cable,
@@ -44,14 +47,19 @@ def _cable_patch(name, **kwargs):
     return mock.patch(f"{_CABLES}.{name}", **kwargs)
 
 
-def _make_adapter(scope=None):
+def _make_adapter(scope=None, bulk_write_mode=False):
     """Minimal mock adapter sufficient for invoking model methods directly.
 
     Carries a real `SyncScope` rather than a mock, since the resolvers branch on it and a mock reads
-    as every object type being in scope whether or not that is what the test meant.
+    as every object type being in scope whether or not that is what the test meant. `pending` is set
+    for the same reason: left as a mock it reads as a collector, and every test here would silently
+    take the batched write path.
     """
     adapter = mock.MagicMock()
     adapter.scope = scope if scope is not None else SyncScope(syncable.key for syncable in SYNCABLE_OBJECTS)
+    # Set explicitly because, left as a mock, it is truthy and every model here would queue its
+    # writes instead of making them.
+    adapter.pending = PendingWrites() if bulk_write_mode else None
     adapter.job = mock.MagicMock()
     adapter.job.debug = False
     adapter.ssot_tag = mock.MagicMock(name="ssot_tag")
@@ -139,20 +147,23 @@ class TestSafeDelete(_ModelTestBase):
         self.diff_model = Vlan(name="v", vid=10, status="Active", location="loc")
         self.diff_model.adapter = self.adapter
 
+    @_nb_patch("get_tagged_pks", return_value=frozenset())
     @_nb_patch("tag_object")
     @_nb_patch("get_or_create_status_object")
-    def test_safe_delete_changes_status_and_tags_when_status_differs(self, mock_status, mock_tag_object):
-        """Status differs -> status updated, tag added, tag_object called once."""
+    def test_safe_delete_changes_status_and_tags_when_status_differs(
+        self, mock_status, mock_tag_object, _mock_tagged_pks
+    ):
+        """Status differs -> status updated, safe delete tag passed to tag_object, called once."""
         mock_status.return_value = "safe-deleted-status"
         nb_obj = mock.MagicMock()
         nb_obj.status = "active-status"
-        nb_obj.tags.filter.return_value.exists.return_value = False
 
         self.diff_model.safe_delete(nb_obj, "Decommissioning", self.adapter.safe_delete_tag)
 
         self.assertEqual(nb_obj.status, "safe-deleted-status")
-        nb_obj.tags.add.assert_called_once_with(self.adapter.safe_delete_tag)
+        # The tag is applied by `tag_object`, alongside the synced from tag, in one call.
         mock_tag_object.assert_called_once()
+        self.assertEqual(mock_tag_object.call_args.kwargs["extra_tags"], (self.adapter.safe_delete_tag,))
 
     @_nb_patch("tag_object")
     @_nb_patch("get_or_create_status_object")
@@ -161,9 +172,9 @@ class TestSafeDelete(_ModelTestBase):
         mock_status.return_value = "safe-deleted-status"
         nb_obj = mock.MagicMock()
         nb_obj.status = "safe-deleted-status"  # already matches
-        nb_obj.tags.filter.return_value.exists.return_value = True  # tag already present
 
-        self.diff_model.safe_delete(nb_obj, "Decommissioning", self.adapter.safe_delete_tag)
+        with _nb_patch("get_tagged_pks", return_value=frozenset({nb_obj.pk})):
+            self.diff_model.safe_delete(nb_obj, "Decommissioning", self.adapter.safe_delete_tag)
 
         nb_obj.tags.add.assert_not_called()
         mock_tag_object.assert_not_called()
@@ -581,7 +592,7 @@ class TestDeviceModel(_ModelTestBase):  # pylint: disable=too-many-public-method
             diff_model.update({"location_name": "new-loc"})
 
         mock_loc_helper.assert_called_once_with(
-            location_name="new-loc", location_id=None, logger=self.adapter.job.logger
+            location_name="new-loc", location_id=None, logger=self.adapter.job.logger, pending=None
         )
         self.assertIs(nb_device.location, new_location)
 
@@ -596,7 +607,9 @@ class TestResolveLocation(_ModelTestBase):
             resolved = diffsync_models.resolve_location(self.adapter, "loc", "site-id")
 
         self.assertEqual(resolved, "created")
-        mock_helper.assert_called_once_with(location_name="loc", location_id="site-id", logger=self.adapter.job.logger)
+        mock_helper.assert_called_once_with(
+            location_name="loc", location_id="site-id", logger=self.adapter.job.logger, pending=None
+        )
 
     def test_only_looks_up_when_locations_are_out_of_scope(self):
         """Another system owns Locations, so a missing one is theirs to create, not this sync's."""
@@ -628,7 +641,7 @@ class TestInterfaceModel(_ModelTestBase):
         attrs.update(attr_overrides)
         return Interface.create(adapter=self.adapter, ids=self._BASE_CREATE_IDS, attrs=attrs)
 
-    @_nb_patch("get_tagged_device", return_value=None)
+    @_nb_patch("get_syncable_device", return_value=None)
     def test_create_warns_when_tagged_device_not_found(self, _mock_get_device):
         """Missing parent device -> warning logged, no super().create()."""
         with mock.patch.object(diffsync_models.DiffSyncModel, "create") as mock_super:
@@ -645,7 +658,7 @@ class TestInterfaceModel(_ModelTestBase):
         ip_obj.ip_version = ip_version
 
         with (
-            _nb_patch("get_tagged_device", return_value=device_obj),
+            _nb_patch("get_syncable_device", return_value=device_obj),
             _nb_patch("create_interface", return_value=interface_obj),
             _nb_patch("create_ip", return_value=ip_obj),
             mock.patch.object(diffsync_models.DiffSyncModel, "create"),
@@ -671,24 +684,28 @@ class TestInterfaceModel(_ModelTestBase):
 
     def test_delete_only_safe_deletes_unshared_ips(self):
         """Regression: when an IP is also on another interface, the IP must not be safe-deleted."""
-        shared_ip = mock.MagicMock(name="shared_ip")
-        shared_ip.interfaces.exclude.return_value.exists.return_value = True
-
-        exclusive_ip = mock.MagicMock(name="exclusive_ip")
-        exclusive_ip.interfaces.exclude.return_value.exists.return_value = False
-
         interface_obj = mock.MagicMock()
         interface_obj.id = "iface-uuid"
+        other_interface = mock.MagicMock(name="other_interface")
+        other_interface.id = "other-iface-uuid"
+
+        # The prefetched Interfaces of each address, which is where the check reads from.
+        shared_ip = mock.MagicMock(name="shared_ip")
+        shared_ip.interfaces.all.return_value = [interface_obj, other_interface]
+
+        exclusive_ip = mock.MagicMock(name="exclusive_ip")
+        exclusive_ip.interfaces.all.return_value = [interface_obj]
+
         interface_obj.ip_addresses.all.return_value = [shared_ip, exclusive_ip]
 
         device = mock.MagicMock()
-        device.interfaces.prefetch_related.return_value.get.return_value = interface_obj
 
         diff_model = Interface(name="eth0", device_name="d1", status="Active")
         diff_model.adapter = self.adapter
 
         with (
-            _nb_patch("get_tagged_device", return_value=device),
+            _nb_patch("get_syncable_device", return_value=device),
+            _nb_patch("get_device_interfaces_by_name", return_value={"eth0": interface_obj}),
             mock.patch.object(DiffSyncExtras, "safe_delete") as mock_safe_delete,
             mock.patch.object(diffsync_models.DiffSyncModel, "delete"),
         ):
@@ -700,31 +717,32 @@ class TestInterfaceModel(_ModelTestBase):
         self.assertNotIn(shared_ip, targets)
 
     def _setup_interface_update(self):
-        """Build a diff model + a mocked device/interface returned from the prefetch chain."""
+        """Build a diff model plus the mocked Device and Interface the per-Device lookup returns."""
         diff_model = Interface(name="eth0", device_name="d1", status="Active")
         diff_model.adapter = self.adapter
 
         device = mock.MagicMock(name="device")
         interface_obj = mock.MagicMock(name="interface")
-        device.interfaces.prefetch_related.return_value.get.return_value = interface_obj
         return diff_model, device, interface_obj
 
     def test_update_replaces_existing_ip_address(self):
-        """Update flows through prefetch, clears existing IPs, adds new."""
+        """Existing addresses are cleared, and `create_ip` is left to assign the new one."""
         diff_model, device, interface_obj = self._setup_interface_update()
         interface_obj.ip_addresses.all.return_value = [mock.MagicMock()]  # existing IPs present
         new_ip = mock.MagicMock()
 
         with (
-            _nb_patch("get_tagged_device", return_value=device),
-            _nb_patch("create_ip", return_value=new_ip),
+            _nb_patch("get_syncable_device", return_value=device),
+            _nb_patch("get_device_interfaces_by_name", return_value={"eth0": interface_obj}),
+            _nb_patch("create_ip", return_value=new_ip) as create_ip,
             _nb_patch("tag_object"),
             mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
         ):
             result = diff_model.update({"ip_address": "10.0.0.5", "subnet_mask": "255.255.255.0"})
 
         interface_obj.ip_addresses.set.assert_called_once_with([])
-        interface_obj.ip_addresses.add.assert_called_once_with(new_ip)
+        self.assertEqual(create_ip.call_args.kwargs["object_pk"], interface_obj)
+        interface_obj.ip_addresses.add.assert_not_called()
         self.assertEqual(result, "ok")
 
     def test_update_primary_ipv6_saves_device(self):
@@ -735,7 +753,8 @@ class TestInterfaceModel(_ModelTestBase):
         interface_obj.ip_addresses.first.return_value = existing_ip
 
         with (
-            _nb_patch("get_tagged_device", return_value=device),
+            _nb_patch("get_syncable_device", return_value=device),
+            _nb_patch("get_device_interfaces_by_name", return_value={"eth0": interface_obj}),
             _nb_patch("tag_object"),
             mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
         ):
@@ -1191,3 +1210,54 @@ class TestCableModel(_ModelTestBase):
         self.assertIsNone(result)
         mock_super.assert_not_called()
         self.adapter.job.logger.error.assert_called_once()
+
+
+class TestDeferredChangeLoggingCoverage(SimpleTestCase):
+    """Every model operation that writes must defer its change log.
+
+    The scope is applied as a decorator on each operation, since DiffSync calls `create`, `update`
+    and `delete` itself and each subclass does its writes before delegating to `super()`. Hand
+    application means a new model, or a rename, can silently lose it — this asserts the invariant
+    instead of relying on it being remembered.
+    """
+
+    WRITING_OPERATIONS = ("create", "update", "delete")
+
+    @staticmethod
+    def _decorated_operations(class_node):
+        """Return the operations on an `ast` class node that carry the deferral decorator."""
+        decorated = set()
+        for node in class_node.body:
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for decorator in node.decorator_list:
+                # Matches `@tonb_nbutils.deferred_change_logging()`.
+                function = decorator.func if isinstance(decorator, ast.Call) else decorator
+                if isinstance(function, ast.Attribute) and function.attr == "deferred_change_logging":
+                    decorated.add(node.name)
+        return decorated
+
+    def test_every_write_operation_defers_its_change_log(self):
+        module = ast.parse(pathlib.Path(diffsync_models.__file__).read_text(encoding="utf-8"))
+        subclasses = {model.__name__ for model in DiffSyncExtras.__subclasses__()}
+        self.assertTrue(subclasses, "No DiffSyncExtras subclasses found, so this test proves nothing.")
+
+        checked = 0
+        for class_node in (node for node in module.body if isinstance(node, ast.ClassDef)):
+            if class_node.name not in subclasses:
+                continue
+            defined = {
+                node.name
+                for node in class_node.body
+                if isinstance(node, ast.FunctionDef) and node.name in self.WRITING_OPERATIONS
+            }
+            decorated = self._decorated_operations(class_node)
+            for operation in sorted(defined):
+                checked += 1
+                self.assertIn(
+                    operation,
+                    decorated,
+                    f"{class_node.name}.{operation} writes without deferring its change log, which "
+                    "costs a change log rewrite per write and pins the instance for the whole job.",
+                )
+        self.assertEqual(checked, 15, "Expected 15 write operations across the five models.")

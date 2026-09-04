@@ -1,15 +1,16 @@
 # pylint: disable=duplicate-code
+# One module holds every ORM helper this integration needs  #  pylint: disable=too-many-lines
 """Utility functions for Nautobot ORM."""
 
 import datetime
 import ipaddress
 import logging
-from typing import Any, Optional
+from contextlib import contextmanager
+from typing import Any, Iterable, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
-from django.db.models import Q
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import (
     Device,
@@ -22,10 +23,20 @@ from nautobot.dcim.models import (
     VirtualChassis,
 )
 from nautobot.extras.choices import CustomFieldTypeChoices
-from nautobot.extras.models import CustomField, Role, Tag
+from nautobot.extras.context_managers import deferred_change_logging_for_bulk_operation
+from nautobot.extras.models import CustomField, Role, Tag, TaggedItem
 from nautobot.extras.models.statuses import Status
+from nautobot.extras.signals import change_context_state
 from nautobot.ipam.choices import PrefixTypeChoices
-from nautobot.ipam.models import VLAN, IPAddress, IPAddressToInterface, Namespace, Prefix
+from nautobot.ipam.models import (
+    VLAN,
+    IPAddress,
+    IPAddressToInterface,
+    Namespace,
+    Prefix,
+    VLANLocationAssignment,
+    get_default_namespace,
+)
 from netutils.ip import netmask_to_cidr
 from netutils.lib_mapper import NAPALM_LIB_MAPPER
 
@@ -34,12 +45,43 @@ from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 # pylint: disable=too-many-branches
 
+# Lookups that read back the objects bulk mode writes, so a flush leaves their results stale. Grouped
+# so that `flush_pending_writes` can empty them, rather than each one having to know about the mode.
+BULK_WRITTEN_LOOKUPS = "bulk_written_lookups"
+
+
+@contextmanager
+def deferred_change_logging():
+    """Collapse the several writes one object takes into a single change log entry.
+
+    Writing an object twice normally means looking up its change log entry and rewriting it, and
+    serializing the object again to do so. Deferring within a scope makes Nautobot record one entry
+    per object at the end of it instead.
+
+    The scope is one object, not the whole run. Nautobot keys deferred changes per object, so a
+    per-object scope saves everything a run wide one would, without holding every changed instance
+    in memory or keeping one transaction open for the length of the sync.
+
+    Does nothing when change logging is not enabled, which is the case when an adapter is driven
+    directly rather than by a job, or when an enclosing scope is already deferring.
+
+    Doubles as a decorator, which is how the model operations apply it.
+    """
+    change_context = change_context_state.get()
+    if change_context is None or change_context.defer_object_changes:
+        # Nesting would flush and discard the enclosing scope's pending changes on the way out.
+        yield
+        return
+    with deferred_change_logging_for_bulk_operation():
+        yield
+
 
 @job_scoped_cache
 def get_or_create_location_object(
     location_name: str,
     location_id: Optional[str] = None,
     logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
 ) -> Optional[Location]:
     """Creates a specified location in Nautobot.
 
@@ -47,55 +89,73 @@ def get_or_create_location_object(
         location_name: Name of the location.
         location_id: ID of the location.
         logger: Logger to use for messaging.
+        pending: When given, a new Location is queued for a batched write rather than saved. The
+            returned Location already has its primary key, so a caller may go on to reference it.
 
     Returns:
         Location: When a Location Object is retrieved or created.
         None: When there is a failure in getting or creating a Location.
     """
+    # A Location this run has already queued is not in the database yet, so it has to be found here
+    # or a second one would be built and both written.
+    if pending is not None:
+        queued = pending.find(Location, location_name)
+        if queued is not None:
+            return queued
+
     try:
         location_type = LocationType.objects.get(name="Site")
         if not location_type.content_types.filter(app_label="ipam", model="vlan").exists():
             location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
-
-        location_obj, _ = Location.objects.get_or_create(
-            name=location_name,
-            location_type=location_type,
-            status=Status.objects.get(name="Active"),
-        )
+        try:
+            location_obj = Location.objects.get(name=location_name, location_type=location_type)
+            is_new = False
+        except Location.DoesNotExist:
+            location_obj = Location(
+                name=location_name,
+                location_type=location_type,
+                status=Status.objects.get(name="Active"),
+            )
+            is_new = True
     except Location.MultipleObjectsReturned:
         if logger:
             logger.error(f"Multiple Locations returned with name {location_name}")
+        return None
     except (DjangoBaseDBError, ValidationError):
         if logger:
             logger.error(f"Unable to create a new Location named {location_name} with LocationType Site")
-    else:
-        if location_id:
-            # Ensure custom field is available
-            try:
-                custom_field_obj, _ = CustomField.objects.get_or_create(
-                    type=CustomFieldTypeChoices.TYPE_TEXT,
-                    key="ipfabric_site_id",
-                    defaults={"label": "IPFabric Location ID"},
-                )
-            except CustomField.MultipleObjectsReturned:
-                if logger:
-                    logger.error("Multiple CustomFields returned with key ipfabric_site_id")
-            except (DjangoBaseDBError, ValidationError):
-                if logger:
-                    logger.error("Unable to create a new CustomField named ipfabric_site_id with type of TYPE_TEXT")
-            else:
-                custom_field_obj.content_types.add(ContentType.objects.get_for_model(Location))
-                location_obj.cf["ipfabric_site_id"] = location_id
-        # tag_object performs validated_save()
+        return None
+
+    if location_id:
+        # Ensure custom field is available
         try:
-            tag_object(nautobot_object=location_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+            custom_field_obj, _ = CustomField.objects.get_or_create(
+                type=CustomFieldTypeChoices.TYPE_TEXT,
+                key="ipfabric_site_id",
+                defaults={"label": "IPFabric Location ID"},
+            )
+        except CustomField.MultipleObjectsReturned:
+            if logger:
+                logger.error("Multiple CustomFields returned with key ipfabric_site_id")
         except (DjangoBaseDBError, ValidationError):
             if logger:
-                logger.warning(
-                    f"Unable to perform a validated_save() on Location {location_name} with an ID of {location_obj.id}"
-                )
-        return location_obj
-    return None
+                logger.error("Unable to create a new CustomField named ipfabric_site_id with type of TYPE_TEXT")
+        else:
+            custom_field_obj.content_types.add(ContentType.objects.get_for_model(Location))
+            location_obj.cf["ipfabric_site_id"] = location_id
+
+    if is_new and pending is not None:
+        return queue_new_object(pending, location_obj, key=location_name)
+
+    # tag_object performs validated_save(), which is the only save a new Location takes.
+    try:
+        tag_object(nautobot_object=location_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+    except (DjangoBaseDBError, ValidationError):
+        if logger:
+            logger.warning(
+                f"Unable to perform a validated_save() on Location {location_name} with an ID of {location_obj.id}"
+            )
+    return location_obj
 
 
 @job_scoped_cache
@@ -547,8 +607,13 @@ def get_or_create_virtual_chassis_object(name: str, logger=None) -> Optional[Vir
     return None
 
 
-def assign_device_to_virtual_chassis(device, virtual_chassis, position, master=False, priority=None):  # pylint: disable=too-many-arguments
-    """Assign an existing device to an existing VirtualChassis. Update attributes if required."""
+def assign_device_to_virtual_chassis(device, virtual_chassis, position, master=False, priority=None, pending=None):  # pylint: disable=too-many-arguments
+    """Assign an existing device to an existing VirtualChassis. Update attributes if required.
+
+    With `pending`, the Device is queued rather than saved, so its membership fields go in with the
+    insert instead of needing a save of their own. The VirtualChassis master points back at the
+    Device, so that one is deferred until the Device's row exists.
+    """
     updated = False
     if device.virtual_chassis != virtual_chassis:
         device.virtual_chassis = virtual_chassis
@@ -559,41 +624,99 @@ def assign_device_to_virtual_chassis(device, virtual_chassis, position, master=F
     if priority and device.vc_priority != priority:
         device.vc_priority = priority
         updated = True
-    if updated:
+    if updated and pending is None:
         device.validated_save()
     if master and virtual_chassis.master != device:
-        virtual_chassis.master = device
-        virtual_chassis.validated_save()
+        if pending is None:
+            virtual_chassis.master = device
+            virtual_chassis.validated_save()
+        else:
+            pending.defer_update(virtual_chassis, {"master": device})
     return virtual_chassis
 
 
 @job_scoped_cache
-def get_tagged_device(device_name: str) -> Device:
-    """Cached lookup for Devices, used in interface operations."""
-    ssot_tag = get_or_create_tag_object(tag_name="SSoT Synced from IPFabric")
-    return Device.objects.filter(Q(name=device_name) & Q(tags=ssot_tag)).first()
+def get_status_for_model(model: Any, status_name: str) -> Status:
+    """Return the Status of the given name that applies to the given model.
+
+    Cached because an IP Address carrying sync repeats this lookup for every address it writes.
+    Raises rather than creating, so a caller can tell a missing Status from an ambiguous one.
+    """
+    return Status.objects.get_for_model(model).get(name=status_name)
+
+
+@job_scoped_cache
+def get_global_namespace() -> Namespace:
+    """Return the Global Namespace, which every Prefix this integration creates belongs to.
+
+    Cached rather than called directly because a first import creates a Prefix for every subnet it
+    meets, and each of those would otherwise resolve the Namespace again.
+    """
+    return get_default_namespace()
+
+
+@job_scoped_cache(group=BULK_WRITTEN_LOOKUPS)
+def get_syncable_device(device_name: str, *, tagged_only: bool) -> Optional[Device]:
+    """Return the Device an Interface or Cable operation is for, or None when it is out of scope.
+
+    `tagged_only` mirrors the job option of that name, and has to, because the Nautobot adapter reads
+    Devices under the same condition. A run that loads every Device must be able to write to every
+    Device: matching on the Tag while the adapter loaded without it leaves those Devices' Interfaces
+    reported as changed on every run and never written, and reported only as a warning.
+
+    Required rather than defaulted, so that a write path added later cannot quietly reintroduce that
+    by omitting it. The adapter also scopes Devices by Location, which this does not; a Device whose
+    Location is outside the run is still matched by name.
+    """
+    devices = Device.objects.filter(name=device_name)
+    if tagged_only:
+        devices = devices.filter(tags=get_or_create_tag_object(tag_name="SSoT Synced from IPFabric"))
+    return devices.first()
+
+
+@job_scoped_cache(group=BULK_WRITTEN_LOOKUPS, maxsize=2)
+def get_device_interfaces_by_name(device: Device) -> dict:
+    """Return a Device's Interfaces keyed by name, with the relations a delete reads prefetched.
+
+    Deletions reach a model grouped by Device, so holding the last couple of Devices turns a lookup
+    per Interface into one per Device. Bounded, because an estate wide teardown would otherwise
+    retain every Interface of every Device it passed through.
+
+    Keying by name loses nothing: Nautobot constrains `(device, name)` to be unique, so a Device
+    cannot have two Interfaces of the same name.
+
+    Not for callers that go on to mutate an Interface's relations, which would not see their own
+    writes; `get_tagged_interface` is the uncached lookup for those.
+    """
+    return {interface.name: interface for interface in device.interfaces.prefetch_related("ip_addresses__interfaces")}
 
 
 # Not cached, so that callers which mutate an Interface's relations see them afresh
 def get_tagged_interface(
-    device_name: str, interface_name: str, logger: Optional[logging.Logger] = None
+    device_name: str,
+    interface_name: str,
+    *,
+    tagged_only: bool,
+    logger: Optional[logging.Logger] = None,
 ) -> Optional[Interface]:
-    """Retrieve an Interface belonging to a Device tagged as synced from IP Fabric.
+    """Retrieve an Interface belonging to a Device this run covers.
 
     Args:
         device_name: Name of the Device the Interface belongs to.
         interface_name: Name of the Interface.
         logger: Logger to use for messaging.
+        tagged_only: Whether only Devices tagged as synced from IP Fabric are in scope, mirroring
+            the job option of that name.
 
     Returns:
         Interface: When the Interface is found.
         None: When either the Device or the Interface cannot be found.
     """
-    device = get_tagged_device(device_name)
+    device = get_syncable_device(device_name, tagged_only=tagged_only)
     if not device:
         if logger:
             logger.warning(
-                f"Unable to find a Device named {device_name} tagged as synced from IPFabric, "
+                f"Unable to find a Device named {device_name} in the scope of this sync, "
                 f"so its Interface named {interface_name} cannot be retrieved"
             )
         return None
@@ -611,12 +734,13 @@ def get_tagged_interface(
     return None
 
 
-def create_ip(  # pylint: disable=too-many-statements
+def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
     ip_address: str,
     subnet_mask: str,
     status: str = "Active",
     object_pk: Optional[Interface] = None,
     logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
 ) -> Optional[IPAddress]:
     """Verify ip address exists in Nautobot. If not, creates specified ip.
 
@@ -628,13 +752,15 @@ def create_ip(  # pylint: disable=too-many-statements
         status: Status to assign to IP Address.
         object_pk: Interface Object to assigne IPAdress to.
         logger: Logger to use for messaging.
+        pending: When given, a new IPAddress and its Interface assignment are queued for a batched
+            write rather than saved.
 
     Returns:
         IPAddress: When a IPAddress Object is retrieved or created.
         None: When there is a failure in getting or creating a IPAddress.
     """
     try:
-        status_obj = Status.objects.get_for_model(IPAddress).get(name=status)
+        status_obj = get_status_for_model(IPAddress, status)
     except Status.MultipleObjectsReturned:
         if logger:
             logger.error(
@@ -648,74 +774,224 @@ def create_ip(  # pylint: disable=too-many-statements
                 f"and therefore cannot create an IPAddress of {ip_address}/{subnet_mask}"
             )
     else:
-        namespace_obj = Namespace.objects.get(name="Global")
         cidr = netmask_to_cidr(subnet_mask)
-        ip_obj = None
-        try:
-            ip_obj, _ = IPAddress.objects.get_or_create(address=f"{ip_address}/{cidr}", defaults={"status": status_obj})
-        except IPAddress.MultipleObjectsReturned:
-            if logger:
-                logger.error(f"Multiple IPAddresses returned with the address of {ip_address}/{subnet_mask}")
-        except (DjangoBaseDBError, ValidationError, Prefix.DoesNotExist):
+        if pending is not None:
+            return queue_ip(
+                address=f"{ip_address}/{cidr}",
+                status_obj=status_obj,
+                interface=object_pk,
+                pending=pending,
+                logger=logger,
+            )
+        ip_obj = resolve_ip(f"{ip_address}/{cidr}", status_obj, logger=logger)
+        if ip_obj is None:
+            return None
+
+        if not ip_obj.present_in_database:
+            # Stamped before the one save a new address takes, so the Tag row that follows is the
+            # only further write.
+            stamp_synced(ip_obj, LAST_SYNCHRONIZED_CF_NAME)
             try:
-                network_obj = ipaddress.ip_network(f"{ip_address}/{cidr}", strict=False)
-                if logger:
-                    logger.info(f"Automatically creating missing prefix {network_obj} for IP {ip_address}/{cidr}")
-                _, _ = Prefix.objects.get_or_create(
-                    network=str(network_obj.network_address),
-                    prefix_length=network_obj.prefixlen,
-                    type=PrefixTypeChoices.TYPE_NETWORK,
-                    status=Status.objects.get_for_model(Prefix).get(name="Active"),
-                    namespace=namespace_obj,
-                )
+                ip_obj.validated_save()
+                ip_obj.tags.add(synced_tag_for(ip_obj))
             except (DjangoBaseDBError, ValidationError) as err:
                 if logger:
                     logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}. Error: {err}")
-            else:
-                try:
-                    ip_obj, _ = IPAddress.objects.get_or_create(
-                        address=f"{ip_address}/{cidr}", defaults={"status": status_obj}
-                    )
-                except (DjangoBaseDBError, ValidationError) as err:
-                    if logger:
-                        logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}. Error: {err}")
-
-        if ip_obj:
-            if object_pk:
-                assign_ip = IPAddressToInterface(ip_address=ip_obj, interface_id=object_pk.pk)
-                try:
-                    assign_ip.validated_save()
-                except (DjangoBaseDBError, ValidationError):
-                    if logger:
-                        logger.error(
-                            f"Unable to assign IPAddress {ip_obj.address} with ID {ip_obj.id}"
-                            f"to interface {object_pk.name} with ID {object_pk.id}"
-                        )
-                try:
-                    # Tag Interface (object_pk)
-                    tag_object(nautobot_object=object_pk, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-                except (DjangoBaseDBError, ValidationError):
-                    if logger:
-                        logger.warning(
-                            f"Unable to perform validated_save() on Interface {object_pk.name} with an ID of {object_pk.id}"
-                        )
-
+                return None
+        else:
+            # The mask IP Fabric reports rides the tagging save rather than taking one of its own.
+            mask_changed = ip_obj.mask_length != cidr
+            ip_obj.mask_length = cidr
             try:
-                # Tag IP Addr
                 tag_object(nautobot_object=ip_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-            except (DjangoBaseDBError, ValidationError):
-                if logger:
+            except (DjangoBaseDBError, ValidationError) as err:
+                if logger and mask_changed:
+                    logger.error(
+                        f"Unable to change the mask of IPAddress {ip_address} to /{cidr}, "
+                        f"which IP Fabric reports as {subnet_mask}. Error: {err}"
+                    )
+                elif logger:
                     logger.warning(
                         f"Unable to perform validated_save() on IPAddress {ip_obj.address} with an ID of {ip_obj.id}"
                     )
+                ip_obj.refresh_from_db()
 
-            return ip_obj
+        if object_pk:
+            assign_ip = IPAddressToInterface(ip_address=ip_obj, interface_id=object_pk.pk)
+            try:
+                assign_ip.validated_save()
+            except (DjangoBaseDBError, ValidationError):
+                if logger:
+                    logger.error(
+                        f"Unable to assign IPAddress {ip_obj.address} with ID {ip_obj.id}"
+                        f"to interface {object_pk.name} with ID {object_pk.id}"
+                    )
+            # The Interface is deliberately not tagged here. Both callers tag it themselves once
+            # they are done with it, and `tag_object` runs a full `validated_save()`, so tagging it
+            # twice doubles the write cost of every Interface that carries an address.
+        return ip_obj
     return None
+
+
+def _cleaned_ip(address: str, status_obj: Status) -> Optional[IPAddress]:
+    """Return an unsaved IPAddress with everything `save()` would have worked out, or None.
+
+    `clean()` is what resolves the Prefix the address belongs under, and a batched insert calls
+    neither it nor `save()`. Returns None when Nautobot will not accept the address, most often
+    because no parent Prefix exists yet. Built afresh each time, since a failed `clean()` may have
+    left the instance half adjusted.
+    """
+    ip_obj = IPAddress(address=address, status=status_obj)
+    try:
+        ip_obj.clean()
+    except ValidationError:
+        return None
+    return ip_obj
+
+
+def resolve_new_ip(address: str, status_obj: Status, logger: Optional[logging.Logger] = None) -> Optional[IPAddress]:
+    """Return an unsaved IPAddress ready to be written, creating its parent Prefix if there is none.
+
+    The parent is set here rather than left to Nautobot to work out on save. Nautobot's own
+    determination refuses a parent longer than the address's mask, so an address IP Fabric reports
+    with a /24 mask is rejected when the only Prefix covering it is a /25 — even though that /25 is
+    the parent Nautobot then says it expected. Setting it explicitly takes the same answer
+    `clean()` would give and avoids that.
+
+    A Prefix is only created when nothing covers the address. Creating a wider one when a narrower
+    one already exists does not help, since Nautobot parents an address to the most specific Prefix
+    that contains it.
+    """
+    ip_obj = _cleaned_ip(address, status_obj)
+    if ip_obj is not None:
+        return ip_obj
+    # Nothing covers the address. IP Fabric reports addresses without their subnets, so this is the
+    # normal state for the first address a sync sees from one.
+    if not create_parent_prefix(address, logger=logger):
+        return None
+    return _cleaned_ip(address, status_obj)
+
+
+def create_parent_prefix(address: str, logger: Optional[logging.Logger] = None) -> bool:
+    """Create the Prefix an address belongs under, for when Nautobot holds none.
+
+    IP Fabric reports addresses without the subnets they sit in, so the first address a sync sees
+    from a subnet has no parent Prefix and Nautobot will not take it. Both write paths need this, and
+    keeping it in one place is what stops them disagreeing about it.
+
+    Args:
+        address: The address in CIDR notation, whose network the Prefix is taken from.
+        logger: Logger to use for messaging.
+
+    Returns:
+        bool: Whether a Prefix now exists for the address.
+    """
+    host = address.split("/")[0]
+    if Prefix.objects.filter(namespace=get_global_namespace()).net_contains_or_equals(f"{host}/32").exists():
+        # Checked rather than inferred from a failure to build the address. Nautobot 3.2 also reports
+        # a duplicate address from `clean()`, and reading that as a missing Prefix created a second,
+        # wider one that could never become the parent: Nautobot parents an address to the most
+        # specific Prefix containing it.
+        return True
+    try:
+        network_obj = ipaddress.ip_network(address, strict=False)
+        if logger:
+            logger.info(f"Automatically creating missing prefix {network_obj} for IP {address}")
+        Prefix.objects.get_or_create(
+            network=str(network_obj.network_address),
+            prefix_length=network_obj.prefixlen,
+            type=PrefixTypeChoices.TYPE_NETWORK,
+            status=get_status_for_model(Prefix, "Active"),
+            namespace=get_global_namespace(),
+        )
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error(f"Unable to create a missing Prefix for {address}. Error: {err}")
+        return False
+    return True
+
+
+def mask_length_of(address: str) -> int:
+    """Return the mask length from an address in CIDR notation."""
+    return int(address.split("/")[1])
+
+
+def resolve_ip(address: str, status_obj: Status, logger: Optional[logging.Logger] = None) -> Optional[IPAddress]:
+    """Return the IPAddress to use for `address`, whether Nautobot already holds one or not.
+
+    One that `present_in_database` reports as saved is Nautobot's own, to be reused. A new one comes
+    back unsaved, for the caller to write or to queue.
+
+    Nautobot makes an address unique within its parent Prefix, and the mask IP Fabric reports for an
+    address need not be the mask Nautobot holds it under, so matching on the address misses the very
+    row that uniqueness covers. The host within the Namespace is matched as well, which is what
+    decides the parent and therefore what decides the collision.
+
+    Asked before anything is built, rather than after. Nautobot 3.2 reports a duplicate from
+    `clean()`, so building first cannot tell an address that needs a Prefix from one that already
+    exists.
+    """
+    existing = IPAddress.objects.filter(address=address).first()
+    if existing is not None:
+        return existing
+    existing = IPAddress.objects.filter(host=address.split("/")[0], parent__namespace=get_global_namespace()).first()
+    if existing is not None:
+        return existing
+    return resolve_new_ip(address, status_obj, logger=logger)
+
+
+def queue_ip(
+    address: str,
+    status_obj: Status,
+    interface: Optional[Interface],
+    pending: Any,
+    logger: Optional[logging.Logger] = None,
+) -> Optional[IPAddress]:
+    """Queue an IPAddress, and its assignment to an Interface, for a batched write.
+
+    An address already written, or already queued by this run, is reused rather than queued again.
+    Nautobot makes an address unique within its parent Prefix, so queueing a second one for an
+    address IP Fabric reports on two Interfaces would have the database refuse it. See `resolve_ip`
+    for why the match is not on the address alone.
+
+    An address Nautobot holds under a different mask has that mask corrected. IP Fabric reports the
+    subnet an address sits in, and that mask is the attribute the sync keeps, so leaving it alone
+    would have the difference reported on every run without ever settling.
+
+    `IPAddress.save()` calls `clean()` to work out which Prefix the address belongs under, and a
+    batched insert calls neither, so `clean()` is run here. It is also what rejects an address the
+    sync should not be writing, which is worth keeping even in bulk mode: the alternative is a row
+    with no parent Prefix, which leaves the address orphaned in IPAM.
+    """
+    ip_obj = resolve_ip(address, status_obj, logger=logger)
+    if ip_obj is None:
+        if logger:
+            logger.error(f"Unable to queue an IPAddress of {address} for a bulk write")
+        return None
+    if not ip_obj.present_in_database:
+        # Keyed on what the uniqueness constraint covers rather than on the address, so that an
+        # address this run has already queued is reused even where IP Fabric reported the two with
+        # different masks.
+        key = (ip_obj.parent_id, str(ip_obj.host))
+        queued = pending.find(IPAddress, key)
+        if queued is not None:
+            ip_obj = queued
+        else:
+            queue_new_object(pending, ip_obj, key=key)
+    elif ip_obj.mask_length != mask_length_of(address):
+        pending.defer_update(ip_obj, {"mask_length": mask_length_of(address)})
+
+    if interface is not None:
+        pending.add_through(IPAddressToInterface(ip_address=ip_obj, interface_id=interface.pk))
+    return ip_obj
 
 
 # Not cached, as it is unhashable, but not useful to cache anyway
 def create_interface(
-    device_obj: Device, interface_details: dict, logger: Optional[logging.Logger] = None
+    device_obj: Device,
+    interface_details: dict,
+    logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
 ) -> Optional[Interface]:
     """Verify interface exists on specified device. If not, creates interface.
 
@@ -723,6 +999,8 @@ def create_interface(
         device_obj: Device object to check interface against.
         interface_details: interface details.
         logger: Logger to use for messaging.
+        pending: When given, a new Interface is queued for a batched write rather than saved. The
+            returned Interface already has its primary key, so a caller may go on to reference it.
 
     Returns:
         Interface: When a Interface Object is retrieved or created.
@@ -747,25 +1025,36 @@ def create_interface(
     )
     defaults = {k: v for k, v in interface_details.items() if k in interface_fields and v}
     try:
-        interface_obj, _ = device_obj.interfaces.get_or_create(
-            name=interface_name, status=status_obj, defaults=defaults
-        )
-    except Interface.MultipleObjectsReturned:
-        if logger:
-            logger.error(f"Multiple Interfaces returned with name {interface_name} on Device named {device_obj.name}")
+        if pending is not None and device_obj._state.adding:  # pylint: disable=protected-access
+            # The Device is queued and has no rows of its own yet, so it can hold no Interface.
+            interface_obj = None
+        else:
+            interface_obj = device_obj.interfaces.filter(name=interface_name, status=status_obj).first()
+        if interface_obj is None:
+            interface_obj = Interface(device=device_obj, name=interface_name, status=status_obj, **defaults)
+            if pending is not None:
+                return queue_new_object(pending, interface_obj, key=(device_obj.pk, interface_name))
+            # Stamped before the one save a new Interface takes, so the Tag row that follows is
+            # the only further write.
+            stamp_synced(interface_obj, LAST_SYNCHRONIZED_CF_NAME)
+            interface_obj.validated_save()
+            interface_obj.tags.add(synced_tag_for(interface_obj))
+            return interface_obj
     except (DjangoBaseDBError, ValidationError):
         if logger:
             logger.error(f"Unable to create a new Interface named {interface_name} on Device named {device_obj.name}")
-    else:
-        try:
-            tag_object(nautobot_object=interface_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-        except (DjangoBaseDBError, ValidationError):
-            if logger:
-                logger.warning(
-                    f"Unable to perform validated_save() on Interface named {interface_name} on Device named {device_obj.name}"
-                )
-        return interface_obj
-    return None
+        return None
+
+    # An Interface Nautobot already holds is re-stamped in place. Separate from the creation above
+    # so that a failure here still returns the existing Interface rather than None.
+    try:
+        tag_object(nautobot_object=interface_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+    except (DjangoBaseDBError, ValidationError):
+        if logger:
+            logger.warning(
+                f"Unable to perform validated_save() on Interface named {interface_name} on Device named {device_obj.name}"
+            )
+    return interface_obj
 
 
 @job_scoped_cache
@@ -776,6 +1065,7 @@ def create_vlan(  # pylint: disable=too-many-arguments
     location_obj: Location,
     description: str,
     logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
 ) -> Optional[VLAN]:
     """Creates or obtains VLAN object.
 
@@ -786,6 +1076,8 @@ def create_vlan(  # pylint: disable=too-many-arguments
         location_obj (Location): Location Django Model
         description (str): VLAN Description
         logger: Logger to use for messaging.
+        pending: When given, a new VLAN and its location assignment are queued for a batched write
+            rather than saved.
 
     Returns:
         VLAN: When a VLAN Object is retrieved or created.
@@ -796,60 +1088,135 @@ def create_vlan(  # pylint: disable=too-many-arguments
         location_obj.location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
 
     try:
-        vlan_obj, _ = VLAN.objects.get_or_create(
-            vid=vlan_id,
-            location=location_obj,
-            defaults={
-                "name": vlan_name,
-                "status": Status.objects.get(name=vlan_status),
-                "description": description,
-            },
-        )
+        try:
+            vlan_obj = VLAN.objects.get(vid=vlan_id, locations=location_obj)
+            is_new = False
+        except VLAN.DoesNotExist:
+            # `location` is consumed by `VLAN.save()`, which is what makes the assignment. In bulk
+            # mode that save never runs, so the assignment row is queued below instead.
+            vlan_obj = VLAN(
+                vid=vlan_id,
+                name=vlan_name,
+                status=Status.objects.get(name=vlan_status),
+                description=description,
+                location=location_obj,
+            )
+            is_new = True
     except VLAN.MultipleObjectsReturned:
         if logger:
             logger.error(f"Multiple VLANs returned with name {vlan_name} and ID {vlan_id}")
+        return None
     except (DjangoBaseDBError, ValidationError) as err:
         if logger:
             logger.error(f"Unable to create a new VLAN named {vlan_name} with an ID {vlan_id}. Error: {err}")
-    else:
-        try:
-            tag_object(nautobot_object=vlan_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-        except (DjangoBaseDBError, ValidationError):
-            if logger:
-                logger.warning(
-                    f"Unable to perform validated_save() on VLAN named {vlan_name} with an ID of {vlan_obj.id}"
-                )
-        return vlan_obj
-    return None
+        return None
+
+    if is_new and pending is not None:
+        assignments = (
+            (VLANLocationAssignment(vlan=vlan_obj, location_id=location_obj.pk),) if location_obj is not None else ()
+        )
+        return queue_new_object(pending, vlan_obj, through_rows=assignments)
+
+    # tag_object performs validated_save(), which is the only save a new VLAN takes.
+    try:
+        tag_object(nautobot_object=vlan_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+    except (DjangoBaseDBError, ValidationError):
+        if logger:
+            logger.warning(f"Unable to perform validated_save() on VLAN named {vlan_name} with an ID of {vlan_obj.id}")
+    return vlan_obj
 
 
-def tag_object(nautobot_object: Any, custom_field: str, tag_name: Optional[str] = "SSoT Synced from IPFabric"):
+@job_scoped_cache
+def get_tagged_pks(model: Any, tag_id: Any) -> frozenset:
+    """Return the primary keys of the model's objects already carrying the given Tag.
+
+    Resolved once per model and Tag for the whole run. Asking whether one object carries a Tag is a
+    query, and a sync removing a hundred thousand Interfaces would otherwise ask it that many times.
+    Objects tagged during the run are not added here, as each is only ever considered once.
+    """
+    return frozenset(model.objects.filter(tags__id=tag_id).values_list("pk", flat=True))
+
+
+def synced_tag_for(nautobot_object: Any, tag_name: str = "SSoT Synced from IPFabric") -> Tag:
+    """Return the Tag marking an object as synced from IP Fabric, for that object's content type."""
+    content_type = ContentType.objects.get_for_model(nautobot_object)
+    return get_or_create_tag_object(
+        tag_name=tag_name,
+        tag_color=ColorChoices.COLOR_LIGHT_GREEN,
+        description="Object synced at some point from IPFabric to Nautobot",
+        app_label=content_type.app_label,
+        model=content_type.model,
+    )
+
+
+def queue_synced_tag(pending: Any, nautobot_object: Any, tag_name: str = "SSoT Synced from IPFabric"):
+    """Queue the row tagging an object as synced, for an object being written in bulk.
+
+    `tags.add` needs a saved object and issues its own statements, so a queued object gets the join
+    row directly instead. Written after the object it points at, which the collector guarantees.
+    """
+    pending.add_through(
+        TaggedItem(
+            content_type=ContentType.objects.get_for_model(nautobot_object),
+            object_id=nautobot_object.pk,
+            tag=synced_tag_for(nautobot_object, tag_name=tag_name),
+        )
+    )
+
+
+def queue_new_object(pending: Any, instance: Any, key: Optional[Any] = None, through_rows: Iterable[Any] = ()):
+    """Queue a newly built object for a batched write, with its stamp, Tag row and any join rows.
+
+    The three go together: a queued object is never saved, so the stamp has to be on it before it is
+    inserted and the Tag has to arrive as its own row. Kept in one place so that a model added later
+    cannot queue a row without them.
+    """
+    stamp_synced(instance, LAST_SYNCHRONIZED_CF_NAME)
+    pending.add(instance, key=key)
+    for row in through_rows:
+        pending.add_through(row)
+    queue_synced_tag(pending, instance)
+    return instance
+
+
+def stamp_synced(nautobot_object: Any, custom_field: str):
+    """Record this integration as the object's source of record, without saving it.
+
+    Separate from `tag_object` so that a newly built object can be stamped before the one save it
+    takes, rather than saved again afterwards purely to carry the stamp.
+    """
+    if hasattr(nautobot_object, "cf"):
+        nautobot_object.cf["system_of_record"] = "IPFabric"
+        nautobot_object.cf[custom_field] = datetime.date.today().isoformat()
+
+
+def tag_object(
+    nautobot_object: Any,
+    custom_field: str,
+    tag_name: Optional[str] = "SSoT Synced from IPFabric",
+    extra_tags: Optional[tuple] = None,
+):
     """Apply the given tag and custom field to the identified object.
 
     Args:
         nautobot_object (Any): Nautobot ORM Object
         custom_field (str): Name of custom field to update
         tag_name (Optional[str], optional): Tag name. Defaults to "SSoT Synced From IPFabric".
+        extra_tags (Optional[tuple], optional): Further Tags to apply in the same operation, so that
+            a caller wanting two Tags does not pay for two round trips to the tag table.
     """
-    ct = ContentType.objects.get_for_model(nautobot_object)
-    tag = get_or_create_tag_object(
-        tag_name=tag_name,
-        tag_color=ColorChoices.COLOR_LIGHT_GREEN,
-        description="Object synced at some point from IPFabric to Nautobot",
-        app_label=ct.app_label,
-        model=ct.model,
-    )
-
-    today = datetime.date.today().isoformat()
+    tag = synced_tag_for(nautobot_object, tag_name=tag_name)
 
     def _tag_object(nautobot_object):
         """Apply custom field and tag to object, if applicable."""
-        if hasattr(nautobot_object, "tags"):
-            nautobot_object.tags.add(tag)
-        if hasattr(nautobot_object, "cf"):
-            # Update custom field date stamp
-            nautobot_object.cf["system_of_record"] = "IPFabric"
-            nautobot_object.cf[custom_field] = today
+        # `tags.add` reads the tag table to find what is missing even when nothing is, so an object
+        # already carrying the tag is answered from the per-model set instead. Objects tagged during
+        # the run are absent from that set, which costs a redundant add rather than a wrong answer.
+        if hasattr(nautobot_object, "tags") and (
+            extra_tags or nautobot_object.pk not in get_tagged_pks(type(nautobot_object), tag.id)
+        ):
+            nautobot_object.tags.add(tag, *(extra_tags or ()))
+        stamp_synced(nautobot_object, custom_field)
         nautobot_object.validated_save()
 
     _tag_object(nautobot_object)

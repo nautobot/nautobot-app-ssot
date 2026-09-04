@@ -1,0 +1,11 @@
+Fixed the IP Fabric adapter queueing objects for deletion on the adapter class rather than the instance, which let a run that failed part way leave objects for a later run in the same worker to delete.
+Fixed the IP Fabric adapter inserting an Interface before validating it, which left an invalid Interface in Nautobot when validation then failed.
+Fixed Bulk Write Mode discarding every IP Address whose containing Prefix Nautobot did not already hold, rather than creating the Prefix as a per-object sync does.
+Fixed the IP Fabric adapter rejecting an IP Address whose only containing Prefix is longer than the mask IP Fabric reports for it, and creating a redundant wider Prefix while doing so.
+Fixed Bulk Write Mode failing an entire batch of Devices, and ending the job with a `DoesNotExist` exception, when a Device carried a primary IP Address that the same run had yet to write.
+Fixed the IP Fabric job reusing the object caches of an earlier run in the same worker when that run failed before clearing them.
+Fixed Bulk Write Mode failing every Cable in a sync, because a Cable reads back Interfaces that the mode had only queued.
+Fixed Bulk Write Mode ending a job with a foreign key violation when IP Fabric reported one IP Address on more than one Interface, and writing a row that referenced an object the database had refused.
+Fixed the IP Fabric sync recording a Cable for only one of the links on an Interface IP Fabric reports several times, such as a cloud subnet's, and choosing a different one on each run so that a re-sync replaced the Cable the previous one had made.
+Fixed the IP Fabric sync refusing an IP Address that Nautobot already holds under a different mask to the one IP Fabric reports, and creating a redundant wider Prefix while doing so.
+Fixed the IP Fabric sync leaving an IP Address under the mask Nautobot already held rather than the mask IP Fabric reports for it, in the paths that reuse an existing address.

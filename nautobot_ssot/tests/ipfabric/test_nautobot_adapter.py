@@ -4,6 +4,8 @@ import unittest
 from uuid import uuid4
 
 from django.contrib.contenttypes.models import ContentType
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from nautobot.apps.testing import TestCase
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import (
@@ -155,10 +157,24 @@ class TestNautobotAdapter(TestCase):
             location_filter=None,
         )
 
+    @unittest.mock.patch.object(NautobotDiffSync, "load_interfaces")
+    def test_load_devices_reports_a_device_whose_location_did_not_load(self, mock_load_interfaces):
+        """Devices come from one query for every Location, so each is matched back to its own.
+
+        A Location that failed to load leaves its Devices with no parent to hang off, which has to
+        be reported rather than silently dropping them or raising.
+        """
+        with self.assertLogs("nautobot.ssot.ipfabric", level="ERROR") as logs:
+            self.nb_adapter.load_devices(Device.objects.filter(location=self.site1), {})
+
+        self.assertEqual(self.nb_adapter.get_all("device"), [])
+        mock_load_interfaces.assert_not_called()
+        self.assertTrue(any("site1" in message for message in logs.output), logs.output)
+
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models.Location", autospec=True)
     @unittest.mock.patch.object(NautobotDiffSync, "load_interfaces")
     def test_load_device(self, mock_load_interfaces, mock_location):
-        self.nb_adapter.load_device(Device.objects.filter(location=self.site1), mock_location)
+        self.nb_adapter.load_devices(Device.objects.filter(location=self.site1), {"site1": mock_location})
         self.assertEqual(mock_load_interfaces.call_count, 2)
         self.assertEqual(mock_location.add_child.call_count, 2)
         loaded_devices = self.nb_adapter.get_all("device")
@@ -180,7 +196,7 @@ class TestNautobotAdapter(TestCase):
 
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models.Location", autospec=True)
     def test_load_device_stacks(self, mock_location):
-        self.nb_adapter.load_device(Device.objects.filter(location=self.stack_site), mock_location)
+        self.nb_adapter.load_devices(Device.objects.filter(location=self.stack_site), {"stack": mock_location})
         loaded_devices = self.nb_adapter.get_all("device")
         self.assertEqual(len(loaded_devices), 3)
         self.assertEqual(loaded_devices[0].name, "stack1")
@@ -227,7 +243,7 @@ class TestNautobotAdapter(TestCase):
     def test_load_device_no_n_plus_one(self, mock_location):
         """Device loading with N stack members should not issue per-member or per-interface queries."""
         with AssertNoRepeatedQueries(self, threshold=1):
-            self.nb_adapter.load_device(Device.objects.filter(location=self.stack_site), mock_location)
+            self.nb_adapter.load_devices(Device.objects.filter(location=self.stack_site), {"stack": mock_location})
 
     def test_get_initial_location_filter_only(self):
         """`location_filter` without tagged_only returns the named location."""
@@ -602,3 +618,130 @@ class TestNautobotAdapter(TestCase):
 
         with AssertNoRepeatedQueries(self, threshold=1):
             self.nb_adapter.load_cables(Device.objects.filter(location=self.site1))
+
+
+class TestNautobotAdapterLoadScaling(TestCase):
+    """Test that a load costs the same number of queries however many Locations are in scope."""
+
+    def setUp(self):
+        populate_status_choices()
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
+        self.active_status = Status.objects.get(name="Active")
+        device_ct = ContentType.objects.get_for_model(Device)
+        Tag.objects.get_or_create(
+            name="SSoT Synced from IPFabric",
+            defaults={"color": ColorChoices.COLOR_LIGHT_GREEN, "description": "x"},
+        )
+        Tag.objects.get_or_create(
+            name="SSoT Safe Delete", defaults={"color": ColorChoices.COLOR_RED, "description": "x"}
+        )
+        self.role = Role.objects.create(name="scaling-role")
+        self.role.content_types.add(device_ct)
+        self.location_type, _ = LocationType.objects.get_or_create(name="scaling-site")
+        self.location_type.content_types.add(device_ct, ContentType.objects.get_for_model(VLAN))
+        manufacturer = Manufacturer.objects.create(name="scaling-vendor")
+        self.device_type = DeviceType.objects.create(model="scaling-model", manufacturer=manufacturer)
+
+    def build_locations(self, count, devices_each=2, interfaces_each=2):
+        """Create `count` more Locations, each holding Devices with Interfaces and a VLAN."""
+        existing = Location.objects.filter(location_type=self.location_type).count()
+        for location_index in range(existing, existing + count):
+            location = Location.objects.create(
+                name=f"scaling{location_index}", location_type=self.location_type, status=self.active_status
+            )
+            vlan = VLAN.objects.create(name=f"scaling-vlan{location_index}", vid=10, status=self.active_status)
+            vlan.locations.add(location)
+            for device_index in range(devices_each):
+                device = Device.objects.create(
+                    name=f"scaling{location_index}-{device_index}",
+                    status=self.active_status,
+                    role=self.role,
+                    location=location,
+                    device_type=self.device_type,
+                    serial="serial",
+                )
+                for interface_index in range(interfaces_each):
+                    Interface.objects.create(
+                        device=device,
+                        name=f"eth{interface_index}",
+                        status=self.active_status,
+                        type="1000base-t",
+                    )
+
+    def load_query_count(self):
+        """Return how many queries `load_data` takes over the Locations built so far."""
+        location_count = Location.objects.filter(location_type=self.location_type).count()
+        job = unittest.mock.MagicMock()
+        job.debug = False
+        adapter = NautobotDiffSync(
+            job=job,
+            sync=unittest.mock.MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+        )
+        job_scoped_cache.clear_all()
+        with CaptureQueriesContext(connection) as queries:
+            adapter.load_data()
+        self.assertEqual(len(adapter.get_all("device")), location_count * 2)
+        self.assertEqual(len(adapter.get_all("interface")), location_count * 4)
+        self.assertEqual(len(adapter.get_all("vlan")), location_count)
+        return len(queries.captured_queries)
+
+    def test_a_vlan_at_several_locations_loads_once_for_each(self):
+        """Reading VLANs through the `locations` many-to-many must not collapse a shared VLAN."""
+        self.build_locations(2)
+        shared = VLAN.objects.create(name="shared-vlan", vid=20, status=self.active_status)
+        shared.locations.add(*Location.objects.filter(location_type=self.location_type))
+        job = unittest.mock.MagicMock()
+        job.debug = False
+        adapter = NautobotDiffSync(
+            job=job,
+            sync=unittest.mock.MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+        )
+        adapter.load_data()
+
+        loaded = [vlan for vlan in adapter.get_all("vlan") if vlan.name == "shared-vlan"]
+        self.assertEqual(
+            sorted(vlan.location for vlan in loaded),
+            ["scaling0", "scaling1"],
+        )
+
+    def test_a_vlan_is_not_loaded_for_a_location_out_of_scope(self):
+        """A VLAN's other Locations come back with the prefetch, and must not be loaded from it."""
+        self.build_locations(1)
+        out_of_scope_type, _ = LocationType.objects.get_or_create(name="scaling-other")
+        out_of_scope_type.content_types.add(ContentType.objects.get_for_model(VLAN))
+        out_of_scope = Location.objects.create(
+            name="scaling-elsewhere", location_type=out_of_scope_type, status=self.active_status
+        )
+        shared = VLAN.objects.create(name="spanning-vlan", vid=21, status=self.active_status)
+        shared.locations.add(Location.objects.get(name="scaling0"), out_of_scope)
+
+        job = unittest.mock.MagicMock()
+        job.debug = False
+        adapter = NautobotDiffSync(
+            job=job,
+            sync=unittest.mock.MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=Location.objects.get(name="scaling0"),
+        )
+        adapter.load_data()
+
+        loaded = [vlan for vlan in adapter.get_all("vlan") if vlan.name == "spanning-vlan"]
+        self.assertEqual([vlan.location for vlan in loaded], ["scaling0"])
+
+    def test_query_count_does_not_grow_with_locations(self):
+        """Devices and VLANs come from one query each, not one per Location."""
+        self.build_locations(2)
+        few = self.load_query_count()
+        self.build_locations(6)
+        many = self.load_query_count()
+        self.assertEqual(
+            few,
+            many,
+            f"Loading 8 Locations took {many} queries against {few} for 2, so a query is being "
+            "repeated per Location.",
+        )
