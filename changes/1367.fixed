@@ -1,0 +1,2 @@
+Fixed `enable_global_search: False` leaving the `Sync` model included in Nautobot global search; both `Sync` and `SyncLogEntry` are now excluded, as they were before 3.10.0.
+Fixed the SSoT `searchable_models` entries using mixed-case model names, which prevented model-scoped global search requests such as `?model=nautobot_ssot.sync` from matching.
