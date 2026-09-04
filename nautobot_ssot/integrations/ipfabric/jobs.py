@@ -15,7 +15,7 @@ from nautobot.core.forms import DynamicModelChoiceField
 from nautobot.dcim.models import Location
 from nautobot.extras.jobs import BooleanVar, ChoiceVar, ScriptVariable
 
-from nautobot_ssot.integrations.ipfabric import constants
+from nautobot_ssot.integrations.ipfabric import constants, strict_mode
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
@@ -151,6 +151,7 @@ class IpFabricDataSource(DataSource):
             "safe_delete_mode",
             "sync_ipfabric_tagged_only",
             "bulk_write_mode",
+            strict_mode.FIELD_NAME,
             *scope_field_order(),
             "dryrun",
         )
@@ -201,6 +202,7 @@ class IpFabricDataSource(DataSource):
         # Built here rather than declared on the class so that an object type an administrator has
         # disabled is absent from the form, not merely defaulted off.
         got_vars.update(form_fields())
+        got_vars[strict_mode.FIELD_NAME] = strict_mode.form_field()
 
         return got_vars
 
@@ -213,6 +215,7 @@ class IpFabricDataSource(DataSource):
             DataMapping("Interfaces", None, "Interfaces", reverse("dcim:interface_list")),
             DataMapping("IP Addresses", None, "IP Addresses", reverse("ipam:ipaddress_list")),
             DataMapping("VLANs", None, "VLANs", reverse("ipam:vlan_list")),
+            DataMapping("Stack Members", None, "Virtual Chassis", reverse("dcim:virtualchassis_list")),
             DataMapping("Connectivity Matrix", None, "Cables", reverse("dcim:cable_list")),
         )
 
@@ -250,6 +253,7 @@ class IpFabricDataSource(DataSource):
             "safe_delete_mode": kwargs.get("safe_delete_mode"),
             "sync_ipfabric_tagged_only": kwargs.get("sync_ipfabric_tagged_only"),
             "bulk_write_mode": kwargs.get("bulk_write_mode"),
+            "strict": strict_mode.StrictObjects.from_job_kwargs(kwargs),
             "location_filter": kwargs.get("location_filter"),
             "debug": kwargs.get("debug"),
             "scope": SyncScope.from_job_kwargs(kwargs),
@@ -283,6 +287,7 @@ class IpFabricDataSource(DataSource):
         safe_mode = self.kwargs["safe_delete_mode"]
         tagged_only = self.kwargs["sync_ipfabric_tagged_only"]
         bulk_write_mode = self.kwargs["bulk_write_mode"]
+        strict = self.kwargs["strict"]
         scope = self.kwargs["scope"]
         location_filter = self.kwargs["location_filter"]
         debug_mode = self.kwargs["debug"]
@@ -294,7 +299,8 @@ class IpFabricDataSource(DataSource):
         options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Bulk Write Mode`: {bulk_write_mode}, `Location Filter`: {location_filter_object}"
         self.logger.info(f"Starting job with the following options: {options}")
         self.logger.info("Object types in scope: %s", scope.describe())
-        for explanation in scope.explanations():
+        self.logger.info("Object types matched rather than created: %s", strict.describe())
+        for explanation in (*scope.explanations(), *strict.explanations(scope)):
             self.logger.warning(explanation)
 
         ipfabric_source = IPFabricDiffSync(
@@ -303,6 +309,7 @@ class IpFabricDataSource(DataSource):
             client=self.client,
             location_filter=location_filter_object.name if location_filter_object else None,
             scope=scope,
+            strict=strict,
         )
         self.logger.info("Loading current data from IP Fabric...")
         ipfabric_source.load()
@@ -311,6 +318,8 @@ class IpFabricDataSource(DataSource):
         DiffSyncModelAdapters.safe_delete_mode = safe_mode
         DiffSyncExtras.safe_delete_mode = safe_mode
 
+        # Constructed after the source has loaded, so that the Interfaces it could not find a subnet
+        # for are known and this side can report no address for the same ones.
         dest = NautobotDiffSync(
             job=self,
             sync=self.sync,
@@ -318,6 +327,8 @@ class IpFabricDataSource(DataSource):
             bulk_write_mode=bulk_write_mode,
             location_filter=location_filter_object,
             scope=scope,
+            strict=strict,
+            interfaces_without_a_subnet=ipfabric_source.interfaces_without_a_subnet,
         )
 
         self.logger.info("Loading current data from Nautobot...")

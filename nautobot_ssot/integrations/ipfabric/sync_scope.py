@@ -205,6 +205,11 @@ def validate_registry(syncables: Iterable[SyncableObject]) -> Dict[str, Syncable
 _BY_KEY: Dict[str, SyncableObject] = validate_registry(SYNCABLE_OBJECTS)
 
 
+def is_registered(key: str) -> bool:
+    """Return whether the named object type has a scope toggle at all."""
+    return key in _BY_KEY
+
+
 def disabled_keys() -> Tuple[str, ...]:
     """Return the object types an administrator has denied for this Nautobot instance."""
     configured = CONFIG.get(DISABLED_OBJECTS_SETTING) or ()
@@ -282,6 +287,15 @@ class SyncScope:
     def is_enabled(self, key: str) -> bool:
         """Return whether the named object type is in scope."""
         return key in self._enabled
+
+    def covers(self, key: str) -> bool:
+        """Return whether this run syncs the named object type at all.
+
+        A type with no toggle here is always covered, which is what lets a caller ask one question
+        of a key that may or may not be registered. Statuses and Virtual Chassis are created on
+        demand but cannot be deselected, so nothing here decides whether they are in scope.
+        """
+        return key not in _BY_KEY or key in self._enabled
 
     def __getattr__(self, name: str) -> bool:
         """Expose each registered object type as an attribute, for a key known at author time."""

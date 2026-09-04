@@ -512,16 +512,21 @@ def get_or_create_status_object(  # pylint: disable=too-many-arguments
     description: str = "",
     app_label: str = "dcim",
     model: str = "device",
+    create: bool = True,
     logger: Optional[logging.Logger] = None,
 ) -> Optional[Status]:
     """Verify status object exists in Nautobot. If not, creates specified status. Defaults to dcim | device.
 
+    `create` is part of the cache key, so a run that matches and a run that creates do not share an
+    answer.
+
     Args:
         status_name: Status name.
-        status_color: Status color.
-        description: Description
-        app_label: App Label ("DCIM")
-        model: Django Model ("DEVICE")
+        status_color: Status color, for a Status that is created.
+        description: Description, for a Status that is created.
+        app_label: App Label ("DCIM"), for a Status that is created.
+        model: Django Model ("DEVICE"), for a Status that is created.
+        create: Whether a Status of this name may be created when none exists.
         logger: Logger to use for messaging.
 
     Returns:
@@ -531,6 +536,10 @@ def get_or_create_status_object(  # pylint: disable=too-many-arguments
     try:
         return Status.objects.get(name=status_name)
     except Status.DoesNotExist:
+        if not create:
+            if logger:
+                logger.debug("No Status named %s exists yet", status_name)
+            return None
         content_type = ContentType.objects.get(app_label=app_label, model=model)
         try:
             status_obj = Status.objects.create(
@@ -547,6 +556,19 @@ def get_or_create_status_object(  # pylint: disable=too-many-arguments
     except Status.MultipleObjectsReturned:
         if logger:
             logger.error(f"Multiple Statuses returned with the name {status_name}")
+    return None
+
+
+def get_virtual_chassis_object(name: str, logger=None) -> Optional[VirtualChassis]:
+    """Return an existing VirtualChassis by name, without creating one."""
+    try:
+        return VirtualChassis.objects.get(name=name)
+    except VirtualChassis.MultipleObjectsReturned:
+        if logger:
+            logger.error(f"Multiple VirtualChassis returned with the name {name}")
+    except VirtualChassis.DoesNotExist:
+        if logger:
+            logger.debug("No VirtualChassis named %s exists yet", name)
     return None
 
 
@@ -759,6 +781,12 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
         IPAddress: When a IPAddress Object is retrieved or created.
         None: When there is a failure in getting or creating a IPAddress.
     """
+    if not subnet_mask:
+        # Refused rather than given a host mask, which would put the address under the wrong parent
+        # Prefix and leave nothing to distinguish it from an address genuinely configured as one.
+        if logger:
+            logger.warning(f"Unable to create an IPAddress of {ip_address} because no subnet mask was reported for it")
+        return None
     try:
         status_obj = get_status_for_model(IPAddress, status)
     except Status.MultipleObjectsReturned:
@@ -987,11 +1015,12 @@ def queue_ip(
 
 
 # Not cached, as it is unhashable, but not useful to cache anyway
-def create_interface(
+def create_interface(  # pylint: disable=too-many-arguments
     device_obj: Device,
     interface_details: dict,
     logger: Optional[logging.Logger] = None,
     pending: Optional[Any] = None,
+    create_statuses: bool = True,
 ) -> Optional[Interface]:
     """Verify interface exists on specified device. If not, creates interface.
 
@@ -1001,6 +1030,7 @@ def create_interface(
         logger: Logger to use for messaging.
         pending: When given, a new Interface is queued for a batched write rather than saved. The
             returned Interface already has its primary key, so a caller may go on to reference it.
+        create_statuses: Whether the Interface's Status may be created when none of that name exists.
 
     Returns:
         Interface: When a Interface Object is retrieved or created.
@@ -1008,7 +1038,9 @@ def create_interface(
     """
     interface_name = interface_details.pop("name")
     status = interface_details.pop("status", "Active")
-    status_obj = get_or_create_status_object(status, app_label="dcim", model="interface", logger=logger)
+    status_obj = get_or_create_status_object(
+        status, app_label="dcim", model="interface", create=create_statuses, logger=logger
+    )
     if not status_obj:
         if logger:
             logger.error(

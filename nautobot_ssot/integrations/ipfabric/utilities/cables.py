@@ -53,11 +53,12 @@ def cable_connects(cable: Cable, interface_a: Interface, interface_b: Interface)
     return {cable.termination_a_id, cable.termination_b_id} == {interface_a.pk, interface_b.pk}
 
 
-def create_cable(
+def create_cable(  # pylint: disable=too-many-arguments
     interface_a: Interface,
     interface_b: Interface,
     status: str,
     logger: Optional[logging.Logger] = None,
+    create_statuses: bool = True,
 ) -> Optional[Cable]:
     """Create a Cable between two Interfaces.
 
@@ -66,16 +67,19 @@ def create_cable(
         interface_b: Interface to terminate the B side on.
         status: Status name to assign to the Cable.
         logger: Logger to use for messaging.
+        create_statuses: Whether the Cable's Status may be created when none of that name exists.
 
     Returns:
         Cable: When the Cable is created.
         None: When there is a failure in creating the Cable.
     """
-    status_obj = get_or_create_status_object(status, app_label="dcim", model="cable", logger=logger)
+    status_obj = get_or_create_status_object(
+        status, app_label="dcim", model="cable", create=create_statuses, logger=logger
+    )
     if not status_obj:
         if logger:
             logger.error(
-                f"Unable to get or create a Status named {status}, so no Cable will be created between "
+                f"Unable to resolve a Status named {status}, so no Cable will be created between "
                 f"{interface_a.device.name}:{interface_a.name} and {interface_b.device.name}:{interface_b.name}"
             )
         return None
@@ -98,23 +102,31 @@ def create_cable(
     return cable
 
 
-def update_cable_status(cable: Cable, status: str, logger: Optional[logging.Logger] = None) -> bool:
+def update_cable_status(
+    cable: Cable,
+    status: str,
+    logger: Optional[logging.Logger] = None,
+    create_statuses: bool = True,
+) -> bool:
     """Set a Cable's Status and record that it was synced from IP Fabric.
 
     Args:
         cable: Cable to update.
         status: Status name to assign to the Cable.
         logger: Logger to use for messaging.
+        create_statuses: Whether the Status may be created when none of that name exists.
 
     Returns:
         True when the Cable was saved, False when it could not be.
     """
     if cable.status.name != status:
-        status_obj = get_or_create_status_object(status, app_label="dcim", model="cable", logger=logger)
+        status_obj = get_or_create_status_object(
+            status, app_label="dcim", model="cable", create=create_statuses, logger=logger
+        )
         if not status_obj:
             if logger:
                 logger.error(
-                    f"Unable to get or create a Status named {status}, "
+                    f"Unable to resolve a Status named {status}, "
                     f"so Cable with an ID of {cable.id} will not be updated"
                 )
             return False

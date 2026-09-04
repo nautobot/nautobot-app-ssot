@@ -7,7 +7,8 @@ from django.conf import settings
 from django.urls import reverse
 from nautobot.apps.testing import TestCase
 
-from nautobot_ssot.integrations.ipfabric import jobs, sync_scope
+from nautobot_ssot.integrations.ipfabric import jobs, strict_mode, sync_scope
+from nautobot_ssot.integrations.ipfabric.strict_mode import StrictObjects
 from nautobot_ssot.integrations.ipfabric.sync_scope import SYNCABLE_OBJECTS, SyncScope
 
 CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
@@ -26,37 +27,20 @@ class IPFabricJobTest(TestCase):
 
     def test_data_mapping(self):
         """Verify correctness of the data_mappings() API."""
+        expected = [
+            ("Device", "Device", reverse("dcim:device_list")),
+            ("Location", "Location", reverse("dcim:location_list")),
+            ("Interfaces", "Interfaces", reverse("dcim:interface_list")),
+            ("IP Addresses", "IP Addresses", reverse("ipam:ipaddress_list")),
+            ("VLANs", "VLANs", reverse("ipam:vlan_list")),
+            ("Stack Members", "Virtual Chassis", reverse("dcim:virtualchassis_list")),
+            ("Connectivity Matrix", "Cables", reverse("dcim:cable_list")),
+        ]
+
         mappings = jobs.IpFabricDataSource.data_mappings()
 
-        self.assertEqual("Device", mappings[0].source_name)
-        self.assertIsNone(mappings[0].source_url)
-        self.assertEqual("Device", mappings[0].target_name)
-        self.assertEqual(reverse("dcim:device_list"), mappings[0].target_url)
-
-        self.assertEqual("Location", mappings[1].source_name)
-        self.assertIsNone(mappings[1].source_url)
-        self.assertEqual("Location", mappings[1].target_name)
-        self.assertEqual(reverse("dcim:location_list"), mappings[1].target_url)
-
-        self.assertEqual("Interfaces", mappings[2].source_name)
-        self.assertIsNone(mappings[2].source_url)
-        self.assertEqual("Interfaces", mappings[2].target_name)
-        self.assertEqual(reverse("dcim:interface_list"), mappings[2].target_url)
-
-        self.assertEqual("IP Addresses", mappings[3].source_name)
-        self.assertIsNone(mappings[3].source_url)
-        self.assertEqual("IP Addresses", mappings[3].target_name)
-        self.assertEqual(reverse("ipam:ipaddress_list"), mappings[3].target_url)
-
-        self.assertEqual("VLANs", mappings[4].source_name)
-        self.assertIsNone(mappings[4].source_url)
-        self.assertEqual("VLANs", mappings[4].target_name)
-        self.assertEqual(reverse("ipam:vlan_list"), mappings[4].target_url)
-
-        self.assertEqual("Connectivity Matrix", mappings[5].source_name)
-        self.assertIsNone(mappings[5].source_url)
-        self.assertEqual("Cables", mappings[5].target_name)
-        self.assertEqual(reverse("dcim:cable_list"), mappings[5].target_url)
+        self.assertEqual([(m.source_name, m.target_name, m.target_url) for m in mappings], expected)
+        self.assertEqual([m.source_url for m in mappings], [None] * len(expected))
 
     # @override_settings(
     #     PLUGINS_CONFIG={
@@ -138,11 +122,11 @@ class IPFabricJobFormTestCase(TestCase):
 class IPFabricSyncDataTest(TestCase):
     """Test that `sync_data` threads its job options through to both adapters."""
 
-    def _job(self, scope=None, **overrides):
+    def _job(self, scope=None, strict=None, **overrides):
         """Return a job instance with mocked client, sync and logger.
 
-        `scope` names the object types selected on the form; the default is what the form itself
-        would submit with nothing changed.
+        `scope` names the object types selected on the form and `strict` those the run may not
+        create; the default of each is what the form itself would submit with nothing changed.
         """
         job = jobs.IpFabricDataSource()
         job.client = mock.MagicMock()
@@ -154,6 +138,7 @@ class IPFabricSyncDataTest(TestCase):
             "safe_delete_mode": True,
             "sync_ipfabric_tagged_only": True,
             "bulk_write_mode": False,
+            "strict": StrictObjects(strict if strict is not None else strict_mode.default_keys()),
             "location_filter": None,
             "debug": False,
             "scope": SyncScope(scope) if scope is not None else SyncScope.from_job_kwargs({}),
@@ -180,6 +165,25 @@ class IPFabricSyncDataTest(TestCase):
         job = self._job()
         _source, dest = self._run(job)
         self.assertFalse(dest.call_args.kwargs["bulk_write_mode"])
+
+    def test_sync_data_passes_the_same_strictness_to_both_adapters(self):
+        """Both adapters must be given one strictness, or they can disagree about what may be created."""
+        job = self._job(strict=("locations", "roles"))
+
+        mock_source, mock_dest = self._run(job)
+
+        strict = mock_source.call_args.kwargs["strict"]
+        self.assertIs(strict, mock_dest.call_args.kwargs["strict"])
+        self.assertTrue(strict.locations)
+        self.assertTrue(strict.roles)
+        self.assertFalse(strict.platforms)
+
+    def test_sync_data_defaults_to_strict_ip_addresses_only(self):
+        job = self._job()
+
+        mock_source, _mock_dest = self._run(job)
+
+        self.assertEqual(list(mock_source.call_args.kwargs["strict"]), ["ip_addresses"])
 
     def test_sync_data_passes_the_same_scope_to_both_adapters(self):
         """Both adapters must be given one scope object, or they can disagree about what is in scope."""

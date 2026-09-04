@@ -48,13 +48,8 @@ logger = logging.getLogger(__name__)
 
 
 def resolve_location(adapter, location_name: str, location_id: Optional[str] = None):
-    """Return the Nautobot Location a synced object belongs to.
-
-    Creates one only while Locations are in scope. Out of scope another system owns them, so a
-    Location that is not there yet is expected to arrive from that system; this sync looks for it and
-    reports it missing rather than filling the gap itself.
-    """
-    if adapter.scope.locations:
+    """Return the Nautobot Location a synced object belongs to, creating one only if this run may."""
+    if adapter.may_create("locations"):
         return tonb_nbutils.get_or_create_location_object(
             location_name=location_name,
             location_id=location_id,
@@ -65,12 +60,8 @@ def resolve_location(adapter, location_name: str, location_id: Optional[str] = N
 
 
 def resolve_manufacturer(adapter, vendor_name: str):
-    """Return the Nautobot Manufacturer for a vendor IP Fabric reports.
-
-    Creates one only while Manufacturers are in scope. Out of scope another system owns the vendor
-    list, so this sync looks for the Manufacturer and reports it missing rather than adding to it.
-    """
-    if adapter.scope.manufacturers:
+    """Return the Nautobot Manufacturer for a vendor IP Fabric reports, creating one only if this run may."""
+    if adapter.may_create("manufacturers"):
         return tonb_nbutils.get_or_create_manufacturer_object(vendor_name, logger=adapter.job.logger)
     return tonb_nbutils.get_manufacturer_object(vendor_name, logger=adapter.job.logger)
 
@@ -78,12 +69,11 @@ def resolve_manufacturer(adapter, vendor_name: str):
 def resolve_device_type(adapter, device_type_name: str, vendor_name: str):
     """Return the Nautobot DeviceType for a model IP Fabric reports.
 
-    An existing DeviceType is used whatever the scope. Creating one is what the scope governs, and
-    creating one needs a Manufacturer, so the Manufacturer is resolved through its own scope first:
-    a sync told not to add vendors must not add one in order to add a model.
+    An existing DeviceType is used either way. Creating one needs a Manufacturer, so that is resolved
+    through its own controls first: a sync told not to add vendors must not add one to add a model.
     """
     existing = tonb_nbutils.get_device_type_object(device_type_name, logger=adapter.job.logger)
-    if existing or not adapter.scope.device_types:
+    if existing or not adapter.may_create("device_types"):
         return existing
     manufacturer_object = resolve_manufacturer(adapter, vendor_name)
     if not manufacturer_object:
@@ -101,12 +91,8 @@ def resolve_device_type(adapter, device_type_name: str, vendor_name: str):
 
 
 def resolve_role(adapter, role_name: str):
-    """Return the Nautobot Role for a device type IP Fabric reports.
-
-    Creates one only while Roles are in scope. Out of scope roles are assigned by another process, so
-    this sync matches an existing Role and reports a missing one rather than inventing it.
-    """
-    if adapter.scope.roles:
+    """Return the Nautobot Role for a device type IP Fabric reports, creating one only if this run may."""
+    if adapter.may_create("roles"):
         return tonb_nbutils.get_or_create_device_role_object(
             role_name=role_name,
             role_color=DEFAULT_DEVICE_ROLE_COLOR,
@@ -115,14 +101,32 @@ def resolve_role(adapter, role_name: str):
     return tonb_nbutils.get_device_role_object(role_name, logger=adapter.job.logger)
 
 
+def resolve_status(adapter, status_name: str, status_color: str = ColorChoices.COLOR_GREY, **kwargs):
+    """Return the Nautobot Status of the given name, creating one only if this run may."""
+    return tonb_nbutils.get_or_create_status_object(
+        status_name,
+        status_color=status_color,
+        create=adapter.may_create("statuses"),
+        logger=adapter.job.logger,
+        **kwargs,
+    )
+
+
+def resolve_virtual_chassis(adapter, name: str):
+    """Return the Nautobot VirtualChassis of the given name, creating one only if this run may."""
+    if adapter.may_create("virtual_chassis"):
+        return tonb_nbutils.get_or_create_virtual_chassis_object(name, logger=adapter.job.logger)
+    return tonb_nbutils.get_virtual_chassis_object(name, logger=adapter.job.logger)
+
+
 def resolve_platform(adapter, platform_name: str, manufacturer_object):
     """Return the Nautobot Platform for a family IP Fabric reports.
 
-    Creates one only while Platforms are in scope, and only when a Manufacturer to file it under was
-    resolved. Out of scope the Platform is matched on its name alone, since the system that owns it
-    decides its Manufacturer.
+    Creates one only if this run may, and only when a Manufacturer to file it under was resolved.
+    Otherwise the Platform is matched on its name alone, since the system that owns it decides its
+    Manufacturer.
     """
-    if not adapter.scope.platforms:
+    if not adapter.may_create("platforms"):
         return tonb_nbutils.get_platform_object(platform_name, logger=adapter.job.logger)
     if not manufacturer_object:
         return None
@@ -172,6 +176,10 @@ class DiffSyncExtras(DiffSyncModel):
             super().delete()
         else:
             if safe_delete_status:
+                # Created whatever this run may create otherwise. Safe Delete Mode's statuses are
+                # the integration's own vocabulary rather than anything IP Fabric reported, and
+                # refusing to create one would leave a record neither deleted nor marked, which is
+                # the one outcome Safe Delete Mode exists to prevent.
                 safe_delete_status = tonb_nbutils.get_or_create_status_object(
                     safe_delete_status.capitalize(), ColorChoices.COLOR_RED
                 )
@@ -274,7 +282,7 @@ class Location(DiffSyncExtras):
             active_status = attrs.get("status")
             if active_status == "Active":
                 if location.status != active_status:
-                    location.status = tonb_nbutils.get_or_create_status_object(active_status, ColorChoices.COLOR_GREEN)
+                    location.status = resolve_status(self.adapter, active_status, ColorChoices.COLOR_GREEN)
                 location.tags.remove(self.adapter.safe_delete_tag)
             try:
                 # Calls validated_save() on the object
@@ -374,11 +382,7 @@ class Device(DiffSyncExtras):
                 f"to get or create a Role named {role_name}"
             )
         # Get Status
-        device_status_object = tonb_nbutils.get_or_create_status_object(
-            DEFAULT_DEVICE_STATUS,
-            DEFAULT_DEVICE_STATUS_COLOR,
-            logger=adapter.job.logger,
-        )
+        device_status_object = resolve_status(adapter, DEFAULT_DEVICE_STATUS, DEFAULT_DEVICE_STATUS_COLOR)
         if not device_status_object:
             adapter.job.logger.warning(
                 f"Unable to create a Device with the name {device_name} because of a failure "
@@ -447,7 +451,7 @@ class Device(DiffSyncExtras):
                 vc_name = attrs.get("vc_name")
                 if vc_name:
                     try:
-                        vc = tonb_nbutils.get_or_create_virtual_chassis_object(vc_name, logger=adapter.job.logger)
+                        vc = resolve_virtual_chassis(adapter, vc_name)
                         if vc:
                             tonb_nbutils.assign_device_to_virtual_chassis(
                                 new_device,
@@ -497,7 +501,7 @@ class Device(DiffSyncExtras):
             return_super = True
             if attrs.get("status") == "Active":
                 if not _device.status.name == "Active":
-                    _device.status = tonb_nbutils.get_or_create_status_object("Active", ColorChoices.COLOR_GREEN)
+                    _device.status = resolve_status(self.adapter, "Active", ColorChoices.COLOR_GREEN)
                 _device.tags.remove(self.adapter.safe_delete_tag)
 
             vendor_name = attrs.get("vendor") or self.vendor
@@ -559,7 +563,7 @@ class Device(DiffSyncExtras):
             vc_attrs_present = any(k in attrs for k in ("vc_name", "vc_master", "vc_position", "vc_priority"))
             if vc_attrs_present and vc_name:
                 try:
-                    vc = tonb_nbutils.get_or_create_virtual_chassis_object(vc_name, logger=self.adapter.job.logger)
+                    vc = resolve_virtual_chassis(self.adapter, vc_name)
                     if vc:
                         tonb_nbutils.assign_device_to_virtual_chassis(
                             _device,
@@ -634,6 +638,7 @@ class Interface(DiffSyncExtras):
                 attrs["mac_address"] = DEFAULT_INTERFACE_MAC
             pending = adapter.pending
             interface_obj = tonb_nbutils.create_interface(
+                create_statuses=adapter.may_create("statuses"),
                 device_obj=device_obj,
                 interface_details={**ids, **attrs},
                 logger=adapter.job.logger,
@@ -768,7 +773,9 @@ class Interface(DiffSyncExtras):
                 if attrs.get("mgmt_only"):
                     interface.mgmt_only = attrs["mgmt_only"]
                 ip_address = attrs.get("ip_address")
-                subnet_mask = attrs.get("subnet_mask", "255.255.255.255")
+                # Falls back to the mask already recorded, not to a host mask: an address whose
+                # mask the source did not report as changed keeps the one it has.
+                subnet_mask = attrs.get("subnet_mask") or self.subnet_mask
                 if ip_address:
                     if interface.ip_addresses.all():
                         logger.info(f"Replacing IP from interface {self.name} on {device.name}")
@@ -966,7 +973,7 @@ class Vlan(DiffSyncExtras):
             return None
         if attrs.get("status") == "Active":
             if not vlan.status == "Active":
-                vlan.status = tonb_nbutils.get_or_create_status_object("Active", ColorChoices.COLOR_GREEN)
+                vlan.status = resolve_status(self.adapter, "Active", ColorChoices.COLOR_GREEN)
             vlan.tags.remove(self.adapter.safe_delete_tag)
         if attrs.get("description"):
             vlan.description = attrs.get("description")
@@ -1047,13 +1054,24 @@ class Cable(DiffSyncExtras):
         existing_cable = interface_a.cable
         if existing_cable and tonb_cables.cable_connects(existing_cable, interface_a, interface_b):
             # Already recorded, so correct it in place rather than replacing it.
-            if not tonb_cables.update_cable_status(existing_cable, attrs["status"], logger=job_logger):
+            if not tonb_cables.update_cable_status(
+                existing_cable,
+                attrs["status"],
+                logger=job_logger,
+                create_statuses=adapter.may_create("statuses"),
+            ):
                 return None
             return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
         if not cls.release_interfaces(adapter, link, interface_a, interface_b):
             return None
-        if tonb_cables.create_cable(interface_a, interface_b, attrs["status"], logger=job_logger):
+        if tonb_cables.create_cable(
+            interface_a,
+            interface_b,
+            attrs["status"],
+            logger=job_logger,
+            create_statuses=adapter.may_create("statuses"),
+        ):
             return super().create(ids=ids, adapter=adapter, attrs=attrs)
         return None
 
@@ -1112,7 +1130,12 @@ class Cable(DiffSyncExtras):
             return None
         status = attrs.get("status")
         if status:
-            if not tonb_cables.update_cable_status(cable, status, logger=self.adapter.job.logger):
+            if not tonb_cables.update_cable_status(
+                cable,
+                status,
+                logger=self.adapter.job.logger,
+                create_statuses=self.adapter.may_create("statuses"),
+            ):
                 return None
             if status == DEFAULT_CABLE_STATUS:
                 cable.tags.remove(self.adapter.safe_delete_tag)
