@@ -450,6 +450,37 @@ class TestNautobotAdapter(TestCase):
 
         self.assertEqual(self.nb_adapter.get_all("vlan"), [])
 
+    def test_a_duplicate_vlan_is_reported_and_loaded_once(self):
+        """Two Nautobot VLANs of one name at one Location collide on the DiffSync identity."""
+        self.site1.location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
+        for vid in (10, 20):
+            duplicate = VLAN.objects.create(name="same-name", vid=vid, status=self.active_status)
+            duplicate.locations.add(self.site1)
+
+        with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
+            self.nb_adapter.load_data()
+
+        loaded = [vlan for vlan in self.nb_adapter.get_all("vlan") if vlan.name == "same-name"]
+        self.assertEqual(len(loaded), 1, "The colliding VLAN must not be loaded twice.")
+        self.assertIn("Duplicate VLAN discovered, same-name", " ".join(logs.output))
+
+    def test_a_location_missing_the_attributes_the_loader_reads_is_reported_and_skipped(self):
+        """One unreadable Location must not take the rest of the sync with it."""
+        # Unset in memory only, so the record stays a real Location for the queries that follow;
+        # `status.name` is what the loader reads off it.
+        self.site1.status = None
+
+        with unittest.mock.patch.object(
+            self.nb_adapter, "get_initial_location", return_value=[self.site1, self.stack_site]
+        ):
+            with self.assertLogs("nautobot.ssot.ipfabric", level="ERROR") as logs:
+                self.nb_adapter.load_data()
+
+        loaded = {location.name for location in self.nb_adapter.get_all("location")}
+        self.assertNotIn("site1", loaded)
+        self.assertIn("stack", loaded, "The readable Location must still load.")
+        self.assertIn("site1", " ".join(logs.output))
+
     def _interface(self, device_name, interface_name):
         """Create a cableable Interface on the named Device.
 

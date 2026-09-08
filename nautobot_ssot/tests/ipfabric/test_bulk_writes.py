@@ -8,6 +8,7 @@ this way produces the same rows a per-object save would.
 import unittest.mock
 
 from django.contrib.contenttypes.models import ContentType
+from django.db import Error as DjangoBaseDBError
 from nautobot.apps.testing import TestCase, TransactionTestCase
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Cable as NautobotCable
@@ -689,6 +690,40 @@ class BulkModeDeviceTestCase(TestCase):
             }
 
         self.assertEqual(state("batched"), state("per-object"))
+
+    def test_a_device_nautobot_already_holds_is_reused_rather_than_queued_again(self):
+        """A second run must not queue a duplicate insert for a Device the first one wrote."""
+        first = self.adapter(bulk_write_mode=True)
+        DeviceModel.create(first, ids={"name": "twice-dev"}, attrs=self.device_attrs())
+        first.flush_pending_writes()
+        written = Device.objects.get(name="twice-dev")
+
+        second = self.adapter(bulk_write_mode=True)
+        DeviceModel.create(second, ids={"name": "twice-dev"}, attrs=self.device_attrs())
+
+        self.assertEqual(len(second.pending), 0, "The existing Device was queued for insertion again.")
+        second.flush_pending_writes()
+        self.assertEqual(Device.objects.filter(name="twice-dev").count(), 1)
+        self.assertEqual(Device.objects.get(name="twice-dev").pk, written.pk)
+
+    def test_an_update_batch_the_database_refuses_is_reported_and_not_applied(self):
+        """`bulk_update` covers a whole batch, so a refusal has to name the fields and the model."""
+        adapter = self.adapter(bulk_write_mode=True)
+        DeviceModel.create(adapter, ids={"name": "refused-update"}, attrs=self.device_attrs())
+        adapter.flush_pending_writes()
+        device = Device.objects.get(name="refused-update")
+        pending = PendingWrites()
+        pending.defer_update(device, {"serial": "changed"})
+
+        with unittest.mock.patch.object(Device.objects, "bulk_update", side_effect=DjangoBaseDBError("refused")):
+            with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
+                written = pending.flush()
+
+        self.assertEqual(written, 0)
+        self.assertEqual(Device.objects.get(pk=device.pk).serial, "abc123")
+        logged = " ".join(logs.output)
+        self.assertIn("Unable to update serial", logged)
+        self.assertIn("Device", logged)
 
 
 class HighWaterFlushTestCase(TestCase):

@@ -11,7 +11,7 @@ import unittest.mock
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
-from django.db import connection
+from django.db import IntegrityError, connection
 from django.test.utils import CaptureQueriesContext
 from nautobot.apps.change_logging import JobChangeContext, change_logging
 from nautobot.apps.testing import TestCase
@@ -21,7 +21,11 @@ from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import ObjectChange, Role, Status, Tag
 from nautobot.ipam.models import IPAddress
 
-from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync, delete_objects
+from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import (
+    NautobotDiffSync,
+    delete_objects,
+    delete_objects_one_at_a_time,
+)
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
@@ -300,6 +304,34 @@ class DeleteCostTestCase(_CostTestCase):
             location_filter=None,
         )
         self.assertEqual(other.objects_to_delete["_interface"], [])
+
+    def test_an_object_the_database_refuses_does_not_stop_the_rest_of_its_batch(self):
+        """The retry a refused batch falls back to is per object, so one refusal must not end it.
+
+        `ProtectedError` subclasses `IntegrityError`, so the protected case above arrives here too.
+        This is the plain refusal, which carries no protecting object to name.
+        """
+        doomed, keeper = self.interfaces(2, "integrity")
+
+        with unittest.mock.patch.object(doomed, "delete", side_effect=IntegrityError("refused")):
+            with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
+                delete_objects_one_at_a_time([doomed, keeper])
+
+        self.assertTrue(Interface.objects.filter(pk=doomed.pk).exists())
+        self.assertFalse(Interface.objects.filter(pk=keeper.pk).exists())
+        self.assertIn("IntegrityError", " ".join(logs.output))
+
+    def test_sync_complete_deletes_what_is_queued_when_safe_delete_mode_is_off(self):
+        """The counterpart to safe delete mode: with it off, `sync_complete` is what does the deleting."""
+        queued = self.interfaces(3, "swept")
+        self.adapter.objects_to_delete["_interface"] = list(queued)
+        # Set on the instance rather than the class, which every other adapter would otherwise read.
+        self.adapter.safe_delete_mode = False
+
+        self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
+
+        self.assertFalse(Interface.objects.filter(pk__in=[interface.pk for interface in queued]).exists())
+        self.assertEqual(self.adapter.objects_to_delete["_interface"], [])
 
 
 class ChangeLogCostTestCase(_CostTestCase):

@@ -14,10 +14,11 @@ from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import DeviceType, Interface, Location, LocationType, Manufacturer, Platform, VirtualChassis
 from nautobot.dcim.models.devices import Device
 from nautobot.extras.management import populate_status_choices
-from nautobot.extras.models import Role, Tag
+from nautobot.extras.models import CustomField, Role, Tag
 from nautobot.extras.models.statuses import Status
 from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
 
+from nautobot_ssot.integrations.ipfabric.bulk_writes import PendingWrites
 from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
 from nautobot_ssot.integrations.ipfabric.utilities import (
     assign_device_to_virtual_chassis,
@@ -40,8 +41,11 @@ from nautobot_ssot.integrations.ipfabric.utilities import (
     get_syncable_device,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
+    IPAddressToInterface,
+    create_parent_prefix,
     deferred_change_logging,
     get_tagged_interface,
+    queue_ip,
     tag_object,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
@@ -1275,6 +1279,120 @@ class TestNautobotUtils(TestCase):
     def test_get_device_role_object_returns_none_when_absent(self):
         """A Role neither matched on the custom field nor on the name is reported missing."""
         self.assertIsNone(get_device_role_object("No-Such-Role"))
+
+    # ===== failure paths a bad estate reaches, and the reuse paths a second run reaches =====
+
+    @mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.CustomField.objects.get_or_create")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_a_location_id_is_not_recorded_when_its_custom_field_is_ambiguous(self, mock_logger, mock_get_or_create):
+        """The Location still loads; only the IP Fabric site id it could not file is lost."""
+        logger = mock_logger("nb_job")
+        mock_get_or_create.side_effect = CustomField.MultipleObjectsReturned
+
+        location = get_or_create_location_object(location_name="Test-Location", location_id="site-1", logger=logger)
+
+        self.assertEqual(location.id, self.location.id)
+        self.assertFalse(location.cf.get("ipfabric_site_id"))
+        logger.error.assert_called_with("Multiple CustomFields returned with key ipfabric_site_id")
+
+    @mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.CustomField.objects.get_or_create")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_a_location_id_is_not_recorded_when_its_custom_field_cannot_be_created(
+        self, mock_logger, mock_get_or_create
+    ):
+        logger = mock_logger("nb_job")
+        mock_get_or_create.side_effect = ValidationError("refused")
+
+        location = get_or_create_location_object(location_name="Test-Location", location_id="site-1", logger=logger)
+
+        self.assertEqual(location.id, self.location.id)
+        self.assertFalse(location.cf.get("ipfabric_site_id"))
+        logger.error.assert_called_with(
+            "Unable to create a new CustomField named ipfabric_site_id with type of TYPE_TEXT"
+        )
+
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_ip_reports_a_new_address_the_database_refuses(self, mock_logger):
+        """A refused address returns None rather than a half-written one the caller would assign."""
+        logger = mock_logger("nb_job")
+
+        with mock.patch.object(IPAddress, "validated_save", side_effect=ValidationError("refused")):
+            result = create_ip("192.168.1.5", "255.255.255.0", logger=logger)
+
+        self.assertIsNone(result)
+        self.assertFalse(IPAddress.objects.filter(host="192.168.1.5").exists())
+        self.assertIn("Unable to create a new IPAddress", logger.error.call_args[0][0])
+
+    @mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_ip_reports_a_mask_it_could_not_change(self, mock_logger, mock_tag_object):
+        """Reported as an error, not the warning an unchanged mask gets: the mask is what the sync keeps."""
+        logger = mock_logger("nb_job")
+        mock_tag_object.side_effect = ValidationError("refused")
+
+        result = create_ip("192.168.0.1", "255.255.0.0", logger=logger)
+
+        self.assertEqual(result.id, self.ip_address.id)
+        self.assertEqual(result.mask_length, 32, "The refused mask must not be left set in memory.")
+        self.assertIn("Unable to change the mask", logger.error.call_args[0][0])
+        logger.warning.assert_not_called()
+
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_ip_reports_an_interface_assignment_the_database_refuses(self, mock_logger):
+        """The address itself is still returned, since only the assignment row failed."""
+        logger = mock_logger("nb_job")
+        interface = self.device.interfaces.first()
+
+        with mock.patch.object(IPAddressToInterface, "validated_save", side_effect=ValidationError("refused")):
+            result = create_ip("192.168.0.1", "255.255.255.255", object_pk=interface, logger=logger)
+
+        self.assertEqual(result.id, self.ip_address.id)
+        self.assertFalse(interface.ip_addresses.filter(pk=self.ip_address.pk).exists())
+        self.assertIn("Unable to assign IPAddress", logger.error.call_args[0][0])
+
+    @mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.resolve_ip", return_value=None)
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_queue_ip_reports_an_address_it_could_not_resolve(self, mock_logger, _mock_resolve_ip):
+        """Nothing is queued, so the batch cannot carry a row the address was never built for."""
+        logger = mock_logger("nb_job")
+        pending = PendingWrites()
+
+        result = queue_ip(
+            address="192.168.9.9/24",
+            status_obj=Status.objects.get(name="Active"),
+            interface=None,
+            pending=pending,
+            logger=logger,
+        )
+
+        self.assertIsNone(result)
+        self.assertEqual(len(pending), 0)
+        self.assertIn("Unable to queue an IPAddress", logger.error.call_args[0][0])
+
+    def test_create_parent_prefix_keeps_the_prefix_that_already_contains_the_address(self):
+        """Checked for rather than inferred from a failure, so no second, wider Prefix is added."""
+        before = Prefix.objects.count()
+
+        self.assertTrue(create_parent_prefix("192.168.5.5/24"))
+
+        self.assertEqual(Prefix.objects.count(), before)
+
+    def test_create_vlan_reuses_a_vlan_the_location_already_has(self):
+        """Matched on VLAN ID and Location, so the name IP Fabric reports does not overwrite it."""
+        existing = VLAN.objects.create(vid=250, name="Pre-Existing", status=self.vlan_status)
+        existing.locations.add(self.location)
+
+        vlan = create_vlan(
+            vlan_name="Reported-Name",
+            vlan_id=250,
+            vlan_status="Test-Vlan-Status",
+            location_obj=self.location,
+            description="",
+        )
+
+        self.assertEqual(vlan.pk, existing.pk)
+        self.assertEqual(vlan.name, "Pre-Existing")
+        self.assertEqual(VLAN.objects.filter(vid=250).count(), 1)
 
 
 class TestDeferredChangeLogging(TestCase):
