@@ -126,7 +126,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     }
     config_view_name = "plugins:nautobot_ssot:config"
     docs_view_name = "plugins:nautobot_ssot:docs"
-    searchable_models = ["sync"]
+    # `searchable_models` is intentionally not declared here; `ready()` assigns it from `enable_global_search`.
 
     def ready(self):
         """Trigger callback when database is ready."""
@@ -137,12 +137,12 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         if not is_truthy(os.getenv("NAUTOBOT_SSOT_ALLOW_CONFLICTING_APPS", "False")):
             _check_for_conflicting_apps()
 
-        # Only set searchable_models if enabled in config
+        # Assign in both branches so no class-level default can leak through when global search is disabled.
+        # Nautobot expects lowercase model names and compares them as plain strings (`?obj_type=sync`).
         if settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("enable_global_search", True):
-            self.searchable_models = [
-                "Sync",
-                "SyncLogEntry",
-            ]
+            self.searchable_models = ["sync", "synclogentry"]
+        else:
+            self.searchable_models = []
 
 
 config = NautobotSSOTAppConfig  # pylint:disable=invalid-name
