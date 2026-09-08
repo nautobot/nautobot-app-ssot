@@ -11,13 +11,22 @@ talk to it, as `test_supporting_object_scope.py` does for the scope controls.
 import unittest.mock
 
 from nautobot.apps.testing import TestCase
-from nautobot.dcim.models import Device, DeviceType, Location, Manufacturer, Platform, VirtualChassis
+from nautobot.dcim.models import (
+    Device,
+    DeviceType,
+    Interface,
+    Location,
+    Manufacturer,
+    Platform,
+    VirtualChassis,
+)
 from nautobot.extras.models import Role, Status
 from parameterized import parameterized
 
 from nautobot_ssot.integrations.ipfabric import strict_mode
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
-from nautobot_ssot.integrations.ipfabric.strict_mode import STRICT_OBJECTS, StrictObjects
+from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
+from nautobot_ssot.integrations.ipfabric.strict_mode import STRICT_OBJECTS, StrictObject, StrictObjects
 from nautobot_ssot.tests.ipfabric.supporting_objects import (
     KNOWN_STACK,
     UNKNOWN_LOCATION,
@@ -94,6 +103,36 @@ class StrictObjectsTestCase(TestCase):
         """Statuses and Virtual Chassis cannot be deselected, so the scope never covers them."""
         self.assertEqual(StrictObjects(("statuses", "virtual_chassis")).explanations(scope_without()), [])
 
+    def test_a_duplicate_registration_is_refused(self):
+        """Two entries of one key would collapse two object types into a single form choice."""
+        entry = StrictObject(key="locations", label="Locations", description="first")
+
+        with self.assertRaises(ValueError) as refused:
+            strict_mode.validate_registry([entry, entry])
+
+        self.assertIn("locations", str(refused.exception))
+
+    def test_a_registration_disagreeing_with_the_sync_scope_is_refused(self):
+        """Joined on a key one registry does not have, `covers` silently always covers the type."""
+        misdeclared = StrictObject(key="statuses", label="Statuses", description="has no scope toggle", scoped=True)
+
+        with self.assertRaises(ValueError) as refused:
+            strict_mode.validate_registry([misdeclared])
+
+        self.assertIn("statuses", str(refused.exception))
+        self.assertIn("scoped=True", str(refused.exception))
+
+    def test_the_registry_shipped_is_itself_valid(self):
+        """The import-time check is what makes the two registries agree, so pin that it passes."""
+        self.assertEqual(list(strict_mode.validate_registry(STRICT_OBJECTS)), [entry.key for entry in STRICT_OBJECTS])
+
+    def test_the_representation_names_the_selected_types(self):
+        """Read off a job log, so it has to say which types rather than how many."""
+        self.assertEqual(repr(StrictObjects(("locations", "roles"))), "StrictObjects(locations, roles)")
+
+    def test_the_representation_of_an_empty_selection_says_so(self):
+        self.assertEqual(repr(StrictObjects(())), "StrictObjects(nothing)")
+
 
 class MayCreateTestCase(TestCase):
     """Test how the two controls layer: the scope decides whether, strictness whether to trust."""
@@ -143,6 +182,19 @@ class StrictSupportingObjectTestCase(SupportingObjectTestCase):
     def be_strict_about(self, *keys):
         """Select the named object types as ones this run may not create."""
         self.adapter.strict = StrictObjects(keys)
+
+    def create_interface(self, name, status):
+        """Run `Interface.create` for an Interface on this test's Device.
+
+        `sync_ipfabric_tagged_only` is set here rather than in the shared fixture, which carries only
+        what a Device create reads.
+        """
+        self.adapter.sync_ipfabric_tagged_only = False
+        return InterfaceModel.create(
+            self.adapter,
+            ids={"name": name, "device_name": "dev1"},
+            attrs={"ip_address": None, "subnet_mask": None, "status": status, "type": "1000base-t"},
+        )
 
     def test_nothing_strict_creates_what_is_missing(self):
         """The default keeps the existing behaviour of creating supporting objects as needed."""
@@ -234,12 +286,32 @@ class StrictSupportingObjectTestCase(SupportingObjectTestCase):
 
     # --- statuses ----------------------------------------------------------
 
-    def test_a_missing_status_is_not_created(self):
-        self.be_strict_about("statuses")
+    def test_a_missing_status_is_not_created_for_an_interface(self):
+        """An Interface is where a Status IP Fabric reported reaches Nautobot.
 
-        self.create_device(status="No-Such-Status")
+        A Device does not: `Device.create` resolves the configured default rather than the status in
+        the record, so asserting this through `create_device` would pass whatever strictness did.
+        """
+        self.be_strict_about("statuses")
+        self.create_device()
+
+        self.create_interface("eth0", "No-Such-Status")
 
         self.assertFalse(Status.objects.filter(name="No-Such-Status").exists())
+        self.assertFalse(Interface.objects.filter(name="eth0").exists(), "The Interface needed the Status.")
+        reported = [str(call) for call in self.adapter.job.logger.error.call_args_list]
+        self.assertTrue(
+            any("No-Such-Status" in line for line in reported), f"Expected the Status to be named: {reported}"
+        )
+
+    def test_an_interface_status_nautobot_holds_is_still_used(self):
+        """Strictness stops the sync adding to the vocabulary, not using what is already in it."""
+        self.be_strict_about("statuses")
+        self.create_device()
+
+        self.create_interface("eth1", "Active")
+
+        self.assertEqual(Interface.objects.get(name="eth1").status, self.active_status)
 
     def test_an_existing_status_is_still_used(self):
         self.be_strict_about("statuses")

@@ -39,6 +39,7 @@ from nautobot_ssot.integrations.ipfabric.utilities import (
     get_or_create_virtual_chassis_object,
     get_platform_object,
     get_syncable_device,
+    get_virtual_chassis_object,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
     IPAddressToInterface,
@@ -1426,6 +1427,36 @@ class TestNautobotUtils(TestCase):
         self.assertEqual(vlan.pk, existing.pk)
         self.assertEqual(vlan.name, "Pre-Existing")
         self.assertEqual(VLAN.objects.filter(vid=250).count(), 1)
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.VirtualChassis.objects.get")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_virtual_chassis_object_reports_an_ambiguous_name(self, mock_logger, mock_get):
+        """Two stacks of one name cannot be told apart, so membership is left unrecorded."""
+        logger = mock_logger("nb_job")
+        mock_get.side_effect = VirtualChassis.MultipleObjectsReturned
+
+        self.assertIsNone(get_virtual_chassis_object("stack1", logger=logger))
+
+        logger.error.assert_called_with("Multiple VirtualChassis returned with the name stack1")
+
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_get_or_create_status_object_matches_without_creating_when_told_not_to(self, mock_logger):
+        """The one place the choice is made, so a caller with no access to the settings can be handed it."""
+        logger = mock_logger("nb_job")
+
+        self.assertIsNone(get_or_create_status_object("No-Such-Status", create=False, logger=logger))
+
+        self.assertFalse(Status.objects.filter(name="No-Such-Status").exists())
+        logger.debug.assert_called_with("No Status named %s exists yet", "No-Such-Status")
+
+    def test_get_or_create_status_object_caches_matching_apart_from_creating(self):
+        """`create` is part of the cache key, so a matching run must not answer a creating one."""
+        self.assertIsNone(get_or_create_status_object("Cache-Split-Status", create=False))
+
+        created = get_or_create_status_object("Cache-Split-Status", create=True)
+
+        self.assertIsNotNone(created, "The creating call read the matching call's cached None.")
+        self.assertEqual(created.name, "Cache-Split-Status")
 
 
 class TestDeferredChangeLogging(TestCase):
