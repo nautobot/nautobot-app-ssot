@@ -11,7 +11,6 @@ from nautobot.dcim.constants import NONCONNECTABLE_IFACE_TYPES
 from nautobot.dcim.models import Device
 from nautobot.ipam.models import VLAN
 from netutils.interface import canonical_interface_name
-from netutils.ip import cidr_to_netmask
 from netutils.mac import mac_to_format
 
 from nautobot_ssot.integrations.ipfabric.constants import (
@@ -27,6 +26,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
 from nautobot_ssot.integrations.ipfabric.utilities.cables import canonical_endpoints
+from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length
 
 try:
     from ipfabric import IPFClient
@@ -39,8 +39,17 @@ logger = logging.getLogger("nautobot.jobs")
 device_serial_max_length = Device._meta.get_field("serial").max_length
 name_max_length = VLAN._meta.get_field("name").max_length
 
-# The mask of an address that is the whole of its subnet.
-HOST_MASK = "255.255.255.255"
+# Keys the FHRP tables may carry the virtual address under. IP Fabric discovers a table's columns
+# from the appliance rather than declaring them in the SDK, so the name is confirmed at run time and
+# a table that carries none of these is reported rather than passed over in silence.
+FHRP_VIRTUAL_ADDRESS_KEYS = ("vip", "virtualIp", "virtualIP")
+
+# Marks a record whose address has no subnet of its own to report, and so may take the subnet of an
+# address already resolved for its Interface. True of an FHRP virtual address, which is configured
+# against a group rather than an interface. Not true of a managed address the table simply did not
+# cover: there the subnet is missing data, and inferring one would write the address under a parent
+# Prefix IP Fabric never reported.
+INHERITS_SUBNET = "_inherits_subnet"
 
 
 # pylint: disable=too-many-locals,too-many-nested-blocks,too-many-branches
@@ -54,10 +63,12 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         self.sync = sync
         self.client = client
         # Resolved once addressing is read, and empty when addresses are out of scope.
-        self.subnet_mask_by_address = {}
+        self.prefix_length_by_address = {}
         # Addresses already reported as having no subnet, so that an address on many Interfaces is
         # reported once. A job log entry is a database write, so this is I/O rather than noise.
-        self._addresses_without_a_subnet = set()
+        self._reported_missing_subnet = set()
+        # Every address IP Fabric reports, indexed by the Interface it sits on.
+        self.addresses_by_interface = defaultdict(list)
         if location_filter:
             self.client.attribute_filters = {"siteName": ["ieq", location_filter]}
             logging.info("Applied IP Fabric Attribute Filter: %s", self.client.attribute_filters)
@@ -75,14 +86,14 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Location discovered, {site}")
 
-    def load_device_interfaces(self, device_model, device_interfaces, device_primary_ip):
+    def load_device_interfaces(self, device_model, device_interfaces, device_primary_ips):
         """Create and load DiffSync Interface model objects for a specific device."""
         # The pseudo interface exists only to carry a NAT management address, so with addresses out
         # of scope there is nothing for it to hold, and strict about Interfaces there is nothing this
         # side may invent. Skipped rather than passed a null address, which
         # `pseudo_management_interface` reads as "no Interface claims it", fabricating one for it.
         pseudo_interface = (
-            pseudo_management_interface(device_model.name, device_interfaces, device_primary_ip)
+            pseudo_management_interface(device_model.name, device_interfaces, device_primary_ips)
             if self.carries_pseudo_management_interface()
             else None
         )
@@ -95,23 +106,6 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             iface_name = iface["intName"]
             if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
                 iface_name = canonical_interface_name(iface_name)
-
-            # loginIpv4 is available in 7.3+, fallback to primaryIp for older versions
-            if not self.scope.ip_addresses:
-                # Reported as absent rather than skipped, so that the Nautobot adapter's matching
-                # `None` leaves the existing address alone instead of diffing against it.
-                ip_address = None
-                subnet_mask = None
-            elif ip_address := iface.get("primaryIp") or iface.get("loginIpv4"):
-                subnet_mask = self.subnet_mask_of(iface, iface_name, ip_address)
-                if subnet_mask is None:
-                    # Reported as absent rather than carrying a mask this side does not know, so
-                    # that the Nautobot adapter's matching `None` leaves the mask Nautobot holds
-                    # alone. Written, the address would land under the wrong parent Prefix.
-                    self.interfaces_without_a_subnet.add((iface.get("hostname"), iface_name))
-                    ip_address = None
-            else:
-                subnet_mask = None
 
             try:
                 interface = self.interface(
@@ -127,63 +121,118 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     mtu=iface.get("mtu") if iface.get("mtu") else DEFAULT_INTERFACE_MTU,
                     type=ipfabric_utils.convert_media_type(iface.get("media"), iface_name),
                     mgmt_only=iface.get("mgmt_only", False),
-                    ip_address=ip_address,
-                    subnet_mask=subnet_mask,
-                    ip_is_primary=(
-                        self.scope.primary_ip and ip_address is not None and ip_address == device_primary_ip
-                    ),
                     status="Active",
                 )
                 self.add(interface)
                 device_model.add_child(interface)
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Interface discovered, {iface}")
+                continue
+            # Addresses are their own models under the Interface. Out of scope none is reported, so
+            # the Nautobot adapter reports none either and what it holds is left alone.
+            if self.scope.ip_addresses:
+                self.load_interface_addresses(interface, iface, iface_name, device_primary_ips)
 
-    def subnet_mask_of(self, iface, iface_name, ip_address):
-        """Return the subnet mask IP Fabric reports for `ip_address`, or None if it reports none.
+    def prefix_length_of(self, record, iface_name, resolved):
+        """Return the prefix length IP Fabric reports for a record's address, or None if it has none.
 
-        The mask comes from the managed address table, which is the only place IP Fabric says what
-        subnet an address was configured with. A NAT management address is the exception: it belongs
-        to no interface, so no subnet is reported for it and a host mask is the whole of it, which is
-        the value rather than a fallback. Whether that address is carried at all is the separate
-        question `strict.interfaces` answers.
+        Four sources, in order, so that every address resolves the same way whichever table it came
+        from. The managed address table first, which is the only place IP Fabric says what subnet an
+        address was configured with. Then the record's own subnet, which only the Interface this
+        adapter fabricates carries, and it says so itself. Then a subnet already resolved for this
+        Interface that contains the address, for a record marked `INHERITS_SUBNET`. A NAT management
+        address resolves at the second rung,
+        where a host route is the value rather than a fallback; whether it is carried at all is the
+        separate question `strict.interfaces` answers.
 
-        Where addresses are not among the object types this run is strict about, an address the
-        table does not cover falls back to a host mask, reported once per address so that every
-        address it was applied to can be found. Once per address rather than once per use, because
-        one address can be on many Interfaces and a job log entry is a database write; the mask is
-        chosen per address anyway, so there is nothing a second report would add.
+        Where nothing resolves it and addresses are not among the object types this run is strict
+        about, it falls back to a host route, reported once per address so that every address it was
+        applied to can be found. Once per address rather than once per use, because one address can
+        be on many Interfaces and a job log entry is a database write; the length is chosen per
+        address anyway, so there is nothing a second report would add.
         """
-        # One mask per address rather than per device: see `subnet_masks_by_address`.
-        subnet_mask = self.subnet_mask_by_address.get(ip_address)
-        if subnet_mask:
-            return subnet_mask
-        # After the table, so a subnet IP Fabric does report still wins. Only the Interface this
-        # adapter fabricates carries one, and it says so itself.
-        own_length = reported_prefix_length(iface["net"]) if iface.get("net") else None
-        if own_length is not None:
-            return cidr_to_netmask(own_length)
-        first_sighting = ip_address not in self._addresses_without_a_subnet
-        self._addresses_without_a_subnet.add(ip_address)
+        host = record["ip"]
+        # One length per address rather than per device: see `prefix_lengths_by_address`.
+        length = self.prefix_length_by_address.get(host)
+        if length is not None:
+            return length
+        if record.get("net"):
+            own_length = reported_prefix_length(record["net"])
+            if own_length is not None:
+                return own_length
+        if record.get(INHERITS_SUBNET):
+            containing = containing_prefix_length(host, resolved)
+            if containing is not None:
+                return containing
+        first_sighting = host not in self._reported_missing_subnet
+        self._reported_missing_subnet.add(host)
         if not self.strict.ip_addresses:
             if first_sighting:
                 self.job.logger.warning(
-                    "IP Fabric reports no subnet for %s, so it is synced with a host mask, first seen "
+                    "IP Fabric reports no subnet for %s, so it is synced as a host route, first seen "
                     "on Interface %s of Device %s. Select IP Addresses under Strict Objects to leave "
                     "it alone instead.",
-                    ip_address,
+                    host,
                     iface_name,
-                    iface.get("hostname"),
+                    record.get("hostname"),
                 )
-            return HOST_MASK
+            return host_route_length(host)
         if first_sighting and self.job.debug:
             self.job.logger.debug(
                 "IP Fabric reports no subnet for %s on Interface %s of Device %s, so the address is not synced",
-                ip_address,
+                host,
                 iface_name,
-                iface.get("hostname"),
+                record.get("hostname"),
             )
         return None
+
+    def load_interface_addresses(self, interface_model, iface, iface_name, device_primary_ips):
+        """Add every address IP Fabric reports on the Interface as a model of its own.
+
+        The management address of the Interface this adapter fabricates is not in the address table,
+        since it belongs to no interface, so it is taken from the Interface record itself. Every
+        other address comes from the table, which is what carries the secondary, virtual and IPv6
+        ones the record does not name.
+        """
+        serial = iface.get("sn")
+        reported = list(self.addresses_by_interface.get((serial, iface["intName"]), ()))
+        # `loginIpv4` is what a release before 7.3 names it, so both keys are read.
+        own_address = iface.get("primaryIp") or iface.get("loginIpv4")
+        if own_address and not any(record.get("ip") == own_address for record in reported):
+            reported.append({**iface, "ip": own_address})
+
+        # Records that resolve on their own first, so one that inherits can take the length of a
+        # subnet already resolved for this Interface.
+        reported.sort(key=lambda record: bool(record.get(INHERITS_SUBNET)))
+        resolved = {}
+
+        for record in reported:
+            host = record.get("ip")
+            if not host:
+                continue
+            length = self.prefix_length_of(record, iface_name, resolved)
+            if length is None:
+                # Withheld rather than carrying a length this side does not know, so that the
+                # Nautobot adapter withholds the same address and the mask it holds is left alone.
+                # Written, the address would land under the wrong parent Prefix.
+                self.addresses_without_a_subnet.add((iface.get("hostname"), iface_name, host))
+                continue
+            resolved[host] = length
+            try:
+                address = self.interface_address(
+                    device_name=iface.get("hostname"),
+                    interface_name=iface_name,
+                    host=host,
+                    mask_length=length,
+                    is_primary=self.scope.primary_ip and host in device_primary_ips,
+                    status="Active",
+                )
+                self.add(address)
+                interface_model.add_child(address)
+            except ObjectAlreadyExists:
+                # One address reported twice for an Interface, which the two tables can do for a
+                # virtual address that is also configured on it.
+                logger.warning("Duplicate address %s discovered on Interface %s", host, iface_name)
 
     @staticmethod
     def link_endpoint(link, side):
@@ -292,6 +341,50 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 )
             )
 
+    def index_by_interface(self, record) -> None:
+        """Index an address record by the Interface it sits on, where it names one.
+
+        A record naming no Interface still decides the length chosen for its address, since that is
+        resolved per address across every device reporting it; it simply cannot be attached to an
+        Interface here.
+        """
+        interface_name = record.get("intName")
+        if interface_name:
+            self.addresses_by_interface[(record.get("sn"), interface_name)].append(record)
+
+    def fhrp_addresses(self):
+        """Yield the FHRP virtual addresses IP Fabric reports, as address table records.
+
+        A virtual address is configured on the device and renders into its configuration, so it
+        belongs in Nautobot alongside the interface's own addresses. Shaped like a managed address
+        record so that one loader handles all three sources.
+
+        The whole table is requested rather than named columns, because the column carrying the
+        virtual address differs between releases and IP Fabric does not declare it offline.
+        """
+        unnamed = 0
+        for row in self.client.technology.fhrp.group_members.all():
+            host = next((row[key] for key in FHRP_VIRTUAL_ADDRESS_KEYS if row.get(key)), None)
+            if not host:
+                unnamed += 1
+                continue
+            # A virtual address has no subnet of its own in this table; it sits in the subnet of the
+            # interface holding it, which the managed address table reports.
+            yield {
+                "sn": row.get("sn"),
+                "hostname": row.get("hostname"),
+                "intName": row.get("intName"),
+                "ip": host,
+                INHERITS_SUBNET: True,
+            }
+        if unnamed:
+            self.job.logger.warning(
+                "IP Fabric reports %d FHRP group members with no virtual address under any of %s, so "
+                "those addresses are not synced. The column may be named differently in this release.",
+                unnamed,
+                ", ".join(FHRP_VIRTUAL_ADDRESS_KEYS),
+            )
+
     def load_data(self):
         """Load shared data from IP Fabric.
 
@@ -299,7 +392,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         the job makes, so a narrowed sync should not pay to download and index a table it will never
         look at.
         """
-        managed_ipv4 = defaultdict(dict)
+        reported_addresses = []
         stacks, interfaces = defaultdict(list), defaultdict(list)
         vlans_by_location = defaultdict(list)
 
@@ -308,13 +401,21 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 vlans_by_location[vlan["siteName"]].append(vlan)
 
         if self.scope.ip_addresses:
-            ip_columns = ["sn", "intName", "net", "ip", "type"]
-            ip_filter = {"type": ["eq", "primary"]}
-            for ip_address in self.client.technology.addressing.managed_ip_ipv4.all(
-                columns=ip_columns, filters=ip_filter
+            # No filter on `type`: a secondary address is configured on the device and renders into
+            # its configuration, so it belongs in Nautobot alongside the primary one.
+            # Only the columns the sync reads: these are the largest requests the job makes, and
+            # every row of two unfiltered tables carries each one asked for.
+            ip_columns = ["sn", "intName", "net", "ip"]
+            for table in (
+                self.client.technology.addressing.managed_ip_ipv4,
+                self.client.technology.addressing.managed_ip_ipv6,
             ):
-                managed_ipv4[ip_address["sn"]].update({ip_address["ip"]: ip_address})
-            self.subnet_mask_by_address = subnet_masks_by_address(managed_ipv4)
+                for ip_address in table.all(columns=ip_columns):
+                    reported_addresses.append(ip_address)
+                    self.index_by_interface(ip_address)
+            for virtual in self.fhrp_addresses():
+                self.index_by_interface(virtual)
+            self.prefix_length_by_address = prefix_lengths_by_address(reported_addresses)
 
         # Get all interfaces for devices
         if self.scope.interfaces:
@@ -422,67 +523,119 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         device_model = self.device(**dev)
                         self.add(device_model)
                         location.add_child(device_model)
-                        if index == 0:
-                            # TODO: New Login IP columns in 7.3
-                            device_primary_ip = str(device.login_ip.ip) if device.login_ip else None
-                            if self.scope.interfaces:
-                                self.load_device_interfaces(
-                                    device_model,
-                                    interfaces.get(device.sn, []),
-                                    device_primary_ip,
-                                )
+                        if index == 0 and self.scope.interfaces:
+                            self.load_device_interfaces(
+                                device_model,
+                                interfaces.get(device.sn, []),
+                                primary_addresses_of(device),
+                            )
                     except ObjectAlreadyExists:
                         logger.warning(f"Duplicate Device discovered, {device.model_dump()}")
 
         if self.scope.cables:
             self.load_cables()
 
-        if self.interfaces_without_a_subnet:
+        # Read only while loading, and it holds a record per address, so it is not carried into the
+        # diff and sync phases where both adapters' models are already resident.
+        self.addresses_by_interface.clear()
+
+        if self.addresses_without_a_subnet:
             self.job.logger.warning(
-                "Not syncing the IP Address of %d Interfaces because IP Fabric reports no subnet "
-                "for it. Enable debug logging to see which addresses those were.",
-                len(self.interfaces_without_a_subnet),
+                "Not syncing %d Interface addresses because IP Fabric reports no usable subnet for "
+                "them. Enable debug logging to see which addresses those were.",
+                len(self.addresses_without_a_subnet),
             )
 
 
-def pseudo_management_interface(hostname, device_interfaces, device_primary_ip):
-    """Return a dict for an non-existing interface for NAT management addresses."""
-    if any(iface for iface in device_interfaces if iface.get("primaryIp", "") == device_primary_ip):
+def primary_addresses_of(device):
+    """Return the addresses IP Fabric logs in to the Device on, as host strings.
+
+    These are the addresses Nautobot records as the Device's primary ones. `loginIpv4` and
+    `loginIpv6` are reported separately, so a dual stack Device names one of each and Nautobot can
+    carry a `primary_ip4` and a `primary_ip6` rather than only whichever came first. `loginIp` is the
+    older single column, read where the newer two are absent.
+
+    Each is expected to be among the addresses the Interfaces already reported, which is where its
+    prefix length comes from; marking one primary does not resolve an address of its own. The
+    exception is an address reached through NAT, which belongs to no interface at all and is what
+    `pseudo_management_interface` exists for.
+    """
+    hosts = {str(address) for address in (device.login_ipv4, device.login_ipv6) if address}
+    if hosts:
+        return hosts
+    return {str(device.login_ip.ip)} if device.login_ip else set()
+
+
+def pseudo_management_interface(hostname, device_interfaces, device_primary_ips):
+    """Return a dict for a non-existing interface for a NAT management address.
+
+    Fabricated only for a primary address no Interface reports, since every other one is already
+    carried by the Interface holding it. Where more than one is unreported the first is carried, as
+    the record describes a single address; a Device reached through NAT on both IP versions is not
+    something IP Fabric has been seen to report.
+    """
+    reported = {iface.get("primaryIp") for iface in device_interfaces}
+    unreported = sorted(device_primary_ips - reported)
+    if not unreported:
         return None
+    device_primary_ip = unreported[0]
     return {
         "hostname": hostname,
         "intName": PSEUDO_MANAGEMENT_INTERFACE_NAME,
         "dscr": "pseudo interface for NAT IP address",
         "primaryIp": device_primary_ip,
-        # Declared here rather than recognised by name in `subnet_mask_of`. A NAT address belongs to
-        # no interface, so the managed address table reports no subnet for it and a host mask is the
-        # whole of it: the value, not a fallback. Known for certain where the dict is built.
-        "net": f"{device_primary_ip}/32",
+        # Declared here rather than recognised by name in `prefix_length_of`. A NAT address belongs
+        # to no interface, so the managed address table reports no subnet for it and a host route is
+        # the whole of it: the value, not a fallback. Known for certain where the dict is built.
+        "net": f"{device_primary_ip}/{host_route_length(device_primary_ip)}",
         "type": "virtual",
         "mgmt_only": True,
     }
 
 
+def containing_prefix_length(host, resolved):
+    """Return the length of the subnet among `resolved` that contains `host`, or None.
+
+    An FHRP virtual address has no subnet of its own in the FHRP tables. It sits in the subnet of the
+    interface holding it, so the length is taken from whichever of that Interface's own addresses
+    covers it. The narrowest is chosen, matching how Nautobot parents an address.
+    """
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return None
+    lengths = []
+    for sibling, length in resolved.items():
+        try:
+            network = ipaddress.ip_network(f"{sibling}/{length}", strict=False)
+        except ValueError:
+            continue
+        if address in network:
+            lengths.append(length)
+    return max(lengths) if lengths else None
+
+
 def reported_prefix_length(net):
     """Return the prefix length of a subnet IP Fabric reported, or None if it did not report one.
 
-    A value that does not parse, or that is not IPv4, is not a subnet this table can describe an
-    address with, and a prefix length taken from it could not be turned into a mask. The caller
-    reports and skips it rather than raising: one unusable row would otherwise end the job while it
-    was still reading, losing every address that was fine.
+    A value that does not parse is not a subnet an address can be described with. The caller reports
+    and skips it rather than raising: one unusable row would otherwise end the job while it was still
+    reading, losing every address that was fine.
+
+    Either IP version is accepted. The length is what the sync records, so a v6 prefix needs no
+    conversion into a v4 netmask to be usable.
 
     Whether the subnet contains the address it was reported for is not checked here. That is a
     different kind of wrong data, and one this sync has no better answer for than the mask itself.
     """
     try:
-        network = ipaddress.ip_network(net, strict=False)
+        return ipaddress.ip_network(net, strict=False).prefixlen
     except ValueError:
         return None
-    return network.prefixlen if network.version == 4 else None
 
 
-def subnet_masks_by_address(managed_ipv4):
-    """Return one subnet mask per address, the narrowest of those reported for it.
+def prefix_lengths_by_address(reported_addresses):
+    """Return one prefix length per address, the narrowest of those reported for it.
 
     IP Fabric indexes addressing by serial number and so describes a subnet per device. An address
     on two devices can therefore be reported in two subnets, while Nautobot holds one mask per
@@ -492,26 +645,32 @@ def subnet_masks_by_address(managed_ipv4):
     The narrowest report is the one chosen, because it agrees with the address's parent: Nautobot
     parents an address to the most specific Prefix containing it. A fixed rule rather than the order
     IP Fabric answers in, which is not guaranteed.
+
+    A length rather than a netmask, so that the same choice serves an IPv6 address as an IPv4 one.
+
+    Every record is folded in, whichever device reported it. Grouping them per device first would
+    hide one device reporting the same address in two subnets, which is as much a disagreement worth
+    naming as two devices doing so.
     """
     lengths = {}
     contested = set()
     unusable = set()
-    for by_address in managed_ipv4.values():
-        for address, record in by_address.items():
-            if not record.get("net"):
-                continue
-            length = reported_prefix_length(record["net"])
-            if length is None:
-                unusable.add(record["net"])
-                continue
-            if address in lengths and lengths[address] != length:
-                contested.add(address)
-            lengths[address] = max(length, lengths.get(address, 0))
+    for record in reported_addresses:
+        address = record.get("ip")
+        if not address or not record.get("net"):
+            continue
+        length = reported_prefix_length(record["net"])
+        if length is None:
+            unusable.add(record["net"])
+            continue
+        if address in lengths and lengths[address] != length:
+            contested.add(address)
+        lengths[address] = max(length, lengths.get(address, 0))
     if unusable:
         # Per distinct value rather than per row: the table holds a record per device, so a column
         # the appliance fills wrongly is one problem reported once, not once per device.
         logger.warning(
-            "IP Fabric reports %d subnet values that are not usable IPv4 subnets: %s",
+            "IP Fabric reports %d subnet values that are not usable subnets: %s",
             len(unusable),
             ", ".join(repr(net) for net in sorted(unusable, key=str)),
         )
@@ -522,4 +681,4 @@ def subnet_masks_by_address(managed_ipv4):
             address,
             lengths[address],
         )
-    return {address: cidr_to_netmask(length) for address, length in lengths.items()}
+    return lengths

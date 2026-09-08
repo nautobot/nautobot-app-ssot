@@ -204,6 +204,53 @@ class SyncConvergenceTestCase(TestCase):
         for interface, addresses in addressed.items():
             self.assertEqual(len(addresses), 1, f"{interface} holds {addresses}")
 
+    def login_on(self, hostname, address):
+        """Point a Device's login address at `address`, as IP Fabric would report it."""
+        for device in self.devices:
+            if device["hostname"] == hostname:
+                device["loginIp"] = address
+
+    def test_a_primary_that_moves_to_another_address_settles(self):
+        """The demotion and the promotion are separate models, and DiffSync orders neither.
+
+        Cleared outright, the demotion could undo the promotion and leave the Device with no
+        primary at all; not cleared at all, the Device would keep pointing at the old one.
+        """
+        # Two addresses on one Interface, the first of them logged in on.
+        self.networks = [
+            {"net": "10.10.0.0/24", "sn": "a000a02", "ip": "10.10.0.10", "intName": "Gi4"},
+            {"net": "10.10.0.0/24", "sn": "a000a02", "ip": "10.10.0.20", "intName": "Gi4"},
+        ]
+        self.login_on("jcy-rtr-02", "10.10.0.10")
+        self.sync_once()
+        device = Device.objects.get(name="jcy-rtr-02")
+        self.assertEqual(str(device.primary_ip4.host), "10.10.0.10")
+
+        # IP Fabric now logs in on the other address of the same Interface.
+        self.login_on("jcy-rtr-02", "10.10.0.20")
+
+        self.sync_once()
+
+        device.refresh_from_db()
+        self.assertEqual(str(device.primary_ip4.host), "10.10.0.20")
+        self.assertEqual(self.changed_attributes(self.remaining_diff()), {}, "The moved primary did not settle.")
+
+    def test_a_primary_that_stops_being_reported_is_cleared(self):
+        """IP Fabric no longer logs in on it, so Nautobot must stop calling it the primary."""
+        self.networks = [{"net": "10.10.0.0/24", "sn": "a000a02", "ip": "10.10.0.10", "intName": "Gi4"}]
+        self.login_on("jcy-rtr-02", "10.10.0.10")
+        self.sync_once()
+        self.assertIsNotNone(Device.objects.get(name="jcy-rtr-02").primary_ip4)
+
+        # A Device IP Fabric reports no login address for at all.
+        self.login_on("jcy-rtr-02", None)
+
+        self.sync_once()
+
+        device = Device.objects.get(name="jcy-rtr-02")
+        self.assertIsNone(device.primary_ip4, "The Device still points at an address it no longer logs in on.")
+        self.assertEqual(self.changed_attributes(self.remaining_diff()), {}, "The cleared primary did not settle.")
+
     def test_a_changed_subnet_mask_is_applied_and_then_settles(self):
         """The reported case: the Interface exists and only the subnet mask disagrees.
 
@@ -218,10 +265,10 @@ class SyncConvergenceTestCase(TestCase):
         ]
 
         first = self.remaining_diff()
-        self.assertIn(
-            "interface",
+        self.assertEqual(
             self.changed_attributes(first),
-            "Expected the narrower subnet to be reported before it is applied.",
+            {"interface_address": ["mask_length"]},
+            "Expected the narrower subnet to be reported, on the address rather than the Interface.",
         )
 
         self.sync_once()

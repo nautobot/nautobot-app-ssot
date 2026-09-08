@@ -37,11 +37,10 @@ from nautobot.ipam.models import (
     VLANLocationAssignment,
     get_default_namespace,
 )
-from netutils.ip import netmask_to_cidr
 from netutils.lib_mapper import NAPALM_LIB_MAPPER
 
 from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
-from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
+from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length, job_scoped_cache
 
 # pylint: disable=too-many-branches
 
@@ -705,19 +704,23 @@ def get_syncable_device(device_name: str, *, tagged_only: bool) -> Optional[Devi
 
 @job_scoped_cache(group=BULK_WRITTEN_LOOKUPS, maxsize=2)
 def get_device_interfaces_by_name(device: Device) -> dict:
-    """Return a Device's Interfaces keyed by name, with the relations a delete reads prefetched.
+    """Return a Device's Interfaces keyed by name.
 
-    Deletions reach a model grouped by Device, so holding the last couple of Devices turns a lookup
-    per Interface into one per Device. Bounded, because an estate wide teardown would otherwise
-    retain every Interface of every Device it passed through.
+    Deletions and updates reach a model grouped by Device, so holding the last couple of Devices
+    turns a lookup per Interface into one per Device. Bounded, because an estate wide teardown would
+    otherwise retain every Interface of every Device it passed through.
 
     Keying by name loses nothing: Nautobot constrains `(device, name)` to be unique, so a Device
     cannot have two Interfaces of the same name.
 
+    The addresses on each Interface are deliberately not prefetched. No caller reads them: an address
+    is its own model, so removing one goes through `InterfaceAddress`, which resolves the Interface
+    afresh. Prefetching them would be two joins nothing looks at.
+
     Not for callers that go on to mutate an Interface's relations, which would not see their own
     writes; `get_tagged_interface` is the uncached lookup for those.
     """
-    return {interface.name: interface for interface in device.interfaces.prefetch_related("ip_addresses__interfaces")}
+    return {interface.name: interface for interface in device.interfaces.all()}
 
 
 # Not cached, so that callers which mutate an Interface's relations see them afresh
@@ -765,7 +768,7 @@ def get_tagged_interface(
 
 def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
     ip_address: str,
-    subnet_mask: str,
+    mask_length: int,
     status: str = "Active",
     object_pk: Optional[Interface] = None,
     logger: Optional[logging.Logger] = None,
@@ -776,8 +779,9 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
     Utility behavior is manipulated by `settings` if duplicate ip's are allowed.
 
     Args:
-        ip_address: IP address.
-        subnet_mask: Subnet mask used for IP Address.
+        ip_address: IP address, without a mask.
+        mask_length: Prefix length the address is configured with. A length rather than a netmask,
+            so that the same call serves an IPv6 address as an IPv4 one.
         status: Status to assign to IP Address.
         object_pk: Interface Object to assigne IPAdress to.
         logger: Logger to use for messaging.
@@ -788,8 +792,8 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
         IPAddress: When a IPAddress Object is retrieved or created.
         None: When there is a failure in getting or creating a IPAddress.
     """
-    if not subnet_mask:
-        # Refused rather than given a host mask, which would put the address under the wrong parent
+    if not mask_length:
+        # Refused rather than given a host route, which would put the address under the wrong parent
         # Prefix and leave nothing to distinguish it from an address genuinely configured as one.
         if logger:
             logger.warning(f"Unable to create an IPAddress of {ip_address} because no subnet mask was reported for it")
@@ -800,25 +804,24 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
         if logger:
             logger.error(
                 f"Multiple Statuses returned with name {status}, "
-                f"and therefore cannot create an IPAddress of {ip_address}/{subnet_mask}"
+                f"and therefore cannot create an IPAddress of {ip_address}/{mask_length}"
             )
     except Status.DoesNotExist:
         if logger:
             logger.error(
                 f"Unable to find a Status with the name {status}, "
-                f"and therefore cannot create an IPAddress of {ip_address}/{subnet_mask}"
+                f"and therefore cannot create an IPAddress of {ip_address}/{mask_length}"
             )
     else:
-        cidr = netmask_to_cidr(subnet_mask)
         if pending is not None:
             return queue_ip(
-                address=f"{ip_address}/{cidr}",
+                address=f"{ip_address}/{mask_length}",
                 status_obj=status_obj,
                 interface=object_pk,
                 pending=pending,
                 logger=logger,
             )
-        ip_obj = resolve_ip(f"{ip_address}/{cidr}", status_obj, logger=logger)
+        ip_obj = resolve_ip(f"{ip_address}/{mask_length}", status_obj, logger=logger)
         if ip_obj is None:
             return None
 
@@ -831,19 +834,19 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
                 ip_obj.tags.add(synced_tag_for(ip_obj))
             except (DjangoBaseDBError, ValidationError) as err:
                 if logger:
-                    logger.error(f"Unable to create a new IPAddress of {ip_address}/{subnet_mask}. Error: {err}")
+                    logger.error(f"Unable to create a new IPAddress of {ip_address}/{mask_length}. Error: {err}")
                 return None
         else:
             # The mask IP Fabric reports rides the tagging save rather than taking one of its own.
-            mask_changed = ip_obj.mask_length != cidr
-            ip_obj.mask_length = cidr
+            mask_changed = ip_obj.mask_length != mask_length
+            ip_obj.mask_length = mask_length
             try:
                 tag_object(nautobot_object=ip_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
             except (DjangoBaseDBError, ValidationError) as err:
                 if logger and mask_changed:
                     logger.error(
-                        f"Unable to change the mask of IPAddress {ip_address} to /{cidr}, "
-                        f"which IP Fabric reports as {subnet_mask}. Error: {err}"
+                        f"Unable to change the mask of IPAddress {ip_address} to the /{mask_length} "
+                        f"IP Fabric reports for it. Error: {err}"
                     )
                 elif logger:
                     logger.warning(
@@ -922,7 +925,11 @@ def create_parent_prefix(address: str, logger: Optional[logging.Logger] = None) 
         bool: Whether a Prefix now exists for the address.
     """
     host = address.split("/")[0]
-    if Prefix.objects.filter(namespace=get_global_namespace()).net_contains_or_equals(f"{host}/32").exists():
+    # The route covering only this address, which is `/128` for IPv6 rather than `/32`. Asked with a
+    # `/32` an IPv6 host names a subnet millions of addresses wide, so no Prefix holding it contains
+    # that, and the check below reports none where one exists.
+    covering = f"{host}/{host_route_length(host)}"
+    if Prefix.objects.filter(namespace=get_global_namespace()).net_contains_or_equals(covering).exists():
         # Checked rather than inferred from a failure to build the address. Nautobot 3.2 also reports
         # a duplicate address from `clean()`, and reading that as a missing Prefix created a second,
         # wider one that could never become the parent: Nautobot parents an address to the most

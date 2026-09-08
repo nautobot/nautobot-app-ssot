@@ -25,6 +25,7 @@ class DiffSyncModelAdapters(Adapter):
     location = diffsync_models.Location
     device = diffsync_models.Device
     interface = diffsync_models.Interface
+    interface_address = diffsync_models.InterfaceAddress
     vlan = diffsync_models.Vlan
     cable = diffsync_models.Cable
 
@@ -40,7 +41,7 @@ class DiffSyncModelAdapters(Adapter):
         *args,
         scope: Optional[SyncScope] = None,
         strict: Optional[StrictObjects] = None,
-        interfaces_without_a_subnet: Optional[Set[Tuple[str, str]]] = None,
+        addresses_without_a_subnet: Optional[Set[Tuple[str, str, str]]] = None,
         **kwargs,
     ):
         """Initialize the adapter with the object types this run covers.
@@ -53,17 +54,18 @@ class DiffSyncModelAdapters(Adapter):
         covers; strictness is a further check, on the types it does cover, that what IP Fabric
         reported about them can be taken on trust.
 
-        `interfaces_without_a_subnet` holds the `(device name, interface name)` of every Interface
-        whose address IP Fabric reports no subnet for. The IP Fabric adapter fills it while loading
-        and reports no address for those Interfaces; the Nautobot adapter is handed it afterwards so
-        that it reports none either. Reporting one side and not the other would leave the address
-        diffed on every run without ever being applied, and the mask Nautobot holds is the better of
-        the two values anyway.
+        `addresses_without_a_subnet` holds the `(device name, interface name, host)` of every address
+        IP Fabric reports no usable subnet for. The IP Fabric adapter fills it while loading and
+        reports none of those addresses; the Nautobot adapter is handed it afterwards so that it
+        reports none either. Reporting one side and not the other would leave the address diffed on
+        every run without ever being applied, and the mask Nautobot holds is the better of the two
+        values anyway. Keyed on the host as well as the Interface, so that an Interface carrying a
+        second address that is fine still reports that one.
         """
         super().__init__(*args, **kwargs)
         self.scope = scope if scope is not None else SyncScope.from_job_kwargs({})
         self.strict = strict if strict is not None else StrictObjects.from_job_kwargs({})
-        self.interfaces_without_a_subnet = set() if interfaces_without_a_subnet is None else interfaces_without_a_subnet
+        self.addresses_without_a_subnet = set() if addresses_without_a_subnet is None else addresses_without_a_subnet
 
     def carries_pseudo_management_interface(self) -> bool:
         """Return whether this run reports the Interface fabricated for a NAT management address.

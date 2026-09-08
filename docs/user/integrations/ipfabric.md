@@ -75,7 +75,7 @@ Currently, this integration will provide the ability to sync the following IP Fa
 - Device ➡️ Nautobot Device
 - Part Numbers ➡️ Nautobot Manufacturer/Device Type/Platform
 - Interfaces ➡️ Nautobot Device Interfaces
-- IP Addresses ➡️ Nautobot IP Addresses
+- IP Addresses ➡️ Nautobot IP Addresses (primary, secondary, IPv6 and FHRP virtual)
 - Stack Members ➡️ Nautobot Virtual Chassis
 - Connectivity Matrix ➡️ Nautobot Cables (opt in, see [Cables](#cables))
 
@@ -140,9 +140,31 @@ Cables are built from IP Fabric's connectivity matrix (`tables/interfaces/connec
 | localInt/remoteInt   | Cable.termination_b_name     | Cable.termination_b.name    |
 | N/A                  | Cable.status                 | Cable.status                |
 
+## Interface Addresses
+
+An Interface carries every address IP Fabric reports for it, each synced as its own IP Address in Nautobot. Three tables are read: `technology.addressing.managed_ip_ipv4` and `managed_ip_ipv6` for the addresses configured on the interface, and `technology.fhrp.group_members` for FHRP virtual addresses. So a secondary address, an HSRP or VRRP virtual address, and IPv6 alongside IPv4 all reach Nautobot, which is what lets a template render them from Nautobot data.
+
+A prefix length is what the sync records, not a dotted netmask, which is what makes an IPv6 address expressible at all: a netmask is undefined above a length of 32. Each address is diffed on its own. An Interface gaining a third address reports that one address rather than its whole set, one IP Fabric stops reporting is removed without touching the rest, and the job log names the address that moved. An address is matched on its host within its Interface, not on its address, because the mask is the attribute IP Fabric can change for an address it keeps reporting; matching on the mask as well would report a corrected mask as one address replacing another.
+
+Because every address on a synced Interface is now read, an address IP Fabric does not report is removed rather than being invisible to the sync — including an IPv6 address, or a second IPv4 one, that another system put there. Safe Delete Mode, which is on by default, marks and tags such an address rather than deleting it. Take an Interface out of scope, or deselect **Sync IP Addresses**, where another system owns the addresses on it.
+
+Removing an address goes through Safe Delete Mode as any other object does, and with that mode disabled the address is deleted rather than only reported as deleted. Removal happens only where no other Interface holds it — one Nautobot IP Address can be assigned to several Interfaces, and deleting it for one would take it from all of them. An address on another Interface is unassigned from this one instead.
+
+The Device's `primary_ip4` and `primary_ip6` are set by marking an address already synced from the Interface carrying it. IP Fabric reports `loginIpv4` and `loginIpv6` separately, so a dual-stack Device names one of each and Nautobot carries both; a release reporting only the older single `loginIp` column marks that one. Marking an address primary resolves nothing of its own — the prefix length is the one the Interface already reported for it. **Sync Primary IP** governs the marking alone; deselecting it still syncs the addresses themselves.
+
+An address that stops being logged in on is unmarked, so the Device stops recording it as primary — either because the primary moved to another address or because IP Fabric reports no login address for the Device at all. The unmarking is keyed on the address the Device currently points at, so a primary that moves settles whichever of the two addresses the sync writes first.
+
+The exception is a management address reached through NAT, which belongs to no interface and so is on none of them to mark; that is what [Placeholder Interfaces](#placeholder-interfaces) covers.
+
+### FHRP virtual addresses
+
+A virtual address has no subnet of its own in IP Fabric's FHRP tables, so it resolves at the third rung described under [Subnet Masks](#subnet-masks): the subnet of whichever of its Interface's addresses contains it. Where none covers it, it is withheld exactly as any other address with no usable subnet is, and counted in the same summary — it is not written under a guessed mask.
+
+The column carrying the virtual address is not the same in every IP Fabric release, and IP Fabric reports a table's columns from the appliance rather than declaring them, so the sync looks for it under `vip`, `virtualIp` and `virtualIP`. A group member carrying none of those is reported, so a release that names it differently shows up in the job log rather than silently syncing nothing.
+
 ## Subnet Masks
 
-An address has no mask of its own in IP Fabric. The mask comes from the managed address table (`technology.addressing.managed_ip_ipv4`, filtered to primary addresses), which is the only place IP Fabric says what subnet an address was configured with.
+An address has no mask of its own in IP Fabric. The subnet comes from the managed address tables (`technology.addressing.managed_ip_ipv4` and `managed_ip_ipv6`), which are the only place IP Fabric says what subnet an address was configured with. Four sources are tried in order, so every address resolves the same way whichever table it came from: the managed tables, then a subnet the record carries itself (only the fabricated management Interface does), then a subnet already resolved for that Interface which contains the address (only a record with none of its own, such as an FHRP virtual address, may take this), and failing all of those the fallback below.
 
 IP Fabric describes a subnet per Device, so an address on several Devices carries whatever subnet each of them reports for it. Nautobot holds one mask per IP Address, and parents an address to the most specific Prefix containing it, so two records for one address in a Namespace cannot coexist.
 
@@ -150,15 +172,15 @@ Where the reports disagree, the sync takes the narrowest of them for every Inter
 
 ### When no subnet mask is reported
 
-With **IP Addresses** selected under [Strict Objects](#strict-objects), which is the default, an address the table reports no subnet mask for is reported as absent. The mask Nautobot already holds is then left alone, and an address Nautobot does not hold is not created. The job logs how many Interfaces this applied to; enable **Debug** to see which addresses they were and on which Interface each was found.
+With **IP Addresses** selected under [Strict Objects](#strict-objects), which is the default, an address the table reports no subnet mask for is reported as absent. The mask Nautobot already holds is then left alone, and an address Nautobot does not hold is not created. The job logs how many addresses this applied to; enable **Debug** to see which they were and on which Interface each was found.
 
 The selection governs reading on both sides, as **Sync Tagged Only** does, so that an address withheld from writing is not reported as a difference on every run.
 
-Deselecting it syncs the address with a `/32` instead. That puts it under the wrong parent Prefix and leaves nothing to distinguish it from an address genuinely configured as a host route, so every use of the fallback is logged as a warning naming the address. Deselect it only where a host mask is preferable to no change at all.
+Deselecting it syncs the address as a host route instead — a `/32`, or a `/128` for IPv6. That puts it under the wrong parent Prefix and leaves nothing to distinguish it from an address genuinely configured as a host route, so every use of the fallback is logged as a warning naming the address. Deselect it only where a host route is preferable to no change at all.
 
-A NAT management address is unaffected by this selection. It belongs to no interface, so IP Fabric reports no subnet for it and a host mask is the whole of it — the value rather than a fallback. Whether that address is carried at all is decided by the **Interfaces** selection instead, since it needs an Interface the device does not have; see [Placeholder Interfaces](#placeholder-interfaces).
+A NAT management address is unaffected by this selection. It belongs to no interface, so IP Fabric reports no subnet for it and a host route is the whole of it — the value rather than a fallback. Whether that address is carried at all is decided by the **Interfaces** selection instead, since it needs an Interface the device does not have; see [Placeholder Interfaces](#placeholder-interfaces).
 
-A subnet that does not parse, or that is not IPv4, counts as none reported: it is logged and passed over rather than raised, since one such row would otherwise end the job while it was still reading and lose every address that was fine. Whether the subnet contains the address it was reported for is not checked; that is a different kind of wrong data, and one this sync has no better answer for than the mask itself.
+A subnet that does not parse counts as none reported: it is logged and passed over rather than raised, since one such row would otherwise end the job while it was still reading and lose every address that was fine. Either IP version is accepted, since what the sync records is a prefix length. Whether the subnet contains the address it was reported for is not checked; that is a different kind of wrong data, and one this sync has no better answer for than the mask itself.
 
 ## Strict Objects
 
