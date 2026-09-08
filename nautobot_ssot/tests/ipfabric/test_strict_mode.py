@@ -194,7 +194,7 @@ class StrictSupportingObjectTestCase(SupportingObjectTestCase):
         return InterfaceModel.create(
             self.adapter,
             ids={"name": name, "device_name": "dev1"},
-            attrs={"ip_address": None, "subnet_mask": None, "status": status, "type": "1000base-t"},
+            attrs={"status": status, "type": "1000base-t"},
         )
 
     def test_nothing_strict_creates_what_is_missing(self):

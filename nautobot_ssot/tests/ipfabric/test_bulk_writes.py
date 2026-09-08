@@ -31,6 +31,9 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import Nautob
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Cable as CableModel
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Device as DeviceModel
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
+from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
+    InterfaceAddress as InterfaceAddressModel,
+)
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
@@ -384,17 +387,20 @@ class BulkModeInterfaceTestCase(TestCase):
         )
 
     def create_interface(self, adapter, name, address):
-        """Run the DiffSync Interface create for an Interface carrying an address."""
-        return InterfaceModel.create(
+        """Run the DiffSync creates for an Interface and the address on it.
+
+        Two models: the Interface, then the address as its own child, which is how a sync carrying
+        several addresses per Interface reaches them.
+        """
+        InterfaceModel.create(
             adapter,
             ids={"name": name, "device_name": self.device.name},
-            attrs={
-                "ip_address": address,
-                "subnet_mask": "255.255.255.0",
-                "status": "Active",
-                "type": "1000base-t",
-                "ip_is_primary": True,
-            },
+            attrs={"status": "Active", "type": "1000base-t"},
+        )
+        InterfaceAddressModel.create(
+            adapter,
+            ids={"device_name": self.device.name, "interface_name": name, "host": address},
+            attrs={"mask_length": 24, "is_primary": True, "status": "Active"},
         )
 
     def rows_for(self, name):
@@ -643,7 +649,7 @@ class BulkModeDeviceTestCase(TestCase):
         InterfaceModel.create(
             adapter,
             ids={"name": "eth0", "device_name": "parent-dev"},
-            attrs={"ip_address": None, "subnet_mask": None, "status": "Active", "type": "1000base-t"},
+            attrs={"status": "Active", "type": "1000base-t"},
         )
 
         adapter.flush_pending_writes()
@@ -663,7 +669,7 @@ class BulkModeDeviceTestCase(TestCase):
             InterfaceModel.create(
                 adapter,
                 ids={"name": "eth0", "device_name": device_name},
-                attrs={"ip_address": None, "subnet_mask": None, "status": "Active", "type": "1000base-t"},
+                attrs={"status": "Active", "type": "1000base-t"},
             )
         self.assertFalse(Device.objects.filter(name="cable-dev-a").exists())
 
@@ -826,7 +832,7 @@ class HighWaterFlushTestCase(TestCase):
                 InterfaceModel.create(
                     self.adapter,
                     ids={"name": f"eth{index}", "device_name": "hw-dev"},
-                    attrs={"ip_address": None, "subnet_mask": None, "status": "Active", "type": "1000base-t"},
+                    attrs={"status": "Active", "type": "1000base-t"},
                 )
 
         # Some Interfaces landed before the sync finished, rather than all of them waiting.
@@ -889,7 +895,7 @@ class HighWaterFlushTestCase(TestCase):
         InterfaceModel.create(
             self.adapter,
             ids={"name": "after-flush", "device_name": "flushed-dev"},
-            attrs={"ip_address": None, "subnet_mask": None, "status": "Active", "type": "1000base-t"},
+            attrs={"status": "Active", "type": "1000base-t"},
         )
         self.adapter.flush_pending_writes()
 
@@ -949,19 +955,24 @@ class MissingParentPrefixTestCase(TestCase):
             bulk_write_mode=bulk_write_mode,
         )
 
-    def create_addressed_interface(self, adapter, name, address, mask):
-        """Run the DiffSync Interface create for an Interface carrying an address."""
-        return InterfaceModel.create(
+    def create_addressed_interface(self, adapter, name, address, mask_length):
+        """Run the DiffSync creates for an Interface and the address on it."""
+        InterfaceModel.create(
             adapter,
             ids={"name": name, "device_name": self.device.name},
-            attrs={"ip_address": address, "subnet_mask": mask, "status": "Active", "type": "1000base-t"},
+            attrs={"status": "Active", "type": "1000base-t"},
+        )
+        return InterfaceAddressModel.create(
+            adapter,
+            ids={"device_name": self.device.name, "interface_name": name, "host": address},
+            attrs={"mask_length": mask_length, "is_primary": False, "status": "Active"},
         )
 
     def test_the_parent_prefix_is_created_in_bulk_mode(self):
         self.assertFalse(Prefix.objects.filter(prefix="172.31.16.0/20").exists())
 
         adapter = self.adapter(bulk_write_mode=True)
-        self.create_addressed_interface(adapter, "eth0", "172.31.16.1", "255.255.240.0")
+        self.create_addressed_interface(adapter, "eth0", "172.31.16.1", 20)
         adapter.flush_pending_writes()
 
         self.assertTrue(Prefix.objects.filter(prefix="172.31.16.0/20").exists())
@@ -975,16 +986,16 @@ class MissingParentPrefixTestCase(TestCase):
     def test_the_parent_prefix_is_created_in_per_object_mode(self):
         """Both modes resolve a new address through one helper, so both create the Prefix it needs."""
         adapter = self.adapter(bulk_write_mode=False)
-        self.create_addressed_interface(adapter, "eth1", "172.31.32.1", "255.255.240.0")
+        self.create_addressed_interface(adapter, "eth1", "172.31.32.1", 20)
 
         self.assertTrue(Prefix.objects.filter(prefix="172.31.32.0/20").exists())
         self.assertEqual(str(IPAddress.objects.get(host="172.31.32.1").parent.prefix), "172.31.32.0/20")
 
     def test_both_modes_agree_on_the_prefix_they_make(self):
         """One helper serves both, so the Prefix must come out the same either way."""
-        self.create_addressed_interface(self.adapter(bulk_write_mode=False), "eth2", "10.40.0.1", "255.255.255.0")
+        self.create_addressed_interface(self.adapter(bulk_write_mode=False), "eth2", "10.40.0.1", 24)
         bulk_adapter = self.adapter(bulk_write_mode=True)
-        self.create_addressed_interface(bulk_adapter, "eth3", "10.41.0.1", "255.255.255.0")
+        self.create_addressed_interface(bulk_adapter, "eth3", "10.41.0.1", 24)
         bulk_adapter.flush_pending_writes()
 
         def prefix_state(network):
@@ -995,8 +1006,8 @@ class MissingParentPrefixTestCase(TestCase):
 
     def test_a_second_address_in_the_same_subnet_reuses_the_prefix(self):
         adapter = self.adapter(bulk_write_mode=True)
-        self.create_addressed_interface(adapter, "eth4", "192.168.5.1", "255.255.255.0")
-        self.create_addressed_interface(adapter, "eth5", "192.168.5.2", "255.255.255.0")
+        self.create_addressed_interface(adapter, "eth4", "192.168.5.1", 24)
+        self.create_addressed_interface(adapter, "eth5", "192.168.5.2", 24)
         adapter.flush_pending_writes()
 
         self.assertEqual(Prefix.objects.filter(prefix="192.168.5.0/24").count(), 1)
@@ -1035,6 +1046,27 @@ class NewAddressResolutionTestCase(TestCase):
         """Return the error messages logged."""
         return [str(call.args[0]) for call in self.logger.error.call_args_list]
 
+    def test_an_ipv6_address_is_written_in_both_modes(self):
+        """Both write paths have to carry a v6 address, since bulk mode skips `IPAddress.save()`.
+
+        `clean()` is what parents an address, and a batched insert calls neither, so the queued path
+        resolves the parent itself. A v6 address exercises that with a length no netmask expresses.
+        """
+        self.make_prefix("2001:db8:beef::/64")
+
+        per_object = nbutils.create_ip("2001:db8:beef::1", 64, logger=self.logger)
+
+        pending = PendingWrites()
+        queued = nbutils.create_ip("2001:db8:beef::2", 64, logger=self.logger, pending=pending)
+        pending.flush()
+
+        self.assertEqual(self.errors(), [])
+        for address in (per_object, queued):
+            self.assertIsNotNone(address)
+            written = IPAddress.objects.get(host=str(address.host))
+            self.assertEqual(written.mask_length, 64)
+            self.assertEqual(str(written.parent.prefix), "2001:db8:beef::/64")
+
     # --- the reported failure ---
 
     def test_an_address_covered_only_by_a_narrower_prefix(self):
@@ -1049,7 +1081,7 @@ class NewAddressResolutionTestCase(TestCase):
             with self.subTest(mode=label):
                 address = f"10.0.{0 if pending is None else 1}.1"
                 self.make_prefix(f"10.0.{0 if pending is None else 1}.0/25")
-                result = nbutils.create_ip(address, "255.255.255.0", logger=self.logger, pending=pending)
+                result = nbutils.create_ip(address, 24, logger=self.logger, pending=pending)
                 if pending is not None:
                     pending.flush()
 
@@ -1062,7 +1094,7 @@ class NewAddressResolutionTestCase(TestCase):
         """A wider Prefix does not help, since the address parents to the most specific one."""
         self.make_prefix("10.5.0.0/25")
 
-        nbutils.create_ip("10.5.0.1", "255.255.255.0", logger=self.logger)
+        nbutils.create_ip("10.5.0.1", 24, logger=self.logger)
 
         self.assertFalse(
             Prefix.objects.filter(prefix="10.5.0.0/24").exists(),
@@ -1075,7 +1107,7 @@ class NewAddressResolutionTestCase(TestCase):
         for label, pending in (("per object", None), ("bulk", PendingWrites())):
             with self.subTest(mode=label):
                 octet = 10 if pending is None else 11
-                result = nbutils.create_ip(f"10.{octet}.0.1", "255.255.255.0", logger=self.logger, pending=pending)
+                result = nbutils.create_ip(f"10.{octet}.0.1", 24, logger=self.logger, pending=pending)
                 if pending is not None:
                     pending.flush()
 
@@ -1088,7 +1120,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing = IPAddress(address="10.20.0.1/24", namespace=self.namespace, status=self.active)
         existing.validated_save()
 
-        result = nbutils.create_ip("10.20.0.1", "255.255.255.0", logger=self.logger)
+        result = nbutils.create_ip("10.20.0.1", 24, logger=self.logger)
 
         self.assertEqual(result.pk, existing.pk)
         self.assertEqual(IPAddress.objects.filter(host="10.20.0.1").count(), 1)
@@ -1098,13 +1130,13 @@ class NewAddressResolutionTestCase(TestCase):
         with unittest.mock.patch.object(
             nbutils.Prefix.objects, "get_or_create", side_effect=nbutils.ValidationError("refused")
         ):
-            result = nbutils.create_ip("10.30.0.1", "255.255.255.0", logger=self.logger)
+            result = nbutils.create_ip("10.30.0.1", 24, logger=self.logger)
 
         self.assertIsNone(result)
         self.assertTrue(any("Unable to create a missing Prefix" in line for line in self.errors()), self.errors())
 
     def test_a_status_that_does_not_exist_is_reported(self):
-        result = nbutils.create_ip("10.40.0.1", "255.255.255.0", status="No-Such-Status", logger=self.logger)
+        result = nbutils.create_ip("10.40.0.1", 24, status="No-Such-Status", logger=self.logger)
 
         self.assertIsNone(result)
         self.assertTrue(any("No-Such-Status" in line for line in self.errors()), self.errors())
@@ -1119,7 +1151,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing = IPAddress(address="10.50.0.1/25", namespace=self.namespace, status=self.active)
         existing.validated_save()
 
-        result = nbutils.create_ip("10.50.0.1", "255.255.255.0", logger=self.logger)
+        result = nbutils.create_ip("10.50.0.1", 24, logger=self.logger)
 
         self.assertEqual(result.pk, existing.pk)
         self.assertEqual(IPAddress.objects.filter(host="10.50.0.1").count(), 1)
@@ -1131,7 +1163,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing.validated_save()
         pending = PendingWrites()
 
-        result = nbutils.create_ip("10.52.0.1", "255.255.255.0", logger=self.logger, pending=pending)
+        result = nbutils.create_ip("10.52.0.1", 24, logger=self.logger, pending=pending)
         pending.flush()
 
         self.assertEqual(result.pk, existing.pk)
@@ -1143,8 +1175,8 @@ class NewAddressResolutionTestCase(TestCase):
         self.make_prefix("10.53.0.0/25")
         pending = PendingWrites()
 
-        first = nbutils.create_ip("10.53.0.1", "255.255.255.128", logger=self.logger, pending=pending)
-        second = nbutils.create_ip("10.53.0.1", "255.255.255.0", logger=self.logger, pending=pending)
+        first = nbutils.create_ip("10.53.0.1", 25, logger=self.logger, pending=pending)
+        second = nbutils.create_ip("10.53.0.1", 24, logger=self.logger, pending=pending)
         pending.flush()
 
         self.assertEqual(first.pk, second.pk)
@@ -1161,7 +1193,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing = IPAddress(address="10.54.0.1/25", namespace=self.namespace, status=self.active)
         existing.validated_save()
 
-        nbutils.create_ip("10.54.0.1", "255.255.255.0", logger=self.logger)
+        nbutils.create_ip("10.54.0.1", 24, logger=self.logger)
 
         self.assertEqual(
             sorted(str(prefix.prefix) for prefix in Prefix.objects.filter(network="10.54.0.0")),
@@ -1177,7 +1209,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing = IPAddress(address="10.55.0.1/25", namespace=self.namespace, status=self.active)
         existing.validated_save()
 
-        nbutils.create_ip("10.55.0.1", "255.255.255.0", logger=self.logger)
+        nbutils.create_ip("10.55.0.1", 24, logger=self.logger)
 
         self.assertEqual(IPAddress.objects.get(pk=existing.pk).mask_length, 24)
         self.assertEqual(self.errors(), [])
@@ -1188,7 +1220,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing.validated_save()
         pending = PendingWrites()
 
-        nbutils.create_ip("10.56.0.1", "255.255.255.0", logger=self.logger, pending=pending)
+        nbutils.create_ip("10.56.0.1", 24, logger=self.logger, pending=pending)
         pending.flush()
 
         self.assertEqual(IPAddress.objects.get(pk=existing.pk).mask_length, 24)

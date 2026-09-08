@@ -1,5 +1,6 @@
 """General utils for IPFabric."""
 
+import ipaddress
 import re
 import threading
 from collections import defaultdict
@@ -275,3 +276,11 @@ class job_scoped_cache:  # pylint: disable=invalid-name
         """Clears all cache info on all instances and groups."""
         for instance in cls._all_instances:
             instance.cache_clear()
+
+
+def host_route_length(host):
+    """Return the prefix length of the route covering only the given address."""
+    try:
+        return ipaddress.ip_address(host).max_prefixlen
+    except ValueError:
+        return 32

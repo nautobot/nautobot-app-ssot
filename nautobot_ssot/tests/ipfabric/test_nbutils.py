@@ -423,7 +423,7 @@ class TestNautobotUtils(TestCase):
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddressToInterface")
     def test_create_ip(self, mock_ipaddress_to_interface):
         """Test `create_ip` Utility."""
-        test_ip = create_ip("192.168.0.2", "255.255.255.255")
+        test_ip = create_ip("192.168.0.2", 32)
         self.assertEqual(test_ip.host, "192.168.0.2")
         self.assertEqual(test_ip.mask_length, 32)
         self.assertEqual(test_ip.status.name, "Active")
@@ -432,7 +432,7 @@ class TestNautobotUtils(TestCase):
 
     def test_create_ip_assign_interface(self):
         """Test `create_ip` Utility."""
-        test_ip = create_ip("192.168.0.2", "255.255.255.255", object_pk=self.device.interfaces.first())
+        test_ip = create_ip("192.168.0.2", 32, object_pk=self.device.interfaces.first())
         self.assertEqual(test_ip.host, "192.168.0.2")
         self.assertEqual(test_ip.mask_length, 32)
         self.assertEqual(test_ip.parent, self.prefix)
@@ -440,7 +440,7 @@ class TestNautobotUtils(TestCase):
 
     def test_create_ip_alread_exists(self):
         """Test `create_ip` Utility."""
-        test_ip = create_ip("192.168.0.1", "255.255.255.255")
+        test_ip = create_ip("192.168.0.1", 32)
         self.assertEqual(test_ip.id, self.ip_address.id)
 
     @unittest.mock.patch(
@@ -454,10 +454,10 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         mock_status.return_value.get.side_effect = [Status.MultipleObjectsReturned]
         logger = mock_logger("nb_job")
-        test_ip = create_ip("192.168.0.1", "255.255.255.255", logger=logger)
+        test_ip = create_ip("192.168.0.1", 32, logger=logger)
         mock_ipaddress.assert_not_called()
         logger.error.assert_called_with(
-            "Multiple Statuses returned with name Active, and therefore cannot create an IPAddress of 192.168.0.1/255.255.255.255"
+            "Multiple Statuses returned with name Active, and therefore cannot create an IPAddress of 192.168.0.1/32"
         )
         self.assertEqual(test_ip, None)
 
@@ -472,10 +472,10 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         mock_status.return_value.get.side_effect = [Status.DoesNotExist]
         logger = mock_logger("nb_job")
-        test_ip = create_ip("192.168.0.1", "255.255.255.255", logger=logger)
+        test_ip = create_ip("192.168.0.1", 32, logger=logger)
         mock_ipaddress.assert_not_called()
         logger.error.assert_called_with(
-            "Unable to find a Status with the name Active, and therefore cannot create an IPAddress of 192.168.0.1/255.255.255.255"
+            "Unable to find a Status with the name Active, and therefore cannot create an IPAddress of 192.168.0.1/32"
         )
         self.assertEqual(test_ip, None)
 
@@ -485,7 +485,7 @@ class TestNautobotUtils(TestCase):
         """Only the IPAddress is tagged, as `tag_object` costs a validated_save() per call."""
         logger = mock_logger("nb_job")
         interface_obj = self.device.interfaces.first()
-        create_ip("192.168.0.1", "255.255.255.255", object_pk=interface_obj, logger=logger)
+        create_ip("192.168.0.1", 32, object_pk=interface_obj, logger=logger)
         tagged = [call.kwargs["nautobot_object"] for call in mock_tag_object.call_args_list]
         self.assertEqual(tagged, [self.ip_address])
 
@@ -495,7 +495,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         logger = mock_logger("nb_job")
         mock_tag_object.side_effect = [DjangoBaseDBError]
-        test_ip = create_ip("192.168.0.1", "255.255.255.255", logger=logger)
+        test_ip = create_ip("192.168.0.1", 32, logger=logger)
         self.assertEqual(test_ip.id, self.ip_address.id)
         logger.warning.assert_called_with(
             f"Unable to perform validated_save() on IPAddress {test_ip.address} with an ID of {test_ip.id}"
@@ -507,7 +507,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         logger = mock_logger("nb_job")
         mock_tag_object.side_effect = [ValidationError("failure")]
-        test_ip = create_ip("192.168.0.1", "255.255.255.255", logger=logger)
+        test_ip = create_ip("192.168.0.1", 32, logger=logger)
         self.assertEqual(test_ip.id, self.ip_address.id)
         logger.warning.assert_called_with(
             f"Unable to perform validated_save() on IPAddress {test_ip.address} with an ID of {test_ip.id}"
@@ -519,7 +519,7 @@ class TestNautobotUtils(TestCase):
         logger = mock_logger("nb_job")
 
         self.assertIsNone(create_ip("10.0.0.1", None, logger=logger))
-        self.assertIsNone(create_ip("10.0.0.1", "", logger=logger))
+        self.assertIsNone(create_ip("10.0.0.1", 0, logger=logger))
 
         mock_ip_get_or_create.assert_not_called()
         self.assertEqual(logger.warning.call_count, 2)
@@ -1351,7 +1351,7 @@ class TestNautobotUtils(TestCase):
         logger = mock_logger("nb_job")
 
         with mock.patch.object(IPAddress, "validated_save", side_effect=ValidationError("refused")):
-            result = create_ip("192.168.1.5", "255.255.255.0", logger=logger)
+            result = create_ip("192.168.1.5", 24, logger=logger)
 
         self.assertIsNone(result)
         self.assertFalse(IPAddress.objects.filter(host="192.168.1.5").exists())
@@ -1364,7 +1364,7 @@ class TestNautobotUtils(TestCase):
         logger = mock_logger("nb_job")
         mock_tag_object.side_effect = ValidationError("refused")
 
-        result = create_ip("192.168.0.1", "255.255.0.0", logger=logger)
+        result = create_ip("192.168.0.1", 16, logger=logger)
 
         self.assertEqual(result.id, self.ip_address.id)
         self.assertEqual(result.mask_length, 32, "The refused mask must not be left set in memory.")
@@ -1378,7 +1378,7 @@ class TestNautobotUtils(TestCase):
         interface = self.device.interfaces.first()
 
         with mock.patch.object(IPAddressToInterface, "validated_save", side_effect=ValidationError("refused")):
-            result = create_ip("192.168.0.1", "255.255.255.255", object_pk=interface, logger=logger)
+            result = create_ip("192.168.0.1", 32, object_pk=interface, logger=logger)
 
         self.assertEqual(result.id, self.ip_address.id)
         self.assertFalse(interface.ip_addresses.filter(pk=self.ip_address.pk).exists())
@@ -1410,6 +1410,41 @@ class TestNautobotUtils(TestCase):
         self.assertTrue(create_parent_prefix("192.168.5.5/24"))
 
         self.assertEqual(Prefix.objects.count(), before)
+
+    def test_create_ip_writes_an_ipv6_address(self):
+        """The point of syncing IPv6: the whole write path has to carry a v6 address to the database.
+
+        A netmask cannot describe one, so this exercises the length the sync records instead, and
+        the parent Prefix created for an address whose subnet Nautobot does not hold.
+        """
+        interface = self.device.interfaces.first()
+
+        address = create_ip("2001:db8:f00d::5", 64, object_pk=interface)
+
+        self.assertIsNotNone(address, "The address was refused.")
+        self.assertEqual(address.host, "2001:db8:f00d::5")
+        self.assertEqual(address.mask_length, 64)
+        self.assertEqual(str(address.parent.prefix), "2001:db8:f00d::/64")
+        self.assertIn(address, interface.ip_addresses.all())
+
+    def test_create_parent_prefix_keeps_an_ipv6_prefix_that_already_contains_the_address(self):
+        """The covering route is `/128` for IPv6, not `/32`.
+
+        A `/32` names a subnet millions of addresses wide, so no Prefix holding the address contains
+        it and the check reports none where one exists. The redundant wider Prefix that follows can
+        never become the parent, since Nautobot parents an address to the most specific Prefix
+        containing it.
+        """
+        Prefix.objects.get_or_create(
+            prefix="2001:db8:cafe::/64",
+            namespace=get_default_namespace(),
+            status=Status.objects.get(name="Active"),
+        )
+        before = Prefix.objects.count()
+
+        self.assertTrue(create_parent_prefix("2001:db8:cafe::1/48"))
+
+        self.assertEqual(Prefix.objects.count(), before, "A wider Prefix was created for an address already covered.")
 
     def test_create_vlan_reuses_a_vlan_the_location_already_has(self):
         """Matched on VLAN ID and Location, so the name IP Fabric reports does not overwrite it."""

@@ -19,7 +19,7 @@ from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import ObjectChange, Role, Status, Tag
-from nautobot.ipam.models import IPAddress
+from nautobot.ipam.models import IPAddress, Prefix, get_default_namespace
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import (
     NautobotDiffSync,
@@ -27,6 +27,9 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import (
     delete_objects_one_at_a_time,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
+from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
+    InterfaceAddress as InterfaceAddressModel,
+)
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
@@ -116,6 +119,14 @@ class _CostTestCase(TestCase):
         model.adapter = self.adapter
         return model
 
+    def create_address(self, interface_name, host, mask_length=24):
+        """Run the DiffSync create for one address on an Interface of this test's Device."""
+        return InterfaceAddressModel.create(
+            self.adapter,
+            ids={"device_name": self.device.name, "interface_name": interface_name, "host": host},
+            attrs={"mask_length": mask_length, "is_primary": False, "status": "Active"},
+        )
+
 
 class InterfaceWriteCostTestCase(_CostTestCase):
     """Count the writes a single Interface sync makes to the Interface table."""
@@ -132,7 +143,7 @@ class InterfaceWriteCostTestCase(_CostTestCase):
         # Only the verb is kept, so a failure reports how many writes happened rather than pages of SQL.
         return [write.split(None, 3)[0].upper() for write in writes]
 
-    def test_creating_an_interface_with_an_address_writes_it_once(self):
+    def test_creating_an_interface_writes_it_once(self):
         """One INSERT carrying the stamp, and no second save to apply it.
 
         Each write is a full `validated_save()`, so one more doubles what an Interface costs.
@@ -141,15 +152,12 @@ class InterfaceWriteCostTestCase(_CostTestCase):
             lambda: InterfaceModel.create(
                 self.adapter,
                 ids={"name": "eth1", "device_name": self.device.name},
-                attrs={
-                    "ip_address": "10.0.0.1",
-                    "subnet_mask": "255.255.255.0",
-                    "status": "Active",
-                    "type": "1000base-t",
-                },
+                attrs={"status": "Active", "type": "1000base-t"},
             )
         )
         self.assertEqual(len(writes), 1, f"Expected one write to the Interface table, got {writes}")
+        # The address is its own model, so it costs the Interface table nothing.
+        self.create_address("eth1", "10.0.0.1")
         self.assertEqual(Interface.objects.get(name="eth1").ip_addresses.count(), 1)
 
     def test_creating_an_address_does_not_save_it_a_second_time(self):
@@ -161,17 +169,13 @@ class InterfaceWriteCostTestCase(_CostTestCase):
         Measured as writes following the INSERT, because creating the parent Prefix makes Nautobot
         reparent the addresses it now contains, which writes to the same table beforehand.
         """
+        InterfaceModel.create(
+            self.adapter,
+            ids={"name": "eth2", "device_name": self.device.name},
+            attrs={"status": "Active", "type": "1000base-t"},
+        )
         with CaptureQueriesContext(connection) as queries:
-            InterfaceModel.create(
-                self.adapter,
-                ids={"name": "eth2", "device_name": self.device.name},
-                attrs={
-                    "ip_address": "10.0.0.2",
-                    "subnet_mask": "255.255.255.0",
-                    "status": "Active",
-                    "type": "1000base-t",
-                },
-            )
+            self.create_address("eth2", "10.0.0.2")
         writes = [
             query["sql"].split(None, 3)[0].upper()
             for query in queries.captured_queries
@@ -186,16 +190,18 @@ class InterfaceWriteCostTestCase(_CostTestCase):
         self.assertEqual(address.cf["system_of_record"], "IPFabric")
         self.assertTrue(address.tags.filter(name="SSoT Synced from IPFabric").exists())
 
-    def test_updating_an_interface_with_an_address_writes_it_once(self):
-        """Only `update` tags the Interface, so assigning an address adds no second write."""
-        writes = self.count_interface_writes(
-            lambda: self.interface_model("eth0").update(
-                {"ip_address": "10.0.0.2", "subnet_mask": "255.255.255.0", "description": "changed"}
-            )
-        )
+    def test_updating_an_interface_writes_it_once(self):
+        """Only `update` tags the Interface, so the tag rides the same write."""
+        writes = self.count_interface_writes(lambda: self.interface_model("eth0").update({"description": "changed"}))
         self.assertEqual(len(writes), 1, f"Expected one write to the Interface table, got {writes}")
         self.existing.refresh_from_db()
         self.assertEqual(self.existing.description, "changed")
+
+    def test_adding_an_address_never_writes_its_interface(self):
+        """The address is its own model, so it costs the Interface table nothing at all."""
+        writes = self.count_interface_writes(lambda: self.create_address("eth0", "10.0.0.2"))
+
+        self.assertEqual(writes, [], f"Expected no write to the Interface table, got {writes}")
         self.assertEqual([str(ip.host) for ip in self.existing.ip_addresses.all()], ["10.0.0.2"])
 
     def test_a_synced_interface_is_still_tagged_and_stamped(self):
@@ -203,12 +209,7 @@ class InterfaceWriteCostTestCase(_CostTestCase):
         InterfaceModel.create(
             self.adapter,
             ids={"name": "eth2", "device_name": self.device.name},
-            attrs={
-                "ip_address": "10.0.0.3",
-                "subnet_mask": "255.255.255.0",
-                "status": "Active",
-                "type": "1000base-t",
-            },
+            attrs={"status": "Active", "type": "1000base-t"},
         )
         created = Interface.objects.get(name="eth2")
         self.assertTrue(created.tags.filter(name="SSoT Synced from IPFabric").exists())
@@ -220,13 +221,10 @@ class InterfaceWriteCostTestCase(_CostTestCase):
         InterfaceModel.create(
             self.adapter,
             ids={"name": "eth3", "device_name": self.device.name},
-            attrs={
-                "ip_address": "10.0.0.4",
-                "subnet_mask": "255.255.255.0",
-                "status": "Active",
-                "type": "1000base-t",
-            },
+            attrs={"status": "Active", "type": "1000base-t"},
         )
+        self.create_address("eth3", "10.0.0.4")
+
         address = Interface.objects.get(name="eth3").ip_addresses.get()
         self.assertTrue(address.tags.filter(name="SSoT Synced from IPFabric").exists())
         self.assertEqual(address.cf["system_of_record"], "IPFabric")
@@ -292,6 +290,39 @@ class DeleteCostTestCase(_CostTestCase):
         self.assertEqual(Interface.objects.filter(device=self.device).count(), 3)
         self.assertEqual(self.adapter.objects_to_delete["_interface"], [])
 
+    def test_sync_complete_deletes_queued_ip_addresses(self):
+        """Regression for #1353: the grouping was populated but never drained.
+
+        `safe_delete` derives the grouping from the object's class name, and `sync_complete` used to
+        name four of them, so IP Addresses and Cables were reported deleted, dropped from the
+        DiffSync store, and left in the database.
+        """
+        prefix, _ = Prefix.objects.get_or_create(
+            prefix="10.60.0.0/24", namespace=get_default_namespace(), status=self.active_status
+        )
+        address = IPAddress.objects.create(address="10.60.0.5/24", status=self.active_status, parent=prefix)
+        self.adapter.objects_to_delete["_ipaddress"] = [address]
+        self.adapter.safe_delete_mode = False
+
+        self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
+
+        self.assertFalse(IPAddress.objects.filter(pk=address.pk).exists())
+        self.assertEqual(self.adapter.objects_to_delete["_ipaddress"], [])
+
+    def test_sync_complete_deletes_a_grouping_no_order_names(self):
+        """A model added later must not silently accumulate, as `_ipaddress` did."""
+        spare = Location.objects.create(
+            name="unordered-spare", location_type=self.location_type, status=self.active_status
+        )
+        # A grouping `DELETE_ORDER` does not name, standing in for a model added later.
+        self.adapter.objects_to_delete["_somethingnew"] = [spare]
+        self.adapter.safe_delete_mode = False
+
+        self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
+
+        self.assertFalse(Location.objects.filter(pk=spare.pk).exists())
+        self.assertIn("_somethingnew", str(self.adapter.job.logger.warning.call_args))
+
     def test_objects_to_delete_is_not_shared_between_adapters(self):
         """A run that fails before `sync_complete` must not leave work for the next run in the worker."""
         self.adapter.objects_to_delete["_interface"].append(self.interfaces(1, "leak")[0])
@@ -351,7 +382,7 @@ class ChangeLogCostTestCase(_CostTestCase):
             InterfaceModel.create(
                 self.adapter,
                 ids={"name": "logged", "device_name": self.device.name},
-                attrs={"ip_address": None, "subnet_mask": None, "status": "Active", "type": "1000base-t"},
+                attrs={"status": "Active", "type": "1000base-t"},
             )
             created = Interface.objects.get(name="logged")
             changes = ObjectChange.objects.filter(

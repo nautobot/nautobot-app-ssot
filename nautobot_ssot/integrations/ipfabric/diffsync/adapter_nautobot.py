@@ -16,7 +16,6 @@ from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Device, Location
 from nautobot.extras.models import Tag
 from nautobot.ipam.models import VLAN, Interface
-from netutils.ip import cidr_to_netmask
 from netutils.mac import mac_to_format
 
 import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
@@ -37,6 +36,13 @@ logger = logging.getLogger("nautobot.ssot.ipfabric")
 # How many objects to delete per statement. Django walks the relations of a whole batch once, so
 # larger batches cost fewer queries, at the price of a longer `IN` list and a wider lock.
 DELETE_BATCH_SIZE = 1000
+
+# The order `sync_complete` deletes the groupings in, children before whatever they hang off: a
+# Cable terminates on an Interface and an IP Address sits on one, so both go before the Interface,
+# and an Interface before its Device. `safe_delete` derives the grouping from the object's class
+# name, so a model added later lands in a grouping nothing here names; those are drained last and
+# reported, rather than accumulating unread as `_ipaddress` and `_cable` did.
+DELETE_ORDER = ("_cable", "_ipaddress", "_vlan", "_interface", "_device", "_location")
 
 # How many rows bulk mode will hold before writing them. Without a ceiling a sync of a hundred
 # thousand Interfaces would keep every one of them, and their addresses, in memory until the end.
@@ -142,12 +148,14 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             # be written before it runs.
             self.flush_pending_writes()
 
-            for grouping in (
-                "_vlan",
-                "_interface",
-                "_device",
-                "_location",
-            ):
+            unordered = sorted(set(self.objects_to_delete) - set(DELETE_ORDER))
+            if unordered:
+                self.job.logger.warning(
+                    "Deleting %s after everything else, as no order is declared for them. Add them to "
+                    "`DELETE_ORDER` so they are removed before whatever they hang off.",
+                    ", ".join(unordered),
+                )
+            for grouping in (*DELETE_ORDER, *unordered):
                 if not self.safe_delete_mode:
                     delete_objects(self.objects_to_delete[grouping])
                 self.objects_to_delete[grouping] = []
@@ -187,10 +195,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):
 
     def load_interfaces(self, device_record: Device, diffsync_device):
         """Import a single Nautobot Interface object as a DiffSync Interface model."""
-        device_primary_ip = None
-        if self.scope.ip_addresses:
-            device_primary_ip = device_record.primary_ip4 or device_record.primary_ip6
-
         for interface_record in device_record.interfaces.all():
             if interface_record.name == PSEUDO_MANAGEMENT_INTERFACE_NAME and (
                 not self.carries_pseudo_management_interface()
@@ -203,20 +207,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 if self.strict.interfaces:
                     self.placeholder_interfaces.append(f"{device_record.name}:{interface_record.name}")
                 continue
-            # Avoid .first() to preserve prefetch cache
-            ip_addresses = interface_record.ip_addresses.all() if self.scope.ip_addresses else []
-            has_a_subnet = (device_record.name, interface_record.name) not in self.interfaces_without_a_subnet
-            if ip_addresses and has_a_subnet:
-                ip_address_obj = ip_addresses[0]
-                ip_address = ip_address_obj.host
-                subnet_mask = cidr_to_netmask(ip_address_obj.mask_length)
-            else:
-                # An Interface IP Fabric reports no subnet for reports no address on either side, so
-                # that the mask Nautobot holds is left alone rather than diffed against one the
-                # source does not have. See `interfaces_without_a_subnet`.
-                ip_address_obj = None
-                ip_address = None
-                subnet_mask = None
             interface = self.interface(
                 status=device_record.status.name,
                 name=interface_record.name,
@@ -228,18 +218,43 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     if interface_record.mac_address
                     else DEFAULT_INTERFACE_MAC
                 ),
-                subnet_mask=subnet_mask,
                 mtu=interface_record.mtu if interface_record.mtu else DEFAULT_INTERFACE_MTU,
                 type=interface_record.type,
                 mgmt_only=interface_record.mgmt_only if interface_record.mgmt_only else False,
                 pk=interface_record.pk,
-                ip_is_primary=(
-                    self.scope.primary_ip and device_primary_ip is not None and ip_address_obj == device_primary_ip
-                ),
-                ip_address=ip_address,
             )
             self.add(interface)
             diffsync_device.add_child(interface)
+            self.load_interface_addresses(device_record, interface_record, interface)
+
+    def load_interface_addresses(self, device_record: Device, interface_record, interface):
+        """Add each address on the Interface as a DiffSync model of its own.
+
+        An address IP Fabric reports no usable subnet for is withheld here as well as there, so that
+        the mask Nautobot holds is left alone rather than diffed against one the source does not
+        have. Withheld per address rather than per Interface: an Interface carrying a second address
+        that is fine must still report that one. See `addresses_without_a_subnet`.
+        """
+        if not self.scope.ip_addresses:
+            return
+        # Both, not whichever comes first: a dual stack Device carries a primary of each version,
+        # and comparing against one of them would report the other's address as never primary while
+        # the source says it is, which is a difference no sync could ever apply away. Both are
+        # `select_related` while addresses are in scope, so neither costs a query here.
+        device_primary_ips = {addr for addr in (device_record.primary_ip4, device_record.primary_ip6) if addr}
+        for address_record in interface_record.ip_addresses.all():
+            if (device_record.name, interface_record.name, address_record.host) in self.addresses_without_a_subnet:
+                continue
+            address = self.interface_address(
+                device_name=device_record.name,
+                interface_name=interface_record.name,
+                host=address_record.host,
+                mask_length=address_record.mask_length,
+                is_primary=self.scope.primary_ip and address_record in device_primary_ips,
+                status=address_record.status.name,
+            )
+            self.add(address)
+            interface.add_child(address)
 
     def load_cables(self, device_queryset):
         """Add Nautobot Cable objects as DiffSync Cable models.
@@ -315,7 +330,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         prefetch = None
         if self.scope.ip_addresses:
             related += ["primary_ip4", "primary_ip6"]
-            prefetch = "interfaces__ip_addresses"
+            # `__status` because each address reports its own; without it the walk below costs a
+            # query per address, which is a hundred thousand of them on a real estate.
+            prefetch = "interfaces__ip_addresses__status"
         elif self.scope.interfaces:
             prefetch = "interfaces"
         devices = filtered_devices.select_related(*related)
