@@ -187,6 +187,15 @@ is halved and retried until the rows at fault are isolated. Those are then writt
 `clean()` applied, so each is named in the job log, and everything beside them is still written in
 batches rather than one at a time.
 
+### Batch size
+
+A thousand rows are inserted per statement. `ipfabric_bulk_write_batch_size` changes that, and the
+value is a trade between two costs rather than a simple bigger-is-faster: a larger batch means fewer
+statements for the rows that are fine, and more rows to narrow through when one of them is refused.
+The narrowing is by halving, so the recovery cost grows with the logarithm of the batch rather than
+with the batch, which is what makes a thousand a reasonable default. Lower it where an estate is
+known to carry rows Nautobot will refuse, so that less is re-read to find them.
+
 ### Two differences to expect
 
 Devices created in bulk do not get the components their Device Type templates define. IP Fabric

@@ -317,6 +317,18 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
         self.assertEqual(pending.flush(), 5)
         self.assertEqual(Location.objects.filter(name__startswith="batched").count(), 5)
 
+    def test_the_batch_size_comes_from_the_setting(self):
+        """An operator tunes the batch for their estate, so the collector reads it rather than a constant."""
+        with unittest.mock.patch("nautobot_ssot.integrations.ipfabric.bulk_writes.BULK_WRITE_BATCH_SIZE", 7):
+            self.assertEqual(PendingWrites().batch_size, 7)
+
+    def test_a_batch_size_below_one_is_refused(self):
+        """`range` takes no step of zero, and a batch of none would insert nothing for ever."""
+        with unittest.mock.patch("nautobot_ssot.integrations.ipfabric.bulk_writes.BULK_WRITE_BATCH_SIZE", 500):
+            self.assertEqual(PendingWrites().batch_size, 500)
+        self.assertEqual(PendingWrites(batch_size=0).batch_size, 1)
+        self.assertEqual(PendingWrites(batch_size=-5).batch_size, 1)
+
 
 class BulkModeInterfaceTestCase(TestCase):
     """Test that a bulk mode Interface create lands the same rows a per-object one does."""

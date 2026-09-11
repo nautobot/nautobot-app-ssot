@@ -31,10 +31,9 @@ from nautobot.dcim.models import Device, Interface, Location
 from nautobot.extras.models import TaggedItem
 from nautobot.ipam.models import VLAN, IPAddress, IPAddressToInterface, VLANLocationAssignment
 
-logger = logging.getLogger("nautobot.ssot.ipfabric")
+from nautobot_ssot.integrations.ipfabric.constants import BULK_WRITE_BATCH_SIZE
 
-# How many rows to insert per statement.
-WRITE_BATCH_SIZE = 1000
+logger = logging.getLogger("nautobot.ssot.ipfabric")
 
 # Insertion order. A model may only reference one before it: an Interface needs its Device, a VLAN
 # its Location. IP Addresses reference no queued model, only Prefixes, which are written as they are
@@ -61,9 +60,13 @@ def _check_deferred_constraints(model: Any) -> None:
 class PendingWrites:
     """Objects built but not yet written, plus the join rows and field updates that follow them."""
 
-    def __init__(self, batch_size: int = WRITE_BATCH_SIZE):
-        """Start empty, writing `batch_size` rows per statement."""
-        self.batch_size = batch_size
+    def __init__(self, batch_size: Optional[int] = None):
+        """Start empty, writing `batch_size` rows per statement.
+
+        Defaults to the configured `ipfabric_bulk_write_batch_size`. Read here rather than bound as
+        the default argument, so that the value a test patches onto this module is the one used.
+        """
+        self.batch_size = BULK_WRITE_BATCH_SIZE if batch_size is None else max(1, batch_size)
         self._queued: Dict[Any, List[Any]] = {model: [] for model in LEVELS}
         self._keys: Dict[Any, Dict[Any, Any]] = {model: {} for model in LEVELS}
         self._through: Dict[Any, List[Any]] = defaultdict(list)
