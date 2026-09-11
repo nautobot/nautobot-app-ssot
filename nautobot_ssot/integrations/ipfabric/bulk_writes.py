@@ -158,49 +158,64 @@ class PendingWrites:
         return kept
 
     def _insert(self, model: Any, objects: List[Any], missing: Set[Any]) -> int:
-        """Insert the given objects in batches, falling back to one at a time on refusal.
+        """Insert the given objects in batches, narrowing on refusal to the rows at fault.
 
         The primary keys of any objects that could not be written are added to `missing`.
         """
         written = 0
         for start in range(0, len(objects), self.batch_size):
-            batch = objects[start : start + self.batch_size]
-            try:
-                # Its own savepoint, so a refused batch leaves the transaction usable.
-                with transaction.atomic():
-                    model.objects.bulk_create(batch)
-                    _check_deferred_constraints(model)
-            except DjangoBaseDBError:
-                written += self._insert_one_at_a_time(model, batch, missing)
-            else:
-                written += len(batch)
+            written += self._insert_batch(model, objects[start : start + self.batch_size], missing)
         return written
+
+    def _insert_batch(self, model: Any, batch: List[Any], missing: Set[Any]) -> int:
+        """Insert one batch, halving it and retrying each half where the database refuses it.
+
+        A batch is refused because of the rows in it that are wrong, and those are usually very few.
+        Retrying the whole batch an object at a time would pay a validated save for every row in it
+        to find them, so one bad row costs the batch size in per-object writes. Halving costs a
+        handful of further inserts instead: the halves holding nothing wrong are written in bulk as
+        they would have been, and the search narrows on the rows that are not. A batch of a thousand
+        with one bad row takes about twenty inserts rather than a thousand validated saves.
+
+        Only a batch narrowed to a single object goes to the per-object path, which is where that
+        object is validated and named.
+        """
+        try:
+            # Its own savepoint, so a refused batch leaves the transaction usable.
+            with transaction.atomic():
+                model.objects.bulk_create(batch)
+                _check_deferred_constraints(model)
+        except DjangoBaseDBError:
+            if len(batch) == 1:
+                return self._insert_one(model, batch[0], missing)
+            middle = len(batch) // 2
+            return self._insert_batch(model, batch[:middle], missing) + self._insert_batch(
+                model, batch[middle:], missing
+            )
+        return len(batch)
 
     @staticmethod
-    def _insert_one_at_a_time(model: Any, objects: List[Any], missing: Set[Any]) -> int:
-        """Insert objects individually, so one row a batch refused does not lose the rest.
+    def _insert_one(model: Any, instance: Any, missing: Set[Any]) -> int:
+        """Insert a single object the narrowing above isolated, reporting it if it is refused again.
 
-        Validated on the way in, since a batch is only retried like this because something in it was
-        wrong and the offending row is worth naming.
+        Validated on the way in, since an object only reaches this path because a batch holding it
+        was refused, and the reason is worth naming.
         """
-        written = 0
-        for instance in objects:
-            # `bulk_create` marks everything it hands to the database as saved, and a constraint
-            # PostgreSQL defers to `COMMIT` fails after that, so the batch being retried here was
-            # rolled back while its objects still look written. Left that way, `save()` would issue
-            # an `UPDATE` matching no rows, and a `clean()` that reads its own row back would raise
-            # `DoesNotExist` instead of a validation error.
-            instance._state.adding = True  # pylint: disable=protected-access
-            try:
-                with transaction.atomic():
-                    instance.validated_save()
-                    _check_deferred_constraints(model)
-            except (DjangoBaseDBError, ValidationError, ObjectDoesNotExist) as error:
-                logger.warning("Unable to write %s %s in bulk mode: %s", model.__name__, instance, error)
-                missing.add(instance.pk)
-            else:
-                written += 1
-        return written
+        # `bulk_create` marks everything it hands to the database as saved, and a constraint
+        # PostgreSQL defers to `COMMIT` fails after that, so the batches this object was rolled back
+        # with leave it still looking written. Left that way, `save()` would issue an `UPDATE`
+        # matching no rows, and a `clean()` that reads its own row back would raise `DoesNotExist`
+        # instead of a validation error.
+        instance._state.adding = True  # pylint: disable=protected-access
+        try:
+            with transaction.atomic():
+                instance.validated_save()
+                _check_deferred_constraints(model)
+        except (DjangoBaseDBError, ValidationError, ObjectDoesNotExist) as error:
+            logger.warning("Unable to write %s %s in bulk mode: %s", model.__name__, instance, error)
+            missing.add(instance.pk)
+            return 0
+        return 1
 
     def _apply_updates(self, missing: Set[Any]) -> int:
         """Apply the deferred field updates, grouped by model and by the fields they touch.

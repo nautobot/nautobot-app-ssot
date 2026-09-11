@@ -283,6 +283,33 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
         self.assertTrue(IPAddress.objects.filter(pk=another.pk).exists())
         self.assertTrue(any("10.0.0.12" in line for line in logs.output), logs.output)
 
+    def test_a_refused_batch_is_narrowed_rather_than_retried_row_by_row(self):
+        """One bad row costs a handful of inserts, not a validated save for every row beside it.
+
+        The whole batch is refused, so the rows at fault have to be found. Halving finds them in
+        about `log2(batch)` further inserts and writes the rest in bulk, where retrying the batch an
+        object at a time would pay a validated save for every row in it.
+        """
+        queued = [f"10.0.1.{octet}" for octet in range(1, 9)]
+        for host in queued:
+            self.pending.add(self.build_address(f"{host}/24"))
+        self.pending.add(self.build_address("10.0.1.4/24"))  # a second copy of one already queued
+
+        with unittest.mock.patch.object(
+            IPAddress, "validated_save", autospec=True, side_effect=IPAddress.validated_save
+        ) as validated_save:
+            with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
+                written = self.pending.flush()
+
+        # Only the duplicate the narrowing isolated is validated; the other eight go in as batches.
+        self.assertEqual(validated_save.call_count, 1)
+        self.assertEqual(written, 8)
+        self.assertEqual(
+            sorted(str(each.host) for each in IPAddress.objects.filter(host__in=queued)),
+            sorted(queued),
+        )
+        self.assertTrue(any("10.0.1.4" in line for line in logs.output), logs.output)
+
     def test_a_batch_is_split_by_batch_size(self):
         pending = PendingWrites(batch_size=2)
         for index in range(5):

@@ -134,6 +134,32 @@ class IPFabricJobFormTestCase(TestCase):
         self.assertTrue(scope.cables)
         self.assertFalse(scope.vlans)
 
+    def test_bulk_mode_opts_into_suppressing_templated_components(self):
+        """Bulk mode's batched insert creates none, so its per-object retry must not either.
+
+        The suppression itself belongs to the base job, which wraps `sync_data` in it; what is
+        asserted here is that this job asks for it, and only in the mode that needs it.
+        """
+        for bulk_write_mode in (True, False):
+            with self.subTest(bulk_write_mode=bulk_write_mode):
+                job = jobs.IpFabricDataSource()
+                job.logger = mock.MagicMock()
+
+                with mock.patch("nautobot_ssot.jobs.base.DataSource.run"):
+                    job.run(bulk_write_mode=bulk_write_mode, dryrun=True)
+
+                self.assertEqual(job.skip_auto_component_creation, bulk_write_mode)
+
+    def test_the_component_suppression_is_off_when_the_form_omits_bulk_mode(self):
+        """`skip_auto_component_creation` is a base class attribute, so it must not be left unset."""
+        job = jobs.IpFabricDataSource()
+        job.logger = mock.MagicMock()
+
+        with mock.patch("nautobot_ssot.jobs.base.DataSource.run"):
+            job.run(dryrun=True)
+
+        self.assertFalse(job.skip_auto_component_creation)
+
 
 class IPFabricSyncDataTest(TestCase):
     """Test that `sync_data` threads its job options through to both adapters."""

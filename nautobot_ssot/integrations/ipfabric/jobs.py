@@ -257,6 +257,13 @@ class IpFabricDataSource(DataSource):
         self.dryrun = kwargs.get("dryrun")
         self.memory_profiling = kwargs.get("memory_profiling")
         self.parallel_loading = kwargs.get("parallel_loading")
+        # Nautobot instantiates a Device Type's component templates on a Device's first save. A
+        # batched insert never calls save(), so a Device written in a batch gets none of them, but a
+        # batch the database refuses is retried an object at a time and those saves would. Suppressed
+        # for the run, so a Device's components do not depend on whether the batch it fell in was
+        # refused, and the Interfaces IP Fabric reports are not left colliding with templated ones.
+        # Read by `sync_data`, so it has to be set before the base class runs it.
+        self.skip_auto_component_creation = bool(kwargs.get("bulk_write_mode"))
         super().run(*args, **kwargs)
 
     def load_source_adapter(self):

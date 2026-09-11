@@ -182,9 +182,10 @@ the object; what is missing is the before-and-after record of the change.
 bulk. Webhooks do not fire.
 
 **No per-object validation.** Nautobot's `clean()` is not called, so a check written in Python is not
-applied. Database constraints still are: a row that violates one is refused, and a batch a refusal
-stops is retried an object at a time so the offending object is named in the job log and the rest are
-still written.
+applied. Database constraints still are: a row that violates one is refused, and the batch it stopped
+is halved and retried until the rows at fault are isolated. Those are then written on their own with
+`clean()` applied, so each is named in the job log, and everything beside them is still written in
+batches rather than one at a time.
 
 ### Two differences to expect
 
