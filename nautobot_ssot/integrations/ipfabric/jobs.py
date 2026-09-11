@@ -26,6 +26,7 @@ from nautobot_ssot.integrations.ipfabric.sync_scope import (
     form_fields,
     scope_field_order,
 )
+from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
 LAST = "$last"
@@ -121,6 +122,15 @@ class IpFabricDataSource(DataSource):
         label="Sync Tagged Only",
         description="Only sync objects that have the 'SSoT Synced from IPFabric' Tag.",
     )
+    bulk_write_mode = BooleanVar(
+        default=False,
+        label="Bulk Write Mode",
+        description=(
+            "Write Interfaces and IP Addresses in batches. Much faster on a large sync, at the cost "
+            "of no change log entries, no signals and no per-object validation for those two. "
+            "Database constraints still apply. Leave off unless a sync is too slow without it."
+        ),
+    )
     location_filter = OptionalObjectVar(
         description="Only sync Nautobot records belonging to a single Location.",
         model=Location,
@@ -140,6 +150,7 @@ class IpFabricDataSource(DataSource):
             "snapshot",
             "safe_delete_mode",
             "sync_ipfabric_tagged_only",
+            "bulk_write_mode",
             *scope_field_order(),
             "dryrun",
         )
@@ -238,6 +249,7 @@ class IpFabricDataSource(DataSource):
             "dryrun": kwargs.get("dryrun"),
             "safe_delete_mode": kwargs.get("safe_delete_mode"),
             "sync_ipfabric_tagged_only": kwargs.get("sync_ipfabric_tagged_only"),
+            "bulk_write_mode": kwargs.get("bulk_write_mode"),
             "location_filter": kwargs.get("location_filter"),
             "debug": kwargs.get("debug"),
             "scope": SyncScope.from_job_kwargs(kwargs),
@@ -245,6 +257,13 @@ class IpFabricDataSource(DataSource):
         self.dryrun = kwargs.get("dryrun")
         self.memory_profiling = kwargs.get("memory_profiling")
         self.parallel_loading = kwargs.get("parallel_loading")
+        # Nautobot instantiates a Device Type's component templates on a Device's first save. A
+        # batched insert never calls save(), so a Device written in a batch gets none of them, but a
+        # batch the database refuses is retried an object at a time and those saves would. Suppressed
+        # for the run, so a Device's components do not depend on whether the batch it fell in was
+        # refused, and the Interfaces IP Fabric reports are not left colliding with templated ones.
+        # Read by `sync_data`, so it has to be set before the base class runs it.
+        self.skip_auto_component_creation = bool(kwargs.get("bulk_write_mode"))
         super().run(*args, **kwargs)
 
     def load_source_adapter(self):
@@ -261,10 +280,16 @@ class IpFabricDataSource(DataSource):
             self.logger.error("IPFabric client is not ready. Check your config.")
             return
 
+        # Thread local and shared by every run in this worker. A run that failed part way through
+        # leaves them populated, holding objects that may belong to a transaction that rolled back,
+        # so a run starts by emptying them rather than trusting the last one to have finished.
+        job_scoped_cache.clear_all()
+
         self.client.snapshot_id = self.kwargs["snapshot"]
         dryrun = self.kwargs["dryrun"]
         safe_mode = self.kwargs["safe_delete_mode"]
         tagged_only = self.kwargs["sync_ipfabric_tagged_only"]
+        bulk_write_mode = self.kwargs["bulk_write_mode"]
         scope = self.kwargs["scope"]
         location_filter = self.kwargs["location_filter"]
         debug_mode = self.kwargs["debug"]
@@ -273,7 +298,7 @@ class IpFabricDataSource(DataSource):
             location_filter_object = Location.objects.get(pk=location_filter)
         else:
             location_filter_object = None
-        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Location Filter`: {location_filter_object}"
+        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Bulk Write Mode`: {bulk_write_mode}, `Location Filter`: {location_filter_object}"
         self.logger.info(f"Starting job with the following options: {options}")
         self.logger.info("Object types in scope: %s", scope.describe())
         for explanation in scope.explanations():
@@ -297,6 +322,7 @@ class IpFabricDataSource(DataSource):
             job=self,
             sync=self.sync,
             sync_ipfabric_tagged_only=tagged_only,
+            bulk_write_mode=bulk_write_mode,
             location_filter=location_filter_object,
             scope=scope,
         )

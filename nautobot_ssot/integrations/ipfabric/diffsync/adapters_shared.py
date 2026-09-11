@@ -17,6 +17,10 @@ class DiffSyncModelAdapters(Adapter):
 
     safe_delete_mode: ClassVar[bool] = True
 
+    # The collector to queue writes into, or None when they go one at a time. Declared here so that
+    # a model may ask any adapter; only the destination adapter ever sets it.
+    pending = None
+
     location = diffsync_models.Location
     device = diffsync_models.Device
     interface = diffsync_models.Interface

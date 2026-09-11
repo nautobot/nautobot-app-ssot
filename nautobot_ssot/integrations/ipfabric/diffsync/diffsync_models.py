@@ -20,9 +20,6 @@ from nautobot.dcim.models import (
     Device as NautobotDevice,
 )
 from nautobot.dcim.models import (
-    Interface as NautobotInterface,
-)
-from nautobot.dcim.models import (
     Location as NautobotLocation,
 )
 from nautobot.extras.models import Tag
@@ -62,6 +59,7 @@ def resolve_location(adapter, location_name: str, location_id: Optional[str] = N
             location_name=location_name,
             location_id=location_id,
             logger=adapter.job.logger,
+            pending=adapter.pending,
         )
     return tonb_nbutils.get_location_object(location_name, logger=adapter.job.logger)
 
@@ -141,6 +139,18 @@ class DiffSyncExtras(DiffSyncModel):
 
     safe_delete_mode: ClassVar[bool] = True
 
+    @classmethod
+    def create(cls, adapter, ids, attrs):
+        """Record the object in the store, writing any batch that has grown large enough first.
+
+        Every model reaches here through `super().create()` once its own work is done, which is the
+        one point at which writing a queued batch is safe: flushed any earlier, the batch would miss
+        whatever the model went on to set.
+        """
+        if adapter.pending is not None:
+            adapter.flush_pending_writes_if_full()
+        return super().create(adapter=adapter, ids=ids, attrs=attrs)
+
     def safe_delete(
         self,
         nautobot_object: Any,
@@ -173,15 +183,22 @@ class DiffSyncExtras(DiffSyncModel):
                 else:
                     # Not everything has a status. This may come in handy once more models are synced.
                     logger.warning(f"{nautobot_object} has no Status attribute.")
+            tags_to_add = ()
             if hasattr(nautobot_object, "tags") and safe_delete_tag:
-                if not nautobot_object.tags.filter(id=safe_delete_tag.id).exists():
-                    nautobot_object.tags.add(safe_delete_tag)
+                already_tagged = tonb_nbutils.get_tagged_pks(type(nautobot_object), safe_delete_tag.id)
+                if nautobot_object.pk not in already_tagged:
+                    # Applied below alongside the synced from tag, as one call to `tags.add`.
+                    tags_to_add = (safe_delete_tag,)
                     logger.warning(f"Tagging {nautobot_object} with `SSoT Safe Delete`.")
                     update = True
                 else:
                     logger.warning(f"{nautobot_object} has previously been tagged with `SSoT Safe Delete`. Skipping...")
             if update:
-                tonb_nbutils.tag_object(nautobot_object=nautobot_object, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+                tonb_nbutils.tag_object(
+                    nautobot_object=nautobot_object,
+                    custom_field=LAST_SYNCHRONIZED_CF_NAME,
+                    extra_tags=tags_to_add,
+                )
         return self
 
 
@@ -200,6 +217,7 @@ class Location(DiffSyncExtras):
     vlans: List["Vlan"] = []
 
     @classmethod
+    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create Location in Nautobot, or find it when Locations are out of scope.
 
@@ -218,6 +236,7 @@ class Location(DiffSyncExtras):
             )
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
+    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete Location in Nautobot."""
         try:
@@ -237,6 +256,7 @@ class Location(DiffSyncExtras):
             return super().delete()
         return None
 
+    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update Location Object in Nautobot."""
         try:
@@ -304,6 +324,7 @@ class Device(DiffSyncExtras):
     interfaces: List["Interface"] = []
 
     @classmethod
+    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create Device in Nautobot under its parent location."""
         # Get DeviceType
@@ -373,16 +394,32 @@ class Device(DiffSyncExtras):
             )
 
         if device_type_object and location_object and device_role_object and device_status_object:
+            pending = adapter.pending
+            lookup = {
+                "name": device_name,
+                "serial": attrs.get("serial_number", ""),
+                "status": device_status_object,
+                "device_type": device_type_object,
+                "role": device_role_object,
+                "location": location_object,
+            }
             try:
-                new_device, _ = NautobotDevice.objects.get_or_create(
-                    name=device_name,
-                    serial=attrs.get("serial_number", ""),
-                    status=device_status_object,
-                    device_type=device_type_object,
-                    role=device_role_object,
-                    location=location_object,
-                    defaults={"platform": platform_object},
-                )
+                if pending is None:
+                    # Deliberately a get-or-create, which inserts without `full_clean()`. A Platform
+                    # owned by another system may name a different Manufacturer to the DeviceType,
+                    # which `Device.clean()` rejects but this integration accepts; validating before
+                    # the insert would stop such a Device being written at all.
+                    new_device, _ = NautobotDevice.objects.get_or_create(
+                        defaults={"platform": platform_object}, **lookup
+                    )
+                    queue_new = False
+                else:
+                    try:
+                        new_device = NautobotDevice.objects.get(**lookup)
+                        queue_new = False
+                    except NautobotDevice.DoesNotExist:
+                        new_device = NautobotDevice(platform=platform_object, **lookup)
+                        queue_new = True
             except NautobotDevice.MultipleObjectsReturned:
                 adapter.job.logger.error(
                     f"Multiple Devices returned with name {device_name} at Location {location_name}"
@@ -392,17 +429,20 @@ class Device(DiffSyncExtras):
                     f"Unable to create a new Device named {device_name} at Location {location_name}"
                 )
             else:
-                try:
-                    # Validated save happens inside of tag_objet
-                    tonb_nbutils.tag_object(nautobot_object=new_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-                except (DjangoBaseDBError, ValidationError) as error:
-                    adapter.job.logger.error(
-                        f"Unable to perform a validated_save() on Device {device_name} with an ID of {new_device.id}"
-                    )
-                    message = f"Unable to create device: {device_name}. A validation error occured. Enable debug for more information."
-                    if adapter.job.debug:
-                        logger.debug(error)
-                    logger.error(message)
+                if queue_new:
+                    tonb_nbutils.queue_new_object(pending, new_device, key=device_name)
+                else:
+                    try:
+                        # Validated save happens inside of tag_objet
+                        tonb_nbutils.tag_object(nautobot_object=new_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+                    except (DjangoBaseDBError, ValidationError) as error:
+                        adapter.job.logger.error(
+                            f"Unable to perform a validated_save() on Device {device_name} with an ID of {new_device.id}"
+                        )
+                        message = f"Unable to create device: {device_name}. A validation error occured. Enable debug for more information."
+                        if adapter.job.debug:
+                            logger.debug(error)
+                        logger.error(message)
 
                 vc_name = attrs.get("vc_name")
                 if vc_name:
@@ -415,12 +455,14 @@ class Device(DiffSyncExtras):
                                 master=attrs.get("vc_master", False),
                                 position=attrs.get("vc_position"),
                                 priority=attrs.get("vc_priority"),
+                                pending=pending,
                             )
                     except (DjangoBaseDBError, ValidationError):
                         adapter.job.logger.error(f"Unable to update Device {device_name} with VirtualChassis data")
                 return super().create(ids=ids, adapter=adapter, attrs=attrs)
         return None
 
+    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete device in Nautobot."""
         try:
@@ -440,6 +482,7 @@ class Device(DiffSyncExtras):
             return super().delete()
         return None
 
+    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update devices in Nautobot based on Source."""
         try:
@@ -569,53 +612,68 @@ class Interface(DiffSyncExtras):
     status: str
 
     @classmethod
+    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create interface in Nautobot under its parent device."""
         device_name = ids["device_name"]
         interface_name = ids["name"]
         ip_address = attrs["ip_address"]
         subnet_mask = attrs["subnet_mask"]  # TODO: switch to cidr notation since both APIs use that format
-        device_obj = tonb_nbutils.get_tagged_device(device_name)
+        # A Device queued earlier in this run is not in the database yet, so it is looked for there
+        # first. `get_syncable_device` is cached, so it is asked second rather than taught about the
+        # queue.
+        device_obj = None
+        if adapter.pending is not None:
+            device_obj = adapter.pending.find(NautobotDevice, device_name)
+        device_obj = device_obj or tonb_nbutils.get_syncable_device(
+            device_name, tagged_only=adapter.sync_ipfabric_tagged_only
+        )
         if device_obj:
             return_super = True
             if not attrs.get("mac_address"):
                 attrs["mac_address"] = DEFAULT_INTERFACE_MAC
+            pending = adapter.pending
             interface_obj = tonb_nbutils.create_interface(
                 device_obj=device_obj,
                 interface_details={**ids, **attrs},
                 logger=adapter.job.logger,
+                pending=pending,
             )
             if interface_obj and ip_address:
-                interface_obj.ip_addresses.set([])
+                if pending is None:
+                    # A queued Interface has no addresses to clear, and clearing them would read a
+                    # row that does not exist yet.
+                    interface_obj.ip_addresses.set([])
                 ip_address_obj = tonb_nbutils.create_ip(
                     ip_address=ip_address,
                     subnet_mask=subnet_mask,
                     status=attrs["status"],
                     object_pk=interface_obj,
                     logger=adapter.job.logger,
+                    pending=pending,
                 )
                 if ip_address_obj:
-                    interface_obj.ip_addresses.add(ip_address_obj)
+                    # `create_ip` has already assigned it to the Interface, through a validated
+                    # save of the assignment rather than the plain insert `add()` would do.
                     if attrs.get("ip_is_primary"):
-                        if ip_address_obj.ip_version == 4:
-                            device_obj.primary_ip4 = ip_address_obj
+                        field = "primary_ip4" if ip_address_obj.ip_version == 4 else "primary_ip6"
+                        if pending is None:
+                            setattr(device_obj, field, ip_address_obj)
                             device_obj.save()
-                        elif ip_address_obj.ip_version == 6:
-                            device_obj.primary_ip6 = ip_address_obj
-                            device_obj.save()
+                        else:
+                            # Not set on the Device here: the address is only queued, and the Device
+                            # may be too, in which case its own insert would carry a foreign key to
+                            # a row that does not exist yet. Assigned once everything is written.
+                            pending.defer_update(device_obj, {field: ip_address_obj})
                 else:
                     adapter.job.logger.warning(
                         f"Unable to assign an IPAddress to an Interface named {interface_name} on a Device named {device_name} "
                         f"because of a failure to get or create an IPAddress of {ip_address}/{subnet_mask}"
                     )
                     return_super = False
-                try:
-                    interface_obj.validated_save()
-                except (DjangoBaseDBError, ValidationError):
-                    adapter.job.logger.error(
-                        f"Unable to perform a validated_save() on an Interface named {interface_name} on a Device named {device_name}"
-                    )
-                    return_super = False
+                # The Interface is not saved again here. `create_interface` saved it, and nothing
+                # since has changed a field on it: assigning an address touches only the through
+                # table, and `Interface.clean()` does not validate the addresses assigned to it.
             elif ip_address:
                 adapter.job.logger.warning(
                     f"Unable to create an IPAddress {ip_address}/{subnet_mask} because of a failure "
@@ -636,19 +694,17 @@ class Interface(DiffSyncExtras):
             )
         return None
 
+    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete Interface Object."""
-        device = tonb_nbutils.get_tagged_device(self.device_name)
+        device = tonb_nbutils.get_syncable_device(self.device_name, tagged_only=self.adapter.sync_ipfabric_tagged_only)
         if device:
             return_super = True
-            try:
-                interface = device.interfaces.prefetch_related("ip_addresses__interfaces").get(name=self.name)
-            except NautobotInterface.MultipleObjectsReturned:
-                self.adapter.job.logger.error(
-                    f"Multiple Interfaces found with the name {self.name}, on Device named {self.device_name} "
-                    f"with an ID of {device.id}, unable to determine which one to delete"
-                )
-            except NautobotInterface.DoesNotExist:
+            # Every Interface of the Device at once, so removing many of them costs one lookup
+            # rather than one each. Nautobot makes `(device, name)` unique, so there is no
+            # ambiguous match to report.
+            interface = tonb_nbutils.get_device_interfaces_by_name(device).get(self.name)
+            if interface is None:
                 self.adapter.job.logger.error(
                     f"Unable to find an Interface with the name {self.name} on Device named {self.device_name} "
                     f"with an ID of {device.id} to delete"
@@ -657,9 +713,11 @@ class Interface(DiffSyncExtras):
             else:
                 # Access the addr within an interface, change the status if necessary
                 for ip_address in interface.ip_addresses.all():
-                    if not ip_address.interfaces.exclude(id=interface.id).exists():
-                        # IP's can be associated to multiple Interfaces.
-                        # Only mark IPs with no other interface associtations as safe to delete.
+                    # An address can be on several Interfaces, and only one with no other Interface
+                    # is safe to delete. Read from the prefetched Interfaces rather than excluding
+                    # this one in the database, which would cost a query per address and make the
+                    # `ip_addresses__interfaces` prefetch above pointless.
+                    if not any(other.id != interface.id for other in ip_address.interfaces.all()):
                         self.safe_delete(ip_address, SAFE_DELETE_IPADDRESS_STATUS, self.adapter.safe_delete_tag)
                 # Then do the parent interface
                 # Attached interfaces do not have a status to update.
@@ -675,19 +733,18 @@ class Interface(DiffSyncExtras):
 
         return None
 
+    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):  # pylint: disable=too-many-branches
         """Update Interface object in Nautobot."""
-        device = tonb_nbutils.get_tagged_device(self.device_name)
+        device = tonb_nbutils.get_syncable_device(self.device_name, tagged_only=self.adapter.sync_ipfabric_tagged_only)
         if device:  # pylint: disable=too-many-nested-blocks
             return_super = True
-            try:
-                interface = device.interfaces.prefetch_related("ip_addresses").get(name=self.name)
-            except NautobotInterface.MultipleObjectsReturned:
-                self.adapter.job.logger.error(
-                    f"Multiple Interfaces found with the name {self.name} on Device named {device.name} "
-                    f"with an ID of {device.id}, unable to determine which one to update"
-                )
-            except NautobotInterface.DoesNotExist:
+            # Every Interface of the Device at once, so a Device with many of them changing costs
+            # one lookup rather than one each. Nautobot makes `(device, name)` unique, so there is
+            # no ambiguous match to report. Each Interface is updated at most once per run, so the
+            # addresses this reads are still the ones on it.
+            interface = tonb_nbutils.get_device_interfaces_by_name(device).get(self.name)
+            if interface is None:
                 self.adapter.job.logger.error(
                     f"Unable to find an Interface with the name {self.name} on Device named {device.name} "
                     f"with an ID of {device.id} to update"
@@ -723,9 +780,7 @@ class Interface(DiffSyncExtras):
                         object_pk=interface,
                         logger=self.adapter.job.logger,
                     )
-                    if ip_address_obj:
-                        interface.ip_addresses.add(ip_address_obj)
-                    else:
+                    if not ip_address_obj:
                         self.adapter.job.logger.warning(
                             f"Unable to update Interface {self.name} on Device {device.name} "
                             f"with an IPAddress of {ip_address}/{subnet_mask}"
@@ -815,14 +870,20 @@ class Vlan(DiffSyncExtras):
     vlan_pk: Optional[UUID] = None
 
     @classmethod
+    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create VLANs in Nautobot under the site."""
         status = attrs["status"].lower().capitalize()
         location_name = ids["location"]
         vlan_id = attrs["vid"]
         vlan_name = ids["name"]
+        # A Location queued earlier in this run is not in the database yet, so it is looked for
+        # there first. Falls through to the database, which is where it is on any other run.
+        location = None
+        if adapter.pending is not None:
+            location = adapter.pending.find(NautobotLocation, location_name)
         try:
-            location = NautobotLocation.objects.get(name=ids["location"])
+            location = location or NautobotLocation.objects.get(name=ids["location"])
         except NautobotLocation.MultipleObjectsReturned:
             adapter.job.logger.error(
                 f"Multiple Locations returned with the name {location_name}, "
@@ -844,6 +905,7 @@ class Vlan(DiffSyncExtras):
                 location_obj=location,
                 description=description,
                 logger=adapter.job.logger,
+                pending=adapter.pending,
             )
             if vlan:
                 return super().create(ids=ids, adapter=adapter, attrs=attrs)
@@ -853,6 +915,7 @@ class Vlan(DiffSyncExtras):
                 )
         return None
 
+    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete."""
         try:
@@ -870,6 +933,7 @@ class Vlan(DiffSyncExtras):
             return super().delete()
         return None
 
+    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update VLAN object in Nautobot."""
         try:
@@ -948,24 +1012,34 @@ class Cable(DiffSyncExtras):
         )
 
     @staticmethod
-    def resolve_interfaces(ids, job_logger):
-        """Return the two Nautobot Interfaces a link terminates on, or (None, None) if either is missing."""
+    def resolve_interfaces(adapter, ids):
+        """Return the two Nautobot Interfaces a link terminates on, or (None, None) if either is missing.
+
+        Cables keep the per-object write path, so this reads its Interfaces back from the database.
+        The Devices and Interfaces a link terminates on are created earlier in the same sync, and in
+        bulk mode that means queued rather than written, so anything still queued is written first.
+        """
+        if adapter.pending is not None:
+            adapter.flush_pending_writes()
+        job_logger = adapter.job.logger
+        tagged_only = adapter.sync_ipfabric_tagged_only
         interface_a = tonb_nbutils.get_tagged_interface(
-            ids["termination_a_device"], ids["termination_a_name"], logger=job_logger
+            ids["termination_a_device"], ids["termination_a_name"], logger=job_logger, tagged_only=tagged_only
         )
         interface_b = tonb_nbutils.get_tagged_interface(
-            ids["termination_b_device"], ids["termination_b_name"], logger=job_logger
+            ids["termination_b_device"], ids["termination_b_name"], logger=job_logger, tagged_only=tagged_only
         )
         if not interface_a or not interface_b:
             return None, None
         return interface_a, interface_b
 
     @classmethod
+    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create a Cable in Nautobot between the two Interfaces it terminates on."""
         job_logger = adapter.job.logger
         link = cls.describe(ids)
-        interface_a, interface_b = cls.resolve_interfaces(ids, job_logger)
+        interface_a, interface_b = cls.resolve_interfaces(adapter, ids)
         if not interface_a:
             job_logger.warning(f"Unable to create a Cable for {link} because an Interface could not be retrieved")
             return None
@@ -1020,7 +1094,7 @@ class Cable(DiffSyncExtras):
         if self.cable_pk:
             # Recorded by the Nautobot adapter while loading, so the endpoints need not be walked again.
             return NautobotCable.objects.filter(pk=self.cable_pk).select_related("status").first()
-        interface_a, interface_b = self.resolve_interfaces(self.get_identifiers(), self.adapter.job.logger)
+        interface_a, interface_b = self.resolve_interfaces(self.adapter, self.get_identifiers())
         if not interface_a:
             return None
         cable = interface_a.cable
@@ -1028,6 +1102,7 @@ class Cable(DiffSyncExtras):
             return cable
         return None
 
+    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update a Cable's Status in Nautobot."""
         link = self.describe(self.get_identifiers())
@@ -1043,6 +1118,7 @@ class Cable(DiffSyncExtras):
                 cable.tags.remove(self.adapter.safe_delete_tag)
         return super().update(attrs)
 
+    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete a Cable in Nautobot."""
         link = self.describe(self.get_identifiers())

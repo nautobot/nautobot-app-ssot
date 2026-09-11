@@ -132,6 +132,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "ipfabric_timeout": 15,
         "ipfabric_nautobot_host": "",
         "ipfabric_sync_ipf_dev_type_to_role": True,
+        "ipfabric_bulk_write_batch_size": 1000,
         "librenms_allow_ip_hostnames": False,
         "librenms_consolidated_platforms": False,
         "librenms_network_driver_map": {},

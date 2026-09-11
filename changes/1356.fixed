@@ -1,0 +1,1 @@
+Fixed the IP Fabric sync reporting an Interface's subnet mask as changed on every run, with the value alternating, for an IP address IP Fabric reports on more than one Device in a different subnet each time.

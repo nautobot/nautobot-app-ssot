@@ -11,6 +11,7 @@ from nautobot.dcim.constants import NONCONNECTABLE_IFACE_TYPES
 from nautobot.dcim.models import Device
 from nautobot.ipam.models import VLAN
 from netutils.interface import canonical_interface_name
+from netutils.ip import cidr_to_netmask
 from netutils.mac import mac_to_format
 
 from nautobot_ssot.integrations.ipfabric.constants import (
@@ -49,6 +50,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         self.job = job
         self.sync = sync
         self.client = client
+        # Resolved once addressing is read, and empty when addresses are out of scope.
+        self.subnet_mask_by_address = {}
         if location_filter:
             self.client.attribute_filters = {"siteName": ["ieq", location_filter]}
             logging.info("Applied IP Fabric Attribute Filter: %s", self.client.attribute_filters)
@@ -66,7 +69,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             except ObjectAlreadyExists:
                 logger.warning(f"Duplicate Location discovered, {site}")
 
-    def load_device_interfaces(self, device_model, device_interfaces, device_primary_ip, managed_ipv4):
+    def load_device_interfaces(self, device_model, device_interfaces, device_primary_ip):
         """Create and load DiffSync Interface model objects for a specific device."""
         # The pseudo interface exists only to carry a NAT management address, so with addresses out
         # of scope there is nothing for it to hold. Skipped rather than passed a null address, which
@@ -89,10 +92,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 ip_address = None
                 subnet_mask = None
             elif ip_address := iface.get("primaryIp") or iface.get("loginIpv4"):
-                if ip_address in managed_ipv4 and managed_ipv4[ip_address].get("net"):
-                    subnet_mask = str(ipaddress.ip_interface(managed_ipv4[ip_address]["net"]).netmask)
-                else:
-                    subnet_mask = "255.255.255.255"
+                # One mask per address rather than per device: see `subnet_masks_by_address`.
+                subnet_mask = self.subnet_mask_by_address.get(ip_address, "255.255.255.255")
             else:
                 subnet_mask = None
 
@@ -164,8 +165,13 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 return False
         return True
 
-    def load_cables(self):
-        """Add IP Fabric connectivity matrix entries as DiffSync Cable models."""
+    def reported_links(self):
+        """Return the links the connectivity matrix describes, as canonically ordered endpoint pairs.
+
+        A set, because the matrix reports each link once from each of its two devices and both
+        reports reduce to the same pair.
+        """
+        links = set()
         for link in self.client.technology.interfaces.connectivity_matrix.all():
             local = self.link_endpoint(link, "local")
             remote = self.link_endpoint(link, "remote")
@@ -176,23 +182,56 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             if local == remote:
                 logger.warning(f"Skipping connectivity matrix entry that links an Interface to itself, {link}")
                 continue
-            endpoint_a, endpoint_b = canonical_endpoints(local, remote)
-            if not self.endpoints_are_cableable(endpoint_a, endpoint_b):
+            links.add(canonical_endpoints(local, remote))
+        return links
+
+    def recordable_links(self):
+        """Return the reported links Nautobot can record, which is at most one per Interface.
+
+        An Interface terminates at most one Cable in every version this app supports. The versions
+        that model breakout cables give one Cable several terminations per side; they do not give an
+        Interface several Cables. IP Fabric describes a cloud subnet as a link from each Interface in
+        it to the subnet, so one Interface can be reported on many links and only one can be kept.
+
+        Taken in sorted order, so that the link kept is the same one on every run. Choosing
+        differently between runs would leave each run deleting the Cable the run before it made.
+        """
+        taken = set()
+        recordable = []
+        unrecordable = defaultdict(int)
+        for endpoints in sorted(self.reported_links()):
+            if not self.endpoints_are_cableable(*endpoints):
                 continue
-            cable = self.cable(
-                termination_a_device=endpoint_a[0],
-                termination_a_name=endpoint_a[1],
-                termination_b_device=endpoint_b[0],
-                termination_b_name=endpoint_b[1],
-                status=DEFAULT_CABLE_STATUS,
+            occupied = [endpoint for endpoint in endpoints if endpoint in taken]
+            if occupied:
+                for endpoint in occupied:
+                    unrecordable[endpoint] += 1
+                continue
+            taken.update(endpoints)
+            recordable.append(endpoints)
+
+        for (device_name, interface_name), count in sorted(unrecordable.items()):
+            logger.warning(
+                "%s:%s is reported on %d further link(s), which Nautobot cannot record because an "
+                "Interface terminates at most one Cable",
+                device_name,
+                interface_name,
+                count,
             )
-            try:
-                self.add(cable)
-            except ObjectAlreadyExists:
-                # Expected: the matrix reports each link from both devices, and both resolve to
-                # the same Cable.
-                if self.job.debug:
-                    logger.debug("Already loaded a Cable for %s", cable.get_unique_id())
+        return recordable
+
+    def load_cables(self):
+        """Add IP Fabric connectivity matrix entries as DiffSync Cable models."""
+        for endpoint_a, endpoint_b in self.recordable_links():
+            self.add(
+                self.cable(
+                    termination_a_device=endpoint_a[0],
+                    termination_a_name=endpoint_a[1],
+                    termination_b_device=endpoint_b[0],
+                    termination_b_name=endpoint_b[1],
+                    status=DEFAULT_CABLE_STATUS,
+                )
+            )
 
     def load_data(self):
         """Load shared data from IP Fabric.
@@ -216,6 +255,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 columns=ip_columns, filters=ip_filter
             ):
                 managed_ipv4[ip_address["sn"]].update({ip_address["ip"]: ip_address})
+            self.subnet_mask_by_address = subnet_masks_by_address(managed_ipv4)
 
         # Get all interfaces for devices
         if self.scope.interfaces:
@@ -228,12 +268,12 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             columns=["master", "member", "memberSn", "pn", "sn"]
         ):
             stacks[stack["sn"]].append(stack)
-        return managed_ipv4, vlans_by_location, stacks, interfaces
+        return vlans_by_location, stacks, interfaces
 
     def load(self):  # pylint: disable=too-many-locals,too-many-statements
         """Load data from IP Fabric."""
         self.load_sites()
-        managed_ipv4, vlans_by_location, stacks, interfaces = self.load_data()
+        vlans_by_location, stacks, interfaces = self.load_data()
 
         for location in self.get_all(self.location):
             if location.name is None:
@@ -331,7 +371,6 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                                     device_model,
                                     interfaces.get(device.sn, []),
                                     device_primary_ip,
-                                    managed_ipv4.get(device.sn, {}),
                                 )
                     except ObjectAlreadyExists:
                         logger.warning(f"Duplicate Device discovered, {device.model_dump()}")
@@ -352,3 +391,35 @@ def pseudo_management_interface(hostname, device_interfaces, device_primary_ip):
         "type": "virtual",
         "mgmt_only": True,
     }
+
+
+def subnet_masks_by_address(managed_ipv4):
+    """Return one subnet mask per address, the narrowest of those reported for it.
+
+    IP Fabric indexes addressing by serial number and so describes a subnet per device. An address
+    on two devices can therefore be reported in two subnets, while Nautobot holds one mask per
+    address, so two Interfaces sharing an address cannot each carry the mask reported for them. One
+    mask is chosen here, for every Interface holding that address, so that the two sides agree.
+
+    The narrowest report is the one chosen, because it agrees with the address's parent: Nautobot
+    parents an address to the most specific Prefix containing it. A fixed rule rather than the order
+    IP Fabric answers in, which is not guaranteed.
+    """
+    lengths = {}
+    contested = set()
+    for by_address in managed_ipv4.values():
+        for address, record in by_address.items():
+            if not record.get("net"):
+                continue
+            length = ipaddress.ip_network(record["net"], strict=False).prefixlen
+            if address in lengths and lengths[address] != length:
+                contested.add(address)
+            lengths[address] = max(length, lengths.get(address, 0))
+    for address in sorted(contested):
+        logger.warning(
+            "IP Fabric reports %s in more than one subnet, so its Interfaces cannot each carry "
+            "the mask reported for them; using the narrowest, /%d",
+            address,
+            lengths[address],
+        )
+    return {address: cidr_to_netmask(length) for address, length in lengths.items()}

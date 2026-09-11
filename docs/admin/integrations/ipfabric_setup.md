@@ -65,6 +65,7 @@ PLUGINS_CONFIG = {
 | `ipfabric_use_canonical_interface_name` | Whether to attempt to elongate interface names as found in IP Fabric.                                                                                                                         | `False`             |
 | `ipfabric_sync_<object type>`           | Pre-selects an object type on the Job form. See [Choosing what to sync](#choosing-what-to-sync).                                                                                              | Varies by type      |
 | `ipfabric_disabled_sync_objects`        | Object types that may not be selected on the Job form at all. See [Choosing what to sync](#choosing-what-to-sync).                                                                            | `[]`                |
+| `ipfabric_bulk_write_batch_size`        | How many rows `Bulk Write Mode` inserts per statement. See [Bulk Write Mode](../../user/integrations/ipfabric.md#bulk-write-mode).                                                             | `1000`              |
 
 
 Below is an example snippet from `nautobot_config.py` that demonstrates how to enable and configure the IPFabric SSoT integration along with the optional settings:
@@ -101,6 +102,7 @@ PLUGINS_CONFIG = {
         "ipfabric_sync_cables": is_truthy(os.getenv("NAUTOBOT_SSOT_IPFABRIC_SYNC_CABLES", "false")),
         # For example, ["primary_ip"] to remove it from the Job form entirely.
         "ipfabric_disabled_sync_objects": [],
+        "ipfabric_bulk_write_batch_size": int(os.getenv("NAUTOBOT_SSOT_IPFABRIC_BULK_WRITE_BATCH_SIZE", 1000)),
     }
 }
 ```

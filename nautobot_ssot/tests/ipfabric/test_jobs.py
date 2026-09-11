@@ -91,6 +91,21 @@ class IPFabricJobFormTestCase(TestCase):
         for syncable in SYNCABLE_OBJECTS:
             self.assertIn(syncable.field_name, got_vars)
 
+    def test_bulk_write_mode_is_offered_and_defaults_off(self):
+        """Trading validation and change logging for speed has to be a deliberate act."""
+        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=None):
+            got_vars = jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
+
+        self.assertIn("bulk_write_mode", got_vars)
+        self.assertFalse(got_vars["bulk_write_mode"].field_attrs["initial"])
+        self.assertIn("bulk_write_mode", jobs.IpFabricDataSource.Meta.field_order)
+
+    def test_bulk_write_mode_says_what_it_gives_up(self):
+        """An operator cannot weigh the trade from the label alone."""
+        description = jobs.IpFabricDataSource.bulk_write_mode.field_attrs["help_text"]
+        for expected in ("change log", "validation"):
+            self.assertIn(expected, description)
+
     def test_get_vars_omits_an_administratively_disabled_object_type(self):
         """A disabled object type must be absent from the form, not merely unticked."""
         with (
@@ -119,6 +134,32 @@ class IPFabricJobFormTestCase(TestCase):
         self.assertTrue(scope.cables)
         self.assertFalse(scope.vlans)
 
+    def test_bulk_mode_opts_into_suppressing_templated_components(self):
+        """Bulk mode's batched insert creates none, so its per-object retry must not either.
+
+        The suppression itself belongs to the base job, which wraps `sync_data` in it; what is
+        asserted here is that this job asks for it, and only in the mode that needs it.
+        """
+        for bulk_write_mode in (True, False):
+            with self.subTest(bulk_write_mode=bulk_write_mode):
+                job = jobs.IpFabricDataSource()
+                job.logger = mock.MagicMock()
+
+                with mock.patch("nautobot_ssot.jobs.base.DataSource.run"):
+                    job.run(bulk_write_mode=bulk_write_mode, dryrun=True)
+
+                self.assertEqual(job.skip_auto_component_creation, bulk_write_mode)
+
+    def test_the_component_suppression_is_off_when_the_form_omits_bulk_mode(self):
+        """`skip_auto_component_creation` is a base class attribute, so it must not be left unset."""
+        job = jobs.IpFabricDataSource()
+        job.logger = mock.MagicMock()
+
+        with mock.patch("nautobot_ssot.jobs.base.DataSource.run"):
+            job.run(dryrun=True)
+
+        self.assertFalse(job.skip_auto_component_creation)
+
 
 class IPFabricSyncDataTest(TestCase):
     """Test that `sync_data` threads its job options through to both adapters."""
@@ -138,6 +179,7 @@ class IPFabricSyncDataTest(TestCase):
             "dryrun": True,
             "safe_delete_mode": True,
             "sync_ipfabric_tagged_only": True,
+            "bulk_write_mode": False,
             "location_filter": None,
             "debug": False,
             "scope": SyncScope(scope) if scope is not None else SyncScope.from_job_kwargs({}),
@@ -153,6 +195,17 @@ class IPFabricSyncDataTest(TestCase):
         ):
             job.sync_data()
         return mock_source, mock_dest
+
+    def test_sync_data_passes_bulk_write_mode_to_the_nautobot_adapter(self):
+        """The Nautobot adapter is the one that writes, so it is the one that has to know."""
+        job = self._job(bulk_write_mode=True)
+        _source, dest = self._run(job)
+        self.assertTrue(dest.call_args.kwargs["bulk_write_mode"])
+
+    def test_sync_data_defaults_bulk_write_mode_off(self):
+        job = self._job()
+        _source, dest = self._run(job)
+        self.assertFalse(dest.call_args.kwargs["bulk_write_mode"])
 
     def test_sync_data_passes_the_same_scope_to_both_adapters(self):
         """Both adapters must be given one scope object, or they can disagree about what is in scope."""

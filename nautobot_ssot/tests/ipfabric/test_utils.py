@@ -243,6 +243,37 @@ class TestJobScopedCache(SimpleTestCase):
         self.assertEqual(first.cache_info().currsize, 0)
         self.assertEqual(second.cache_info().currsize, 0)
 
+    def test_maxsize_keeps_only_the_most_recent_entries(self):
+        """Results too large to hold one of per key need a bound, or a long run accumulates them."""
+        calls = []
+
+        @job_scoped_cache(maxsize=2)
+        def bounded(x):
+            calls.append(x)
+            return [x]
+
+        job_scoped_cache.clear_all()
+        bounded(1)
+        bounded(2)
+        self.assertEqual(bounded.cache_info().currsize, 2)
+
+        bounded(3)  # evicts the oldest, which is 1
+        self.assertEqual(bounded.cache_info().currsize, 2)
+
+        bounded(2)  # still held, so no new call
+        bounded(1)  # evicted, so called again
+        self.assertEqual(calls, [1, 2, 3, 1])
+
+    def test_without_maxsize_the_cache_is_unbounded(self):
+        @job_scoped_cache
+        def unbounded(x):
+            return [x]
+
+        job_scoped_cache.clear_all()
+        for value in range(5):
+            unbounded(value)
+        self.assertEqual(unbounded.cache_info().currsize, 5)
+
     def test_clear_group_only_clears_named_group(self):
         """`clear_group()` clears the named group's caches and leaves others intact."""
 

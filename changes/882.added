@@ -1,0 +1,1 @@
+Added an opt-in Bulk Write Mode to the IP Fabric sync job, writing Locations, Devices, Interfaces, IP Addresses and VLANs in batches. Much faster on a large sync, at the cost of change log entries, signals and per-object validation for the objects written that way.
