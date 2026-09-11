@@ -20,11 +20,13 @@ from nautobot.dcim.models import (
     Device as NautobotDevice,
 )
 from nautobot.dcim.models import (
+    Interface as NautobotInterface,
+)
+from nautobot.dcim.models import (
     Location as NautobotLocation,
 )
 from nautobot.extras.models import Tag
 from nautobot.ipam.models import VLAN, IPAddress
-from netutils.ip import netmask_to_cidr
 
 import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
 import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_nbutils
@@ -596,11 +598,9 @@ class Interface(DiffSyncExtras):
         "mtu",
         "type",
         "mgmt_only",
-        "ip_address",
-        "subnet_mask",
-        "ip_is_primary",
         "status",
     )
+    _children = {"interface_address": "addresses"}
 
     name: str
     device_name: str
@@ -610,10 +610,8 @@ class Interface(DiffSyncExtras):
     mtu: Optional[int] = None
     type: Optional[str] = None
     mgmt_only: Optional[bool] = None
-    ip_address: Optional[str] = None
-    subnet_mask: Optional[str] = None
-    ip_is_primary: Optional[bool] = None
     status: str
+    addresses: List["InterfaceAddress"] = []
 
     @classmethod
     @tonb_nbutils.deferred_change_logging()
@@ -621,8 +619,6 @@ class Interface(DiffSyncExtras):
         """Create interface in Nautobot under its parent device."""
         device_name = ids["device_name"]
         interface_name = ids["name"]
-        ip_address = attrs["ip_address"]
-        subnet_mask = attrs["subnet_mask"]  # TODO: switch to cidr notation since both APIs use that format
         # A Device queued earlier in this run is not in the database yet, so it is looked for there
         # first. `get_syncable_device` is cached, so it is asked second rather than taught about the
         # queue.
@@ -632,72 +628,29 @@ class Interface(DiffSyncExtras):
         device_obj = device_obj or tonb_nbutils.get_syncable_device(
             device_name, tagged_only=adapter.sync_ipfabric_tagged_only
         )
-        if device_obj:
-            return_super = True
-            if not attrs.get("mac_address"):
-                attrs["mac_address"] = DEFAULT_INTERFACE_MAC
-            pending = adapter.pending
-            interface_obj = tonb_nbutils.create_interface(
-                create_statuses=adapter.may_create("statuses"),
-                device_obj=device_obj,
-                interface_details={**ids, **attrs},
-                logger=adapter.job.logger,
-                pending=pending,
-            )
-            if interface_obj and ip_address:
-                if pending is None:
-                    # A queued Interface has no addresses to clear, and clearing them would read a
-                    # row that does not exist yet.
-                    interface_obj.ip_addresses.set([])
-                ip_address_obj = tonb_nbutils.create_ip(
-                    ip_address=ip_address,
-                    subnet_mask=subnet_mask,
-                    status=attrs["status"],
-                    object_pk=interface_obj,
-                    logger=adapter.job.logger,
-                    pending=pending,
-                )
-                if ip_address_obj:
-                    # `create_ip` has already assigned it to the Interface, through a validated
-                    # save of the assignment rather than the plain insert `add()` would do.
-                    if attrs.get("ip_is_primary"):
-                        field = "primary_ip4" if ip_address_obj.ip_version == 4 else "primary_ip6"
-                        if pending is None:
-                            setattr(device_obj, field, ip_address_obj)
-                            device_obj.save()
-                        else:
-                            # Not set on the Device here: the address is only queued, and the Device
-                            # may be too, in which case its own insert would carry a foreign key to
-                            # a row that does not exist yet. Assigned once everything is written.
-                            pending.defer_update(device_obj, {field: ip_address_obj})
-                else:
-                    adapter.job.logger.warning(
-                        f"Unable to assign an IPAddress to an Interface named {interface_name} on a Device named {device_name} "
-                        f"because of a failure to get or create an IPAddress of {ip_address}/{subnet_mask}"
-                    )
-                    return_super = False
-                # The Interface is not saved again here. `create_interface` saved it, and nothing
-                # since has changed a field on it: assigning an address touches only the through
-                # table, and `Interface.clean()` does not validate the addresses assigned to it.
-            elif ip_address:
-                adapter.job.logger.warning(
-                    f"Unable to create an IPAddress {ip_address}/{subnet_mask} because of a failure "
-                    f"to get or create an Interface named {interface_name} on a Device named {device_name}"
-                )
-                return_super = False
-            elif not interface_obj:
-                adapter.job.logger.warning(
-                    f"Unable to get or create an Interface named {interface_name} on a Device named {device_name}"
-                )
-                return_super = False
-            if return_super:
-                return super().create(ids=ids, adapter=adapter, attrs=attrs)
-        else:
+        if not device_obj:
             adapter.job.logger.warning(
                 f"Unable to create an Interface with the name {interface_name} because of a failure "
                 f"to get a Device named {device_name}"
             )
-        return None
+            return None
+        if not attrs.get("mac_address"):
+            attrs["mac_address"] = DEFAULT_INTERFACE_MAC
+        # Addresses are written by `InterfaceAddress`, each as its own child of this Interface, so
+        # nothing is assigned here.
+        interface_obj = tonb_nbutils.create_interface(
+            create_statuses=adapter.may_create("statuses"),
+            device_obj=device_obj,
+            interface_details={**ids, **attrs},
+            logger=adapter.job.logger,
+            pending=adapter.pending,
+        )
+        if not interface_obj:
+            adapter.job.logger.warning(
+                f"Unable to get or create an Interface named {interface_name} on a Device named {device_name}"
+            )
+            return None
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
     @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
@@ -716,15 +669,9 @@ class Interface(DiffSyncExtras):
                 )
                 return_super = False
             else:
-                # Access the addr within an interface, change the status if necessary
-                for ip_address in interface.ip_addresses.all():
-                    # An address can be on several Interfaces, and only one with no other Interface
-                    # is safe to delete. Read from the prefetched Interfaces rather than excluding
-                    # this one in the database, which would cost a query per address and make the
-                    # `ip_addresses__interfaces` prefetch above pointless.
-                    if not any(other.id != interface.id for other in ip_address.interfaces.all()):
-                        self.safe_delete(ip_address, SAFE_DELETE_IPADDRESS_STATUS, self.adapter.safe_delete_tag)
-                # Then do the parent interface
+                # The addresses on it are not touched here. Each is an `InterfaceAddress` child of
+                # this Interface, so DiffSync deletes them in their own right, and that model is
+                # what knows to leave an address a second Interface also holds.
                 # Attached interfaces do not have a status to update.
                 self.safe_delete(interface, None, self.adapter.safe_delete_tag)
             if return_super:
@@ -739,15 +686,14 @@ class Interface(DiffSyncExtras):
         return None
 
     @tonb_nbutils.deferred_change_logging()
-    def update(self, attrs):  # pylint: disable=too-many-branches
+    def update(self, attrs):
         """Update Interface object in Nautobot."""
         device = tonb_nbutils.get_syncable_device(self.device_name, tagged_only=self.adapter.sync_ipfabric_tagged_only)
-        if device:  # pylint: disable=too-many-nested-blocks
+        if device:
             return_super = True
             # Every Interface of the Device at once, so a Device with many of them changing costs
             # one lookup rather than one each. Nautobot makes `(device, name)` unique, so there is
-            # no ambiguous match to report. Each Interface is updated at most once per run, so the
-            # addresses this reads are still the ones on it.
+            # no ambiguous match to report.
             interface = tonb_nbutils.get_device_interfaces_by_name(device).get(self.name)
             if interface is None:
                 self.adapter.job.logger.error(
@@ -772,75 +718,6 @@ class Interface(DiffSyncExtras):
                     interface.type = attrs["type"]
                 if attrs.get("mgmt_only"):
                     interface.mgmt_only = attrs["mgmt_only"]
-                ip_address = attrs.get("ip_address")
-                # Falls back to the mask already recorded, not to a host mask: an address whose
-                # mask the source did not report as changed keeps the one it has.
-                subnet_mask = attrs.get("subnet_mask") or self.subnet_mask
-                if ip_address:
-                    if interface.ip_addresses.all():
-                        logger.info(f"Replacing IP from interface {self.name} on {device.name}")
-                        interface.ip_addresses.set([])
-                    ip_address_obj = tonb_nbutils.create_ip(
-                        ip_address=ip_address,
-                        subnet_mask=subnet_mask,
-                        status="Active",
-                        object_pk=interface,
-                        logger=self.adapter.job.logger,
-                    )
-                    if not ip_address_obj:
-                        self.adapter.job.logger.warning(
-                            f"Unable to update Interface {self.name} on Device {device.name} "
-                            f"with an IPAddress of {ip_address}/{subnet_mask}"
-                        )
-                        return_super = False
-                elif attrs.get("subnet_mask"):
-                    try:
-                        ip_address_obj = interface.ip_addresses.get(host=self.ip_address)
-                    except IPAddress.MultipleObjectsReturned:
-                        self.adapter.job.logger.error(
-                            f"Multiple IPAddresses found with an address of {self.ip_address} on Interface named {self.name} "
-                            f"on Device named {device.name} with an ID of {device.id}, unable to determine which one "
-                            f"to update with a mask of {subnet_mask}"
-                        )
-                        return_super = False
-                    except IPAddress.DoesNotExist:
-                        self.adapter.job.logger.error(
-                            f"Unable to find an IPAddress with an address of {self.ip_address} on Interface named {self.name} "
-                            f"on Device named {device.name} with an ID of {device.id} to update with a mask of {subnet_mask}"
-                        )
-                        return_super = False
-                    else:
-                        ip_address_obj.mask_length = netmask_to_cidr(subnet_mask)
-                        try:
-                            ip_address_obj.validated_save()
-                        except (DjangoBaseDBError, ValidationError):
-                            self.adapter.job.logger.error(
-                                f"Unable to update the subnet_mask with a value of {subnet_mask} on Interface named {self.name} "
-                                f"on Device named {device.name} with an ID of {device.id}"
-                            )
-                            return_super = False
-                if attrs.get("ip_is_primary"):
-                    interface_obj = interface.ip_addresses.first()
-                    if interface_obj:
-                        try:
-                            if interface_obj.ip_version == 4:
-                                device.primary_ip4 = interface_obj
-                                device.save()
-                            elif interface_obj.ip_version == 6:
-                                device.primary_ip6 = interface_obj
-                                device.save()
-                        except (DjangoBaseDBError, ValidationError):
-                            self.adapter.job.logger.error(
-                                f"Unable to update Primay IP for Device named {device.name} "
-                                f"with an ID of {device.id}"
-                            )
-                            return_super = False
-                    else:
-                        self.adapter.job.logger.error(
-                            f"Unable to update Primary IP for Device named {device.name} "
-                            "because no interfaces could be found on the Device"
-                        )
-                        return_super = False
                 try:
                     tonb_nbutils.tag_object(nautobot_object=interface, custom_field=LAST_SYNCHRONIZED_CF_NAME)
                 except (DjangoBaseDBError, ValidationError):
@@ -859,6 +736,200 @@ class Interface(DiffSyncExtras):
                 f"its interface named {self.name}"
             )
         return None
+
+
+class InterfaceAddress(DiffSyncExtras):
+    """An IP Address configured on a Device Interface.
+
+    Its own model rather than a field of the Interface, because an Interface can carry several: a
+    secondary address, an FHRP virtual address, and IPv6 alongside IPv4. As a model each one diffs on
+    its own, so an Interface gaining a third address reports that address rather than its whole set,
+    and one IP Fabric stops reporting is removed without touching the rest.
+
+    Identified by host rather than by address. Nautobot makes an address unique within its parent
+    Prefix and the mask is the attribute that changes, so keying on the mask as well would report a
+    corrected mask as one address replacing another.
+    """
+
+    _modelname = "interface_address"
+    _identifiers = ("device_name", "interface_name", "host")
+    _attributes = ("mask_length", "is_primary", "status")
+
+    device_name: str
+    interface_name: str
+    host: str
+    mask_length: int
+    is_primary: bool = False
+    status: str = "Active"
+
+    @staticmethod
+    def find_interface(adapter, device_name: str, interface_name: str):
+        """Return the `(Device, Interface)` to hang the address off, reporting whichever is missing.
+
+        The Interface may have been queued earlier in this run rather than written, so the queue is
+        asked first, as `Interface.create` asks it for its Device. A queued Interface is keyed on its
+        Device's primary key, so the Device is resolved first in that case.
+
+        Otherwise it is read afresh. The by Device lookup a delete uses is cached, so it would see
+        neither an Interface this run created nor an address written onto one it did.
+        """
+        if adapter.pending is not None:
+            device = adapter.pending.find(NautobotDevice, device_name) or tonb_nbutils.get_syncable_device(
+                device_name, tagged_only=adapter.sync_ipfabric_tagged_only
+            )
+            if device is not None:
+                queued = adapter.pending.find(NautobotInterface, (device.pk, interface_name))
+                if queued is not None:
+                    return device, queued
+        interface = tonb_nbutils.get_tagged_interface(
+            device_name,
+            interface_name,
+            tagged_only=adapter.sync_ipfabric_tagged_only,
+            logger=adapter.job.logger,
+        )
+        if interface is None:
+            return None, None
+        return interface.device, interface
+
+    @staticmethod
+    def primary_field(address_object) -> str:
+        """Return the Device field that records an address of this version as primary."""
+        return "primary_ip4" if address_object.ip_version == 4 else "primary_ip6"
+
+    @classmethod
+    def clear_primary(cls, adapter, device, address_object) -> None:
+        """Stop the Device recording the address as its primary one.
+
+        Cleared only where the Device still points at this address. Whichever address becomes
+        primary instead is a different model, and DiffSync does not order the two, so a demotion
+        that cleared the field outright could undo a promotion already applied. Keyed on identity,
+        the two settle in either order: applied after the promotion this is a no-op, and applied
+        before it the promotion writes the field again.
+        """
+        field = cls.primary_field(address_object)
+        if getattr(device, f"{field}_id") != address_object.pk:
+            return
+        if adapter.pending is None:
+            setattr(device, field, None)
+            try:
+                device.validated_save()
+            except (DjangoBaseDBError, ValidationError):
+                adapter.job.logger.error(
+                    f"Unable to stop recording {address_object.address} as the {field} of Device "
+                    f"named {device.name}"
+                )
+            return
+        adapter.pending.defer_update(device, {field: None})
+
+    @classmethod
+    def assign_primary(cls, adapter, device, address_object) -> None:
+        """Record the address as the Device's primary one for its IP version.
+
+        A validated save, so the refusal is reported rather than written. It validates the whole
+        Device, so a Device this sync deliberately wrote despite `Device.clean()` — one whose
+        Platform names a different Manufacturer to its DeviceType — is refused here for a reason
+        that has nothing to do with the address, and keeps whatever primary it had.
+        """
+        field = cls.primary_field(address_object)
+        if adapter.pending is None:
+            setattr(device, field, address_object)
+            try:
+                device.validated_save()
+            except (DjangoBaseDBError, ValidationError):
+                adapter.job.logger.error(
+                    f"Unable to record {address_object.address} as the {field} of Device named {device.name}"
+                )
+            return
+        # Deferred for the same reason `Interface.create` defers it: the address is only queued, and
+        # the Device may be too, so its insert would carry a foreign key to a row not yet written.
+        adapter.pending.defer_update(device, {field: address_object})
+
+    @classmethod
+    @tonb_nbutils.deferred_change_logging()
+    def create(cls, adapter, ids, attrs):
+        """Create the address in Nautobot and assign it to its Interface."""
+        device, interface = cls.find_interface(adapter, ids["device_name"], ids["interface_name"])
+        if interface is None:
+            return None
+        address_object = tonb_nbutils.create_ip(
+            ip_address=ids["host"],
+            mask_length=attrs["mask_length"],
+            status=attrs.get("status", "Active"),
+            object_pk=interface,
+            logger=adapter.job.logger,
+            pending=adapter.pending,
+        )
+        if address_object is None:
+            adapter.job.logger.warning(
+                f"Unable to write an IPAddress of {ids['host']}/{attrs['mask_length']} for Interface "
+                f"named {ids['interface_name']} on Device named {ids['device_name']}"
+            )
+            return None
+        if attrs.get("is_primary"):
+            cls.assign_primary(adapter, device, address_object)
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def update(self, attrs):
+        """Correct the mask IP Fabric reports for the address, and whether it is the Device's primary."""
+        device, interface = self.find_interface(self.adapter, self.device_name, self.interface_name)
+        if interface is None:
+            return None
+        try:
+            address_object = interface.ip_addresses.get(host=self.host)
+        except IPAddress.DoesNotExist:
+            self.adapter.job.logger.error(
+                f"Unable to find an IPAddress of {self.host} on Interface named {self.interface_name} "
+                f"on Device named {self.device_name} to update"
+            )
+            return None
+        except IPAddress.MultipleObjectsReturned:
+            self.adapter.job.logger.error(
+                f"Multiple IPAddresses of {self.host} on Interface named {self.interface_name} on "
+                f"Device named {self.device_name}, so none is updated"
+            )
+            return None
+        if "mask_length" in attrs:
+            address_object.mask_length = attrs["mask_length"]
+            try:
+                address_object.validated_save()
+            except (DjangoBaseDBError, ValidationError):
+                self.adapter.job.logger.error(
+                    f"Unable to change the mask of IPAddress {self.host} to /{attrs['mask_length']} on "
+                    f"Interface named {self.interface_name} on Device named {self.device_name}"
+                )
+                return None
+        if "is_primary" in attrs:
+            # `in attrs` rather than a truth test: an address that stops being primary reports
+            # `False`, which is a value to act on rather than an attribute left unset.
+            if attrs["is_primary"]:
+                self.assign_primary(self.adapter, device, address_object)
+            else:
+                self.clear_primary(self.adapter, device, address_object)
+        return super().update(attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def delete(self) -> Optional["DiffSyncModel"]:
+        """Remove the address IP Fabric no longer reports for the Interface.
+
+        Deleted only where no other Interface holds it. An address IP Fabric reports on two
+        Interfaces is one row in Nautobot, and removing it for one would take it from both.
+        """
+        _device, interface = self.find_interface(self.adapter, self.device_name, self.interface_name)
+        if interface is None:
+            return None
+        address_object = interface.ip_addresses.filter(host=self.host).first()
+        if address_object is None:
+            self.adapter.job.logger.warning(
+                f"Unable to find an IPAddress of {self.host} on Interface named {self.interface_name} "
+                f"on Device named {self.device_name} to delete"
+            )
+            return None
+        if any(other.id != interface.id for other in address_object.interfaces.all()):
+            interface.ip_addresses.remove(address_object)
+            return super().delete()
+        self.safe_delete(address_object, SAFE_DELETE_IPADDRESS_STATUS, self.adapter.safe_delete_tag)
+        return super().delete()
 
 
 class Vlan(DiffSyncExtras):

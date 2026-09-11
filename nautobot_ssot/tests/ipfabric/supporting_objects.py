@@ -1,4 +1,4 @@
-"""Shared scaffolding for the two controls that stop an IP Fabric sync creating a supporting object.
+"""Shared scaffolding for the IP Fabric adapter tests.
 
 Manufacturers, Device Types, Roles, Platforms and Locations are created as a side effect of syncing a
 Device. Two independent controls can withhold that: taking the type out of the sync scope, and being
@@ -8,6 +8,9 @@ Nautobot holding some supporting objects and not others is the same for both.
 
 Named without a `test_` prefix so the runner does not collect it. `test_supporting_object_scope.py`
 and `test_strict_mode.py` supply the control; this supplies the estate they run against.
+
+`addresses_of` lives here too, for the adapter tests: it reads only the diff store, so both adapters'
+tests ask it the same question and neither needs this module's fixture.
 """
 
 import unittest.mock
@@ -41,6 +44,15 @@ UNKNOWN_LOCATION = "unknown-site"
 def scope_without(*keys):
     """Return a scope with every object type selected except the named ones."""
     return SyncScope(syncable.key for syncable in SYNCABLE_OBJECTS if syncable.key not in keys)
+
+
+def addresses_of(adapter, device_name, interface_name):
+    """Return `{host: mask_length}` for the addresses loaded under one Interface."""
+    return {
+        address.host: address.mask_length
+        for address in adapter.get_all("interface_address")
+        if address.device_name == device_name and address.interface_name == interface_name
+    }
 
 
 class SupportingObjectTestCase(TestCase):

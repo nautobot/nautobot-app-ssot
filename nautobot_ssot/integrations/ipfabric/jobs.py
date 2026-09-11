@@ -325,8 +325,8 @@ class IpFabricDataSource(DataSource):
         DiffSyncModelAdapters.safe_delete_mode = safe_mode
         DiffSyncExtras.safe_delete_mode = safe_mode
 
-        # Constructed after the source has loaded, so that the Interfaces it could not find a subnet
-        # for are known and this side can report no address for the same ones.
+        # Constructed after the source has loaded, so that the addresses it could not find a subnet
+        # for are known and this side can withhold the same ones.
         dest = NautobotDiffSync(
             job=self,
             sync=self.sync,
@@ -335,7 +335,7 @@ class IpFabricDataSource(DataSource):
             location_filter=location_filter_object,
             scope=scope,
             strict=strict,
-            interfaces_without_a_subnet=ipfabric_source.interfaces_without_a_subnet,
+            addresses_without_a_subnet=ipfabric_source.addresses_without_a_subnet,
         )
 
         self.logger.info("Loading current data from Nautobot...")

@@ -34,9 +34,29 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyn
 from nautobot_ssot.integrations.ipfabric.strict_mode import StrictObjects
 from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
+from nautobot_ssot.tests.ipfabric.supporting_objects import addresses_of
 
 
 # pylint: disable=too-many-public-methods
+def _deleted_of(node, model):
+    """Return the unique ids of a model's elements a nested diff dict would delete.
+
+    An element the source does not report shows up with a "-" and no "+". Neither Interfaces nor
+    their addresses sit at the top of the diff, so the whole tree is walked.
+    """
+    deleted = set()
+    if not isinstance(node, dict):
+        return deleted
+    for key, value in node.items():
+        if key == model and isinstance(value, dict):
+            for unique_id, change in value.items():
+                if isinstance(change, dict) and change.get("-") and not change.get("+"):
+                    deleted.add(unique_id)
+        if isinstance(value, dict):
+            deleted |= _deleted_of(value, model)
+    return deleted
+
+
 def _deleted_interfaces(node):
     """Return the names of Interfaces a nested diff dict would delete.
 
@@ -274,7 +294,7 @@ class TestNautobotAdapter(TestCase):
         )
 
     def test_load_interfaces_populates_ip_data(self):
-        """`load_interfaces` reads the first prefetched IP and sets ip_address/subnet_mask/ip_is_primary."""
+        """`load_interfaces` loads every address on the Interface as a model of its own."""
         stack_master = self.stack.master
         int_eth0 = stack_master.interfaces.get(name="eth0")
 
@@ -289,38 +309,33 @@ class TestNautobotAdapter(TestCase):
 
         self.nb_adapter.load_interfaces(device_record=stack_master, diffsync_device=unittest.mock.Mock())
 
-        loaded = {i.name: i for i in self.nb_adapter.get_all("interface")}
-        # eth0 hits the `if ip_addresses:` branch (line 114)
-        self.assertEqual(loaded["eth0"].ip_address, "10.0.0.5")
-        self.assertEqual(loaded["eth0"].subnet_mask, "255.255.255.0")
-        self.assertTrue(loaded["eth0"].ip_is_primary)
-        # eth1..eth8 hit the `else` branch
-        self.assertIsNone(loaded["eth1"].ip_address)
-        self.assertIsNone(loaded["eth1"].subnet_mask)
-        self.assertFalse(loaded["eth1"].ip_is_primary)
+        name = stack_master.name
+        self.assertEqual(addresses_of(self.nb_adapter, name, "eth0"), {"10.0.0.5": 24})
+        primary = self.nb_adapter.get(
+            "interface_address", {"device_name": name, "interface_name": "eth0", "host": "10.0.0.5"}
+        )
+        self.assertTrue(primary.is_primary)
+        # eth1..eth8 carry no address, so no model is loaded for them
+        self.assertEqual(addresses_of(self.nb_adapter, name, "eth1"), {})
 
     def test_an_interface_the_source_has_no_subnet_for_reports_no_address(self):
         """Matches what the source reports for it, so that the two sides diff as equal."""
         stack_master = self._address_a_primary_interface()
-        self.nb_adapter.interfaces_without_a_subnet.add((stack_master.name, "eth0"))
+        self.nb_adapter.addresses_without_a_subnet.add((stack_master.name, "eth0", "10.0.0.5"))
 
         self.nb_adapter.load_interfaces(device_record=stack_master, diffsync_device=unittest.mock.Mock())
 
-        loaded = {interface.name: interface for interface in self.nb_adapter.get_all("interface")}
-        self.assertIsNone(loaded["eth0"].ip_address)
-        self.assertIsNone(loaded["eth0"].subnet_mask)
-        self.assertFalse(loaded["eth0"].ip_is_primary)
+        self.assertEqual(addresses_of(self.nb_adapter, stack_master.name, "eth0"), {})
+        self.assertIn("eth0", {interface.name for interface in self.nb_adapter.get_all("interface")})
 
-    def test_an_interface_the_source_has_a_subnet_for_still_reports_its_address(self):
-        """Only the recorded Interfaces are withheld; the register defaults to holding none."""
+    def test_only_the_recorded_address_is_withheld(self):
+        """Withheld per address, so another address on the same Interface is still reported."""
         stack_master = self._address_a_primary_interface()
-        self.nb_adapter.interfaces_without_a_subnet.add((stack_master.name, "eth1"))
+        self.nb_adapter.addresses_without_a_subnet.add((stack_master.name, "eth0", "10.99.99.99"))
 
         self.nb_adapter.load_interfaces(device_record=stack_master, diffsync_device=unittest.mock.Mock())
 
-        loaded = {interface.name: interface for interface in self.nb_adapter.get_all("interface")}
-        self.assertEqual(loaded["eth0"].ip_address, "10.0.0.5")
-        self.assertEqual(loaded["eth0"].subnet_mask, "255.255.255.0")
+        self.assertEqual(addresses_of(self.nb_adapter, stack_master.name, "eth0"), {"10.0.0.5": 24})
 
     def _address_a_primary_interface(self):
         """Give the stack master's `eth0` an IP Address and make it the Device's primary."""
@@ -335,6 +350,93 @@ class TestNautobotAdapter(TestCase):
         stack_master.validated_save()
         stack_master.refresh_from_db()
         return stack_master
+
+    def test_a_primary_of_each_version_is_reported_as_primary(self):
+        """Both are read, not whichever comes first, or the v6 address could never settle.
+
+        Comparing against `primary_ip4 or primary_ip6` reports the v6 address as never primary
+        while IP Fabric says it is, which is a difference no sync could ever apply away.
+        """
+        stack_master = self._address_a_primary_interface()
+        int_eth0 = stack_master.interfaces.get(name="eth0")
+        prefix, _ = Prefix.objects.get_or_create(
+            prefix="2001:db8::/64", namespace=get_default_namespace(), status=self.active_status
+        )
+        address_v6, _ = IPAddress.objects.get_or_create(
+            address="2001:db8::5/64", status=self.active_status, parent=prefix
+        )
+        int_eth0.ip_addresses.add(address_v6)
+        stack_master.primary_ip6 = address_v6
+        stack_master.validated_save()
+        stack_master.refresh_from_db()
+
+        self.nb_adapter.load_interfaces(device_record=stack_master, diffsync_device=unittest.mock.Mock())
+
+        primaries = {address.host for address in self.nb_adapter.get_all("interface_address") if address.is_primary}
+        self.assertEqual(primaries, {"10.0.0.5", "2001:db8::5"})
+
+    def test_an_ipv6_only_interface_loads(self):
+        """An Interface whose only addresses are IPv6 loads. Guards #1360.
+
+        The length is what is reported, rather than a dotted netmask, which is undefined above 32.
+        `IPAddress` orders by version, so only an Interface with no IPv4 address reaches a v6 length
+        first, which is why the whole suite can pass with the conversion in place.
+        """
+        stack_master = self.stack.master
+        prefix, _ = Prefix.objects.get_or_create(
+            prefix="2001:db8::/64", namespace=get_default_namespace(), status=self.active_status
+        )
+        address, _ = IPAddress.objects.get_or_create(address="2001:db8::1/64", status=self.active_status, parent=prefix)
+        stack_master.interfaces.get(name="eth1").ip_addresses.add(address)
+
+        self.nb_adapter.load_interfaces(device_record=stack_master, diffsync_device=unittest.mock.Mock())
+
+        self.assertEqual(addresses_of(self.nb_adapter, stack_master.name, "eth1"), {"2001:db8::1": 64})
+
+    def test_an_address_the_source_does_not_report_is_removed(self):
+        """The flip side of loading every address: one IP Fabric does not report is now removed.
+
+        Safe Delete Mode, which is on by default, marks and tags it rather than deleting it, but an
+        address another system put on a synced Interface is visible to the sync and so removable.
+        """
+        stack_master = self._address_a_primary_interface()
+        source = DiffSyncModelAdapters(scope=SyncScope.from_job_kwargs({"sync_vlans": False}))
+        location = source.location_model(self.stack_site.name, site_id=None, status="Active")
+        source.add(location)
+        device = source.device(
+            name=stack_master.name,
+            location_name=self.stack_site.name,
+            model=stack_master.device_type.model,
+            vendor=stack_master.device_type.manufacturer.name,
+            serial_number=stack_master.serial,
+            role=stack_master.role.name,
+            status="Active",
+        )
+        source.add(device)
+        location.add_child(device)
+        # Every Interface reported, but none of their addresses.
+        for interface_record in stack_master.interfaces.all():
+            interface = source.interface(
+                name=interface_record.name,
+                device_name=stack_master.name,
+                status="Active",
+                enabled=True,
+                type=interface_record.type,
+            )
+            source.add(interface)
+            device.add_child(interface)
+
+        self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_vlans": False})
+        self.nb_adapter.location_filter = self.stack_site
+        self.nb_adapter.load_data()
+        diff = self.nb_adapter.diff_from(source)
+
+        removed = _deleted_of(diff.dict(), "interface_address")
+        self.assertIn(
+            f"{stack_master.name}__eth0__10.0.0.5",
+            removed,
+            f"Expected the unreported address to be removed: {removed}",
+        )
 
     def _load_with_scope(self, **kwargs):
         """Load with the named object types selected, and return the Interfaces keyed by name."""
@@ -354,28 +456,26 @@ class TestNautobotAdapter(TestCase):
 
     def test_ip_addresses_out_of_scope_reports_no_address(self):
         """Reported as absent, matching the source adapter, so the stored address is left alone."""
-        loaded = self._load_with_scope(sync_ip_addresses=False)
+        self._load_with_scope(sync_ip_addresses=False)
 
-        self.assertIsNone(loaded["eth0"].ip_address)
-        self.assertIsNone(loaded["eth0"].subnet_mask)
-        self.assertFalse(loaded["eth0"].ip_is_primary, "Primary IP cannot survive its address going out of scope.")
+        self.assertEqual(self.nb_adapter.get_all("interface_address"), [])
 
     def test_primary_ip_out_of_scope_keeps_the_address(self):
         """Only the primary assignment is withheld; the address itself is still synced."""
-        loaded = self._load_with_scope(sync_primary_ip=False)
+        self._load_with_scope(sync_primary_ip=False)
 
-        self.assertEqual(loaded["eth0"].ip_address, "10.0.0.5")
-        self.assertFalse(loaded["eth0"].ip_is_primary)
+        addresses = self.nb_adapter.get_all("interface_address")
+        self.assertNotEqual(addresses, [], "Addresses should still load.")
+        for address in addresses:
+            self.assertFalse(address.is_primary, address.host)
 
     def test_addresses_out_of_scope_still_loads_interfaces(self):
         """Interfaces stay in scope on their own, so the load prefetches them without their addresses."""
         self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_ip_addresses": False})
         self.nb_adapter.load_data()
 
-        interfaces = self.nb_adapter.get_all("interface")
-        self.assertNotEqual(interfaces, [], "Interfaces should still load.")
-        for interface in interfaces:
-            self.assertIsNone(interface.ip_address, interface.name)
+        self.assertNotEqual(self.nb_adapter.get_all("interface"), [], "Interfaces should still load.")
+        self.assertEqual(self.nb_adapter.get_all("interface_address"), [])
 
     def test_ip_addresses_out_of_scope_drops_the_pseudo_interface(self):
         """Mirrors the IP Fabric adapter, which does not fabricate the pseudo interface out of scope.
