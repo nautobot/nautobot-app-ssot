@@ -190,13 +190,14 @@ class TestNautobotUtils(TestCase):
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_location_tag_db_error(self, mock_logger, mock_tag_object):
-        """Test `create_location` Utility."""
+        """That save is a new Location's only one, so a refused one leaves no Location to return."""
         mock_tag_object.side_effect = [DjangoBaseDBError]
         logger = mock_logger("nb_job")
-        test_location = get_or_create_location_object(location_name="Test-Location-new", logger=logger)
-        self.assertEqual(test_location.name, "Test-Location-new")
-        logger.warning.assert_called_with(
-            f"Unable to perform a validated_save() on Location {test_location.name} with an ID of {test_location.id}"
+        self.assertIsNone(get_or_create_location_object(location_name="Test-Location-new", logger=logger))
+        self.assertFalse(Location.objects.filter(name="Test-Location-new").exists())
+        self.assertIn(
+            "Unable to perform a validated_save() on Location Test-Location-new",
+            logger.warning.call_args.args[0],
         )
 
     def test_get_location_object_returns_an_existing_location(self):
@@ -223,13 +224,27 @@ class TestNautobotUtils(TestCase):
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_location_tag_validation_error(self, mock_logger, mock_tag_object):
-        """Test `create_location` Utility."""
+        """A refused validation leaves the new Location unwritten, as a refused insert does."""
         mock_tag_object.side_effect = [ValidationError("failure")]
         logger = mock_logger("nb_job")
-        test_location = get_or_create_location_object(location_name="Test-Location-new", logger=logger)
-        self.assertEqual(test_location.name, "Test-Location-new")
-        logger.warning.assert_called_with(
-            f"Unable to perform a validated_save() on Location {test_location.name} with an ID of {test_location.id}"
+        self.assertIsNone(get_or_create_location_object(location_name="Test-Location-new", logger=logger))
+        self.assertFalse(Location.objects.filter(name="Test-Location-new").exists())
+        self.assertIn(
+            "Unable to perform a validated_save() on Location Test-Location-new",
+            logger.warning.call_args.args[0],
+        )
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_location_tag_error_keeps_an_existing_location(self, mock_logger, mock_tag_object):
+        """A Location that was already there keeps its row, so a failed re-stamp does not withhold it."""
+        mock_tag_object.side_effect = [DjangoBaseDBError]
+        logger = mock_logger("nb_job")
+        test_location = get_or_create_location_object(location_name="Test-Location", logger=logger)
+        self.assertEqual(test_location.id, self.location.id)
+        self.assertIn(
+            "Unable to perform a validated_save() on Location Test-Location",
+            logger.warning.call_args.args[0],
         )
 
     def test_get_or_create_device_type_object(self):

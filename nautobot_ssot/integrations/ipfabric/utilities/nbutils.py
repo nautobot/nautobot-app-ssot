@@ -155,6 +155,13 @@ def get_or_create_location_object(
             logger.warning(
                 f"Unable to perform a validated_save() on Location {location_name} with an ID of {location_obj.id}"
             )
+        if is_new:
+            # That save was the new Location's only one, so there is no row to return a Location for.
+            # Handing one back regardless would have every Device at the site reference a Location
+            # that does not exist, which the database refuses at `COMMIT` and which takes the rest of
+            # the transaction with it. A Location that was already there keeps its row and is
+            # returned, since failing to re-stamp it is not a reason to withhold it.
+            return None
     return location_obj
 
 
