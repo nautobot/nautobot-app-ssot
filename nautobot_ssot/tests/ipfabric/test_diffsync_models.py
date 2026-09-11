@@ -18,6 +18,7 @@ from django.test import SimpleTestCase
 
 from nautobot_ssot.integrations.ipfabric.bulk_writes import PendingWrites
 from nautobot_ssot.integrations.ipfabric.diffsync import diffsync_models
+from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
     Cable,
     Device,
@@ -26,6 +27,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
     Location,
     Vlan,
 )
+from nautobot_ssot.integrations.ipfabric.strict_mode import StrictObjects
 from nautobot_ssot.integrations.ipfabric.sync_scope import SYNCABLE_OBJECTS, SyncScope
 
 # ============================================================
@@ -47,16 +49,19 @@ def _cable_patch(name, **kwargs):
     return mock.patch(f"{_CABLES}.{name}", **kwargs)
 
 
-def _make_adapter(scope=None, bulk_write_mode=False):
+def _make_adapter(scope=None, strict=None, bulk_write_mode=False):
     """Minimal mock adapter sufficient for invoking model methods directly.
 
-    Carries a real `SyncScope` rather than a mock, since the resolvers branch on it and a mock reads
-    as every object type being in scope whether or not that is what the test meant. `pending` is set
-    for the same reason: left as a mock it reads as a collector, and every test here would silently
-    take the batched write path.
+    Carries a real `SyncScope` and `StrictObjects` rather than mocks, since the resolvers branch on
+    them and a mock reads as every object type being in scope whether or not that is what the test
+    meant. `pending` is set for the same reason: left as a mock it reads as a collector, and every
+    test here would silently take the batched write path. `may_create` reads both, so it is bound to
+    the real implementation rather than left as a mock, which would be truthy for every type.
     """
     adapter = mock.MagicMock()
     adapter.scope = scope if scope is not None else SyncScope(syncable.key for syncable in SYNCABLE_OBJECTS)
+    adapter.strict = strict if strict is not None else StrictObjects(())
+    adapter.may_create = lambda key: DiffSyncModelAdapters.may_create(adapter, key)
     # Set explicitly because, left as a mock, it is truthy and every model here would queue its
     # writes instead of making them.
     adapter.pending = PendingWrites() if bulk_write_mode else None
@@ -601,7 +606,9 @@ class TestResolveLocation(_ModelTestBase):
     """Test the single place that decides whether a sync may create a Location."""
 
     def test_creates_when_locations_are_in_scope(self):
-        self.adapter.scope.locations = True
+        # A real scope rather than an attribute set on one: `may_create` asks `is_enabled`, which
+        # reads the resolved set, so assigning the attribute would shadow the read and decide nothing.
+        self.adapter.scope = SyncScope(syncable.key for syncable in SYNCABLE_OBJECTS)
 
         with _nb_patch("get_or_create_location_object", return_value="created") as mock_helper:
             resolved = diffsync_models.resolve_location(self.adapter, "loc", "site-id")
@@ -613,7 +620,21 @@ class TestResolveLocation(_ModelTestBase):
 
     def test_only_looks_up_when_locations_are_out_of_scope(self):
         """Another system owns Locations, so a missing one is theirs to create, not this sync's."""
-        self.adapter.scope.locations = False
+        self.adapter.scope = SyncScope(syncable.key for syncable in SYNCABLE_OBJECTS if syncable.key != "locations")
+
+        with (
+            _nb_patch("get_location_object", return_value="found") as mock_lookup,
+            _nb_patch("get_or_create_location_object") as mock_create,
+        ):
+            resolved = diffsync_models.resolve_location(self.adapter, "loc", "site-id")
+
+        self.assertEqual(resolved, "found")
+        mock_lookup.assert_called_once_with("loc", logger=self.adapter.job.logger)
+        mock_create.assert_not_called()
+
+    def test_only_looks_up_when_strict_about_locations(self):
+        """Selected under Strict Objects, a Location in scope is still matched rather than created."""
+        self.adapter.strict = StrictObjects(("locations",))
 
         with (
             _nb_patch("get_location_object", return_value="found") as mock_lookup,
@@ -744,6 +765,23 @@ class TestInterfaceModel(_ModelTestBase):
         self.assertEqual(create_ip.call_args.kwargs["object_pk"], interface_obj)
         interface_obj.ip_addresses.add.assert_not_called()
         self.assertEqual(result, "ok")
+
+    def test_update_keeps_the_recorded_mask_when_only_the_address_changed(self):
+        """An address whose mask the source did not report keeps its recorded mask, not a host one."""
+        diff_model, device, interface_obj = self._setup_interface_update()
+        diff_model.subnet_mask = "255.255.255.0"
+        interface_obj.ip_addresses.all.return_value = []
+
+        with (
+            _nb_patch("get_syncable_device", return_value=device),
+            _nb_patch("get_device_interfaces_by_name", return_value={"eth0": interface_obj}),
+            _nb_patch("create_ip", return_value=mock.MagicMock()) as mock_create_ip,
+            _nb_patch("tag_object"),
+            mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
+        ):
+            diff_model.update({"ip_address": "10.0.0.6"})
+
+        self.assertEqual(mock_create_ip.call_args.kwargs["subnet_mask"], "255.255.255.0")
 
     def test_update_primary_ipv6_saves_device(self):
         """`ip_version == 6` -> primary_ip6 set and `device.save()` called once."""
