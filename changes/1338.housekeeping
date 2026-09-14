@@ -1,0 +1,1 @@
+Consolidated the per-function Arista CloudVision split-notification regression tests into one table-driven suite covering every gRPC query helper, with a guard that fails when a new wildcard helper is added without coverage.
