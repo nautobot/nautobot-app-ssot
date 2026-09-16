@@ -83,7 +83,7 @@ The app behavior can be controlled with the following list of settings:
 |----------------------|----------------|-----------|-----------------------------------------------------------------------------|
 | `hide_example_jobs`  | `True`         | `False`   | A boolean to represent whether or not to display the example job.           |
 | `enable_metadata_for`| `DataSourceJob`| *(empty)* | List of job class names for which object metadata support should be enabled.      |
-| `enable_global_search`| `False`| `True` | A boolean to represent wether or not to allow nautobot global search to include SSOT Sync logs.      |
+| `enable_global_search`| `False`        | `True`    | A boolean to represent whether or not to allow Nautobot global search to include SSoT Sync and Sync Log Entry records. When `False`, no SSoT models are searchable. |
 
 ## Integrations Configuration
 
