@@ -64,6 +64,7 @@ The major thing to note about this release is that we've removed support for Pyt
 - Rebaked from the cookie `nautobot-app-v2.4.2`.
 
 ## New Contributors
+
 * @michalbil made their first contribution in https://github.com/nautobot/nautobot-app-ssot/pull/722
 * @justinbrink made their first contribution in https://github.com/nautobot/nautobot-app-ssot/pull/751
 
