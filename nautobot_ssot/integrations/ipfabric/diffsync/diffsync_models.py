@@ -366,9 +366,11 @@ class Device(DiffSyncExtras):
         role_name = attrs.get("role") or DEFAULT_DEVICE_ROLE
         device_role_object = resolve_role(adapter, role_name)
         if device_role_object:
-            # Only while Roles are in scope: the custom field records what IP Fabric called the role,
-            # and stamping it on a Role another system owns is exactly what deselecting them refuses.
-            if adapter.scope.roles and device_role_object.cf.get("ipfabric_type") != role_name:
+            # Only while this run may create Roles: the custom field records what IP Fabric called
+            # the role, so writing it claims the Role for this sync. Strict, the Role was matched on
+            # its name and belongs to whatever system set that name, which is exactly what strictness
+            # refuses to take over -- as does deselecting Roles altogether.
+            if adapter.may_create("roles") and device_role_object.cf.get("ipfabric_type") != role_name:
                 device_role_object.cf["ipfabric_type"] = role_name
                 try:
                     device_role_object.validated_save()

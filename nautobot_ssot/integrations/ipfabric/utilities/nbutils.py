@@ -566,6 +566,7 @@ def get_or_create_status_object(  # pylint: disable=too-many-arguments
     return None
 
 
+@job_scoped_cache
 def get_virtual_chassis_object(name: str, logger=None) -> Optional[VirtualChassis]:
     """Return an existing VirtualChassis by name, without creating one."""
     try:

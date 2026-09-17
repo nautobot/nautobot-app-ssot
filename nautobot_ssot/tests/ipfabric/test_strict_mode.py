@@ -10,6 +10,7 @@ talk to it, as `test_supporting_object_scope.py` does for the scope controls.
 
 import unittest.mock
 
+from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import (
     Device,
@@ -218,6 +219,18 @@ class StrictSupportingObjectTestCase(SupportingObjectTestCase):
         self.assertEqual(device.device_type, self.device_type)
         self.assertEqual(device.role, self.role)
         self.assertEqual(device.platform, self.platform)
+
+    def test_a_role_another_system_owns_is_not_stamped_when_strict(self):
+        """Matched on name, so it carries no `ipfabric_type`; writing one would claim it for this sync."""
+        foreign = Role.objects.create(name="Core Router")
+        foreign.content_types.add(ContentType.objects.get_for_model(Device))
+        self.be_strict_about("roles")
+
+        self.create_device(role="Core Router")
+
+        foreign.refresh_from_db()
+        self.assertIsNone(foreign.cf.get("ipfabric_type"))
+        self.assertEqual(Device.objects.get(name="dev1").role, foreign)
 
     def test_no_supporting_object_is_created_when_all_are_present(self):
         self.be_strict_about("manufacturers", "device_types", "roles", "platforms")
