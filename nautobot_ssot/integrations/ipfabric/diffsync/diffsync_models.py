@@ -27,6 +27,7 @@ from nautobot.dcim.models import (
 )
 from nautobot.extras.models import Tag
 from nautobot.ipam.models import VLAN, IPAddress
+from nautobot.ipam.models import RouteTarget as NautobotRouteTarget
 
 import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
 import nautobot_ssot.integrations.ipfabric.utilities.nbutils as tonb_nbutils
@@ -43,6 +44,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SAFE_DELETE_IPADDRESS_STATUS,
     SAFE_DELETE_LOCATION_STATUS,
     SAFE_DELETE_VLAN_STATUS,
+    SAFE_DELETE_VRF_STATUS,
     SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 
@@ -1058,6 +1060,267 @@ class Vlan(DiffSyncExtras):
             )
             return None
         return super().update(attrs)
+
+
+class RouteTarget(DiffSyncExtras):
+    """Route Target model.
+
+    Carries no attributes, only its identity. IP Fabric reports a route target as the value itself
+    and nothing else, so there is never anything to update: a target either exists in Nautobot or it
+    does not. Nautobot's own description and tenant are left alone, which lets an operator annotate
+    one without the sync overwriting the annotation on the next run.
+
+    Top level and ahead of VRFs, so the targets a VRF names exist by the time it is written.
+    """
+
+    _modelname = "route_target"
+    _identifiers = ("name",)
+
+    name: str
+
+    @classmethod
+    @tonb_nbutils.deferred_change_logging()
+    def create(cls, adapter, ids, attrs):
+        """Create a Route Target in Nautobot."""
+        if tonb_nbutils.create_route_target(ids["name"], logger=adapter.job.logger) is None:
+            return None
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def delete(self) -> Optional["DiffSyncModel"]:
+        """Delete a Route Target in Nautobot."""
+        route_target = NautobotRouteTarget.objects.filter(name=self.name).first()
+        if route_target is None:
+            self.adapter.job.logger.error("Unable to find a Route Target named %s to delete", self.name)
+            return None
+        # No Status to move it to, so a safe delete marks it with the Tag alone.
+        self.safe_delete(route_target, None, self.adapter.safe_delete_tag)
+        return super().delete()
+
+
+class Vrf(DiffSyncExtras):
+    """VRF model.
+
+    Top level rather than a child of a Location, because IP Fabric reports a VRF as network wide:
+    the same routing instance is configured on devices at many sites, and Nautobot holds one VRF for
+    it. Which devices carry it is a separate relationship, not an attribute of the VRF.
+    """
+
+    _modelname = "vrf"
+    _identifiers = ("name",)
+    _attributes = ("rd", "status", "import_targets", "export_targets", "conflict")
+
+    name: str
+    rd: Optional[str] = None
+    status: str
+    # Sorted by both adapters, so that two reports of one set do not diff on ordering alone.
+    import_targets: List[str] = []
+    export_targets: List[str] = []
+    conflict: str = ""
+
+    @classmethod
+    @tonb_nbutils.deferred_change_logging()
+    def create(cls, adapter, ids, attrs):
+        """Create a VRF in Nautobot's Global Namespace."""
+        name = ids["name"]
+        if name in adapter.ambiguous_vrf_names:
+            adapter.job.logger.error(
+                "Not creating a VRF named %s, as the Global Namespace already holds more than one "
+                "VRF of that name and IP Fabric reports nothing that tells them apart",
+                name,
+            )
+            return None
+        vrf_obj = tonb_nbutils.create_vrf(
+            name=name,
+            rd=attrs.get("rd"),
+            vrf_status=attrs["status"],
+            conflict=attrs.get("conflict", ""),
+            logger=adapter.job.logger,
+            pending=adapter.pending,
+        )
+        if vrf_obj is None:
+            return None
+        tonb_nbutils.set_route_targets(
+            vrf_obj,
+            attrs.get("import_targets") or (),
+            attrs.get("export_targets") or (),
+            logger=adapter.job.logger,
+            pending=adapter.pending,
+        )
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def update(self, attrs):
+        """Update a VRF in Nautobot."""
+        vrf_obj = tonb_nbutils.get_vrf(self.name, logger=self.adapter.job.logger)
+        if vrf_obj is None:
+            self.adapter.job.logger.error("Unable to find a VRF named %s to update", self.name)
+            return None
+        if "rd" in attrs:
+            # Emptied rather than left alone when IP Fabric no longer reports one, so that a route
+            # distinguisher removed from the network does not survive in Nautobot indefinitely.
+            vrf_obj.rd = attrs["rd"] or None
+        if "conflict" in attrs:
+            vrf_obj.cf[tonb_nbutils.VRF_CONFLICT_CF_NAME] = attrs["conflict"]
+        status = attrs.get("status")
+        if status == "Active":
+            if vrf_obj.status is None or vrf_obj.status.name != status:
+                vrf_obj.status = tonb_nbutils.get_or_create_status_object(
+                    status, ColorChoices.COLOR_GREEN, app_label="ipam", model="vrf"
+                )
+            vrf_obj.tags.remove(self.adapter.safe_delete_tag)
+        try:
+            # Calls validated_save() on the object.
+            tonb_nbutils.tag_object(nautobot_object=vrf_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        except (DjangoBaseDBError, ValidationError) as err:
+            self.adapter.job.logger.error("Unable to update the VRF named %s with %s. Error: %s", self.name, attrs, err)
+            return None
+        if "import_targets" in attrs or "export_targets" in attrs:
+            # Read from the model for whichever of the two did not change, since both are written
+            # together and `attrs` carries only what differs.
+            tonb_nbutils.set_route_targets(
+                vrf_obj,
+                attrs.get("import_targets", self.import_targets),
+                attrs.get("export_targets", self.export_targets),
+                logger=self.adapter.job.logger,
+            )
+        return super().update(attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def delete(self) -> Optional["DiffSyncModel"]:
+        """Delete a VRF in Nautobot."""
+        vrf_obj = tonb_nbutils.get_vrf(self.name, logger=self.adapter.job.logger)
+        if vrf_obj is None:
+            self.adapter.job.logger.error("Unable to find a VRF named %s to delete", self.name)
+            return None
+        self.safe_delete(
+            vrf_obj,
+            SAFE_DELETE_VRF_STATUS,
+            self.adapter.safe_delete_tag,
+        )
+        return super().delete()
+
+
+class VrfDeviceAssignment(DiffSyncExtras):
+    """The record that a Device carries a VRF.
+
+    A model of its own rather than a list of VRFs on the Device, because that is the shape of the
+    data at both ends: IP Fabric reports one row per device per VRF, and Nautobot holds one
+    `VRFDeviceAssignment` per pair. Each therefore diffs alone, so a Device that picks up one more
+    VRF reports that assignment rather than its whole set.
+
+    Carries no attributes. The assignment's own route distinguisher and name are inherited from the
+    VRF when it is written, so there is nothing about a pair that can change without the pair itself
+    changing.
+
+    Top level and last, since it needs both the VRF and the Device to have been written.
+    """
+
+    _modelname = "vrf_device_assignment"
+    _identifiers = ("vrf_name", "device_name")
+
+    vrf_name: str
+    device_name: str
+
+    @classmethod
+    @tonb_nbutils.deferred_change_logging()
+    def create(cls, adapter, ids, attrs):
+        """Assign a VRF to a Device in Nautobot."""
+        assignment = tonb_nbutils.create_vrf_device_assignment(
+            vrf_name=ids["vrf_name"],
+            device_name=ids["device_name"],
+            tagged_only=adapter.sync_ipfabric_tagged_only,
+            logger=adapter.job.logger,
+            pending=adapter.pending,
+        )
+        if assignment is None:
+            return None
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def delete(self) -> Optional["DiffSyncModel"]:
+        """Remove a VRF from a Device in Nautobot."""
+        assignment = tonb_nbutils.get_vrf_device_assignment(self.vrf_name, self.device_name)
+        if assignment is None:
+            self.adapter.job.logger.error(
+                "Unable to find the VRF named %s on the Device named %s to remove it",
+                self.vrf_name,
+                self.device_name,
+            )
+            return None
+        # Neither a Status nor a Tag to mark, so Safe Delete Mode leaves the assignment in place.
+        self.safe_delete(assignment, None, None)
+        return super().delete()
+
+
+class InterfaceVrf(DiffSyncExtras):
+    """The VRF an Interface belongs to.
+
+    A model of its own rather than an attribute of the Interface, because of when it can be
+    written rather than where it belongs: Nautobot refuses an Interface a VRF that is not assigned
+    to the Interface's Device, and those assignments cannot exist until every Device has been
+    written, which is after its Interfaces have been. Kept top level and last, it is written once
+    both are there.
+
+    Only Interfaces that are in a VRF carry one of these, on either side. An Interface IP Fabric
+    stops reporting a VRF for is therefore a delete, which takes the Interface out of the VRF
+    rather than removing anything; the Interface and the VRF both remain.
+    """
+
+    _modelname = "interface_vrf"
+    _identifiers = ("device_name", "interface_name")
+    _attributes = ("vrf_name",)
+
+    device_name: str
+    interface_name: str
+    vrf_name: str
+
+    @classmethod
+    @tonb_nbutils.deferred_change_logging()
+    def create(cls, adapter, ids, attrs):
+        """Put an Interface in a VRF in Nautobot."""
+        if not tonb_nbutils.set_interface_vrf(
+            device_name=ids["device_name"],
+            interface_name=ids["interface_name"],
+            vrf_name=attrs["vrf_name"],
+            tagged_only=adapter.sync_ipfabric_tagged_only,
+            logger=adapter.job.logger,
+            pending=adapter.pending,
+        ):
+            return None
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def update(self, attrs):
+        """Move an Interface from one VRF to another in Nautobot."""
+        if not tonb_nbutils.set_interface_vrf(
+            device_name=self.device_name,
+            interface_name=self.interface_name,
+            vrf_name=attrs["vrf_name"],
+            tagged_only=self.adapter.sync_ipfabric_tagged_only,
+            logger=self.adapter.job.logger,
+            pending=self.adapter.pending,
+        ):
+            return None
+        return super().update(attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def delete(self) -> Optional["DiffSyncModel"]:
+        """Take an Interface out of its VRF in Nautobot.
+
+        Nothing is deleted, so Safe Delete Mode does not apply: the Interface and the VRF both
+        remain, and what goes is the reference between them, which is an attribute of the Interface.
+        """
+        if not tonb_nbutils.set_interface_vrf(
+            device_name=self.device_name,
+            interface_name=self.interface_name,
+            vrf_name=None,
+            tagged_only=self.adapter.sync_ipfabric_tagged_only,
+            logger=self.adapter.job.logger,
+            pending=self.adapter.pending,
+        ):
+            return None
+        return super().delete()
 
 
 class Cable(DiffSyncExtras):

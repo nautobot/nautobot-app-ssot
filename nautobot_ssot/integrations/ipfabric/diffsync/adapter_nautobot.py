@@ -15,7 +15,7 @@ from django.db.models import ProtectedError
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Device, Location
 from nautobot.extras.models import Tag
-from nautobot.ipam.models import VLAN, Interface
+from nautobot.ipam.models import VLAN, VRF, Interface, RouteTarget, VRFDeviceAssignment
 from netutils.mac import mac_to_format
 
 import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
@@ -42,7 +42,21 @@ DELETE_BATCH_SIZE = 1000
 # and an Interface before its Device. `safe_delete` derives the grouping from the object's class
 # name, so a model added later lands in a grouping nothing here names; those are drained last and
 # reported, rather than accumulating unread as `_ipaddress` and `_cable` did.
-DELETE_ORDER = ("_cable", "_ipaddress", "_vlan", "_interface", "_device", "_location")
+#
+# VRFs come after the Interfaces and Devices that may point at one, and Route Targets after the VRFs
+# that name them. Assignments come before both ends they join, which Nautobot would otherwise cascade
+# away underneath them.
+DELETE_ORDER = (
+    "_cable",
+    "_ipaddress",
+    "_vlan",
+    "_interface",
+    "_vrfdeviceassignment",
+    "_device",
+    "_location",
+    "_vrf",
+    "_routetarget",
+)
 
 # How many rows bulk mode will hold before writing them. Without a ceiling a sync of a hundred
 # thousand Interfaces would keep every one of them, and their addresses, in memory until the end.
@@ -408,6 +422,113 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     continue
                 location.add_child(vlan)
 
+    def load_interface_vrfs(self, filtered_devices):
+        """Add the VRF each Nautobot Interface is in as DiffSync InterfaceVrf models.
+
+        Only Interfaces that are in one are loaded, matching what IP Fabric's VRF interfaces table
+        reports, and only those whose VRF this run loaded.
+        """
+        interfaces = Interface.objects.filter(
+            device__in=filtered_devices,
+            vrf__isnull=False,
+            vrf__namespace=tonb_utils.get_global_namespace(),
+        ).values_list("device__name", "name", "vrf__name")
+        for device_name, interface_name, vrf_name in interfaces:
+            try:
+                self.get(self.vrf, vrf_name)
+            except ObjectNotFound:
+                # Its VRF was not loaded, so this run holds no opinion about the Interface either.
+                continue
+            self.add(
+                self.interface_vrf(
+                    adapter=self,
+                    device_name=device_name,
+                    interface_name=interface_name,
+                    vrf_name=vrf_name,
+                )
+            )
+
+    def load_vrf_device_assignments(self, filtered_devices):
+        """Add Nautobot's VRF to Device assignments as DiffSync models.
+
+        Scoped to the Devices this run covers and to the VRFs it loaded, so that an assignment the
+        source cannot describe is not reported as absent from it. That is also why no flag is needed
+        for a Location filtered run, unlike the VRFs themselves: an assignment belongs to a Device,
+        and Devices are already narrowed by the filter, so both sides narrow together.
+        """
+        assignments = VRFDeviceAssignment.objects.filter(
+            vrf__namespace=tonb_utils.get_global_namespace(),
+            device__in=filtered_devices,
+        ).values_list("vrf__name", "device__name")
+        for vrf_name, device_name in assignments:
+            try:
+                self.get(self.vrf, vrf_name)
+            except ObjectNotFound:
+                # Its VRF was not loaded, so this run holds no opinion about the assignment either.
+                continue
+            self.add(self.vrf_device_assignment(adapter=self, vrf_name=vrf_name, device_name=device_name))
+
+    def load_route_targets(self):
+        """Add the Route Targets this integration created as DiffSync RouteTarget models.
+
+        Scoped to the ones carrying the sync's Tag, rather than every Route Target Nautobot holds.
+        A Route Target has no Location, no Device and no Namespace — it is a bare value, unique
+        across the whole of Nautobot — so there is no containment to bound a load by, and loading
+        all of them would have this sync delete every Route Target another system owns the moment
+        IP Fabric stopped reporting it.
+
+        A Route Target IP Fabric reports that is absent here is still adopted rather than duplicated,
+        since the name is unique: it is reported as a create, and creating it marks the one Nautobot
+        already holds. That is what lets a first run converge against an existing estate.
+        """
+        for route_target in RouteTarget.objects.filter(tags=self.ssot_tag).values_list("name", flat=True):
+            self.add(self.network_wide(self.route_target, name=route_target))
+
+    def load_vrfs(self):
+        """Add Nautobot VRFs in the Global Namespace as DiffSync Vrf models.
+
+        A name the Namespace holds twice is loaded as neither of them. Nautobot constrains a VRF to
+        a unique route distinguisher within its Namespace but not to a unique name, while IP Fabric
+        reports a VRF name as network wide, so there is nothing to say which of the two its report
+        describes. Loading one would have the sync write IP Fabric's values over whichever came
+        first; loading neither leaves both alone and reports why.
+        """
+        vrfs = VRF.objects.filter(namespace=tonb_utils.get_global_namespace()).select_related("status")
+        if self.scope.route_targets:
+            vrfs = vrfs.prefetch_related("import_targets", "export_targets")
+        by_name = defaultdict(list)
+        for vrf_record in vrfs:
+            by_name[vrf_record.name].append(vrf_record)
+
+        for name, vrf_records in by_name.items():
+            if len(vrf_records) > 1:
+                self.ambiguous_vrf_names.add(name)
+                logger.warning(
+                    "Not syncing the VRF named %s, as the Global Namespace holds %d VRFs of that name "
+                    "and IP Fabric reports nothing that tells them apart",
+                    name,
+                    len(vrf_records),
+                )
+                continue
+            vrf_record = vrf_records[0]
+            # Reported as none when route targets are out of scope, which is what the IP Fabric
+            # adapter reports as well, so the two match and neither list is written.
+            import_targets, export_targets = [], []
+            if self.scope.route_targets:
+                import_targets = sorted(target.name for target in vrf_record.import_targets.all())
+                export_targets = sorted(target.name for target in vrf_record.export_targets.all())
+            self.add(
+                self.network_wide(
+                    self.vrf,
+                    name=name,
+                    rd=vrf_record.rd or None,
+                    status=vrf_record.status.name if vrf_record.status else "Active",
+                    import_targets=import_targets,
+                    export_targets=export_targets,
+                    conflict=vrf_record.custom_field_data.get(tonb_utils.VRF_CONFLICT_CF_NAME) or "",
+                )
+            )
+
     def get_initial_location(self, ssot_tag: Tag):
         """Identify the location objects based on user defined job inputs.
 
@@ -433,6 +554,13 @@ class NautobotDiffSync(DiffSyncModelAdapters):
     @transaction.atomic
     def load_data(self):
         """Add Nautobot Location objects as DiffSync Location models."""
+        # Not a child of any Location, so loaded before the tree below and regardless of whether
+        # that tree has a root: an estate with no Locations still has VRFs to report.
+        if self.scope.route_targets:
+            self.load_route_targets()
+        if self.scope.vrfs:
+            self.load_vrfs()
+
         location_objects = self.get_initial_location(self.ssot_tag)
         # The parent object that stores all children, is the Location.
         if self.job.debug:
@@ -465,6 +593,12 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         # Loaded after every Location, as a link may terminate on Devices in two of them.
         if self.scope.cables:
             self.load_cables(self.get_in_scope_devices(location_objects))
+
+        # Loaded last, as it needs the Devices above and the VRFs loaded before them.
+        if self.scope.device_vrfs:
+            self.load_vrf_device_assignments(self.get_in_scope_devices(location_objects))
+        if self.scope.interface_vrfs:
+            self.load_interface_vrfs(self.get_in_scope_devices(location_objects))
 
         if self.placeholder_interfaces:
             self.job.logger.warning(
