@@ -76,6 +76,7 @@ Currently, this integration will provide the ability to sync the following IP Fa
 - Part Numbers ➡️ Nautobot Manufacturer/Device Type/Platform
 - Interfaces ➡️ Nautobot Device Interfaces
 - IP Addresses ➡️ Nautobot IP Addresses
+- Stack Members ➡️ Nautobot Virtual Chassis
 - Connectivity Matrix ➡️ Nautobot Cables (opt in, see [Cables](#cables))
 
 ### IPFabric Site
@@ -96,6 +97,12 @@ Currently, this integration will provide the ability to sync the following IP Fa
 | devType*           | Device.role          | Device.role            |
 
 > Note: `devType` is an IP Fabric field that can be used to set the Device role. This can be disabled by setting `ipfabric_sync_ipf_dev_type_to_role` to `False` in the configuration. If this is disabled, the default role will be used for adding new devices and roles will be ignored during diffsync update preventing a custom Nautobot role from being overridden.
+
+> Note: disabling `ipfabric_sync_ipf_dev_type_to_role` does not make the sync role-neutral. It stops
+> the IP Fabric device type deciding the role, but a Device the sync creates still receives the role
+> named by `ipfabric_default_device_role`, because Nautobot requires one. To stop the sync creating
+> that Role, deselect **Sync Roles** or select Roles under [Strict Objects](#strict-objects); a
+> Device whose role Nautobot does not already hold is then skipped.
 
 ### IPFabric Interface
 
@@ -135,9 +142,59 @@ Cables are built from IP Fabric's connectivity matrix (`tables/interfaces/connec
 
 ## Subnet Masks
 
+An address has no mask of its own in IP Fabric. The mask comes from the managed address table (`technology.addressing.managed_ip_ipv4`, filtered to primary addresses), which is the only place IP Fabric says what subnet an address was configured with.
+
 IP Fabric describes a subnet per Device, so an address on several Devices carries whatever subnet each of them reports for it. Nautobot holds one mask per IP Address, and parents an address to the most specific Prefix containing it, so two records for one address in a Namespace cannot coexist.
 
 Where the reports disagree, the sync takes the narrowest of them for every Interface carrying that address, which is the report that agrees with the address's parent Prefix, and logs the address it did this for. Choosing once rather than per Device is what lets the mask settle; following each Device's own report left every run rewriting what the last had written.
+
+### When no subnet mask is reported
+
+With **IP Addresses** selected under [Strict Objects](#strict-objects), which is the default, an address the table reports no subnet mask for is reported as absent. The mask Nautobot already holds is then left alone, and an address Nautobot does not hold is not created. The job logs how many Interfaces this applied to; enable **Debug** to see which addresses they were and on which Interface each was found.
+
+The selection governs reading on both sides, as **Sync Tagged Only** does, so that an address withheld from writing is not reported as a difference on every run.
+
+Deselecting it syncs the address with a `/32` instead. That puts it under the wrong parent Prefix and leaves nothing to distinguish it from an address genuinely configured as a host route, so every use of the fallback is logged as a warning naming the address. Deselect it only where a host mask is preferable to no change at all.
+
+A NAT management address is unaffected by this selection. It belongs to no interface, so IP Fabric reports no subnet for it and a host mask is the whole of it — the value rather than a fallback. Whether that address is carried at all is decided by the **Interfaces** selection instead, since it needs an Interface the device does not have; see [Placeholder Interfaces](#placeholder-interfaces).
+
+A subnet that does not parse, or that is not IPv4, counts as none reported: it is logged and passed over rather than raised, since one such row would otherwise end the job while it was still reading and lose every address that was fine. Whether the subnet contains the address it was reported for is not checked; that is a different kind of wrong data, and one this sync has no better answer for than the mask itself.
+
+## Strict Objects
+
+**Strict Objects** is a check on the data IP Fabric reported, applied on top of what is in scope. The scope decides which object types a run covers; this decides, for the types it does cover, whether what IP Fabric said about them is taken on trust or checked first. Nothing here brings a type into scope, and selecting a type that is out of scope does nothing — the job says so rather than leaving the selection looking like the reason nothing was written.
+
+Left unselected, the sync takes the report at face value and fills any gap itself: a site name becomes a Location, a model becomes a Device Type, a family becomes a Platform, an address with no reported subnet becomes a host route. Where the data is good that is exactly right, and it is what makes bootstrapping an empty Nautobot work. Where it is not, a typo mints a near duplicate that is indistinguishable from a curated record.
+
+Selected, the value is checked instead. For a supporting object the check is that the name resolves to something Nautobot already holds; for an address it is that IP Fabric reported a subnet mask for it. What fails is reported, the affected record is left unwritten, and the sync carries on with the rest. Selecting a type never stops Devices syncing.
+
+What a failed check costs differs by type:
+
+| Selected | When the reported value does not check out |
+| -------- | ------------------------------------------ |
+| Locations | The site is reported and the Devices at it are skipped. |
+| Manufacturers | The vendor is reported, and no Device Type is filed under it. |
+| Device Types | The model is reported and the Device is skipped, since Nautobot requires one. |
+| Roles | The role is reported and the Device is skipped, since Nautobot requires one. |
+| Platforms | The platform is reported and the Device is synced without one, as Platform is optional. |
+| Statuses | The status is reported and the record that needed it is skipped. |
+| Virtual Chassis | The stack is reported and its membership is left unrecorded. |
+| Interfaces | No Interface is invented to hold a management address IP Fabric reports against none, so that address goes unsynced. |
+| IP Addresses | The address is reported and left as Nautobot holds it. See [Subnet Masks](#subnet-masks). |
+
+Only **IP Addresses** is selected by default. Whether a name may be trusted depends on who owns the object, which only you know, so every other type defaults to taking the report on trust and an existing sync does not change behaviour on upgrade. A mask the source never reported is not data whoever owns IPAM, which is why that one is checked by default. Each default can be set for the whole instance with an `ipfabric_strict_<type>` setting, for example `ipfabric_strict_locations`.
+
+For a type the sync only ever creates — Manufacturers, Device Types, Platforms, Statuses — a failed check and a deselected **Sync** option leave Nautobot in the same state, since creating is all the sync would have done. They still answer different questions: deselecting **Sync Manufacturers** means this run does not sync vendors at all, while selecting Manufacturers here means it does sync them and reports a vendor whose Manufacturer is missing rather than inventing one.
+
+Safe Delete Mode's own statuses are outside this control. They are the integration's vocabulary rather than anything IP Fabric reported, so there is nothing to check, and refusing to create one would leave a record neither deleted nor marked — the outcome Safe Delete Mode exists to prevent.
+
+### Placeholder Interfaces
+
+Where a Device's management address matches no Interface IP Fabric reported, which happens when the address is reached through NAT, the sync invents an Interface named `pseudo_mgmt` to hold it. That Interface does not exist on the device, so anything reading Nautobot Interfaces as real is misled by it.
+
+Selecting **Interfaces** under Strict Objects stops it being invented. The Interfaces IP Fabric did report are synced as before; only the placeholder is withheld, and the management address goes with it, since it had no Interface of its own to sit on.
+
+The selection stops new placeholders rather than removing those an earlier run created. One already in Nautobot is left alone — withdrawing it from only one side of the diff would read as absent from IP Fabric and delete it — and the job names every one it found, so they can be dealt with deliberately.
 
 ## Sync Tagged Only
 
