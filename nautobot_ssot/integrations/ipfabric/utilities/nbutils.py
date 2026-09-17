@@ -37,6 +37,7 @@ from nautobot.ipam.models import (
     Prefix,
     RouteTarget,
     VLANLocationAssignment,
+    VRFDeviceAssignment,
     get_default_namespace,
 )
 from netutils.lib_mapper import NAPALM_LIB_MAPPER
@@ -1269,6 +1270,76 @@ def set_route_targets(  # pylint: disable=too-many-arguments
     vrf_obj.export_targets.set(resolved_exports)
 
 
+def get_vrf_device_assignment(vrf_name: str, device_name: str) -> Optional[VRFDeviceAssignment]:
+    """Return the row assigning the named Global Namespace VRF to the named Device, if there is one."""
+    return VRFDeviceAssignment.objects.filter(
+        vrf__name=vrf_name,
+        vrf__namespace=get_global_namespace(),
+        device__name=device_name,
+    ).first()
+
+
+def create_vrf_device_assignment(
+    vrf_name: str,
+    device_name: str,
+    tagged_only: bool,
+    logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
+) -> Optional[VRFDeviceAssignment]:
+    """Record that a Device carries a VRF.
+
+    The assignment inherits the VRF's route distinguisher and name, which is what Nautobot's own
+    `clean()` would do. Set here rather than left to it, so that a row written in a batch — where
+    `clean()` never runs — is the same row as one written on its own.
+
+    Args:
+        vrf_name: Name of the VRF, in the Global Namespace.
+        device_name: Name of the Device carrying it.
+        tagged_only: Mirrors the job option, so that a Device this run may not write to is not
+            assigned to; see `get_syncable_device`.
+        logger: Logger to use for messaging.
+        pending: When given, the assignment is queued for a batched write rather than saved, and
+            is where a VRF or Device queued earlier in the run is looked for.
+
+    Returns:
+        VRFDeviceAssignment: When the assignment is created or queued.
+        None: When either end could not be found, or Nautobot refused the row.
+    """
+    # Either end may have been queued earlier in this run and so have no row yet, which is where a
+    # bulk mode sync finds both of them. Looked for there first, since the lookups below are cached
+    # and would otherwise remember that a queued object could not be found.
+    vrf_obj = pending.find(VRF, vrf_name) if pending is not None else None
+    vrf_obj = vrf_obj or get_vrf(vrf_name, logger=logger)
+    if vrf_obj is None:
+        if logger:
+            logger.error("Unable to find a VRF named %s to assign to the Device named %s", vrf_name, device_name)
+        return None
+    device_obj = pending.find(Device, device_name) if pending is not None else None
+    device_obj = device_obj or get_syncable_device(device_name, tagged_only=tagged_only)
+    if device_obj is None:
+        if logger:
+            logger.error("Unable to find a Device named %s to assign the VRF named %s to", device_name, vrf_name)
+        return None
+
+    assignment = VRFDeviceAssignment(
+        vrf=vrf_obj,
+        device=device_obj,
+        rd=vrf_obj.rd,
+        name=vrf_obj.name,
+    )
+    if pending is not None:
+        return queue_new_object(pending, assignment)
+    try:
+        assignment.validated_save()
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error(
+                "Unable to assign the VRF named %s to the Device named %s. Error: %s", vrf_name, device_name, err
+            )
+        return None
+    return assignment
+
+
 @job_scoped_cache(group=BULK_WRITTEN_LOOKUPS)
 def get_vrf(name: str, logger: Optional[logging.Logger] = None) -> Optional[VRF]:
     """Return the Global Namespace VRF of the given name, or None when there is not exactly one.
@@ -1377,6 +1448,9 @@ def queue_synced_tag(pending: Any, nautobot_object: Any, tag_name: str = "SSoT S
     `tags.add` needs a saved object and issues its own statements, so a queued object gets the join
     row directly instead. Written after the object it points at, which the collector guarantees.
     """
+    if not hasattr(nautobot_object, "tags"):
+        # A `BaseModel` such as a through row carries no Tags, so there is no row to write.
+        return
     pending.add_through(
         TaggedItem(
             content_type=ContentType.objects.get_for_model(nautobot_object),

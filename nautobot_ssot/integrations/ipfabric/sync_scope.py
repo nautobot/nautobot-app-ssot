@@ -169,6 +169,17 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
         requires=("vrfs",),
     ),
     SyncableObject(
+        key="device_vrfs",
+        label="Sync Device VRFs",
+        description=(
+            "Record which Devices carry each VRF, from the routing instances IP Fabric reports on "
+            "each device. Only Devices this run covers are assigned, so a narrowed sync does not "
+            "remove the assignments of the Devices it cannot see."
+        ),
+        default=False,
+        requires=("vrfs",),
+    ),
+    SyncableObject(
         key="cables",
         label="Sync Cables",
         description=(

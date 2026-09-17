@@ -33,7 +33,14 @@ from django.db import Error as DjangoBaseDBError
 from django.db import connection, transaction
 from nautobot.dcim.models import Device, Interface, Location
 from nautobot.extras.models import TaggedItem
-from nautobot.ipam.models import VLAN, VRF, IPAddress, IPAddressToInterface, VLANLocationAssignment
+from nautobot.ipam.models import (
+    VLAN,
+    VRF,
+    IPAddress,
+    IPAddressToInterface,
+    VLANLocationAssignment,
+    VRFDeviceAssignment,
+)
 
 from nautobot_ssot.integrations.ipfabric.constants import BULK_WRITE_BATCH_SIZE
 
@@ -42,8 +49,9 @@ logger = logging.getLogger("nautobot.ssot.ipfabric")
 # Insertion order. A model may only reference one before it: an Interface needs its Device, a VLAN
 # its Location. IP Addresses reference no queued model, only Prefixes, which are written as they are
 # resolved because there are few of them. A VRF references none of them either, only its Namespace,
-# Status and Route Targets, all of which are resolved before it is queued.
-LEVELS: Tuple[Any, ...] = (Location, Device, Interface, IPAddress, VLAN, VRF)
+# Status and Route Targets, all of which are resolved before it is queued. A VRF device assignment
+# comes last, as it references both a Device and a VRF.
+LEVELS: Tuple[Any, ...] = (Location, Device, Interface, IPAddress, VLAN, VRF, VRFDeviceAssignment)
 
 # Join tables, written once the rows they point at exist. None of these define `save()`, so there is
 # nothing for a batched insert to skip.

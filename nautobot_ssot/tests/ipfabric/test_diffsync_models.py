@@ -1546,4 +1546,4 @@ class TestDeferredChangeLoggingCoverage(SimpleTestCase):
                     f"{class_node.name}.{operation} writes without deferring its change log, which "
                     "costs a change log rewrite per write and pins the instance for the whole job.",
                 )
-        self.assertEqual(checked, 23, "Expected 23 write operations across the eight models.")
+        self.assertEqual(checked, 25, "Expected 25 write operations across the nine models.")

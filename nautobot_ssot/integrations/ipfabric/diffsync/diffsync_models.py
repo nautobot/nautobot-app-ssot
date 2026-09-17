@@ -1201,6 +1201,58 @@ class Vrf(DiffSyncExtras):
         return super().delete()
 
 
+class VrfDeviceAssignment(DiffSyncExtras):
+    """The record that a Device carries a VRF.
+
+    A model of its own rather than a list of VRFs on the Device, because that is the shape of the
+    data at both ends: IP Fabric reports one row per device per VRF, and Nautobot holds one
+    `VRFDeviceAssignment` per pair. Each therefore diffs alone, so a Device that picks up one more
+    VRF reports that assignment rather than its whole set.
+
+    Carries no attributes. The assignment's own route distinguisher and name are inherited from the
+    VRF when it is written, so there is nothing about a pair that can change without the pair itself
+    changing.
+
+    Top level and last, since it needs both the VRF and the Device to have been written.
+    """
+
+    _modelname = "vrf_device_assignment"
+    _identifiers = ("vrf_name", "device_name")
+
+    vrf_name: str
+    device_name: str
+
+    @classmethod
+    @tonb_nbutils.deferred_change_logging()
+    def create(cls, adapter, ids, attrs):
+        """Assign a VRF to a Device in Nautobot."""
+        assignment = tonb_nbutils.create_vrf_device_assignment(
+            vrf_name=ids["vrf_name"],
+            device_name=ids["device_name"],
+            tagged_only=adapter.sync_ipfabric_tagged_only,
+            logger=adapter.job.logger,
+            pending=adapter.pending,
+        )
+        if assignment is None:
+            return None
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def delete(self) -> Optional["DiffSyncModel"]:
+        """Remove a VRF from a Device in Nautobot."""
+        assignment = tonb_nbutils.get_vrf_device_assignment(self.vrf_name, self.device_name)
+        if assignment is None:
+            self.adapter.job.logger.error(
+                "Unable to find the VRF named %s on the Device named %s to remove it",
+                self.vrf_name,
+                self.device_name,
+            )
+            return None
+        # Neither a Status nor a Tag to mark, so Safe Delete Mode leaves the assignment in place.
+        self.safe_delete(assignment, None, None)
+        return super().delete()
+
+
 class Cable(DiffSyncExtras):
     """Cable model.
 

@@ -410,6 +410,55 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 self.add(self.network_wide(self.vrf, name=name, status="Active", **attrs))
             except ObjectAlreadyExists:
                 logger.warning("Duplicate VRF discovered, %s", name)
+        if self.scope.device_vrfs:
+            self.load_vrf_device_assignments(detail_rows)
+
+    def load_vrf_device_assignments(self, detail_rows):
+        """Add the Devices each VRF is configured on as DiffSync VrfDeviceAssignment models.
+
+        Only Devices this run loaded are assigned. A Location filter, or a stack member whose VRFs
+        are reported against its master, can leave a hostname the VRF detail table names outside the
+        run, and an assignment to a Device the sync never saw would be reported as absent from
+        Nautobot on every run and never written.
+        """
+        unknown_devices = set()
+        assigned = 0
+        for vrf_name, device_name in sorted(
+            {(row.get("vrf"), row.get("hostname")) for row in detail_rows if row.get("vrf") and row.get("hostname")}
+        ):
+            try:
+                self.get(self.device, {"name": device_name})
+            except ObjectNotFound:
+                unknown_devices.add(device_name)
+                continue
+            try:
+                self.add(self.vrf_device_assignment(adapter=self, vrf_name=vrf_name, device_name=device_name))
+                assigned += 1
+            except ObjectAlreadyExists:
+                logger.warning("Duplicate VRF assignment discovered, %s on %s", vrf_name, device_name)
+
+        if not unknown_devices:
+            return
+        if assigned:
+            # Some matched, so the rest are the Devices this run does not cover, which a Location
+            # filter or Sync Tagged Only is expected to leave out.
+            if self.job.debug:
+                logger.debug(
+                    "Not syncing the VRFs IP Fabric reports on %s, as no such Devices were loaded",
+                    ", ".join(sorted(unknown_devices)),
+                )
+            return
+        # Nothing matched at all, which is not a narrowed run but a disagreement about names: the
+        # VRF table reports a hostname the Device inventory does not. Reported rather than left to
+        # look like a network with no VRFs on any device.
+        # Through the job rather than the module logger, since this is the only thing that explains
+        # an otherwise silent result and it has to reach the Job Result log.
+        self.job.logger.warning(
+            "IP Fabric reports VRFs on %d device(s), none of which match a Device this run loaded, so "
+            "no VRF will be assigned to any Device. The first few are %s",
+            len(unknown_devices),
+            ", ".join(sorted(unknown_devices)[:5]),
+        )
 
     def load_route_targets(self, reconciled):
         """Add the Route Targets the reconciled VRFs name as DiffSync RouteTarget models.

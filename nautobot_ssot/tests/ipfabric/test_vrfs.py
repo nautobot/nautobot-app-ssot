@@ -5,12 +5,13 @@ from unittest import mock
 
 from diffsync.enum import DiffSyncFlags, DiffSyncModelFlags
 from django.apps import apps as global_apps
+from django.contrib.contenttypes.models import ContentType
 from django.test import SimpleTestCase
 from nautobot.apps.testing import TestCase
-from nautobot.dcim.models import Location, LocationType
+from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer
 from nautobot.extras.management import populate_status_choices
-from nautobot.extras.models import JobResult, Status
-from nautobot.ipam.models import VRF, Namespace, RouteTarget, get_default_namespace
+from nautobot.extras.models import JobResult, Role, Status
+from nautobot.ipam.models import VRF, Namespace, RouteTarget, VRFDeviceAssignment, get_default_namespace
 
 from nautobot_ssot.integrations.ipfabric.bulk_writes import LEVELS, THROUGH_LEVELS
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import (
@@ -22,6 +23,9 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import DELETE
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import RouteTarget as DiffSyncRouteTarget
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Vrf
+from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
+    VrfDeviceAssignment as DiffSyncVrfDeviceAssignment,
+)
 from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
 from nautobot_ssot.integrations.ipfabric.signals import nautobot_database_ready_callback
 from nautobot_ssot.integrations.ipfabric.sync_scope import SYNCABLE_OBJECTS, SyncScope
@@ -846,3 +850,258 @@ class RouteTargetTestCase(VrfTestCase):
         adapter = nautobot_adapter(scope=full_scope(route_targets=False))
         adapter.load_data()
         self.assertEqual(adapter.get_all("route_target"), [])
+
+
+class VrfDeviceAssignmentTestCase(VrfTestCase):
+    """Recording which Devices carry each VRF."""
+
+    def setUp(self):
+        super().setUp()
+
+        site_type, _ = LocationType.objects.get_or_create(name="Site")
+        site_type.content_types.add(ContentType.objects.get_for_model(Device))
+        self.site = Location.objects.create(name="site1", location_type=site_type, status=self.active)
+        role = Role.objects.create(name="router")
+        role.content_types.add(ContentType.objects.get_for_model(Device))
+        manufacturer = Manufacturer.objects.create(name="vendor")
+        device_type = DeviceType.objects.create(model="model", manufacturer=manufacturer)
+        self.device = Device.objects.create(
+            name="rtr1",
+            status=self.active,
+            role=role,
+            location=self.site,
+            device_type=device_type,
+        )
+        self.vrf = VRF.objects.create(name="BLUE", rd="65000:1", namespace=self.namespace, status=self.active)
+
+        self.adapter = nautobot_adapter()
+        patched = mock.patch.object(DiffSyncVrfDeviceAssignment, "safe_delete_mode", False)
+        patched.start()
+        self.addCleanup(patched.stop)
+
+    def create(self, vrf_name="BLUE", device_name="rtr1"):
+        """Assign a VRF to a Device through the DiffSync model, as a sync would."""
+        return self.adapter.vrf_device_assignment.create(
+            self.adapter, {"vrf_name": vrf_name, "device_name": device_name}, {}
+        )
+
+    def test_assignments_are_written_after_both_ends(self):
+        """A reordering here would assign a VRF or a Device that has not been written yet."""
+        top_level = DiffSyncModelAdapters.top_level
+        self.assertLess(top_level.index("vrf"), top_level.index("vrf_device_assignment"))
+        self.assertLess(top_level.index("location"), top_level.index("vrf_device_assignment"))
+
+    def test_assignments_are_deleted_before_the_ends_they_join(self):
+        """Nautobot cascades them away with either end, which would leave the queue pointing at nothing."""
+        self.assertLess(DELETE_ORDER.index("_vrfdeviceassignment"), DELETE_ORDER.index("_device"))
+        self.assertLess(DELETE_ORDER.index("_vrfdeviceassignment"), DELETE_ORDER.index("_vrf"))
+
+    def test_create_assigns_the_vrf_to_the_device(self):
+        self.create()
+        self.assertEqual([vrf.name for vrf in self.device.vrfs.all()], ["BLUE"])
+
+    def test_the_assignment_inherits_the_vrfs_distinguisher_and_name(self):
+        """Nautobot's `clean()` would do this, and a batched write never runs it."""
+        self.create()
+        assignment = VRFDeviceAssignment.objects.get(vrf=self.vrf, device=self.device)
+        self.assertEqual(assignment.rd, "65000:1")
+        self.assertEqual(assignment.name, "BLUE")
+
+    def test_create_reports_a_vrf_that_is_not_there(self):
+        self.assertIsNone(self.create(vrf_name="ABSENT"))
+        self.adapter.job.logger.error.assert_called()
+
+    def test_create_reports_a_device_that_is_not_there(self):
+        self.assertIsNone(self.create(device_name="absent"))
+        self.adapter.job.logger.error.assert_called()
+
+    def test_create_will_not_assign_to_a_device_outside_a_tagged_only_run(self):
+        """What gates writing a Device has to gate assigning a VRF to it."""
+        adapter = nautobot_adapter(sync_ipfabric_tagged_only=True)
+        self.assertIsNone(
+            adapter.vrf_device_assignment.create(adapter, {"vrf_name": "BLUE", "device_name": "rtr1"}, {})
+        )
+        self.assertEqual(VRFDeviceAssignment.objects.count(), 0)
+
+    def test_delete_removes_the_assignment(self):
+        self.create()
+        self.adapter.load_vrfs()
+        self.adapter.load_vrf_device_assignments(Device.objects.all())
+        self.adapter.get("vrf_device_assignment", "BLUE__rtr1").delete()
+        self.adapter.safe_delete_mode = False
+        self.adapter.sync_complete(mock.MagicMock(), mock.MagicMock())
+
+        self.assertEqual(VRFDeviceAssignment.objects.count(), 0)
+        self.assertTrue(VRF.objects.filter(name="BLUE").exists())
+        self.assertTrue(Device.objects.filter(name="rtr1").exists())
+
+    def test_safe_delete_leaves_the_assignment_in_place(self):
+        """It has neither a Status nor a Tag, so there is nothing for a safe delete to mark."""
+        self.create()
+        self.adapter.load_vrfs()
+        self.adapter.load_vrf_device_assignments(Device.objects.all())
+        with mock.patch.object(DiffSyncVrfDeviceAssignment, "safe_delete_mode", True):
+            self.adapter.get("vrf_device_assignment", "BLUE__rtr1").delete()
+        self.assertEqual(VRFDeviceAssignment.objects.count(), 1)
+
+    def test_an_assignment_whose_vrf_was_not_loaded_is_not_loaded(self):
+        """A VRF the sync holds no opinion about takes its assignments with it."""
+        self.create()
+        self.adapter.load_vrf_device_assignments(Device.objects.all())
+        self.assertEqual(self.adapter.get_all("vrf_device_assignment"), [])
+
+    def test_only_in_scope_devices_are_loaded(self):
+        self.create()
+        self.adapter.load_vrfs()
+        self.adapter.load_vrf_device_assignments(Device.objects.none())
+        self.assertEqual(self.adapter.get_all("vrf_device_assignment"), [])
+
+    def test_both_adapters_describe_an_assignment_the_same_way(self):
+        """An assignment carries no attributes, so identity is the whole of what has to agree."""
+        self.create()
+        self.adapter.load_vrfs()
+        self.adapter.load_vrf_device_assignments(Device.objects.all())
+
+        client = mock.MagicMock()
+        client.technology.routing.vrf_detail.all.return_value = [
+            {"sn": "a", "hostname": "rtr1", "vrf": "BLUE", "rd": "65000:1"}
+        ]
+        client.technology.mpls.l3vpn_vrf_targets.all.return_value = []
+        source = IPFabricDiffSync(
+            job=mock.MagicMock(),
+            sync=None,
+            client=client,
+            location_filter=None,
+            scope=full_scope(),
+        )
+        source.add(
+            source.device(
+                name="rtr1",
+                location_name="site1",
+                model="model",
+                vendor="vendor",
+                role="router",
+                status="Active",
+                serial_number="abc",
+            )
+        )
+        source.load_vrfs()
+
+        self.assertEqual(
+            sorted(each.get_unique_id() for each in self.adapter.get_all("vrf_device_assignment")),
+            sorted(each.get_unique_id() for each in source.get_all("vrf_device_assignment")),
+        )
+
+    def test_an_assignment_is_made_to_a_vrf_still_queued_in_bulk_mode(self):
+        """In bulk mode the VRF this assignment needs has no row yet, only a place in the queue."""
+        adapter = nautobot_adapter(bulk_write_mode=True)
+        adapter.vrf.create(adapter, {"name": "GREEN"}, vrf_attrs(rd="65000:7"))
+        adapter.vrf_device_assignment.create(adapter, {"vrf_name": "GREEN", "device_name": "rtr1"}, {})
+
+        adapter.flush_pending_writes()
+
+        green = VRF.objects.get(name="GREEN")
+        self.assertEqual([vrf.name for vrf in self.device.vrfs.all()], ["GREEN"])
+        self.assertEqual(VRFDeviceAssignment.objects.get(vrf=green, device=self.device).rd, "65000:7")
+
+    def test_a_queued_assignment_is_written_in_bulk_mode(self):
+        adapter = nautobot_adapter(bulk_write_mode=True)
+        adapter.vrf_device_assignment.create(adapter, {"vrf_name": "BLUE", "device_name": "rtr1"}, {})
+        self.assertEqual(VRFDeviceAssignment.objects.count(), 0)
+
+        adapter.flush_pending_writes()
+
+        assignment = VRFDeviceAssignment.objects.get(vrf=self.vrf, device=self.device)
+        self.assertEqual(assignment.rd, "65000:1")
+        self.assertEqual(assignment.name, "BLUE")
+
+
+class IPFabricVrfDeviceAssignmentLoadTestCase(SimpleTestCase):
+    """Reading which Devices carry each VRF from IP Fabric's VRF detail table."""
+
+    def build_adapter(self, detail_rows, device_names, scope=None):
+        """Return an IP Fabric adapter holding the named Devices and serving the given rows."""
+        client = mock.MagicMock()
+        client.technology.routing.vrf_detail.all.return_value = detail_rows
+        client.technology.mpls.l3vpn_vrf_targets.all.return_value = []
+        adapter = IPFabricDiffSync(
+            job=mock.MagicMock(),
+            sync=mock.MagicMock(),
+            client=client,
+            location_filter=None,
+            scope=scope if scope is not None else full_scope(),
+        )
+        for name in device_names:
+            adapter.add(
+                adapter.device(
+                    name=name,
+                    location_name="site1",
+                    model="model",
+                    vendor="vendor",
+                    role="router",
+                    status="Active",
+                    serial_number="abc",
+                )
+            )
+        return adapter
+
+    def test_each_device_the_table_names_is_assigned(self):
+        adapter = self.build_adapter(
+            [detail_row("BLUE", "a", "65000:1"), detail_row("BLUE", "b", "65000:1")],
+            ["host-a", "host-b"],
+        )
+        adapter.load_vrfs()
+        self.assertEqual(
+            sorted(each.get_unique_id() for each in adapter.get_all("vrf_device_assignment")),
+            ["BLUE__host-a", "BLUE__host-b"],
+        )
+
+    def test_a_device_the_run_did_not_load_is_skipped(self):
+        """A Location filter can leave a hostname the VRF table names outside the run."""
+        adapter = self.build_adapter(
+            [detail_row("BLUE", "a", "65000:1"), detail_row("BLUE", "b", "65000:1")],
+            ["host-a"],
+        )
+        adapter.load_vrfs()
+        self.assertEqual(
+            [each.get_unique_id() for each in adapter.get_all("vrf_device_assignment")],
+            ["BLUE__host-a"],
+        )
+
+    def test_one_device_carrying_several_vrfs_gets_an_assignment_each(self):
+        adapter = self.build_adapter(
+            [detail_row("BLUE", "a", "65000:1"), detail_row("RED", "a", "65000:2")],
+            ["host-a"],
+        )
+        adapter.load_vrfs()
+        self.assertEqual(
+            sorted(each.get_unique_id() for each in adapter.get_all("vrf_device_assignment")),
+            ["BLUE__host-a", "RED__host-a"],
+        )
+
+    def test_a_device_reported_twice_for_one_vrf_is_assigned_once(self):
+        """The detail table reports a row per address family, so a pair can repeat."""
+        adapter = self.build_adapter(
+            [detail_row("BLUE", "a", "65000:1"), detail_row("BLUE", "a", "65000:1")],
+            ["host-a"],
+        )
+        adapter.load_vrfs()
+        self.assertEqual(len(adapter.get_all("vrf_device_assignment")), 1)
+
+    def test_no_device_matching_at_all_is_reported(self):
+        """A narrowed run leaves some out; nothing matching means the two tables disagree on names."""
+        adapter = self.build_adapter([detail_row("BLUE", "a", "65000:1")], ["somewhere-else"])
+        adapter.load_vrfs()
+
+        self.assertEqual(adapter.get_all("vrf_device_assignment"), [])
+        warned = " ".join(str(call) for call in adapter.job.logger.warning.call_args_list)
+        self.assertIn("none of which match a Device this run loaded", warned)
+
+    def test_device_vrfs_out_of_scope_loads_none(self):
+        adapter = self.build_adapter(
+            [detail_row("BLUE", "a", "65000:1")],
+            ["host-a"],
+            scope=full_scope(device_vrfs=False),
+        )
+        adapter.load_vrfs()
+        self.assertEqual(adapter.get_all("vrf_device_assignment"), [])

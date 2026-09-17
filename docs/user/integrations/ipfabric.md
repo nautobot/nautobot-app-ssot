@@ -49,6 +49,7 @@ There are several options available.
 - **Sync VLANs**: Sync each Location's VLANs. Enabled by default.
 - **Sync VRFs**: Create Nautobot VRFs in the Global Namespace from the routing instances IP Fabric reports. Disabled by default. See [VRFs and Route Targets](#vrfs-and-route-targets).
 - **Sync Route Targets**: Sync the Route Targets IP Fabric reports and record each synced VRF's import and export targets. Disabled by default; requires **Sync VRFs**.
+- **Sync Device VRFs**: Record which Devices carry each VRF. Disabled by default; requires **Sync VRFs**.
 - **Sync Cables**: Sync the device connections in IP Fabric's connectivity matrix to Nautobot Cables. Disabled by default; requires **Sync Interfaces**. See [Cables](#cables).
 - **Dry run**: This will only report the difference between the source and destination without synchronization.
 - **Site Filter**: Filter the data loaded into DiffSync by a top level location of a specified Site.
@@ -152,6 +153,17 @@ alone, and an operator can annotate one without the sync overwriting it.
 | IP Fabric (Source) | DiffSync Model    | Nautobot (Destination) |
 | ------------------ | ----------------- | ---------------------- |
 | importRT/exportRT  | RouteTarget.name  | RouteTarget.name       |
+
+### IPFabric VRF Device Assignment
+
+One record per Device per VRF, from the same VRF detail table the VRFs themselves come from. A model
+of its own rather than a list of VRFs on the Device, because that is the shape of the data at both
+ends, so a Device that picks up one more VRF reports that assignment rather than its whole set.
+
+| IP Fabric (Source) | DiffSync Model                    | Nautobot (Destination)     |
+| ------------------ | --------------------------------- | -------------------------- |
+| vrf                | VrfDeviceAssignment.vrf_name      | VRFDeviceAssignment.vrf    |
+| hostname           | VrfDeviceAssignment.device_name   | VRFDeviceAssignment.device |
 
 ### IPFabric Cable
 
@@ -279,6 +291,22 @@ Only the Route Targets this integration created are loaded back from Nautobot â€
 `SSoT Synced from IPFabric` Tag. A Route Target has no Location, no Device and no Namespace to bound
 a load by, so loading all of them would have the sync delete every Route Target another system owns
 the moment IP Fabric stopped reporting it.
+
+### Which Devices carry a VRF
+
+**Sync Device VRFs** records the Devices each VRF is configured on, from the same table the VRFs come
+from. The assignment inherits the VRF's route distinguisher and name, which is what Nautobot does
+itself when one is created through the UI or API.
+
+Only Devices the run covers are assigned. A Site Filter, **Sync Tagged Only**, or a stack member
+whose VRFs IP Fabric reports against its master can all leave a hostname outside the run, and those
+are skipped rather than assigned to a Device the sync never saw. That is also why this needs no
+special handling for a filtered run, unlike the VRFs themselves: an assignment belongs to a Device,
+and Devices are narrowed by the filter on both sides at once.
+
+An assignment has neither a Status nor a Tag, so **Safe Delete Mode** has nothing to mark on one. A
+run with Safe Delete Mode on therefore leaves an assignment IP Fabric no longer reports in place, and
+reports it as a deletion it did not make; a run with Safe Delete Mode off removes it.
 
 ### What the sync will not do
 

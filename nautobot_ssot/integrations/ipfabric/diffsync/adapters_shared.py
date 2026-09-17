@@ -35,6 +35,7 @@ class DiffSyncModelAdapters(Adapter):
     cable = diffsync_models.Cable
     vrf = diffsync_models.Vrf
     route_target = diffsync_models.RouteTarget
+    vrf_device_assignment = diffsync_models.VrfDeviceAssignment
 
     # Cables are top level because a link may span two Locations, and come after "location" so the
     # Devices and Interfaces they terminate on exist by the time they are created.
@@ -42,11 +43,14 @@ class DiffSyncModelAdapters(Adapter):
     # VRFs are top level because IP Fabric reports a routing instance as network wide rather than as
     # belonging to one site. Route Targets come before them, so that the targets a VRF names exist
     # by the time it is written.
+    # A VRF device assignment comes last of all, since it needs both the VRF and the Device, and
+    # Devices are written as children of their Location.
     top_level = [
         "location",
         "cable",
         "route_target",
         "vrf",
+        "vrf_device_assignment",
     ]
 
     def __init__(
