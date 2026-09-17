@@ -15,13 +15,13 @@ class JobResultSyncLink(TemplateExtension):
 
     def buttons(self):
         """Inject a custom button into the JobResult detail view, if applicable."""
-        sync_objects = Sync.objects.filter(job_result=self.context["object"])
-        if not sync_objects.exists():
+        # Fetch only the pk; the full Sync row includes the `diff` JSON, which can be hundreds of MB.
+        sync_pk = Sync.objects.filter(job_result=self.context["object"]).values_list("pk", flat=True).first()
+        if sync_pk is None:
             return ""
-        sync = sync_objects.first()
         return f"""
             <div class="btn-group">
-                <a href="{reverse('plugins:nautobot_ssot:sync', kwargs={'pk': sync.pk})}" class="btn btn-primary">
+                <a href="{reverse('plugins:nautobot_ssot:sync', kwargs={'pk': sync_pk})}" class="btn btn-primary">
                     <span class="mdi mdi-database-sync-outline"></span> SSoT Sync Details
                 </a>
             </div>
