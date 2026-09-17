@@ -657,10 +657,8 @@ class TestInterfaceModel(_ModelTestBase):
 
     _BASE_CREATE_IDS = {"name": "eth0", "device_name": "d1"}
 
-    def _call_interface_create(self, **attr_overrides):
-        attrs = {"ip_address": None, "subnet_mask": None, "status": "Active"}
-        attrs.update(attr_overrides)
-        return Interface.create(adapter=self.adapter, ids=self._BASE_CREATE_IDS, attrs=attrs)
+    def _call_interface_create(self):
+        return Interface.create(adapter=self.adapter, ids=self._BASE_CREATE_IDS, attrs={"status": "Active"})
 
     @_nb_patch("get_syncable_device", return_value=None)
     def test_create_warns_when_tagged_device_not_found(self, _mock_get_device):
@@ -671,61 +669,22 @@ class TestInterfaceModel(_ModelTestBase):
         mock_super.assert_not_called()
         self.adapter.job.logger.warning.assert_called_once()
 
-    def _exercise_create_primary_ip(self, ip_version, ip_address):
-        """Shared helper for the IPv4/IPv6 primary-IP create paths."""
-        device_obj = mock.MagicMock()
+    def test_delete_leaves_the_addresses_to_their_own_model(self):
+        """Each address is a child of this Interface, so DiffSync deletes it in its own right.
+
+        Doing it here as well would run every address twice, and the second pass would re-tag it:
+        the tagged set is cached and not updated for objects tagged during the run, so it reads as
+        untagged and takes a full save. `InterfaceAddress.delete` is also the only one of the two
+        that knows to leave an address a second Interface still holds.
+        """
         interface_obj = mock.MagicMock()
-        ip_obj = mock.MagicMock()
-        ip_obj.ip_version = ip_version
-
-        with (
-            _nb_patch("get_syncable_device", return_value=device_obj),
-            _nb_patch("create_interface", return_value=interface_obj),
-            _nb_patch("create_ip", return_value=ip_obj),
-            mock.patch.object(diffsync_models.DiffSyncModel, "create"),
-        ):
-            self._call_interface_create(
-                ip_address=ip_address,
-                subnet_mask="255.255.255.0",
-                ip_is_primary=True,
-            )
-        return device_obj, ip_obj
-
-    def test_create_primary_ipv4_saves_device_only_once(self):
-        """Regression: ip_version dispatch uses if/elif so device.save() is called exactly once."""
-        device_obj, ip_obj = self._exercise_create_primary_ip(ip_version=4, ip_address="10.0.0.1")
-        self.assertIs(device_obj.primary_ip4, ip_obj)
-        device_obj.save.assert_called_once()
-
-    def test_create_primary_ipv6_saves_device_only_once(self):
-        """`ip_version == 6` takes the elif branch; primary_ip6 set, save called once."""
-        device_obj, ip_obj = self._exercise_create_primary_ip(ip_version=6, ip_address="2001:db8::1")
-        self.assertIs(device_obj.primary_ip6, ip_obj)
-        device_obj.save.assert_called_once()
-
-    def test_delete_only_safe_deletes_unshared_ips(self):
-        """Regression: when an IP is also on another interface, the IP must not be safe-deleted."""
-        interface_obj = mock.MagicMock()
-        interface_obj.id = "iface-uuid"
-        other_interface = mock.MagicMock(name="other_interface")
-        other_interface.id = "other-iface-uuid"
-
-        # The prefetched Interfaces of each address, which is where the check reads from.
-        shared_ip = mock.MagicMock(name="shared_ip")
-        shared_ip.interfaces.all.return_value = [interface_obj, other_interface]
-
-        exclusive_ip = mock.MagicMock(name="exclusive_ip")
-        exclusive_ip.interfaces.all.return_value = [interface_obj]
-
-        interface_obj.ip_addresses.all.return_value = [shared_ip, exclusive_ip]
-
-        device = mock.MagicMock()
-
+        address = mock.MagicMock(name="address")
+        interface_obj.ip_addresses.all.return_value = [address]
         diff_model = Interface(name="eth0", device_name="d1", status="Active")
         diff_model.adapter = self.adapter
 
         with (
-            _nb_patch("get_syncable_device", return_value=device),
+            _nb_patch("get_syncable_device", return_value=mock.MagicMock()),
             _nb_patch("get_device_interfaces_by_name", return_value={"eth0": interface_obj}),
             mock.patch.object(DiffSyncExtras, "safe_delete") as mock_safe_delete,
             mock.patch.object(diffsync_models.DiffSyncModel, "delete"),
@@ -733,73 +692,362 @@ class TestInterfaceModel(_ModelTestBase):
             diff_model.delete()
 
         targets = [call.args[0] for call in mock_safe_delete.call_args_list]
-        self.assertIn(exclusive_ip, targets)
-        self.assertIn(interface_obj, targets)
-        self.assertNotIn(shared_ip, targets)
+        self.assertEqual(targets, [interface_obj], "Only the Interface itself should be safe-deleted.")
 
-    def _setup_interface_update(self):
-        """Build a diff model plus the mocked Device and Interface the per-Device lookup returns."""
-        diff_model = Interface(name="eth0", device_name="d1", status="Active")
+
+# ============================================================
+# InterfaceAddress lifecycle
+# ============================================================
+
+
+class TestInterfaceAddressModel(_ModelTestBase):
+    """Test `InterfaceAddress.create/update/delete`, which own the addresses on an Interface."""
+
+    IDS = {"device_name": "dev1", "interface_name": "eth0", "host": "10.0.0.5"}
+
+    def _address_diff(self):
+        """Return an InterfaceAddress bound to this test's adapter."""
+        diff_model = diffsync_models.InterfaceAddress(**self.IDS, mask_length=24, is_primary=False, status="Active")
         diff_model.adapter = self.adapter
+        return diff_model
 
-        device = mock.MagicMock(name="device")
-        interface_obj = mock.MagicMock(name="interface")
-        return diff_model, device, interface_obj
-
-    def test_update_replaces_existing_ip_address(self):
-        """Existing addresses are cleared, and `create_ip` is left to assign the new one."""
-        diff_model, device, interface_obj = self._setup_interface_update()
-        interface_obj.ip_addresses.all.return_value = [mock.MagicMock()]  # existing IPs present
-        new_ip = mock.MagicMock()
+    def _exercise_create_primary(self, ip_version, host):
+        """Run `create` for a primary address, returning the Device and address it resolved."""
+        device = mock.MagicMock()
+        interface = mock.MagicMock()
+        interface.device = device
+        address_object = mock.MagicMock()
+        address_object.ip_version = ip_version
 
         with (
-            _nb_patch("get_syncable_device", return_value=device),
-            _nb_patch("get_device_interfaces_by_name", return_value={"eth0": interface_obj}),
-            _nb_patch("create_ip", return_value=new_ip) as create_ip,
-            _nb_patch("tag_object"),
+            _nb_patch("get_tagged_interface", return_value=interface),
+            _nb_patch("create_ip", return_value=address_object),
+            mock.patch.object(diffsync_models.DiffSyncModel, "create"),
+        ):
+            diffsync_models.InterfaceAddress.create(
+                adapter=self.adapter,
+                ids={**self.IDS, "host": host},
+                attrs={"mask_length": 24, "is_primary": True, "status": "Active"},
+            )
+        return device, address_object
+
+    def test_create_records_an_ipv4_primary_once(self):
+        device, address_object = self._exercise_create_primary(ip_version=4, host="10.0.0.5")
+
+        self.assertIs(device.primary_ip4, address_object)
+        device.validated_save.assert_called_once()
+
+    def test_create_records_an_ipv6_primary_once(self):
+        """An IPv6 address is the Device's primary_ip6, which is what makes dual stack work."""
+        device, address_object = self._exercise_create_primary(ip_version=6, host="2001:db8::1")
+
+        self.assertIs(device.primary_ip6, address_object)
+        device.validated_save.assert_called_once()
+
+    def test_create_passes_the_length_through_rather_than_a_netmask(self):
+        """A length serves either version; a netmask could not describe an IPv6 address."""
+        interface = mock.MagicMock()
+        with (
+            _nb_patch("get_tagged_interface", return_value=interface),
+            _nb_patch("create_ip", return_value=mock.MagicMock()) as create_ip,
+            mock.patch.object(diffsync_models.DiffSyncModel, "create"),
+        ):
+            diffsync_models.InterfaceAddress.create(
+                adapter=self.adapter,
+                ids={**self.IDS, "host": "2001:db8::1"},
+                attrs={"mask_length": 64, "is_primary": False, "status": "Active"},
+            )
+
+        self.assertEqual(create_ip.call_args.kwargs["mask_length"], 64)
+        self.assertEqual(create_ip.call_args.kwargs["object_pk"], interface)
+
+    def test_create_reports_an_interface_it_cannot_find(self):
+        with (
+            _nb_patch("get_tagged_interface", return_value=None),
+            _nb_patch("create_ip") as create_ip,
+        ):
+            result = diffsync_models.InterfaceAddress.create(
+                adapter=self.adapter, ids=self.IDS, attrs={"mask_length": 24}
+            )
+
+        self.assertIsNone(result)
+        create_ip.assert_not_called()
+
+    def test_update_corrects_only_the_mask(self):
+        """The mask is the attribute IP Fabric can change for an address it keeps reporting."""
+        diff_model = self._address_diff()
+        interface = mock.MagicMock()
+        address_object = mock.MagicMock()
+        interface.ip_addresses.get.return_value = address_object
+
+        with (
+            _nb_patch("get_tagged_interface", return_value=interface),
             mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
         ):
-            result = diff_model.update({"ip_address": "10.0.0.5", "subnet_mask": "255.255.255.0"})
+            result = diff_model.update({"mask_length": 25})
 
-        interface_obj.ip_addresses.set.assert_called_once_with([])
-        self.assertEqual(create_ip.call_args.kwargs["object_pk"], interface_obj)
-        interface_obj.ip_addresses.add.assert_not_called()
+        self.assertEqual(address_object.mask_length, 25)
+        address_object.validated_save.assert_called_once()
         self.assertEqual(result, "ok")
 
-    def test_update_keeps_the_recorded_mask_when_only_the_address_changed(self):
-        """An address whose mask the source did not report keeps its recorded mask, not a host one."""
-        diff_model, device, interface_obj = self._setup_interface_update()
-        diff_model.subnet_mask = "255.255.255.0"
-        interface_obj.ip_addresses.all.return_value = []
+    def test_update_records_a_primary_it_was_not_before(self):
+        diff_model = self._address_diff()
+        device = mock.MagicMock()
+        interface = mock.MagicMock()
+        interface.device = device
+        address_object = mock.MagicMock()
+        address_object.ip_version = 6
+        interface.ip_addresses.get.return_value = address_object
 
         with (
-            _nb_patch("get_syncable_device", return_value=device),
-            _nb_patch("get_device_interfaces_by_name", return_value={"eth0": interface_obj}),
-            _nb_patch("create_ip", return_value=mock.MagicMock()) as mock_create_ip,
-            _nb_patch("tag_object"),
+            _nb_patch("get_tagged_interface", return_value=interface),
             mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
         ):
-            diff_model.update({"ip_address": "10.0.0.6"})
+            diff_model.update({"is_primary": True})
 
-        self.assertEqual(mock_create_ip.call_args.kwargs["subnet_mask"], "255.255.255.0")
+        self.assertIs(device.primary_ip6, address_object)
+        device.validated_save.assert_called_once()
 
-    def test_update_primary_ipv6_saves_device(self):
-        """`ip_version == 6` -> primary_ip6 set and `device.save()` called once."""
-        diff_model, device, interface_obj = self._setup_interface_update()
-        existing_ip = mock.MagicMock()
-        existing_ip.ip_version = 6
-        interface_obj.ip_addresses.first.return_value = existing_ip
+    def test_create_reports_a_primary_assignment_the_database_refuses(self):
+        """The address is still written; only recording it as the Device's primary failed."""
+        device = mock.MagicMock()
+        device.validated_save.side_effect = diffsync_models.ValidationError("refused")
+        interface = mock.MagicMock()
+        interface.device = device
+        address_object = mock.MagicMock()
+        address_object.ip_version = 4
 
         with (
+            _nb_patch("get_tagged_interface", return_value=interface),
+            _nb_patch("create_ip", return_value=address_object),
+            mock.patch.object(diffsync_models.DiffSyncModel, "create", return_value="ok"),
+        ):
+            result = diffsync_models.InterfaceAddress.create(
+                adapter=self.adapter,
+                ids=self.IDS,
+                attrs={"mask_length": 24, "is_primary": True, "status": "Active"},
+            )
+
+        self.assertEqual(result, "ok", "The address itself was written, so the model stands.")
+        self.assertIn("primary_ip4", str(self.adapter.job.logger.error.call_args))
+
+    def test_create_reports_an_address_it_could_not_write(self):
+        interface = mock.MagicMock()
+
+        with (
+            _nb_patch("get_tagged_interface", return_value=interface),
+            _nb_patch("create_ip", return_value=None),
+            mock.patch.object(diffsync_models.DiffSyncModel, "create") as mock_super,
+        ):
+            result = diffsync_models.InterfaceAddress.create(
+                adapter=self.adapter, ids=self.IDS, attrs={"mask_length": 24, "status": "Active"}
+            )
+
+        self.assertIsNone(result)
+        mock_super.assert_not_called()
+        self.adapter.job.logger.warning.assert_called_once()
+
+    def test_update_reports_an_interface_it_cannot_find(self):
+        diff_model = self._address_diff()
+
+        with (
+            _nb_patch("get_tagged_interface", return_value=None),
+            mock.patch.object(diffsync_models.DiffSyncModel, "update") as mock_super,
+        ):
+            self.assertIsNone(diff_model.update({"mask_length": 25}))
+
+        mock_super.assert_not_called()
+
+    def test_update_reports_a_mask_the_database_refuses(self):
+        """The address keeps the mask Nautobot holds, since the new one could not be written."""
+        diff_model = self._address_diff()
+        interface = mock.MagicMock()
+        address_object = mock.MagicMock()
+        address_object.validated_save.side_effect = diffsync_models.ValidationError("refused")
+        interface.ip_addresses.get.return_value = address_object
+
+        with (
+            _nb_patch("get_tagged_interface", return_value=interface),
+            mock.patch.object(diffsync_models.DiffSyncModel, "update") as mock_super,
+        ):
+            result = diff_model.update({"mask_length": 25})
+
+        self.assertIsNone(result)
+        mock_super.assert_not_called()
+        self.assertIn("Unable to change the mask", str(self.adapter.job.logger.error.call_args))
+
+    def test_update_reports_an_address_it_cannot_resolve(self):
+        """Neither a missing address nor an ambiguous one is written, and each is reported."""
+        for error in (diffsync_models.IPAddress.DoesNotExist, diffsync_models.IPAddress.MultipleObjectsReturned):
+            with self.subTest(error=error.__name__):
+                self.adapter.job.logger.error.reset_mock()
+                diff_model = self._address_diff()
+                interface = mock.MagicMock()
+                interface.ip_addresses.get.side_effect = error
+
+                with (
+                    _nb_patch("get_tagged_interface", return_value=interface),
+                    mock.patch.object(diffsync_models.DiffSyncModel, "update") as mock_super,
+                ):
+                    self.assertIsNone(diff_model.update({"mask_length": 25}))
+
+                mock_super.assert_not_called()
+                self.adapter.job.logger.error.assert_called_once()
+
+    def test_delete_reports_an_interface_it_cannot_find(self):
+        diff_model = self._address_diff()
+
+        with (
+            _nb_patch("get_tagged_interface", return_value=None),
+            mock.patch.object(diffsync_models.DiffSyncModel, "delete") as mock_super,
+        ):
+            self.assertIsNone(diff_model.delete())
+
+        mock_super.assert_not_called()
+
+    def test_delete_reports_an_address_that_is_already_gone(self):
+        """Nothing to remove, so the model is left in place rather than reported as deleted."""
+        diff_model = self._address_diff()
+        interface = mock.MagicMock()
+        interface.ip_addresses.filter.return_value.first.return_value = None
+
+        with (
+            _nb_patch("get_tagged_interface", return_value=interface),
+            mock.patch.object(diffsync_models.DiffSyncModel, "delete") as mock_super,
+        ):
+            self.assertIsNone(diff_model.delete())
+
+        mock_super.assert_not_called()
+        self.adapter.job.logger.warning.assert_called_once()
+
+    def _exercise_demotion(self, primary_id, pending=None):
+        """Run `update` demoting this test's address, with the Device pointing at `primary_id`."""
+        diff_model = self._address_diff()
+        device = mock.MagicMock()
+        device.primary_ip4_id = primary_id
+        interface = mock.MagicMock()
+        interface.device = device
+        address_object = mock.MagicMock()
+        address_object.ip_version = 4
+        address_object.pk = "this-address"
+        interface.ip_addresses.get.return_value = address_object
+        self.adapter.pending = pending
+
+        with (
+            _nb_patch("get_tagged_interface", return_value=interface),
+            # Resolved without the database, for the bulk-mode path that looks the Device up first.
             _nb_patch("get_syncable_device", return_value=device),
-            _nb_patch("get_device_interfaces_by_name", return_value={"eth0": interface_obj}),
-            _nb_patch("tag_object"),
             mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
         ):
-            diff_model.update({"ip_is_primary": True})
+            diff_model.update({"is_primary": False})
+        return device
 
-        self.assertIs(device.primary_ip6, existing_ip)
-        device.save.assert_called_once()
+    def test_an_address_that_stops_being_primary_is_cleared(self):
+        """`False` is a value to act on: unhandled, the Device would keep pointing at the address."""
+        device = self._exercise_demotion(primary_id="this-address")
+
+        self.assertIsNone(device.primary_ip4)
+        device.validated_save.assert_called_once()
+
+    def test_a_demotion_leaves_a_primary_that_has_already_moved_alone(self):
+        """The promotion is a different model and DiffSync does not order the two.
+
+        Cleared outright, a demotion applied after the promotion would undo it and leave the
+        Device with no primary at all.
+        """
+        device = self._exercise_demotion(primary_id="some-other-address")
+
+        self.assertNotIsInstance(device.primary_ip4, type(None))
+        device.validated_save.assert_not_called()
+
+    def test_a_demotion_in_bulk_mode_is_deferred(self):
+        """The Device may itself be queued, so the clear rides the batched update as a promotion does."""
+        pending = mock.MagicMock()
+        # Nothing queued under either key, so the Interface is resolved from the database as usual.
+        pending.find.return_value = None
+        self._exercise_demotion(primary_id="this-address", pending=pending)
+
+        pending.defer_update.assert_called_once()
+        _instance, values = pending.defer_update.call_args.args
+        self.assertEqual(values, {"primary_ip4": None})
+
+    def test_a_demoted_ipv6_address_clears_the_ipv6_field(self):
+        diff_model = self._address_diff()
+        device = mock.MagicMock()
+        device.primary_ip6_id = "this-address"
+        interface = mock.MagicMock()
+        interface.device = device
+        address_object = mock.MagicMock()
+        address_object.ip_version = 6
+        address_object.pk = "this-address"
+        interface.ip_addresses.get.return_value = address_object
+
+        with (
+            _nb_patch("get_tagged_interface", return_value=interface),
+            mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
+        ):
+            diff_model.update({"is_primary": False})
+
+        self.assertIsNone(device.primary_ip6)
+
+    def test_a_demotion_the_database_refuses_is_reported(self):
+        diff_model = self._address_diff()
+        device = mock.MagicMock()
+        device.primary_ip4_id = "this-address"
+        device.validated_save.side_effect = diffsync_models.ValidationError("refused")
+        interface = mock.MagicMock()
+        interface.device = device
+        address_object = mock.MagicMock()
+        address_object.ip_version = 4
+        address_object.pk = "this-address"
+        interface.ip_addresses.get.return_value = address_object
+
+        with (
+            _nb_patch("get_tagged_interface", return_value=interface),
+            mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
+        ):
+            diff_model.update({"is_primary": False})
+
+        self.assertIn("stop recording", str(self.adapter.job.logger.error.call_args))
+
+    def test_delete_safe_deletes_an_address_no_other_interface_holds(self):
+        diff_model = self._address_diff()
+        interface = mock.MagicMock()
+        interface.id = "iface-uuid"
+        address_object = mock.MagicMock()
+        address_object.interfaces.all.return_value = [interface]
+        interface.ip_addresses.filter.return_value.first.return_value = address_object
+
+        with (
+            _nb_patch("get_tagged_interface", return_value=interface),
+            mock.patch.object(diffsync_models.DiffSyncExtras, "safe_delete") as safe_delete,
+            mock.patch.object(diffsync_models.DiffSyncModel, "delete", return_value="ok"),
+        ):
+            diff_model.delete()
+
+        safe_delete.assert_called_once()
+        interface.ip_addresses.remove.assert_not_called()
+
+    def test_delete_only_unassigns_an_address_another_interface_holds(self):
+        """One row serves both Interfaces, so deleting it would take the address from both."""
+        diff_model = self._address_diff()
+        interface = mock.MagicMock()
+        interface.id = "iface-uuid"
+        other = mock.MagicMock()
+        other.id = "other-uuid"
+        address_object = mock.MagicMock()
+        address_object.interfaces.all.return_value = [interface, other]
+        interface.ip_addresses.filter.return_value.first.return_value = address_object
+
+        with (
+            _nb_patch("get_tagged_interface", return_value=interface),
+            mock.patch.object(diffsync_models.DiffSyncExtras, "safe_delete") as safe_delete,
+            mock.patch.object(diffsync_models.DiffSyncModel, "delete", return_value="ok"),
+        ):
+            diff_model.delete()
+
+        interface.ip_addresses.remove.assert_called_once_with(address_object)
+        safe_delete.assert_not_called()
 
 
 # ============================================================
@@ -1298,4 +1546,4 @@ class TestDeferredChangeLoggingCoverage(SimpleTestCase):
                     f"{class_node.name}.{operation} writes without deferring its change log, which "
                     "costs a change log rewrite per write and pins the instance for the whole job.",
                 )
-        self.assertEqual(checked, 15, "Expected 15 write operations across the five models.")
+        self.assertEqual(checked, 18, "Expected 18 write operations across the six models.")
