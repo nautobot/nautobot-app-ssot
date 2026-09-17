@@ -4,6 +4,7 @@
 import ipaddress
 import logging
 from collections import defaultdict
+from itertools import chain
 
 from diffsync import ObjectAlreadyExists
 from diffsync.exceptions import ObjectNotFound
@@ -69,6 +70,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         self._reported_missing_subnet = set()
         # Every address IP Fabric reports, indexed by the Interface it sits on.
         self.addresses_by_interface = defaultdict(list)
+        # Held because a VRF is network wide while this filter is not, so a filtered run must not
+        # delete the VRFs of the sites it cannot see; see `DiffSyncModelAdapters.network_wide`.
+        self.location_filter = location_filter
         if location_filter:
             self.client.attribute_filters = {"siteName": ["ieq", location_filter]}
             logging.info("Applied IP Fabric Attribute Filter: %s", self.client.attribute_filters)
@@ -385,6 +389,42 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 ", ".join(FHRP_VIRTUAL_ADDRESS_KEYS),
             )
 
+    def load_vrfs(self):
+        """Add IP Fabric VRFs as DiffSync Vrf models.
+
+        Two tables feed this. The VRF detail table names every VRF and the route distinguisher each
+        device carrying it reports, and the L3 VPN route targets table adds the targets. The VRF
+        summary table is not read: it names the same VRFs but carries no route distinguisher, so the
+        detail table has to be read regardless and answers both questions.
+        """
+        detail_rows = self.client.technology.routing.vrf_detail.all(columns=["sn", "hostname", "vrf", "rd"])
+        target_rows = []
+        if self.scope.route_targets:
+            target_rows = self.client.technology.mpls.l3vpn_vrf_targets.all(
+                columns=["sn", "hostname", "vrf", "rd", "af", "importRT", "exportRT"]
+            )
+        reconciled = reconcile_vrfs(detail_rows, target_rows)
+        self.load_route_targets(reconciled)
+        for name, attrs in reconciled.items():
+            try:
+                self.add(self.network_wide(self.vrf, name=name, status="Active", **attrs))
+            except ObjectAlreadyExists:
+                logger.warning("Duplicate VRF discovered, %s", name)
+
+    def load_route_targets(self, reconciled):
+        """Add the Route Targets the reconciled VRFs name as DiffSync RouteTarget models.
+
+        Taken from what was reconciled rather than from the table directly, so that a target only
+        one device of a VRF reported is not created: that VRF records no targets at all, and a
+        Route Target nothing points at would be left behind on every run.
+        """
+        named = set()
+        for attrs in reconciled.values():
+            named.update(attrs["import_targets"])
+            named.update(attrs["export_targets"])
+        for name in sorted(named):
+            self.add(self.network_wide(self.route_target, name=name))
+
     def load_data(self):
         """Load shared data from IP Fabric.
 
@@ -535,6 +575,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         if self.scope.cables:
             self.load_cables()
 
+        if self.scope.vrfs:
+            self.load_vrfs()
+
         # Read only while loading, and it holds a record per address, so it is not carried into the
         # diff and sync phases where both adapters' models are already resident.
         self.addresses_by_interface.clear()
@@ -682,3 +725,82 @@ def prefix_lengths_by_address(reported_addresses):
             lengths[address],
         )
     return lengths
+
+
+def agreed_targets(by_device):
+    """Return the one set of route targets every device reported, and whether they disagreed.
+
+    The targets come back empty where the devices disagreed, since there is then no one set to
+    record for the VRF.
+    """
+    reported = {frozenset(targets) for targets in by_device.values()}
+    if len(reported) > 1:
+        return [], True
+    return sorted(next(iter(reported), frozenset())), False
+
+
+def reconcile_vrfs(detail_rows, target_rows):
+    """Return the network wide value of each VRF's attributes, keyed by VRF name.
+
+    IP Fabric reports a route distinguisher per device and route targets per device and address
+    family, while Nautobot holds one of each per VRF. Where every device carrying a VRF reports the
+    same value, that value is the VRF's. Where they disagree the network is misconfigured, and the
+    disagreement is recorded rather than one report being picked arbitrarily: a VRF silently
+    carrying one device's route distinguisher is worse than one carrying none and saying why.
+
+    The two are reconciled independently, so a VRF whose devices agree on its route distinguisher
+    but not on its route targets still records the route distinguisher.
+
+    Address families are combined rather than reconciled against each other, because Nautobot holds
+    one set of targets per VRF: a device importing one target for IPv4 and another for IPv6 imports
+    both.
+
+    The detail table names every VRF and its route distinguisher on each device carrying it, and the
+    L3 VPN route targets table adds the targets. The latter is empty where route targets are out of
+    scope, which leaves every VRF reporting none of them.
+    """
+    route_distinguishers = defaultdict(set)
+    imports, exports = defaultdict(dict), defaultdict(dict)
+    names = set()
+
+    for row in chain(detail_rows, target_rows):
+        if name := row.get("vrf"):
+            names.add(name)
+            if rd := row.get("rd"):
+                route_distinguishers[name].add(rd)
+
+    for row in target_rows:
+        name = row.get("vrf")
+        if not name:
+            continue
+        # Keyed by serial number rather than hostname, since two sites may hold a device of one name
+        # and the reports of each are their own.
+        device = row.get("sn") or row.get("hostname")
+        imports[name].setdefault(device, set()).update(row.get("importRT") or ())
+        exports[name].setdefault(device, set()).update(row.get("exportRT") or ())
+
+    reconciled = {}
+    for name in sorted(names):
+        conflicts = []
+        reported_rds = route_distinguishers.get(name, set())
+        if len(reported_rds) > 1:
+            conflicts.append("route distinguisher")
+            route_distinguisher = None
+        else:
+            route_distinguisher = next(iter(reported_rds), None)
+
+        import_targets, imports_disagree = agreed_targets(imports.get(name, {}))
+        export_targets, exports_disagree = agreed_targets(exports.get(name, {}))
+        if imports_disagree or exports_disagree:
+            conflicts.append("route targets")
+
+        conflict = f"IP Fabric's devices disagree about this VRF's {' and '.join(conflicts)}" if conflicts else ""
+        if conflict:
+            logger.warning("%s, so none is recorded for the VRF named %s", conflict, name)
+        reconciled[name] = {
+            "rd": route_distinguisher,
+            "import_targets": import_targets,
+            "export_targets": export_targets,
+            "conflict": conflict,
+        }
+    return reconciled

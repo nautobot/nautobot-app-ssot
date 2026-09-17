@@ -47,6 +47,8 @@ There are several options available.
 - **Sync IP Addresses**: Sync the IP Address on each Interface. Enabled by default; requires **Sync Interfaces**.
 - **Sync Primary IP**: Assign a Device's primary IP from IP Fabric. Enabled by default; requires **Sync IP Addresses**. IP Fabric reports the address it logged in with, which is not necessarily the address a CMDB considers the management one.
 - **Sync VLANs**: Sync each Location's VLANs. Enabled by default.
+- **Sync VRFs**: Create Nautobot VRFs in the Global Namespace from the routing instances IP Fabric reports. Disabled by default. See [VRFs and Route Targets](#vrfs-and-route-targets).
+- **Sync Route Targets**: Sync the Route Targets IP Fabric reports and record each synced VRF's import and export targets. Disabled by default; requires **Sync VRFs**.
 - **Sync Cables**: Sync the device connections in IP Fabric's connectivity matrix to Nautobot Cables. Disabled by default; requires **Sync Interfaces**. See [Cables](#cables).
 - **Dry run**: This will only report the difference between the source and destination without synchronization.
 - **Site Filter**: Filter the data loaded into DiffSync by a top level location of a specified Site.
@@ -127,6 +129,29 @@ Currently, this integration will provide the ability to sync the following IP Fa
 | vlanId             | Vlan.vid       | VLAN.vid               |
 | status             | Vlan.status    | VLAN.status            |
 | siteName           | Vlan.site      | VLAN.site              |
+
+### IPFabric VRF
+
+VRFs are built from IP Fabric's VRF detail table (`tables/vrf/detail`), which names every VRF and the route distinguisher each device carrying it reports, and its L3 VPN route targets table (`tables/mpls/l3-vpn/vrf-targets`).
+
+| IP Fabric (Source) | DiffSync Model     | Nautobot (Destination)   |
+| ------------------ | ------------------ | ------------------------ |
+| vrf                | Vrf.name           | VRF.name                 |
+| rd                 | Vrf.rd             | VRF.rd                   |
+| importRT           | Vrf.import_targets | VRF.import_targets       |
+| exportRT           | Vrf.export_targets | VRF.export_targets       |
+| N/A                | Vrf.status         | VRF.status               |
+| N/A                | Vrf.conflict       | VRF.cf.ipfabric_vrf_conflict |
+
+### IPFabric Route Target
+
+Route Targets carry no attributes of their own. IP Fabric reports a route target as the value and
+nothing else, so a target either exists or it does not; Nautobot's description and tenant are left
+alone, and an operator can annotate one without the sync overwriting it.
+
+| IP Fabric (Source) | DiffSync Model    | Nautobot (Destination) |
+| ------------------ | ----------------- | ---------------------- |
+| importRT/exportRT  | RouteTarget.name  | RouteTarget.name       |
 
 ### IPFabric Cable
 
@@ -224,6 +249,43 @@ With **Sync Tagged Only** selected, which is the default, the sync reads and wri
 
 The option governs reading and writing together. It has to: a Device loaded from Nautobot but excluded from writing would have every difference IP Fabric reports about it reported again on every run and never applied.
 
+## VRFs and Route Targets
+
+VRF synchronization is opt in via the **Sync VRFs** job option and is disabled by default, because a network whose VRFs are modelled in another system should not have them introduced by a sync. Route targets are a second option on top of it, so a deployment that wants VRFs but governs route targets elsewhere can have one without the other.
+
+VRFs are created in the Global Namespace, the same Namespace this integration puts Prefixes and IP Addresses in.
+
+### One value per VRF, from many devices
+
+IP Fabric reports a route distinguisher per device, and route targets per device and per address family. Nautobot holds one route distinguisher and one set of targets per VRF. The sync therefore reconciles what the devices reported before writing anything:
+
+- Where every device carrying a VRF reports the same route distinguisher, that is the VRF's.
+- Where they disagree, the network is misconfigured. No route distinguisher is recorded, and the disagreement is written to the **IPFabric VRF Conflict** custom field. A VRF silently carrying one device's value would be worse than one carrying none: there would be nothing to say which device it came from, or that there was a disagreement at all.
+- Route targets are reconciled the same way, and independently of the route distinguisher, so a VRF whose devices agree on one but not the other still records the one they agree on.
+- A device's address families are combined rather than reconciled against each other, since Nautobot holds one set of targets per VRF: a device importing one target for IPv4 and another for IPv6 imports both.
+- A VRF that has no route distinguisher and no route targets on any device is created as it is.
+
+### Route Targets as objects
+
+Route Targets are an object type of their own, synced ahead of the VRFs that name them and counted
+in a run's own create and delete totals. A VRF records the targets Nautobot holds; it does not
+create them.
+
+A Route Target's name is unique across the whole of Nautobot, so one that another process already
+created is the same object this sync would have made. It is adopted and marked as synced rather than
+duplicated, which is what lets a first run converge against an existing estate.
+
+Only the Route Targets this integration created are loaded back from Nautobot — those carrying the
+`SSoT Synced from IPFabric` Tag. A Route Target has no Location, no Device and no Namespace to bound
+a load by, so loading all of them would have the sync delete every Route Target another system owns
+the moment IP Fabric stopped reporting it.
+
+### What the sync will not do
+
+A VRF name that the Global Namespace already holds twice is left alone entirely, and the Job log says so. Nautobot constrains a VRF to a unique route distinguisher within its Namespace but not to a unique name, so a Namespace can hold two VRFs called the same thing, and IP Fabric reports nothing that would say which of them its report describes.
+
+With a **Site Filter** applied, VRFs and Route Targets are created and updated but never deleted. A filtered run sees only the VRFs configured on that site's devices, and the Route Targets those VRFs name, so everything else Nautobot holds would look absent from IP Fabric.
+
 ## Cables
 
 Cable synchronization is opt in via the **Sync Cables** job option, and is disabled by default because Nautobot allows only one Cable per Interface. Enabling it lets the sync replace connections that were recorded by hand.
@@ -297,6 +359,10 @@ Cables are always written one at a time, whichever mode is selected. Creating a 
 cable, peer and path fields on both Interfaces it connects and builds Nautobot's cable paths, and all
 of that happens through signals a batched write does not fire. A Cable written in bulk would appear
 in the Cables list while showing no connection on either interface.
+
+Route Targets are always written one at a time as well, for the opposite reason: a network has a
+handful of them, and the rows tying a VRF to its targets need the targets to exist already. The VRFs
+themselves are written in batches.
 
 Deletions are unaffected. **Safe Delete Mode** governs those, and it is independent of this setting.
 

@@ -18,6 +18,10 @@ belongs under, a VLAN with its location assignment row.
 Cables are deliberately absent. Creating one also sets `cable`, `_cable_peer` and `_path` on both
 Interfaces it terminates on, and builds the Cable paths, all through signals that a batched insert
 does not fire. They keep the per-object path.
+
+Route Targets are absent for the opposite reason: a network has a handful of them where it has
+thousands of Interfaces, and a VRF's join rows need theirs to exist already. They are written as
+they are resolved, as Prefixes are.
 """
 
 import logging
@@ -29,7 +33,7 @@ from django.db import Error as DjangoBaseDBError
 from django.db import connection, transaction
 from nautobot.dcim.models import Device, Interface, Location
 from nautobot.extras.models import TaggedItem
-from nautobot.ipam.models import VLAN, IPAddress, IPAddressToInterface, VLANLocationAssignment
+from nautobot.ipam.models import VLAN, VRF, IPAddress, IPAddressToInterface, VLANLocationAssignment
 
 from nautobot_ssot.integrations.ipfabric.constants import BULK_WRITE_BATCH_SIZE
 
@@ -37,12 +41,19 @@ logger = logging.getLogger("nautobot.ssot.ipfabric")
 
 # Insertion order. A model may only reference one before it: an Interface needs its Device, a VLAN
 # its Location. IP Addresses reference no queued model, only Prefixes, which are written as they are
-# resolved because there are few of them.
-LEVELS: Tuple[Any, ...] = (Location, Device, Interface, IPAddress, VLAN)
+# resolved because there are few of them. A VRF references none of them either, only its Namespace,
+# Status and Route Targets, all of which are resolved before it is queued.
+LEVELS: Tuple[Any, ...] = (Location, Device, Interface, IPAddress, VLAN, VRF)
 
 # Join tables, written once the rows they point at exist. None of these define `save()`, so there is
 # nothing for a batched insert to skip.
-THROUGH_LEVELS: Tuple[Any, ...] = (TaggedItem, IPAddressToInterface, VLANLocationAssignment)
+THROUGH_LEVELS: Tuple[Any, ...] = (
+    TaggedItem,
+    IPAddressToInterface,
+    VLANLocationAssignment,
+    VRF.import_targets.through,
+    VRF.export_targets.through,
+)
 
 
 def _check_deferred_constraints(model: Any) -> None:

@@ -148,6 +148,27 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
         default=True,
     ),
     SyncableObject(
+        key="vrfs",
+        label="Sync VRFs",
+        description=(
+            "Create Nautobot VRFs from the routing instances IP Fabric reports, in the Global "
+            "Namespace. Deselect where another system owns the VRF list. Off by default, as a "
+            "network whose VRFs are modelled elsewhere should not have them introduced by a sync."
+        ),
+        default=False,
+    ),
+    SyncableObject(
+        key="route_targets",
+        label="Sync Route Targets",
+        description=(
+            "Record each VRF's import and export Route Targets, creating the Route Targets "
+            "themselves. Deselect to sync VRFs without their targets, which is what a deployment "
+            "whose route targets are governed elsewhere wants."
+        ),
+        default=False,
+        requires=("vrfs",),
+    ),
+    SyncableObject(
         key="cables",
         label="Sync Cables",
         description=(

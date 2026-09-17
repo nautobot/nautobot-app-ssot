@@ -30,10 +30,12 @@ from nautobot.extras.signals import change_context_state
 from nautobot.ipam.choices import PrefixTypeChoices
 from nautobot.ipam.models import (
     VLAN,
+    VRF,
     IPAddress,
     IPAddressToInterface,
     Namespace,
     Prefix,
+    RouteTarget,
     VLANLocationAssignment,
     get_default_namespace,
 )
@@ -47,6 +49,10 @@ from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_lengt
 # Lookups that read back the objects bulk mode writes, so a flush leaves their results stale. Grouped
 # so that `flush_pending_writes` can empty them, rather than each one having to know about the mode.
 BULK_WRITTEN_LOOKUPS = "bulk_written_lookups"
+
+# Custom field recording what IP Fabric reported inconsistently for a VRF, so that a VRF left
+# without a route distinguisher is distinguishable from one whose devices agreed it has none.
+VRF_CONFLICT_CF_NAME = "ipfabric_vrf_conflict"
 
 
 @contextmanager
@@ -1171,6 +1177,175 @@ def create_vlan(  # pylint: disable=too-many-arguments
         if logger:
             logger.warning(f"Unable to perform validated_save() on VLAN named {vlan_name} with an ID of {vlan_obj.id}")
     return vlan_obj
+
+
+def create_route_target(name: str, logger: Optional[logging.Logger] = None) -> Optional[RouteTarget]:
+    """Create a Route Target, or adopt the one Nautobot already holds under that name.
+
+    A Route Target's name is unique across Nautobot, so one another process created is the same
+    object this sync would have made. It is adopted and marked as synced rather than duplicated,
+    which is also what lets the first run of this integration converge against an existing estate.
+
+    Written directly rather than queued for a batch even in Bulk Write Mode. A network has a handful
+    of Route Targets where it has thousands of Interfaces, so there is nothing worth batching, and
+    the rows tying a VRF to its targets need the target's row to exist already.
+
+    Args:
+        name: Route target value, as IP Fabric reports it.
+        logger: Logger to use for messaging.
+
+    Returns:
+        RouteTarget: When the Route Target is created or adopted.
+        None: When Nautobot refuses it, which a value longer than the field allows does.
+    """
+    route_target = RouteTarget.objects.filter(name=name).first()
+    if route_target is not None:
+        # Already there, so it is re-stamped in place; `tag_object` answers "does it carry the Tag
+        # already" from the per-model set rather than asking the tag table for every target.
+        try:
+            tag_object(nautobot_object=route_target, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        except (DjangoBaseDBError, ValidationError) as err:
+            if logger:
+                logger.error("Unable to mark the Route Target named %s as synced. Error: %s", name, err)
+        return route_target
+
+    route_target = RouteTarget(name=name)
+    # Stamped before the one save a new Route Target takes, so the Tag row that follows is the only
+    # further write.
+    stamp_synced(route_target, LAST_SYNCHRONIZED_CF_NAME)
+    try:
+        route_target.validated_save()
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error("Unable to create a Route Target named %s. Error: %s", name, err)
+        return None
+    route_target.tags.add(synced_tag_for(route_target))
+    return route_target
+
+
+def set_route_targets(  # pylint: disable=too-many-arguments
+    vrf_obj: VRF,
+    import_targets: Iterable[str],
+    export_targets: Iterable[str],
+    logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
+):
+    """Point a VRF at the Route Targets it imports and exports.
+
+    The targets themselves are synced as their own object type, and are created before the VRFs that
+    name them, so this matches rather than creates. A name that is missing here is one whose own
+    creation was refused, and is reported and left out so that the VRF still records the rest.
+
+    Args:
+        vrf_obj: The VRF to assign to.
+        import_targets: Route target values the VRF imports.
+        export_targets: Route target values the VRF exports.
+        logger: Logger to use for messaging.
+        pending: When given and the VRF is itself queued, the join rows are queued behind it. A VRF
+            Nautobot already holds is assigned normally even in bulk mode, since `set()` reads the
+            rows it has to remove and a queued VRF has none.
+    """
+    import_targets, export_targets = list(import_targets), list(export_targets)
+    wanted = set(import_targets) | set(export_targets)
+    by_name = {route_target.name: route_target for route_target in RouteTarget.objects.filter(name__in=wanted)}
+    missing = sorted(wanted - set(by_name))
+    if missing and logger:
+        logger.warning(
+            "Not recording the Route Target(s) %s on the VRF named %s, as Nautobot does not hold them",
+            ", ".join(missing),
+            vrf_obj.name,
+        )
+    resolved_imports = [by_name[name] for name in import_targets if name in by_name]
+    resolved_exports = [by_name[name] for name in export_targets if name in by_name]
+
+    if pending is not None and vrf_obj._state.adding:  # pylint: disable=protected-access
+        for route_target in resolved_imports:
+            pending.add_through(VRF.import_targets.through(vrf_id=vrf_obj.pk, routetarget_id=route_target.pk))
+        for route_target in resolved_exports:
+            pending.add_through(VRF.export_targets.through(vrf_id=vrf_obj.pk, routetarget_id=route_target.pk))
+        return
+
+    vrf_obj.import_targets.set(resolved_imports)
+    vrf_obj.export_targets.set(resolved_exports)
+
+
+@job_scoped_cache(group=BULK_WRITTEN_LOOKUPS)
+def get_vrf(name: str, logger: Optional[logging.Logger] = None) -> Optional[VRF]:
+    """Return the Global Namespace VRF of the given name, or None when there is not exactly one.
+
+    Nautobot constrains a VRF to a unique route distinguisher within its Namespace, but not to a
+    unique name, so one Namespace may hold two VRFs called the same thing. IP Fabric reports a VRF
+    name as network wide and offers nothing to tell those two apart, so an ambiguous name is
+    reported rather than resolved arbitrarily.
+
+    Args:
+        name: VRF name, as IP Fabric reports it.
+        logger: Logger to use for messaging.
+
+    Returns:
+        VRF: The one VRF of that name in the Global Namespace.
+        None: When no VRF has that name, or more than one does.
+    """
+    vrfs = list(VRF.objects.filter(name=name, namespace=get_global_namespace())[:2])
+    if not vrfs:
+        return None
+    if len(vrfs) > 1:
+        if logger:
+            logger.error(
+                "The Global Namespace holds more than one VRF named %s, so which one IP Fabric is "
+                "reporting cannot be determined; leaving them alone",
+                name,
+            )
+        return None
+    return vrfs[0]
+
+
+def create_vrf(  # pylint: disable=too-many-arguments
+    name: str,
+    rd: Optional[str],
+    vrf_status: str,
+    conflict: str,
+    logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
+) -> Optional[VRF]:
+    """Create a VRF in the Global Namespace.
+
+    Args:
+        name: VRF name.
+        rd: Route distinguisher, or None when IP Fabric reports none for it.
+        vrf_status: Status name to set.
+        conflict: What IP Fabric reported inconsistently for this VRF, or an empty string.
+        logger: Logger to use for messaging.
+        pending: When given, the VRF is queued for a batched write rather than saved. The returned
+            VRF already has its primary key, so its join rows may be queued behind it.
+
+    Returns:
+        VRF: When the VRF is created or queued.
+        None: When Nautobot refuses it.
+    """
+    status_obj = get_or_create_status_object(vrf_status, ColorChoices.COLOR_GREEN, app_label="ipam", model="vrf")
+    vrf_obj = VRF(
+        name=name,
+        rd=rd or None,
+        status=status_obj,
+        namespace=get_global_namespace(),
+    )
+    vrf_obj.cf[VRF_CONFLICT_CF_NAME] = conflict
+    if pending is not None:
+        # A route distinguisher that collides is refused by the database rather than by `clean()`,
+        # so the collector's narrowing finds and reports it in the same way as any other bad row.
+        return queue_new_object(pending, vrf_obj, key=name)
+    stamp_synced(vrf_obj, LAST_SYNCHRONIZED_CF_NAME)
+    try:
+        vrf_obj.validated_save()
+    except (DjangoBaseDBError, ValidationError) as err:
+        # A route distinguisher is unique within a Namespace, so a network reporting one RD on two
+        # VRF names reaches here for the second of them.
+        if logger:
+            logger.error("Unable to create a VRF named %s with a route distinguisher of %s. Error: %s", name, rd, err)
+        return None
+    vrf_obj.tags.add(synced_tag_for(vrf_obj))
+    return vrf_obj
 
 
 @job_scoped_cache
