@@ -412,6 +412,46 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 logger.warning("Duplicate VRF discovered, %s", name)
         if self.scope.device_vrfs:
             self.load_vrf_device_assignments(detail_rows)
+        if self.scope.interface_vrfs:
+            self.load_interface_vrfs()
+
+    def load_interface_vrfs(self):
+        """Add the VRF each Interface is in as DiffSync InterfaceVrf models.
+
+        Read from IP Fabric's VRF interfaces table rather than from the managed addressing it
+        already reads, because an Interface can be in a VRF while carrying no address at all.
+
+        Only Interfaces this run loaded are covered, for the reason the Device assignments are: an
+        Interface the sync never saw would be reported as absent from Nautobot on every run.
+        """
+        rows = self.client.technology.routing.vrf_interfaces.all(columns=["sn", "hostname", "intName", "vrf"])
+        for row in rows:
+            device_name, interface_name, vrf_name = row.get("hostname"), row.get("intName"), row.get("vrf")
+            if not device_name or not interface_name or not vrf_name:
+                continue
+            if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
+                interface_name = canonical_interface_name(interface_name)
+            try:
+                self.get(self.interface, {"name": interface_name, "device_name": device_name})
+            except ObjectNotFound:
+                if self.job.debug:
+                    logger.debug(
+                        "Not syncing the VRF of %s:%s, as no such Interface was loaded",
+                        device_name,
+                        interface_name,
+                    )
+                continue
+            try:
+                self.add(
+                    self.interface_vrf(
+                        adapter=self,
+                        device_name=device_name,
+                        interface_name=interface_name,
+                        vrf_name=vrf_name,
+                    )
+                )
+            except ObjectAlreadyExists:
+                logger.warning("Duplicate Interface VRF discovered, %s:%s", device_name, interface_name)
 
     def load_vrf_device_assignments(self, detail_rows):
         """Add the Devices each VRF is configured on as DiffSync VrfDeviceAssignment models.

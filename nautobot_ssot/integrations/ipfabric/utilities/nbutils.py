@@ -1270,6 +1270,69 @@ def set_route_targets(  # pylint: disable=too-many-arguments
     vrf_obj.export_targets.set(resolved_exports)
 
 
+def set_interface_vrf(  # pylint: disable=too-many-arguments
+    device_name: str,
+    interface_name: str,
+    vrf_name: Optional[str],
+    tagged_only: bool,
+    logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
+) -> bool:
+    """Put an Interface in a VRF, or take it out of the one it is in.
+
+    Nautobot requires the VRF to be assigned to the Interface's Device before an Interface may
+    reference it, which is why this is written after the assignments rather than with the Interface.
+
+    Args:
+        device_name: Name of the Device the Interface belongs to.
+        interface_name: Name of the Interface.
+        vrf_name: Name of the VRF in the Global Namespace, or None to take the Interface out of one.
+        tagged_only: Mirrors the job option, so an Interface on a Device this run may not write to
+            is left alone.
+        logger: Logger to use for messaging.
+        pending: When given, the write is queued rather than saved.
+
+    Returns:
+        bool: Whether the Interface now holds what was asked for.
+    """
+    vrf_obj = None
+    if vrf_name is not None:
+        vrf_obj = (pending.find(VRF, vrf_name) if pending is not None else None) or get_vrf(vrf_name, logger=logger)
+        if vrf_obj is None:
+            if logger:
+                logger.error("Unable to find a VRF named %s to put %s:%s in", vrf_name, device_name, interface_name)
+            return False
+
+    device_obj = (pending.find(Device, device_name) if pending is not None else None) or get_syncable_device(
+        device_name, tagged_only=tagged_only
+    )
+    interface_obj = None
+    if pending is not None and device_obj is not None:
+        interface_obj = pending.find(Interface, (device_obj.pk, interface_name))
+    if interface_obj is None:
+        interface_obj = get_tagged_interface(device_name, interface_name, tagged_only=tagged_only, logger=logger)
+    if interface_obj is None:
+        return False
+
+    interface_obj.vrf = vrf_obj
+    if pending is not None:
+        # A queued Interface is inserted carrying the foreign key; one already written is updated
+        # after everything else is, since the VRF assignment it depends on may itself be queued.
+        if interface_obj._state.adding:  # pylint: disable=protected-access
+            return True
+        pending.defer_update(interface_obj, {"vrf": vrf_obj})
+        return True
+    try:
+        interface_obj.validated_save()
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error(
+                "Unable to put %s:%s in the VRF named %s. Error: %s", device_name, interface_name, vrf_name, err
+            )
+        return False
+    return True
+
+
 def get_vrf_device_assignment(vrf_name: str, device_name: str) -> Optional[VRFDeviceAssignment]:
     """Return the row assigning the named Global Namespace VRF to the named Device, if there is one."""
     return VRFDeviceAssignment.objects.filter(

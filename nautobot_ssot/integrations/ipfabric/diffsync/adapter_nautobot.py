@@ -422,6 +422,32 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     continue
                 location.add_child(vlan)
 
+    def load_interface_vrfs(self, filtered_devices):
+        """Add the VRF each Nautobot Interface is in as DiffSync InterfaceVrf models.
+
+        Only Interfaces that are in one are loaded, matching what IP Fabric's VRF interfaces table
+        reports, and only those whose VRF this run loaded.
+        """
+        interfaces = Interface.objects.filter(
+            device__in=filtered_devices,
+            vrf__isnull=False,
+            vrf__namespace=tonb_utils.get_global_namespace(),
+        ).values_list("device__name", "name", "vrf__name")
+        for device_name, interface_name, vrf_name in interfaces:
+            try:
+                self.get(self.vrf, vrf_name)
+            except ObjectNotFound:
+                # Its VRF was not loaded, so this run holds no opinion about the Interface either.
+                continue
+            self.add(
+                self.interface_vrf(
+                    adapter=self,
+                    device_name=device_name,
+                    interface_name=interface_name,
+                    vrf_name=vrf_name,
+                )
+            )
+
     def load_vrf_device_assignments(self, filtered_devices):
         """Add Nautobot's VRF to Device assignments as DiffSync models.
 
@@ -571,6 +597,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         # Loaded last, as it needs the Devices above and the VRFs loaded before them.
         if self.scope.device_vrfs:
             self.load_vrf_device_assignments(self.get_in_scope_devices(location_objects))
+        if self.scope.interface_vrfs:
+            self.load_interface_vrfs(self.get_in_scope_devices(location_objects))
 
         if self.placeholder_interfaces:
             self.job.logger.warning(

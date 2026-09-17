@@ -1253,6 +1253,76 @@ class VrfDeviceAssignment(DiffSyncExtras):
         return super().delete()
 
 
+class InterfaceVrf(DiffSyncExtras):
+    """The VRF an Interface belongs to.
+
+    A model of its own rather than an attribute of the Interface, because of when it can be
+    written rather than where it belongs: Nautobot refuses an Interface a VRF that is not assigned
+    to the Interface's Device, and those assignments cannot exist until every Device has been
+    written, which is after its Interfaces have been. Kept top level and last, it is written once
+    both are there.
+
+    Only Interfaces that are in a VRF carry one of these, on either side. An Interface IP Fabric
+    stops reporting a VRF for is therefore a delete, which takes the Interface out of the VRF
+    rather than removing anything; the Interface and the VRF both remain.
+    """
+
+    _modelname = "interface_vrf"
+    _identifiers = ("device_name", "interface_name")
+    _attributes = ("vrf_name",)
+
+    device_name: str
+    interface_name: str
+    vrf_name: str
+
+    @classmethod
+    @tonb_nbutils.deferred_change_logging()
+    def create(cls, adapter, ids, attrs):
+        """Put an Interface in a VRF in Nautobot."""
+        if not tonb_nbutils.set_interface_vrf(
+            device_name=ids["device_name"],
+            interface_name=ids["interface_name"],
+            vrf_name=attrs["vrf_name"],
+            tagged_only=adapter.sync_ipfabric_tagged_only,
+            logger=adapter.job.logger,
+            pending=adapter.pending,
+        ):
+            return None
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def update(self, attrs):
+        """Move an Interface from one VRF to another in Nautobot."""
+        if not tonb_nbutils.set_interface_vrf(
+            device_name=self.device_name,
+            interface_name=self.interface_name,
+            vrf_name=attrs["vrf_name"],
+            tagged_only=self.adapter.sync_ipfabric_tagged_only,
+            logger=self.adapter.job.logger,
+            pending=self.adapter.pending,
+        ):
+            return None
+        return super().update(attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def delete(self) -> Optional["DiffSyncModel"]:
+        """Take an Interface out of its VRF in Nautobot.
+
+        Nothing is deleted, so Safe Delete Mode does not apply: the Interface and the VRF both
+        remain, and what goes is the reference between them, which is an attribute of the Interface.
+        """
+        if not tonb_nbutils.set_interface_vrf(
+            device_name=self.device_name,
+            interface_name=self.interface_name,
+            vrf_name=None,
+            tagged_only=self.adapter.sync_ipfabric_tagged_only,
+            logger=self.adapter.job.logger,
+            pending=self.adapter.pending,
+        ):
+            return None
+        return super().delete()
+
+
 class Cable(DiffSyncExtras):
     """Cable model.
 

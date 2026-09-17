@@ -180,6 +180,16 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
         requires=("vrfs",),
     ),
     SyncableObject(
+        key="interface_vrfs",
+        label="Sync Interface VRFs",
+        description=(
+            "Put each Interface in the VRF IP Fabric reports for it. Needs the Device VRF "
+            "assignments, since Nautobot refuses an Interface a VRF its Device does not carry."
+        ),
+        default=False,
+        requires=("interfaces", "device_vrfs"),
+    ),
+    SyncableObject(
         key="cables",
         label="Sync Cables",
         description=(

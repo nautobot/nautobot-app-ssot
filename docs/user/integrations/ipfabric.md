@@ -50,6 +50,7 @@ There are several options available.
 - **Sync VRFs**: Create Nautobot VRFs in the Global Namespace from the routing instances IP Fabric reports. Disabled by default. See [VRFs and Route Targets](#vrfs-and-route-targets).
 - **Sync Route Targets**: Sync the Route Targets IP Fabric reports and record each synced VRF's import and export targets. Disabled by default; requires **Sync VRFs**.
 - **Sync Device VRFs**: Record which Devices carry each VRF. Disabled by default; requires **Sync VRFs**.
+- **Sync Interface VRFs**: Put each Interface in the VRF IP Fabric reports for it. Disabled by default; requires **Sync Interfaces** and **Sync Device VRFs**.
 - **Sync Cables**: Sync the device connections in IP Fabric's connectivity matrix to Nautobot Cables. Disabled by default; requires **Sync Interfaces**. See [Cables](#cables).
 - **Dry run**: This will only report the difference between the source and destination without synchronization.
 - **Site Filter**: Filter the data loaded into DiffSync by a top level location of a specified Site.
@@ -164,6 +165,17 @@ ends, so a Device that picks up one more VRF reports that assignment rather than
 | ------------------ | --------------------------------- | -------------------------- |
 | vrf                | VrfDeviceAssignment.vrf_name      | VRFDeviceAssignment.vrf    |
 | hostname           | VrfDeviceAssignment.device_name   | VRFDeviceAssignment.device |
+
+### IPFabric Interface VRF
+
+Read from IP Fabric's VRF interfaces table (`tables/vrf/interfaces`) rather than from the managed
+addressing the sync already reads, because an Interface can be in a VRF while carrying no address.
+
+| IP Fabric (Source) | DiffSync Model                 | Nautobot (Destination) |
+| ------------------ | ------------------------------ | ---------------------- |
+| hostname           | InterfaceVrf.device_name       | Interface.device       |
+| intName            | InterfaceVrf.interface_name    | Interface.name         |
+| vrf                | InterfaceVrf.vrf_name          | Interface.vrf          |
 
 ### IPFabric Cable
 
@@ -307,6 +319,20 @@ and Devices are narrowed by the filter on both sides at once.
 An assignment has neither a Status nor a Tag, so **Safe Delete Mode** has nothing to mark on one. A
 run with Safe Delete Mode on therefore leaves an assignment IP Fabric no longer reports in place, and
 reports it as a deletion it did not make; a run with Safe Delete Mode off removes it.
+
+### Which VRF an Interface is in
+
+**Sync Interface VRFs** puts each Interface in the VRF IP Fabric reports for it. It needs **Sync
+Device VRFs**, because Nautobot refuses an Interface a VRF that is not assigned to the Interface's
+Device, and that assignment is what **Sync Device VRFs** makes.
+
+That requirement is also why this is written last, after every Device, VRF and assignment. An
+Interface is created with its Device, which happens before any VRF exists, so the VRF it belongs to
+cannot be set at the same time.
+
+Only Interfaces that are in a VRF are tracked, on either side. An Interface IP Fabric stops
+reporting a VRF for is taken out of the one it is in; nothing is deleted, so **Safe Delete Mode**
+does not apply — the Interface and the VRF both remain, and what goes is the reference between them.
 
 ### What the sync will not do
 

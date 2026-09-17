@@ -8,7 +8,7 @@ from django.apps import apps as global_apps
 from django.contrib.contenttypes.models import ContentType
 from django.test import SimpleTestCase
 from nautobot.apps.testing import TestCase
-from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer
+from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import JobResult, Role, Status
 from nautobot.ipam.models import VRF, Namespace, RouteTarget, VRFDeviceAssignment, get_default_namespace
@@ -1105,3 +1105,249 @@ class IPFabricVrfDeviceAssignmentLoadTestCase(SimpleTestCase):
         )
         adapter.load_vrfs()
         self.assertEqual(adapter.get_all("vrf_device_assignment"), [])
+
+
+class InterfaceVrfTestCase(VrfTestCase):
+    """Putting Interfaces in the VRF IP Fabric reports for them."""
+
+    def setUp(self):
+        super().setUp()
+        site_type, _ = LocationType.objects.get_or_create(name="Site")
+        site_type.content_types.add(ContentType.objects.get_for_model(Device))
+        site = Location.objects.create(name="site1", location_type=site_type, status=self.active)
+        role = Role.objects.create(name="router")
+        role.content_types.add(ContentType.objects.get_for_model(Device))
+        manufacturer = Manufacturer.objects.create(name="vendor")
+        self.device = Device.objects.create(
+            name="rtr1",
+            status=self.active,
+            role=role,
+            location=site,
+            device_type=DeviceType.objects.create(model="model", manufacturer=manufacturer),
+        )
+        self.interface = Interface.objects.create(
+            device=self.device, name="Ethernet1", type="1000base-t", status=self.active
+        )
+        self.vrf = VRF.objects.create(name="BLUE", rd="65000:1", namespace=self.namespace, status=self.active)
+        self.other_vrf = VRF.objects.create(name="RED", rd="65000:2", namespace=self.namespace, status=self.active)
+        self.adapter = nautobot_adapter()
+
+    def assign_vrf_to_device(self, vrf=None):
+        """Carry out what Sync Device VRFs does, which Nautobot requires before an Interface may."""
+        VRFDeviceAssignment.objects.create(vrf=vrf or self.vrf, device=self.device)
+
+    def create(self, vrf_name="BLUE", interface_name="Ethernet1"):
+        """Put an Interface in a VRF through the DiffSync model, as a sync would."""
+        return self.adapter.interface_vrf.create(
+            self.adapter,
+            {"device_name": "rtr1", "interface_name": interface_name},
+            {"vrf_name": vrf_name},
+        )
+
+    def loaded_model(self):
+        """Return the DiffSync model for the Interface VRF Nautobot holds."""
+        self.adapter.load_vrfs()
+        self.adapter.load_interface_vrfs(Device.objects.all())
+        return self.adapter.get("interface_vrf", "rtr1__Ethernet1")
+
+    def test_interface_vrfs_are_written_after_the_device_assignments(self):
+        """Nautobot refuses an Interface a VRF its Device does not carry."""
+        top_level = DiffSyncModelAdapters.top_level
+        self.assertLess(top_level.index("vrf_device_assignment"), top_level.index("interface_vrf"))
+
+    def test_create_puts_the_interface_in_the_vrf(self):
+        self.assign_vrf_to_device()
+        self.create()
+        self.interface.refresh_from_db()
+        self.assertEqual(self.interface.vrf, self.vrf)
+
+    def test_create_is_refused_when_the_device_does_not_carry_the_vrf(self):
+        """Without the assignment Nautobot rejects it, which is reported rather than raised."""
+        self.assertIsNone(self.create())
+        self.interface.refresh_from_db()
+        self.assertIsNone(self.interface.vrf)
+        self.adapter.job.logger.error.assert_called()
+
+    def test_create_reports_a_vrf_that_is_not_there(self):
+        self.assertIsNone(self.create(vrf_name="ABSENT"))
+        self.adapter.job.logger.error.assert_called()
+
+    def test_create_reports_an_interface_that_is_not_there(self):
+        self.assign_vrf_to_device()
+        self.assertIsNone(self.create(interface_name="Ethernet99"))
+
+    def test_update_moves_the_interface_to_another_vrf(self):
+        self.assign_vrf_to_device()
+        self.assign_vrf_to_device(self.other_vrf)
+        self.create()
+
+        self.loaded_model().update({"vrf_name": "RED"})
+
+        self.interface.refresh_from_db()
+        self.assertEqual(self.interface.vrf, self.other_vrf)
+
+    def test_delete_takes_the_interface_out_of_its_vrf(self):
+        self.assign_vrf_to_device()
+        self.create()
+
+        self.loaded_model().delete()
+
+        self.interface.refresh_from_db()
+        self.assertIsNone(self.interface.vrf)
+        self.assertTrue(VRF.objects.filter(name="BLUE").exists())
+        self.assertTrue(Interface.objects.filter(pk=self.interface.pk).exists())
+
+    def test_only_interfaces_in_a_vrf_are_loaded(self):
+        self.assign_vrf_to_device()
+        self.create()
+        Interface.objects.create(device=self.device, name="Ethernet2", type="1000base-t", status=self.active)
+
+        self.adapter.load_vrfs()
+        self.adapter.load_interface_vrfs(Device.objects.all())
+
+        self.assertEqual(
+            [each.get_unique_id() for each in self.adapter.get_all("interface_vrf")],
+            ["rtr1__Ethernet1"],
+        )
+
+    def test_an_interface_whose_vrf_was_not_loaded_is_not_loaded(self):
+        self.assign_vrf_to_device()
+        self.create()
+        self.adapter.load_interface_vrfs(Device.objects.all())
+        self.assertEqual(self.adapter.get_all("interface_vrf"), [])
+
+    def test_only_in_scope_devices_are_loaded(self):
+        self.assign_vrf_to_device()
+        self.create()
+        self.adapter.load_vrfs()
+        self.adapter.load_interface_vrfs(Device.objects.none())
+        self.assertEqual(self.adapter.get_all("interface_vrf"), [])
+
+    def test_both_adapters_describe_an_interface_vrf_the_same_way(self):
+        """A run that reported it differently on each side would rewrite it forever."""
+        self.assign_vrf_to_device()
+        self.create()
+        self.adapter.load_vrfs()
+        self.adapter.load_interface_vrfs(Device.objects.all())
+
+        client = mock.MagicMock()
+        client.technology.routing.vrf_detail.all.return_value = []
+        client.technology.mpls.l3vpn_vrf_targets.all.return_value = []
+        client.technology.routing.vrf_interfaces.all.return_value = [
+            {"sn": "a", "hostname": "rtr1", "intName": "Ethernet1", "vrf": "BLUE"}
+        ]
+        source = ipfabric_adapter(client=client)
+        source.add(
+            source.interface(
+                name="Ethernet1",
+                device_name="rtr1",
+                description="",
+                enabled=True,
+                mac_address="00:00:00:00:00:01",
+                mtu=1500,
+                type="1000base-t",
+                mgmt_only=False,
+                ip_address=None,
+                subnet_mask=None,
+                ip_is_primary=False,
+                status="Active",
+            )
+        )
+        source.load_interface_vrfs()
+
+        self.assertEqual(
+            {each.get_unique_id(): each.vrf_name for each in self.adapter.get_all("interface_vrf")},
+            {each.get_unique_id(): each.vrf_name for each in source.get_all("interface_vrf")},
+        )
+
+    def test_a_queued_vrf_is_found_in_bulk_mode(self):
+        """In bulk mode the VRF and its Device assignment may both be queued rather than written."""
+        adapter = nautobot_adapter(bulk_write_mode=True)
+        adapter.vrf.create(adapter, {"name": "GREEN"}, vrf_attrs(rd="65000:7"))
+        adapter.vrf_device_assignment.create(adapter, {"vrf_name": "GREEN", "device_name": "rtr1"}, {})
+        adapter.interface_vrf.create(
+            adapter, {"device_name": "rtr1", "interface_name": "Ethernet1"}, {"vrf_name": "GREEN"}
+        )
+
+        adapter.flush_pending_writes()
+
+        self.interface.refresh_from_db()
+        self.assertEqual(self.interface.vrf, VRF.objects.get(name="GREEN"))
+
+
+class IPFabricInterfaceVrfLoadTestCase(SimpleTestCase):
+    """Reading the VRF each Interface is in from IP Fabric's VRF interfaces table."""
+
+    def build_adapter(self, rows, interfaces, scope=None):
+        """Return an IP Fabric adapter holding the named Interfaces and serving the given rows."""
+        client = mock.MagicMock()
+        client.technology.routing.vrf_detail.all.return_value = []
+        client.technology.mpls.l3vpn_vrf_targets.all.return_value = []
+        client.technology.routing.vrf_interfaces.all.return_value = rows
+        adapter = ipfabric_adapter(client=client, scope=scope if scope is not None else full_scope())
+        for device_name, interface_name in interfaces:
+            adapter.add(
+                adapter.interface(
+                    name=interface_name,
+                    device_name=device_name,
+                    description="",
+                    enabled=True,
+                    mac_address="00:00:00:00:00:01",
+                    mtu=1500,
+                    type="1000base-t",
+                    mgmt_only=False,
+                    ip_address=None,
+                    subnet_mask=None,
+                    ip_is_primary=False,
+                    status="Active",
+                )
+            )
+        return adapter
+
+    @staticmethod
+    def row(vrf="BLUE", hostname="rtr1", int_name="Ethernet1"):
+        """Return a row of IP Fabric's VRF interfaces table."""
+        return {"sn": "a", "hostname": hostname, "intName": int_name, "vrf": vrf}
+
+    def test_each_interface_the_table_names_is_loaded(self):
+        adapter = self.build_adapter(
+            [self.row(), self.row(vrf="RED", int_name="Ethernet2")],
+            [("rtr1", "Ethernet1"), ("rtr1", "Ethernet2")],
+        )
+        adapter.load_interface_vrfs()
+        self.assertEqual(
+            {each.get_unique_id(): each.vrf_name for each in adapter.get_all("interface_vrf")},
+            {"rtr1__Ethernet1": "BLUE", "rtr1__Ethernet2": "RED"},
+        )
+
+    def test_an_interface_the_run_did_not_load_is_skipped(self):
+        """An Interface in a VRF that this run never saw would be reported absent on every run."""
+        adapter = self.build_adapter([self.row(int_name="Ethernet9")], [("rtr1", "Ethernet1")])
+        adapter.load_interface_vrfs()
+        self.assertEqual(adapter.get_all("interface_vrf"), [])
+
+    def test_a_row_naming_no_vrf_is_skipped(self):
+        adapter = self.build_adapter([self.row(vrf=None)], [("rtr1", "Ethernet1")])
+        adapter.load_interface_vrfs()
+        self.assertEqual(adapter.get_all("interface_vrf"), [])
+
+    @mock.patch(
+        "nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True
+    )
+    def test_the_interface_name_is_canonicalised_to_match_the_loaded_interface(self):
+        """The Interfaces were loaded under canonical names, so these have to be matched the same way."""
+        adapter = self.build_adapter([self.row(int_name="Eth1")], [("rtr1", "Ethernet1")])
+        adapter.load_interface_vrfs()
+        self.assertEqual(
+            [each.get_unique_id() for each in adapter.get_all("interface_vrf")],
+            ["rtr1__Ethernet1"],
+        )
+
+    def test_interface_vrfs_out_of_scope_are_not_read(self):
+        adapter = self.build_adapter([self.row()], [("rtr1", "Ethernet1")], scope=full_scope(interface_vrfs=False))
+        adapter.client.inventory.sites.all.return_value = []
+        adapter.client.devices.by_site = {}
+        with mock.patch.object(IPFabricDiffSync, "load_data", return_value=({}, {}, {})):
+            adapter.load()
+        self.assertEqual(adapter.get_all("interface_vrf"), [])
+        adapter.client.technology.routing.vrf_interfaces.all.assert_not_called()
