@@ -10,6 +10,20 @@ This document describes all new features and changes in the release. The format 
 <!-- towncrier release notes start -->
 
 
+## [v3.12.6 (2026-09-17)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.12.6)
+
+### Fixed
+
+- [#1332](https://github.com/nautobot/nautobot-app-ssot/issues/1332) - Fixed Arista CloudVision SSoT failing to load on Python 3.12 when `setuptools` is not installed.
+- [#1367](https://github.com/nautobot/nautobot-app-ssot/issues/1367) - Fixed `enable_global_search: False` leaving the `Sync` model included in Nautobot global search; both `Sync` and `SyncLogEntry` are now excluded, as they were before 3.10.0.
+- [#1367](https://github.com/nautobot/nautobot-app-ssot/issues/1367) - Fixed the SSoT `searchable_models` entries using mixed-case model names, which prevented model-scoped global search requests such as `?obj_type=sync` from matching.
+- [#1379](https://github.com/nautobot/nautobot-app-ssot/issues/1379) - Fixed the SSoT Sync Details button on the JobResult detail view loading the entire `Sync` row, including the `diff` JSON, which can be hundreds of megabytes and overflowed the MySQL sort buffer (`Out of sort memory`) so the page failed to load. The button now fetches only the `Sync` primary key, in one query instead of two.
+
+### Housekeeping
+
+- [#1332](https://github.com/nautobot/nautobot-app-ssot/issues/1332) - Fixed failing Device42 unit test caused by a dependence on Interface ordering.
+- Rebaked from the cookie `nautobot-app-v2.7.3`.
+
 ## [v3.12.5 (2026-06-17)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v3.12.5)
 
 ### Added
