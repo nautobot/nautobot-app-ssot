@@ -990,13 +990,21 @@ def resolve_ip(address: str, status_obj: Status, logger: Optional[logging.Logger
     Asked before anything is built, rather than after. Nautobot 3.2 reports a duplicate from
     `clean()`, so building first cannot tell an address that needs a Prefix from one that already
     exists.
+
+    Both candidates are keyed on the same host, so they are read in one query and chosen between in
+    Python. Asked as two, the pair runs in full for every address of a first import, where both miss.
     """
-    existing = IPAddress.objects.filter(address=address).first()
-    if existing is not None:
-        return existing
-    existing = IPAddress.objects.filter(host=address.split("/")[0], parent__namespace=get_global_namespace()).first()
-    if existing is not None:
-        return existing
+    host = address.split("/")[0]
+    candidates = list(IPAddress.objects.filter(host=host).select_related("parent"))
+    # An exact match on the mask as well, which is what `filter(address=...)` is shorthand for. Taken
+    # ahead of the Namespace match, and from any Namespace, as the original pair of lookups did.
+    for existing in candidates:
+        if existing.mask_length == mask_length_of(address):
+            return existing
+    namespace = get_global_namespace()
+    for existing in candidates:
+        if existing.parent.namespace_id == namespace.pk:
+            return existing
     return resolve_new_ip(address, status_obj, logger=logger)
 
 

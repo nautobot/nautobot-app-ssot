@@ -50,6 +50,8 @@ WRITE_TO_INTERFACE = write_to("dcim_interface")
 WRITE_TO_IP_ADDRESS = write_to("ipam_ipaddress")
 # `dcim_cable` alone: the boundary keeps this off `dcim_cabletermination`, which a Cable also writes.
 WRITE_TO_CABLE = write_to("dcim_cable")
+# Reads rather than writes, for counting how many times a lookup goes to the address table.
+READ_FROM_IP_ADDRESS = re.compile(r'\bFROM\s+[`"]?ipam_ipaddress[`"]?(\s|$)', re.IGNORECASE)
 
 
 class _CostTestCase(TestCase):
@@ -613,3 +615,35 @@ class CableWriteCostTestCase(_CostTestCase):
         mock_save.assert_not_called()
         cable.refresh_from_db()
         self.assertEqual(cable.cf["last_synced_from_sor"], datetime.date.today().isoformat())
+
+
+class AddressLookupCostTestCase(_CostTestCase):
+    """Count how many times resolving one address reads the address table."""
+
+    def setUp(self):
+        super().setUp()
+        self.prefix, _ = Prefix.objects.get_or_create(
+            prefix="10.80.0.0/24", namespace=get_default_namespace(), status=self.active_status
+        )
+        self.address = IPAddress.objects.create(address="10.80.0.5/24", status=self.active_status, parent=self.prefix)
+
+    def address_reads(self, operation):
+        """Return how many of `operation`'s queries read the address table."""
+        with CaptureQueriesContext(connection) as queries:
+            operation()
+        return len([query for query in queries.captured_queries if READ_FROM_IP_ADDRESS.search(query["sql"])])
+
+    def test_an_address_nautobot_does_not_hold_is_looked_for_once(self):
+        """The case a first import is made of: both candidates miss, for every address in the estate."""
+        with unittest.mock.patch.object(nbutils, "resolve_new_ip", return_value=None) as mock_new:
+            reads = self.address_reads(lambda: nbutils.resolve_ip("10.80.9.9/24", self.active_status))
+
+        mock_new.assert_called_once()
+        self.assertEqual(reads, 1, f"Expected one read of the address table, got {reads}")
+
+    def test_an_address_held_under_another_mask_is_found_in_one_read(self):
+        """Both candidates are keyed on the same host, so one read answers for both."""
+        reads = self.address_reads(lambda: nbutils.resolve_ip("10.80.0.5/25", self.active_status))
+
+        self.assertEqual(reads, 1, f"Expected one read of the address table, got {reads}")
+        self.assertEqual(nbutils.resolve_ip("10.80.0.5/25", self.active_status), self.address)

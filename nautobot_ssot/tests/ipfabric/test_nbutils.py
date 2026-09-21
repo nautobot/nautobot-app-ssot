@@ -16,7 +16,7 @@ from nautobot.dcim.models.devices import Device
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import CustomField, Role, Tag
 from nautobot.extras.models.statuses import Status
-from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
+from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, get_default_namespace
 
 from nautobot_ssot.integrations.ipfabric.bulk_writes import PendingWrites
 from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
@@ -47,6 +47,7 @@ from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
     deferred_change_logging,
     get_tagged_interface,
     queue_ip,
+    resolve_ip,
     tag_object,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
@@ -1494,6 +1495,39 @@ class TestNautobotUtils(TestCase):
 
         self.assertIsNotNone(created, "The creating call read the matching call's cached None.")
         self.assertEqual(created.name, "Cache-Split-Status")
+
+
+class TestResolveIp(TestCase):
+    """Which of the addresses sharing a host `resolve_ip` picks, now that it reads them together."""
+
+    def setUp(self):
+        populate_status_choices()
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
+        self.active = Status.objects.get(name="Active")
+        self.global_namespace = get_default_namespace()
+        self.other_namespace = Namespace.objects.create(name="resolve-other")
+        self.global_address = self._address("10.90.0.0/24", "10.90.0.5/24", self.global_namespace)
+        self.other_address = self._address("10.90.0.0/25", "10.90.0.5/25", self.other_namespace)
+
+    def _address(self, prefix, address, namespace):
+        parent, _ = Prefix.objects.get_or_create(prefix=prefix, namespace=namespace, status=self.active)
+        return IPAddress.objects.create(address=address, status=self.active, parent=parent)
+
+    def test_an_exact_match_on_the_mask_wins_wherever_it_is_held(self):
+        """The mask is matched first, and from any Namespace, as the two lookups it replaces did."""
+        self.assertEqual(resolve_ip("10.90.0.5/25", self.active), self.other_address)
+
+    def test_the_global_namespace_answers_when_no_mask_matches(self):
+        """Nautobot makes an address unique within its parent Prefix, so the Namespace is what collides."""
+        self.assertEqual(resolve_ip("10.90.0.5/26", self.active), self.global_address)
+
+    def test_an_address_held_nowhere_is_built(self):
+        """A host Nautobot has never seen falls through to a new, unsaved address."""
+        resolved = resolve_ip("10.90.0.9/24", self.active)
+
+        self.assertFalse(resolved.present_in_database)
+        self.assertEqual(str(resolved.host), "10.90.0.9")
 
 
 class TestDeferredChangeLogging(TestCase):
