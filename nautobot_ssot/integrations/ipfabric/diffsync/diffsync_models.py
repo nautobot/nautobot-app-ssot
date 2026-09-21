@@ -964,14 +964,10 @@ class Vlan(DiffSyncExtras):
         location = None
         if adapter.pending is not None:
             location = adapter.pending.find(NautobotLocation, location_name)
-        try:
-            location = location or NautobotLocation.objects.get(name=ids["location"])
-        except NautobotLocation.MultipleObjectsReturned:
-            adapter.job.logger.error(
-                f"Multiple Locations returned with the name {location_name}, "
-                f"unable to create a VLAN named {vlan_name} and VLAN ID {vlan_id}"
-            )
-        except NautobotLocation.DoesNotExist:
+        # Cached for the run, since every VLAN at a site asks the same question. The lookup reports
+        # an ambiguous or missing Location itself, leaving only the consequence to say here.
+        location = location or tonb_nbutils.get_location_object(location_name, logger=adapter.job.logger)
+        if location is None:
             adapter.job.logger.error(
                 f"Unable to retrieve a Location with the name {location_name}, "
                 f"unable to create a VLAN named {vlan_name} and VLAN ID {vlan_id}"
@@ -1018,15 +1014,8 @@ class Vlan(DiffSyncExtras):
     @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update VLAN object in Nautobot."""
-        try:
-            location_obj = NautobotLocation.objects.get(name=self.location)
-        except NautobotLocation.MultipleObjectsReturned:
-            self.adapter.job.logger.error(
-                f"Multiple Locations found with the name {self.location}, unable to "
-                f"Retrieve the VLAN named {self.name} to perform updates"
-            )
-            return None
-        except NautobotLocation.DoesNotExist:
+        location_obj = tonb_nbutils.get_location_object(self.location, logger=self.adapter.job.logger)
+        if location_obj is None:
             self.adapter.job.logger.error(
                 f"Could not find a Location with the name {self.location}, unable to "
                 f"Retrieve the VLAN named {self.name} to perform updates"

@@ -20,7 +20,7 @@ from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Cable, Device, DeviceType, Interface, Location, LocationType, Manufacturer
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import ObjectChange, Role, Status, Tag
-from nautobot.ipam.models import IPAddress, Prefix, get_default_namespace
+from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import (
     NautobotDiffSync,
@@ -647,3 +647,46 @@ class AddressLookupCostTestCase(_CostTestCase):
 
         self.assertEqual(reads, 1, f"Expected one read of the address table, got {reads}")
         self.assertEqual(nbutils.resolve_ip("10.80.0.5/25", self.active_status), self.address)
+
+
+class VlanLookupCostTestCase(_CostTestCase):
+    """Count the lookups every VLAN at one Location repeats."""
+
+    def create_vlans(self, count):
+        """Create `count` VLANs at this test's Location."""
+        for index in range(count):
+            nbutils.create_vlan(f"vlan{index}", 100 + index, "Active", self.location, "")
+
+    def assert_asked_once(self, lookup, vlan_count):
+        """Assert the lookup went to the database once and answered the remaining VLANs from memory.
+
+        Counted through the cache rather than by matching SQL, because Nautobot's own validation
+        reads both of these tables per VLAN as well, and that is not what this integration controls.
+        """
+        self.create_vlans(vlan_count)
+        info = lookup.cache_info()
+        self.assertEqual(
+            (info.misses, info.hits),
+            (1, vlan_count - 1),
+            f"Expected {vlan_count} VLANs to resolve {lookup.__name__} once and reuse it, got {info}",
+        )
+
+    def test_the_status_is_resolved_once_for_every_vlan(self):
+        """A site can carry hundreds of VLANs, and the Status is the same answer for all of them."""
+        self.assert_asked_once(nbutils.get_status_by_name, 3)
+
+    def test_the_location_type_is_checked_once_for_every_vlan(self):
+        """Whether the LocationType permits VLANs does not change between one VLAN and the next."""
+        self.assert_asked_once(nbutils.allow_vlans_at_location_type, 3)
+
+    def test_the_location_type_is_still_granted_vlans_when_it_has_none(self):
+        """Caching the check must not skip the grant a site that has never held a VLAN needs."""
+        location_type = LocationType.objects.create(name="vlan-less")
+        location = Location.objects.create(
+            name="vlan-less-site", location_type=location_type, status=self.active_status
+        )
+
+        nbutils.create_vlan("granted", 200, "Active", location, "")
+
+        self.assertTrue(location_type.content_types.filter(app_label="ipam", model="vlan").exists())
+        self.assertEqual(VLAN.objects.get(vid=200).locations.get(), location)

@@ -1084,16 +1084,16 @@ class TestVlanModel(_ModelTestBase):
         self.assertEqual(nb_vlan.description, "new")
         self.assertEqual(result, "ok")
 
-    def _assert_vlan_update_returns_none(self, *, location_side_effect=None, vlan_side_effect=None):
+    _RESOLVED = object()
+
+    def _assert_vlan_update_returns_none(self, *, location=_RESOLVED, vlan_side_effect=None):
         """Shared assertion: VLAN.update bails out (returns None, super() not invoked)."""
         diff_model = self._make_vlan_diff()
-        location_kw = (
-            {"side_effect": location_side_effect} if location_side_effect else {"return_value": mock.MagicMock()}
-        )
         vlan_kw = {"side_effect": vlan_side_effect} if vlan_side_effect else {"return_value": mock.MagicMock()}
+        resolved = mock.MagicMock() if location is self._RESOLVED else location
 
         with (
-            mock.patch.object(diffsync_models.NautobotLocation.objects, "get", **location_kw),
+            _nb_patch("get_location_object", return_value=resolved),
             mock.patch.object(diffsync_models.VLAN.objects, "get", **vlan_kw) as mock_vlan_get,
             mock.patch.object(diffsync_models.DiffSyncModel, "update") as mock_super,
         ):
@@ -1104,18 +1104,13 @@ class TestVlanModel(_ModelTestBase):
         self.adapter.job.logger.error.assert_called_once()
         return mock_vlan_get
 
-    def test_update_returns_none_when_location_missing(self):
-        """`Location.DoesNotExist` -> error log, no VLAN lookup attempted, no super().update()."""
-        mock_vlan_get = self._assert_vlan_update_returns_none(
-            location_side_effect=diffsync_models.NautobotLocation.DoesNotExist
-        )
-        mock_vlan_get.assert_not_called()
+    def test_update_returns_none_when_location_unresolved(self):
+        """No Location under that name -> error log, no VLAN lookup attempted, no super().update().
 
-    def test_update_returns_none_when_location_multiple_objects(self):
-        """`Location.MultipleObjectsReturned` -> error log + return None."""
-        mock_vlan_get = self._assert_vlan_update_returns_none(
-            location_side_effect=diffsync_models.NautobotLocation.MultipleObjectsReturned
-        )
+        Whether the name is absent or ambiguous is `get_location_object`'s distinction to make and to
+        report; either way it answers with None, which is all this caller acts on.
+        """
+        mock_vlan_get = self._assert_vlan_update_returns_none(location=None)
         mock_vlan_get.assert_not_called()
 
     def test_update_returns_none_when_vlan_multiple_objects(self):

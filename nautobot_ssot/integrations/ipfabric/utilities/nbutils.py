@@ -111,8 +111,7 @@ def get_or_create_location_object(
 
     try:
         location_type = LocationType.objects.get(name="Site")
-        if not location_type.content_types.filter(app_label="ipam", model="vlan").exists():
-            location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
+        allow_vlans_at_location_type(location_type.pk)
         try:
             location_obj = Location.objects.get(name=location_name, location_type=location_type)
             is_new = False
@@ -120,7 +119,7 @@ def get_or_create_location_object(
             location_obj = Location(
                 name=location_name,
                 location_type=location_type,
-                status=Status.objects.get(name="Active"),
+                status=get_status_by_name("Active"),
             )
             is_new = True
     except Location.MultipleObjectsReturned:
@@ -686,6 +685,34 @@ def get_status_for_model(model: Any, status_name: str) -> Status:
 
 
 @job_scoped_cache
+def get_status_by_name(status_name: str) -> Status:
+    """Return the Status of the given name, wherever it is enabled.
+
+    Cached because a sync resolves the same handful of Status names for every object it writes.
+    Raises as the bare lookup does, so a caller can tell a missing Status from an ambiguous one.
+
+    Distinct from `get_status_for_model`, which restricts to the Statuses enabled for one model and
+    so refuses a Status that exists but has not been enabled there.
+    """
+    return Status.objects.get(name=status_name)
+
+
+@job_scoped_cache
+def allow_vlans_at_location_type(location_type_id: Any) -> None:
+    """Ensure a LocationType permits VLANs, asked once per LocationType rather than once per VLAN.
+
+    A Location cannot hold a VLAN unless its LocationType lists the content type, and a sync
+    creating VLANs at a site Nautobot has never held one at has to add it. The answer is the same
+    for every VLAN at every Location of that type, so it is worth asking once.
+    """
+    permitted = LocationType.objects.filter(
+        pk=location_type_id, content_types__app_label="ipam", content_types__model="vlan"
+    ).exists()
+    if not permitted:
+        LocationType.objects.get(pk=location_type_id).content_types.add(ContentType.objects.get_for_model(VLAN))
+
+
+@job_scoped_cache
 def get_global_namespace() -> Namespace:
     """Return the Global Namespace, which every Prefix this integration creates belongs to.
 
@@ -1156,9 +1183,10 @@ def create_vlan(  # pylint: disable=too-many-arguments
         VLAN: When a VLAN Object is retrieved or created.
         None: When there is a failure in getting or creating a VLAN.
     """
-    # Ensure LocationType allows VLANs
-    if location_obj and not location_obj.location_type.content_types.filter(app_label="ipam", model="vlan").exists():
-        location_obj.location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
+    if location_obj:
+        # Taken from the Location's own column rather than through the relation, which would fetch
+        # the LocationType only to read its primary key back.
+        allow_vlans_at_location_type(location_obj.location_type_id)
 
     try:
         try:
@@ -1170,7 +1198,7 @@ def create_vlan(  # pylint: disable=too-many-arguments
             vlan_obj = VLAN(
                 vid=vlan_id,
                 name=vlan_name,
-                status=Status.objects.get(name=vlan_status),
+                status=get_status_by_name(vlan_status),
                 description=description,
                 location=location_obj,
             )
