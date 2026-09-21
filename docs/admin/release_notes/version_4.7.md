@@ -4,10 +4,21 @@ This document describes all new features and changes in the release. The format 
 
 ## Release Overview
 
-- Major features or milestones
-- Changes to compatibility with Nautobot and/or other apps, libraries etc.
-
-<!-- towncrier release notes start -->
+- The IP Fabric integration gains VRF support — VRFs, Route Targets, and their Device and
+  Interface assignments — along with Cables from the connectivity matrix, every IP Address on
+  an Interface rather than one, and a `Strict Objects` mode that checks what IP Fabric reported
+  instead of trusting it. All of it is opt-in per object type on the Job form, so no existing
+  sync changes on upgrade.
+- IP Fabric syncs are substantially faster on large estates: Devices and VLANs are read in one
+  query rather than one per Location, deletions are batched, and an opt-in Bulk Write Mode
+  writes objects in batches. Twelve correctness defects found during that work are also fixed,
+  several of which previously ended a job outright.
+- The LibreNMS integration no longer writes Ansible FQCNs into `Platform.network_driver` or
+  creates Manufacturers named after the device OS, and gains a Platform Consolidation job to
+  repair estates affected by both.
+- **Nautobot 3.1.0 is now the minimum supported version**, raised from 3.0.0.
+- On Python 3.11+ the optional `meraki` dependency moves to `>=3.0.2,<4`; Python 3.10 installs
+  stay on `meraki` 1.x, which is the last line supporting it.
 
 ## [v4.7.0 (09-21-2026)](https://github.com/nautobot/nautobot-app-ssot/releases/tag/v4.7.0)
 
