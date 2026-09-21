@@ -6,6 +6,7 @@ count the writes each object costs rather than the total queries, since the tota
 Nautobot's own validation while the repeated writes are what this integration controls.
 """
 
+import datetime
 import re
 import unittest.mock
 
@@ -393,6 +394,29 @@ class ChangeLogCostTestCase(_CostTestCase):
             # The single entry must describe the Interface as it ended up, not as first inserted.
             self.assertEqual(changes.get().object_data["custom_fields"]["system_of_record"], "IPFabric")
 
+    def test_an_unchanged_interface_records_no_change(self):
+        """The nightly run on a settled estate must not fill the change log with the stamp alone.
+
+        An object IP Fabric reports exactly as Nautobot holds it has nothing to record but the date,
+        and an entry saying only that the date moved buries the runs that changed something.
+        """
+        interface = self.interfaces(1, "quiet")[0]
+        # The run that first tags and stamps it does change it, and is recorded. The one after is
+        # the one under test.
+        nbutils.create_interface(self.device, {"name": interface.name, "type": "1000base-t"})
+        job_scoped_cache.clear_all()
+
+        with change_logging(JobChangeContext(user=self.user)):
+            nbutils.create_interface(self.device, {"name": interface.name, "type": "1000base-t"})
+
+        changes = ObjectChange.objects.filter(
+            changed_object_type=ContentType.objects.get_for_model(Interface),
+            changed_object_id=interface.pk,
+        )
+        self.assertEqual(changes.count(), 0, "Expected no change log entry for an unchanged Interface.")
+        interface.refresh_from_db()
+        self.assertEqual(interface.cf["last_synced_from_sor"], datetime.date.today().isoformat())
+
     def test_safe_deleting_an_interface_records_one_change(self):
         """Marking an object tags it and saves it, which must still read as a single change."""
         interface = self.interfaces(1, "marked")[0]
@@ -483,3 +507,68 @@ class SafeDeleteCostTestCase(_CostTestCase):
 
         interface.refresh_from_db()
         self.assertEqual(interface.last_updated, before, "An already marked Interface was written again.")
+
+
+class ResyncCostTestCase(_CostTestCase):
+    """Count what an object costs on a run that finds it exactly as IP Fabric last reported it.
+
+    This is the run an estate makes every night, and the one almost all of the work goes into: on an
+    estate of a hundred thousand addresses, nothing has changed and the only thing left to write is
+    the stamp recording that the sync saw each one.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.interface = self.interfaces(1, "eth")[0]
+        self.prefix, _ = Prefix.objects.get_or_create(
+            prefix="10.70.0.0/24", namespace=get_default_namespace(), status=self.active_status
+        )
+        self.address = IPAddress.objects.create(address="10.70.0.5/24", status=self.active_status, parent=self.prefix)
+
+    def test_an_unchanged_address_is_stamped_without_being_revalidated(self):
+        """`validated_save()` costs about eleven queries, since `IPAddress.save()` calls `clean()`.
+
+        Nothing about the address changed, so there is nothing to validate and nothing to write but
+        the custom field data.
+        """
+        with unittest.mock.patch.object(IPAddress, "validated_save", autospec=True) as mock_save:
+            nbutils.create_ip("10.70.0.5", 24)
+
+        mock_save.assert_not_called()
+        self.address.refresh_from_db()
+        self.assertEqual(self.address.cf["system_of_record"], "IPFabric")
+        self.assertEqual(self.address.cf["last_synced_from_sor"], datetime.date.today().isoformat())
+        self.assertTrue(self.address.tags.filter(name="SSoT Synced from IPFabric").exists())
+
+    def test_a_changed_mask_is_still_written_through_validation(self):
+        """Validation is what settles which Prefix an address hangs under, so a change still needs it."""
+        with unittest.mock.patch.object(IPAddress, "validated_save", autospec=True) as mock_save:
+            nbutils.create_ip("10.70.0.5", 25)
+
+        mock_save.assert_called_once()
+
+    def test_an_unchanged_interface_is_stamped_without_being_revalidated(self):
+        """An Interface Nautobot already holds has no field set on it, so the stamp is the whole write."""
+        with unittest.mock.patch.object(Interface, "validated_save", autospec=True) as mock_save:
+            nbutils.create_interface(self.device, {"name": self.interface.name, "type": "1000base-t"})
+
+        mock_save.assert_not_called()
+        self.interface.refresh_from_db()
+        self.assertEqual(self.interface.cf["last_synced_from_sor"], datetime.date.today().isoformat())
+        self.assertTrue(self.interface.tags.filter(name="SSoT Synced from IPFabric").exists())
+
+    def test_an_object_already_tagged_is_not_tagged_again(self):
+        """The Tag is two statements of its own, so it is asked for only where it is missing."""
+        nbutils.create_interface(self.device, {"name": self.interface.name, "type": "1000base-t"})
+        job_scoped_cache.clear_all()
+
+        with CaptureQueriesContext(connection) as queries:
+            nbutils.create_interface(self.device, {"name": self.interface.name, "type": "1000base-t"})
+
+        tag_writes = [
+            query["sql"]
+            for query in queries.captured_queries
+            if write_to("extras_taggeditem").match(query["sql"].strip())
+        ]
+        self.assertEqual(tag_writes, [], f"Expected no second tagging of the Interface, got {tag_writes}")
+        self.assertEqual(self.interface.tags.count(), 1)

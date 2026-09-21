@@ -126,11 +126,13 @@ class TestNautobotUtils(TestCase):
         self.assertEqual(test_location.id, self.location.id)
 
     def test_create_location_existing_location_with_location_id(self):
-        """Test `create_location` Utility."""
+        """The site id reaches the database, not just the instance handed back."""
         self.assertFalse(self.location.cf.get("ipfabric_site_id"))
         test_location = get_or_create_location_object(location_name="Test-Location", location_id="Test-Location")
         self.assertEqual(test_location.id, self.location.id)
         self.assertEqual(test_location.cf["ipfabric_site_id"], "Test-Location")
+        self.location.refresh_from_db()
+        self.assertEqual(self.location.cf["ipfabric_site_id"], "Test-Location")
 
     def test_create_location_no_location_id(self):
         """Test `create_location` Utility."""
@@ -235,11 +237,11 @@ class TestNautobotUtils(TestCase):
             logger.warning.call_args.args[0],
         )
 
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.restamp_synced")
     @unittest.mock.patch("logging.Logger", autospec=True)
-    def test_create_location_tag_error_keeps_an_existing_location(self, mock_logger, mock_tag_object):
+    def test_create_location_tag_error_keeps_an_existing_location(self, mock_logger, mock_restamp):
         """A Location that was already there keeps its row, so a failed re-stamp does not withhold it."""
-        mock_tag_object.side_effect = [DjangoBaseDBError]
+        mock_restamp.side_effect = [DjangoBaseDBError]
         logger = mock_logger("nb_job")
         test_location = get_or_create_location_object(location_name="Test-Location", logger=logger)
         self.assertEqual(test_location.id, self.location.id)
@@ -479,34 +481,34 @@ class TestNautobotUtils(TestCase):
         )
         self.assertEqual(test_ip, None)
 
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.restamp_synced")
     @unittest.mock.patch("logging.Logger", autospec=True)
-    def test_create_ip_does_not_tag_the_interface(self, mock_logger, mock_tag_object):
-        """Only the IPAddress is tagged, as `tag_object` costs a validated_save() per call."""
+    def test_create_ip_does_not_tag_the_interface(self, mock_logger, mock_restamp):
+        """Only the IPAddress is stamped; stamping the Interface as well doubles what it costs."""
         logger = mock_logger("nb_job")
         interface_obj = self.device.interfaces.first()
         create_ip("192.168.0.1", 32, object_pk=interface_obj, logger=logger)
-        tagged = [call.kwargs["nautobot_object"] for call in mock_tag_object.call_args_list]
-        self.assertEqual(tagged, [self.ip_address])
+        stamped = [call.args[0] for call in mock_restamp.call_args_list]
+        self.assertEqual(stamped, [self.ip_address])
 
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.restamp_synced")
     @unittest.mock.patch("logging.Logger", autospec=True)
-    def test_create_ip_tag_ip_db_error(self, mock_logger, mock_tag_object):
-        """Test `create_device_type_object` Utility."""
+    def test_create_ip_tag_ip_db_error(self, mock_logger, mock_restamp):
+        """An address whose re-stamp fails is still returned, with a warning."""
         logger = mock_logger("nb_job")
-        mock_tag_object.side_effect = [DjangoBaseDBError]
+        mock_restamp.side_effect = [DjangoBaseDBError]
         test_ip = create_ip("192.168.0.1", 32, logger=logger)
         self.assertEqual(test_ip.id, self.ip_address.id)
         logger.warning.assert_called_with(
             f"Unable to perform validated_save() on IPAddress {test_ip.address} with an ID of {test_ip.id}"
         )
 
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.restamp_synced")
     @unittest.mock.patch("logging.Logger", autospec=True)
-    def test_create_ip_tag_ip_validation_error(self, mock_logger, mock_tag_object):
-        """Test `create_device_type_object` Utility."""
+    def test_create_ip_tag_ip_validation_error(self, mock_logger, mock_restamp):
+        """An address whose re-stamp fails is still returned, with a warning."""
         logger = mock_logger("nb_job")
-        mock_tag_object.side_effect = [ValidationError("failure")]
+        mock_restamp.side_effect = [ValidationError("failure")]
         test_ip = create_ip("192.168.0.1", 32, logger=logger)
         self.assertEqual(test_ip.id, self.ip_address.id)
         logger.warning.assert_called_with(
@@ -1239,7 +1241,7 @@ class TestNautobotUtils(TestCase):
             "Unable to set Status of Active for Interface named NoStat-Iface on Device named Mock-Device"
         )
 
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.restamp_synced")
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_interface_tag_db_error(self, mock_logger, mock_tag):
         """An existing Interface whose re-tagging fails is still returned, with a warning."""
@@ -1252,7 +1254,7 @@ class TestNautobotUtils(TestCase):
         self.assertEqual(result.name, "TagDB-Iface")
         self.assertTrue(logger.warning.called)
 
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.restamp_synced")
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_interface_tag_validation_error(self, mock_logger, mock_tag):
         """An existing Interface whose re-tagging fails validation is still returned, with a warning."""

@@ -153,9 +153,13 @@ def get_or_create_location_object(
     if is_new and pending is not None:
         return queue_new_object(pending, location_obj, key=location_name)
 
-    # tag_object performs validated_save(), which is the only save a new Location takes.
     try:
-        tag_object(nautobot_object=location_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        if is_new:
+            # tag_object performs validated_save(), which is the only save a new Location takes.
+            tag_object(nautobot_object=location_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        else:
+            # The site ID above is custom field data, so it rides the same statement as the stamp.
+            restamp_synced(location_obj, LAST_SYNCHRONIZED_CF_NAME)
     except (DjangoBaseDBError, ValidationError):
         if logger:
             logger.warning(
@@ -849,7 +853,13 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
             mask_changed = ip_obj.mask_length != mask_length
             ip_obj.mask_length = mask_length
             try:
-                tag_object(nautobot_object=ip_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+                if mask_changed:
+                    tag_object(nautobot_object=ip_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+                else:
+                    # The usual case on a re-sync, and the one worth keeping cheap: IP Fabric
+                    # reports the address exactly as Nautobot already holds it, so the stamp is the
+                    # only thing left to write.
+                    restamp_synced(ip_obj, LAST_SYNCHRONIZED_CF_NAME)
             except (DjangoBaseDBError, ValidationError) as err:
                 if logger and mask_changed:
                     logger.error(
@@ -1099,10 +1109,11 @@ def create_interface(  # pylint: disable=too-many-arguments
             logger.error(f"Unable to create a new Interface named {interface_name} on Device named {device_obj.name}")
         return None
 
-    # An Interface Nautobot already holds is re-stamped in place. Separate from the creation above
-    # so that a failure here still returns the existing Interface rather than None.
+    # An Interface Nautobot already holds is re-stamped in place. Nothing above changes a field on
+    # it, so the stamp is the whole of the write. Separate from the creation above so that a failure
+    # here still returns the existing Interface rather than None.
     try:
-        tag_object(nautobot_object=interface_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        restamp_synced(interface_obj, LAST_SYNCHRONIZED_CF_NAME)
     except (DjangoBaseDBError, ValidationError):
         if logger:
             logger.warning(
@@ -1171,9 +1182,14 @@ def create_vlan(  # pylint: disable=too-many-arguments
         )
         return queue_new_object(pending, vlan_obj, through_rows=assignments)
 
-    # tag_object performs validated_save(), which is the only save a new VLAN takes.
     try:
-        tag_object(nautobot_object=vlan_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        if is_new:
+            # tag_object performs validated_save(), which is the only save a new VLAN takes.
+            tag_object(nautobot_object=vlan_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        else:
+            # Nothing above changes a field on a VLAN Nautobot already holds, so the stamp is the
+            # whole of the write.
+            restamp_synced(vlan_obj, LAST_SYNCHRONIZED_CF_NAME)
     except (DjangoBaseDBError, ValidationError):
         if logger:
             logger.warning(f"Unable to perform validated_save() on VLAN named {vlan_name} with an ID of {vlan_obj.id}")
@@ -1547,6 +1563,33 @@ def stamp_synced(nautobot_object: Any, custom_field: str):
     if hasattr(nautobot_object, "cf"):
         nautobot_object.cf["system_of_record"] = "IPFabric"
         nautobot_object.cf[custom_field] = datetime.date.today().isoformat()
+
+
+def restamp_synced(nautobot_object: Any, custom_field: str, tag_name: str = "SSoT Synced from IPFabric"):
+    """Record this run against an object the sync found unchanged, in as few statements as it takes.
+
+    A re-sync that changes nothing still has to say it saw each object, and for most of them the
+    stamp is the only thing to write. Doing that through `validated_save()` costs about eleven
+    queries an object, because `IPAddress.save()` calls `clean()` and `clean()` issues three of its
+    own, so on an estate of a hundred thousand addresses the run that changes nothing is the most
+    expensive thing the integration does. One `UPDATE` of the custom field data says the same.
+
+    What that skips is validation, the signals and the change log entry. None is a loss here: the
+    object is unchanged apart from this integration's own bookkeeping, nothing revalidates by
+    standing still, and an entry recording only that the date moved is noise in an object's history.
+
+    For a caller that did change a field, `tag_object` is still the way to write it.
+    """
+    if not hasattr(nautobot_object, "cf"):
+        return
+    tag = synced_tag_for(nautobot_object, tag_name=tag_name)
+    # `tags.add` is its own pair of statements, so it is asked for only where the Tag is missing.
+    if hasattr(nautobot_object, "tags") and nautobot_object.pk not in get_tagged_pks(type(nautobot_object), tag.id):
+        nautobot_object.tags.add(tag)
+    stamp_synced(nautobot_object, custom_field)
+    type(nautobot_object).objects.filter(pk=nautobot_object.pk).update(
+        _custom_field_data=nautobot_object._custom_field_data  # pylint: disable=protected-access
+    )
 
 
 def tag_object(
