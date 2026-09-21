@@ -18,10 +18,6 @@ from nautobot_ssot.integrations.librenms.utils.nautobot import (
     platform_to_network_driver,
 )
 
-# `applogic_procera` is not a netutils driver, but LIBRENMS_LIB_MAPPER has emitted it since the
-# integration was written, so the mapper keeps it for backwards compatibility.
-NON_NETUTILS_DRIVERS = {"applogic_procera"}
-
 PLUGIN_CFG_PATH = "nautobot_ssot.integrations.librenms.constants.PLUGIN_CFG"
 
 
@@ -128,12 +124,12 @@ class TestLibrenmsOsToNetworkDriverMapperIntegrity(TestCase):
     def test_every_value_is_a_known_driver(self):
         """Every mapped driver must be resolvable, so Platform.network_driver_mappings works."""
         unknown = {driver for driver in LIBRENMS_OS_TO_NETWORK_DRIVER.values() if driver not in known_network_drivers()}
-        self.assertEqual(unknown - NON_NETUTILS_DRIVERS, set())
+        self.assertEqual(unknown, set())
 
-    def test_every_value_except_the_allowlist_is_in_netutils(self):
+    def test_every_value_is_in_netutils(self):
         """Catches typos in newly added drivers."""
         unknown = {driver for driver in LIBRENMS_OS_TO_NETWORK_DRIVER.values() if driver not in MAIN_LIB_MAPPER}
-        self.assertEqual(unknown, NON_NETUTILS_DRIVERS)
+        self.assertEqual(unknown, set())
 
     def test_resolution_is_idempotent(self):
         """f(f(os)) == f(os), since consolidated mode re-resolves driver-space values."""
