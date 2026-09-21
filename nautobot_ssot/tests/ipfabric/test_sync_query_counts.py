@@ -13,6 +13,7 @@ import unittest.mock
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError, connection
+from django.db.models import QuerySet
 from django.test.utils import CaptureQueriesContext
 from nautobot.apps.change_logging import JobChangeContext, change_logging
 from nautobot.apps.testing import TestCase
@@ -117,6 +118,11 @@ class _CostTestCase(TestCase):
             )
             for index in range(count)
         ]
+
+    @staticmethod
+    def queued(*nautobot_objects):
+        """Return what the delete queue holds for the given objects: their model and primary key."""
+        return [(type(nautobot_object), nautobot_object.pk) for nautobot_object in nautobot_objects]
 
     def interface_model(self, name):
         """Return a DiffSync Interface bound to this test's adapter."""
@@ -241,7 +247,7 @@ class DeleteCostTestCase(_CostTestCase):
     def delete_query_count(self, nautobot_objects):
         """Return how many queries deleting the given objects takes."""
         with CaptureQueriesContext(connection) as queries:
-            delete_objects(nautobot_objects)
+            delete_objects(self.queued(*nautobot_objects))
         return len(queries.captured_queries)
 
     def test_query_count_does_not_grow_with_the_number_of_objects(self):
@@ -258,7 +264,7 @@ class DeleteCostTestCase(_CostTestCase):
 
     def test_every_object_in_a_batch_is_deleted(self):
         deleted = self.interfaces(5, "gone")
-        delete_objects(deleted)
+        delete_objects(self.queued(*deleted))
         self.assertFalse(Interface.objects.filter(pk__in=[interface.pk for interface in deleted]).exists())
 
     def test_objects_of_different_models_are_each_batched(self):
@@ -267,7 +273,7 @@ class DeleteCostTestCase(_CostTestCase):
         spare_location = Location.objects.create(
             name="delete-cost-spare", location_type=self.location_type, status=self.active_status
         )
-        delete_objects([*interfaces, spare_location])
+        delete_objects(self.queued(*interfaces, spare_location))
         self.assertFalse(Interface.objects.filter(pk__in=[interface.pk for interface in interfaces]).exists())
         self.assertFalse(Location.objects.filter(pk=spare_location.pk).exists())
 
@@ -279,7 +285,7 @@ class DeleteCostTestCase(_CostTestCase):
         protected_location = self.device.location
 
         with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
-            delete_objects([protected_location, free_location])
+            delete_objects(self.queued(protected_location, free_location))
 
         self.assertFalse(Location.objects.filter(pk=free_location.pk).exists())
         self.assertTrue(Location.objects.filter(pk=protected_location.pk).exists())
@@ -290,7 +296,7 @@ class DeleteCostTestCase(_CostTestCase):
 
     def test_safe_delete_mode_deletes_nothing(self):
         """Nothing is queued in safe delete mode, and `sync_complete` must not delete regardless."""
-        self.adapter.objects_to_delete["_interface"] = self.interfaces(3, "safe")
+        self.adapter.objects_to_delete["_interface"] = self.queued(*self.interfaces(3, "safe"))
         self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
         self.assertEqual(Interface.objects.filter(device=self.device).count(), 3)
         self.assertEqual(self.adapter.objects_to_delete["_interface"], [])
@@ -306,7 +312,7 @@ class DeleteCostTestCase(_CostTestCase):
             prefix="10.60.0.0/24", namespace=get_default_namespace(), status=self.active_status
         )
         address = IPAddress.objects.create(address="10.60.0.5/24", status=self.active_status, parent=prefix)
-        self.adapter.objects_to_delete["_ipaddress"] = [address]
+        self.adapter.objects_to_delete["_ipaddress"] = self.queued(address)
         self.adapter.safe_delete_mode = False
 
         self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
@@ -320,7 +326,7 @@ class DeleteCostTestCase(_CostTestCase):
             name="unordered-spare", location_type=self.location_type, status=self.active_status
         )
         # A grouping `DELETE_ORDER` does not name, standing in for a model added later.
-        self.adapter.objects_to_delete["_somethingnew"] = [spare]
+        self.adapter.objects_to_delete["_somethingnew"] = self.queued(spare)
         self.adapter.safe_delete_mode = False
 
         self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
@@ -330,7 +336,7 @@ class DeleteCostTestCase(_CostTestCase):
 
     def test_objects_to_delete_is_not_shared_between_adapters(self):
         """A run that fails before `sync_complete` must not leave work for the next run in the worker."""
-        self.adapter.objects_to_delete["_interface"].append(self.interfaces(1, "leak")[0])
+        self.adapter.objects_to_delete["_interface"].extend(self.queued(*self.interfaces(1, "leak")))
         job = unittest.mock.MagicMock()
         job.debug = False
         other = NautobotDiffSync(
@@ -348,19 +354,40 @@ class DeleteCostTestCase(_CostTestCase):
         This is the plain refusal, which carries no protecting object to name.
         """
         doomed, keeper = self.interfaces(2, "integrity")
+        real_delete = QuerySet.delete
 
-        with unittest.mock.patch.object(doomed, "delete", side_effect=IntegrityError("refused")):
+        def refuse_the_doomed(queryset):
+            """Refuse the one deletion, and carry the rest out for real."""
+            if queryset.filter(pk=doomed.pk).exists():
+                raise IntegrityError("refused")
+            return real_delete(queryset)
+
+        with unittest.mock.patch.object(QuerySet, "delete", refuse_the_doomed):
             with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
-                delete_objects_one_at_a_time([doomed, keeper])
+                delete_objects_one_at_a_time(self.queued(doomed, keeper))
 
         self.assertTrue(Interface.objects.filter(pk=doomed.pk).exists())
         self.assertFalse(Interface.objects.filter(pk=keeper.pk).exists())
         self.assertIn("IntegrityError", " ".join(logs.output))
 
+    def test_the_queue_holds_no_orm_instances(self):
+        """A teardown of a whole estate would otherwise hold every object it passed through.
+
+        The instance drags whatever its queryset selected alongside it, so what would be retained
+        until `sync_complete` is a graph rather than a row, and deletion needs neither.
+        """
+        interface = self.interfaces(1, "retained")[0]
+        model = self.interface_model("retained0")
+
+        with unittest.mock.patch.object(InterfaceModel, "safe_delete_mode", False):
+            model.delete()
+
+        self.assertEqual(self.adapter.objects_to_delete["_interface"], [(Interface, interface.pk)])
+
     def test_sync_complete_deletes_what_is_queued_when_safe_delete_mode_is_off(self):
         """The counterpart to safe delete mode: with it off, `sync_complete` is what does the deleting."""
         queued = self.interfaces(3, "swept")
-        self.adapter.objects_to_delete["_interface"] = list(queued)
+        self.adapter.objects_to_delete["_interface"] = self.queued(*queued)
         # Set on the instance rather than the class, which every other adapter would otherwise read.
         self.adapter.safe_delete_mode = False
 

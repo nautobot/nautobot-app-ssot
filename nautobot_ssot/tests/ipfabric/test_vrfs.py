@@ -499,8 +499,8 @@ class VrfWriteTestCase(VrfTestCase):
         VRF.objects.create(name="BLUE", rd="65000:1", namespace=self.namespace, status=self.active)
         self.loaded_model().delete()
         self.assertEqual(
-            [vrf.name for vrf in self.adapter.objects_to_delete["_vrf"]],
-            ["BLUE"],
+            self.adapter.objects_to_delete["_vrf"],
+            [(VRF, VRF.objects.get(name="BLUE").pk)],
         )
 
     def test_a_queued_vrf_is_deleted_on_completion(self):
@@ -796,8 +796,8 @@ class RouteTargetTestCase(VrfTestCase):
         self.adapter.load_route_targets()
         self.adapter.get("route_target", "65000:1").delete()
         self.assertEqual(
-            [each.name for each in self.adapter.objects_to_delete["_routetarget"]],
-            ["65000:1"],
+            self.adapter.objects_to_delete["_routetarget"],
+            [(RouteTarget, RouteTarget.objects.get(name="65000:1").pk)],
         )
 
     def test_a_queued_route_target_is_deleted_on_completion(self):
