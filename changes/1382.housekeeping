@@ -1,1 +1,0 @@
-Fixed the `invoke pylint` migrations check failing on every pull request. A refreshed `pylint-django` enabled its `new-db-field-with-default` check, which flagged an existing migration that adds a defaulted column to a configuration model holding only a handful of rows.
