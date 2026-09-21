@@ -17,7 +17,7 @@ from django.test.utils import CaptureQueriesContext
 from nautobot.apps.change_logging import JobChangeContext, change_logging
 from nautobot.apps.testing import TestCase
 from nautobot.core.choices import ColorChoices
-from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
+from nautobot.dcim.models import Cable, Device, DeviceType, Interface, Location, LocationType, Manufacturer
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import ObjectChange, Role, Status, Tag
 from nautobot.ipam.models import IPAddress, Prefix, get_default_namespace
@@ -31,7 +31,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interfa
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
     InterfaceAddress as InterfaceAddressModel,
 )
-from nautobot_ssot.integrations.ipfabric.utilities import nbutils
+from nautobot_ssot.integrations.ipfabric.utilities import cables, nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 
@@ -48,6 +48,8 @@ def write_to(table):
 
 WRITE_TO_INTERFACE = write_to("dcim_interface")
 WRITE_TO_IP_ADDRESS = write_to("ipam_ipaddress")
+# `dcim_cable` alone: the boundary keeps this off `dcim_cabletermination`, which a Cable also writes.
+WRITE_TO_CABLE = write_to("dcim_cable")
 
 
 class _CostTestCase(TestCase):
@@ -572,3 +574,42 @@ class ResyncCostTestCase(_CostTestCase):
         ]
         self.assertEqual(tag_writes, [], f"Expected no second tagging of the Interface, got {tag_writes}")
         self.assertEqual(self.interface.tags.count(), 1)
+
+
+class CableWriteCostTestCase(_CostTestCase):
+    """Count the writes creating one Cable makes to the Cable table."""
+
+    def setUp(self):
+        super().setUp()
+        self.int_a, self.int_b = self.interfaces(2, "cabled")
+
+    def test_creating_a_cable_writes_it_once(self):
+        """The stamp rides the INSERT rather than a second save applying it afterwards.
+
+        A Cable's `validated_save()` runs the termination checks, so a redundant one is among the
+        more expensive repeats in the sync.
+        """
+        with CaptureQueriesContext(connection) as queries:
+            cable = cables.create_cable(self.int_a, self.int_b, "Connected")
+
+        writes = [
+            query["sql"].split(None, 3)[0].upper()
+            for query in queries.captured_queries
+            if WRITE_TO_CABLE.match(query["sql"].strip())
+        ]
+        self.assertEqual(writes, ["INSERT"], f"Expected one write to the Cable table, got {writes}")
+        self.assertIsNotNone(cable)
+        self.assertTrue(cable.tags.filter(name="SSoT Synced from IPFabric").exists())
+        self.assertEqual(cable.cf["system_of_record"], "IPFabric")
+        self.assertEqual(cable.cf["last_synced_from_sor"], datetime.date.today().isoformat())
+
+    def test_a_cable_still_at_its_reported_status_is_not_rewritten(self):
+        """Every Cable on a re-sync that changes nothing, so it is worth not revalidating."""
+        cable = cables.create_cable(self.int_a, self.int_b, "Connected")
+
+        with unittest.mock.patch.object(Cable, "validated_save", autospec=True) as mock_save:
+            self.assertTrue(cables.update_cable_status(cable, "Connected"))
+
+        mock_save.assert_not_called()
+        cable.refresh_from_db()
+        self.assertEqual(cable.cf["last_synced_from_sor"], datetime.date.today().isoformat())
