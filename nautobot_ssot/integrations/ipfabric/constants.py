@@ -25,6 +25,7 @@ SAFE_DELETE_LOCATION_STATUS = CONFIG.get("ipfabric_safe_delete_location_status",
 SAFE_DELETE_VLAN_STATUS = CONFIG.get("ipfabric_safe_delete_vlan_status", "Deprecated")
 SAFE_DELETE_IPADDRESS_STATUS = CONFIG.get("ipfabric_safe_delete_ipaddress_status", "Deprecated")
 SAFE_DELETE_CABLE_STATUS = CONFIG.get("ipfabric_safe_delete_cable_status", "Decommissioning")
+SAFE_DELETE_VRF_STATUS = CONFIG.get("ipfabric_safe_delete_vrf_status", "Deprecated")
 LAST_SYNCHRONIZED_CF_NAME = "last_synced_from_sor"
 # Name of the Interface the IP Fabric adapter fabricates to carry a NAT management address. Both
 # adapters need it: one to invent it, the other to recognise one an earlier run left behind.

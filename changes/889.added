@@ -1,0 +1,1 @@
+Added an opt-in "Sync Interface VRFs" option to the IP Fabric integration that puts each Interface in the VRF IP Fabric reports for it, read from the VRF interfaces table so that an Interface in a VRF is covered whether or not it carries an address. It requires the Device VRF assignments, since Nautobot refuses an Interface a VRF its Device does not carry.

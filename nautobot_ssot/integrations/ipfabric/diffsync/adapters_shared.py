@@ -3,6 +3,7 @@
 from typing import ClassVar, Optional, Set, Tuple
 
 from diffsync import Adapter
+from diffsync.enum import DiffSyncModelFlags
 
 from nautobot_ssot.integrations.ipfabric.diffsync import diffsync_models
 from nautobot_ssot.integrations.ipfabric.strict_mode import StrictObjects
@@ -22,18 +23,38 @@ class DiffSyncModelAdapters(Adapter):
     # a model may ask any adapter; only the destination adapter ever sets it.
     pending = None
 
+    # The Location a run is narrowed to, or None. Declared here for the same reason, since what is
+    # network wide has to know whether the run can see the whole network.
+    location_filter = None
+
     location = diffsync_models.Location
     device = diffsync_models.Device
     interface = diffsync_models.Interface
     interface_address = diffsync_models.InterfaceAddress
     vlan = diffsync_models.Vlan
     cable = diffsync_models.Cable
+    vrf = diffsync_models.Vrf
+    route_target = diffsync_models.RouteTarget
+    vrf_device_assignment = diffsync_models.VrfDeviceAssignment
+    interface_vrf = diffsync_models.InterfaceVrf
 
     # Cables are top level because a link may span two Locations, and come after "location" so the
     # Devices and Interfaces they terminate on exist by the time they are created.
+    #
+    # VRFs are top level because IP Fabric reports a routing instance as network wide rather than as
+    # belonging to one site. Route Targets come before them, so that the targets a VRF names exist
+    # by the time it is written.
+    # A VRF device assignment comes last of all, since it needs both the VRF and the Device, and
+    # Devices are written as children of their Location.
     top_level = [
         "location",
         "cable",
+        "route_target",
+        "vrf",
+        "vrf_device_assignment",
+        # Last of all: Nautobot refuses an Interface a VRF its Device does not carry, so the
+        # assignments above have to be in place first.
+        "interface_vrf",
     ]
 
     def __init__(
@@ -66,6 +87,11 @@ class DiffSyncModelAdapters(Adapter):
         self.scope = scope if scope is not None else SyncScope.from_job_kwargs({})
         self.strict = strict if strict is not None else StrictObjects.from_job_kwargs({})
         self.addresses_without_a_subnet = set() if addresses_without_a_subnet is None else addresses_without_a_subnet
+        # VRF names the Global Namespace holds more than one of, which the Nautobot adapter declines
+        # to load. Recorded so that `Vrf.create` can decline them because the name is ambiguous,
+        # rather than inferring it from the loader having skipped them. Per adapter rather than per
+        # class, so that two runs in one worker cannot see each other's.
+        self.ambiguous_vrf_names = set()
 
     def carries_pseudo_management_interface(self) -> bool:
         """Return whether this run reports the Interface fabricated for a NAT management address.
@@ -108,3 +134,19 @@ class DiffSyncModelAdapters(Adapter):
         node = self.location(adapter=self, name=name, **UNSYNCED_LOCATION_ATTRS)
         node.model_flags |= UNSYNCED_LOCATION_FLAGS
         return node
+
+    def network_wide(self, model, **attrs):
+        """Return a model that is not scoped to a Location, flagged so a filtered run cannot delete it.
+
+        VRFs and Route Targets are network wide, while a Location filter narrows what IP Fabric
+        reports to one site. A filtered run therefore sees only what that site's devices carry, and
+        everything else Nautobot holds would look absent from the source and be deleted. The flag
+        stops that: a filtered run may create and update them, but never delete one.
+
+        Set by both adapters, since only the destination's flags are read and either adapter may be
+        the destination.
+        """
+        instance = model(adapter=self, **attrs)
+        if self.location_filter:
+            instance.model_flags |= DiffSyncModelFlags.SKIP_UNMATCHED_DST
+        return instance
