@@ -411,8 +411,19 @@ class NautobotVlanGroup(VlanView):
 
     def delete(self):
         """Delete VLANGroup object in Nautobot."""
-        self.adapter.job.logger.warning(f"VLAN Group {self.name} will be deleted.")
+        if NautobotDeletableModelChoices.VLAN_GROUP not in self.adapter.config.nautobot_deletable_models:
+            return super().delete()
+
         _vg = OrmVlanGroup.objects.get(id=self.pk)
+        if _vg.vlans.exists():
+            self.adapter.job.logger.warning(
+                f"VLAN Group {self.name} cannot be deleted because it still contains VLANs."
+            )
+            return super().delete()
+
+        self.adapter.job.logger.warning(f"VLAN Group {self.name} will be deleted.")
+        if self.name in self.adapter.vlangroup_map:
+            del self.adapter.vlangroup_map[self.name]
         _vg.delete()
         return super().delete()
 
@@ -474,8 +485,17 @@ class NautobotVlan(Vlan):
 
     def delete(self):
         """Delete VLAN object in Nautobot."""
+        if NautobotDeletableModelChoices.VLAN not in self.adapter.config.nautobot_deletable_models:
+            return super().delete()
+
         self.adapter.job.logger.warning(f"VLAN {self.vid} will be deleted.")
         _vlan = OrmVlan.objects.get(id=self.pk)
+        if (
+            self.vlangroup
+            and self.vlangroup in self.adapter.vlan_map
+            and self.vid in self.adapter.vlan_map[self.vlangroup]
+        ):
+            del self.adapter.vlan_map[self.vlangroup][self.vid]
         _vlan.delete()
         return super().delete()
 

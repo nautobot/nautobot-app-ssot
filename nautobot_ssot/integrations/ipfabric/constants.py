@@ -19,9 +19,20 @@ DEFAULT_DEVICE_STATUS_COLOR = CONFIG.get("ipfabric_default_device_status_color",
 DEFAULT_INTERFACE_MAC = CONFIG.get("ipfabric_default_interface_mac", "00:00:00:00:00:01")
 DEFAULT_INTERFACE_MTU = int(CONFIG.get("ipfabric_default_interface_mtu", 1500))
 DEFAULT_INTERFACE_TYPE = CONFIG.get("ipfabric_default_interface_type", "1000base-t")
+DEFAULT_CABLE_STATUS = CONFIG.get("ipfabric_default_cable_status", "Connected")
 SAFE_DELETE_DEVICE_STATUS = CONFIG.get("ipfabric_safe_delete_device_status", "Offline")
 SAFE_DELETE_LOCATION_STATUS = CONFIG.get("ipfabric_safe_delete_location_status", "Decommissioning")
 SAFE_DELETE_VLAN_STATUS = CONFIG.get("ipfabric_safe_delete_vlan_status", "Deprecated")
 SAFE_DELETE_IPADDRESS_STATUS = CONFIG.get("ipfabric_safe_delete_ipaddress_status", "Deprecated")
+SAFE_DELETE_CABLE_STATUS = CONFIG.get("ipfabric_safe_delete_cable_status", "Decommissioning")
+SAFE_DELETE_VRF_STATUS = CONFIG.get("ipfabric_safe_delete_vrf_status", "Deprecated")
 LAST_SYNCHRONIZED_CF_NAME = "last_synced_from_sor"
+# Name of the Interface the IP Fabric adapter fabricates to carry a NAT management address. Both
+# adapters need it: one to invent it, the other to recognise one an earlier run left behind.
+PSEUDO_MANAGEMENT_INTERFACE_NAME = "pseudo_mgmt"
 IP_FABRIC_USE_CANONICAL_INTERFACE_NAME = CONFIG.get("ipfabric_use_canonical_interface_name", False)
+# How many rows Bulk Write Mode inserts per statement. Tunable because it is the blast radius of a
+# refused batch as well as the size of an insert: a batch the database refuses is narrowed by halving
+# to find the rows at fault, so a smaller batch costs less to recover from and more statements to
+# write. Floored at one, since a batch of none would insert nothing and loop forever.
+BULK_WRITE_BATCH_SIZE = max(1, int(CONFIG.get("ipfabric_bulk_write_batch_size", 1000)))
