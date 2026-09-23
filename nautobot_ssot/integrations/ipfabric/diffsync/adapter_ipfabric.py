@@ -3,11 +3,13 @@
 
 import ipaddress
 import logging
-from collections import defaultdict
+from collections import Counter, defaultdict
 from itertools import chain
+from typing import Optional
 
 from diffsync import ObjectAlreadyExists
 from diffsync.exceptions import ObjectNotFound
+from nautobot.dcim.choices import InterfaceModeChoices
 from nautobot.dcim.constants import NONCONNECTABLE_IFACE_TYPES
 from nautobot.dcim.models import Device
 from nautobot.ipam.models import VLAN
@@ -27,7 +29,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
 from nautobot_ssot.integrations.ipfabric.utilities.cables import canonical_endpoints
-from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length
+from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length, parse_vlan_ranges
 
 try:
     from ipfabric import IPFClient
@@ -36,6 +38,9 @@ except ImportError:
 
 
 logger = logging.getLogger("nautobot.jobs")
+
+# What a device means by trunking every VLAN, which differs by platform.
+TRUNK_ALL_VLAN_RANGES = ("1-4094", "1-4095")
 
 device_serial_max_length = Device._meta.get_field("serial").max_length
 name_max_length = VLAN._meta.get_field("name").max_length
@@ -54,6 +59,34 @@ INHERITS_SUBNET = "_inherits_subnet"
 
 
 # pylint: disable=too-many-locals,too-many-nested-blocks,too-many-branches
+def vlan_id_of(value) -> Optional[int]:
+    """Return a usable VLAN ID from whatever the switchport table reports, or None."""
+    try:
+        vlan_id = int(value)
+    except (TypeError, ValueError):
+        return None
+    return vlan_id if 1 <= vlan_id <= 4094 else None
+
+
+def switchport_vlans(row) -> Optional[tuple]:
+    """Return the Nautobot 802.1Q mode and VLAN IDs a switchport row describes.
+
+    Returns None where IP Fabric reports a mode with no Nautobot equivalent, which the caller
+    reports rather than guessing at. A trunk carrying every VLAN is `tagged-all` rather than four
+    thousand tagged VLANs, which is both what Nautobot means by it and what the device means.
+    """
+    mode = (row.get("mode") or "").strip().lower()
+    if mode == "access":
+        return InterfaceModeChoices.MODE_ACCESS, vlan_id_of(row.get("accVlan")), []
+    if mode == "trunk":
+        native = vlan_id_of(row.get("nativeVlan"))
+        trunk = (row.get("trunkVlan") or "").strip()
+        if trunk in TRUNK_ALL_VLAN_RANGES:
+            return InterfaceModeChoices.MODE_TAGGED_ALL, native, []
+        return InterfaceModeChoices.MODE_TAGGED, native, parse_vlan_ranges(trunk)
+    return None
+
+
 class IPFabricDiffSync(DiffSyncModelAdapters):
     """IPFabric adapter for DiffSync."""
 
@@ -415,6 +448,58 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         if self.scope.interface_vrfs:
             self.load_interface_vrfs()
 
+    def load_interface_vlans(self):
+        """Add each switchport's 802.1Q mode and VLANs as DiffSync InterfaceVlan models.
+
+        Only Interfaces this run loaded are covered, for the reason the VRFs are: an Interface the
+        sync never saw would be reported as absent from Nautobot on every run.
+        """
+        rows = self.client.technology.interfaces.switchport.all(
+            columns=["sn", "hostname", "intName", "mode", "accVlan", "nativeVlan", "trunkVlan"]
+        )
+        unreadable_modes = Counter()
+        for row in rows:
+            device_name, interface_name = row.get("hostname"), row.get("intName")
+            if not device_name or not interface_name:
+                continue
+            if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
+                interface_name = canonical_interface_name(interface_name)
+            try:
+                self.get(self.interface, {"name": interface_name, "device_name": device_name})
+            except ObjectNotFound:
+                if self.job.debug:
+                    logger.debug(
+                        "Not syncing the VLANs of %s:%s, as no such Interface was loaded",
+                        device_name,
+                        interface_name,
+                    )
+                continue
+            switchport = switchport_vlans(row)
+            if switchport is None:
+                unreadable_modes[row.get("mode")] += 1
+                continue
+            mode, untagged_vid, tagged_vids = switchport
+            try:
+                self.add(
+                    self.interface_vlan(
+                        adapter=self,
+                        device_name=device_name,
+                        interface_name=interface_name,
+                        mode=mode,
+                        untagged_vid=untagged_vid,
+                        tagged_vids=tagged_vids,
+                    )
+                )
+            except ObjectAlreadyExists:
+                logger.warning("Duplicate Interface VLAN discovered, %s:%s", device_name, interface_name)
+        for reported_mode, count in sorted(unreadable_modes.items(), key=lambda item: str(item[0])):
+            logger.warning(
+                "Not syncing the VLANs of %d Interfaces, as IP Fabric reports a switchport mode of "
+                "%s, which has no Nautobot equivalent.",
+                count,
+                reported_mode or "nothing",
+            )
+
     def load_interface_vrfs(self):
         """Add the VRF each Interface is in as DiffSync InterfaceVrf models.
 
@@ -667,6 +752,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
 
         if self.scope.vrfs:
             self.load_vrfs()
+
+        if self.scope.interface_vlans:
+            self.load_interface_vlans()
 
         # Read only while loading, and it holds a record per address, so it is not carried into the
         # diff and sync phases where both adapters' models are already resident.

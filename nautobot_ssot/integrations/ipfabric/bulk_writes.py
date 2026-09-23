@@ -61,6 +61,7 @@ THROUGH_LEVELS: Tuple[Any, ...] = (
     VLANLocationAssignment,
     VRF.import_targets.through,
     VRF.export_targets.through,
+    Interface.tagged_vlans.through,
 )
 
 
