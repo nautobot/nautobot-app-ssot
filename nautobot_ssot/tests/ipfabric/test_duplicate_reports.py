@@ -50,13 +50,13 @@ class TestDuplicatesIPFabricReports(TestCase):
         self.assertIn("Duplicate VLAN discovered", warnings)
 
     def test_a_vlan_whose_name_is_too_long_is_reported(self):
-        """Nautobot holds 255 characters, so a longer name is a VLAN the sync cannot write."""
+        """Nautobot holds 255 characters, so a longer name is truncated and the VLAN still written."""
         long_named = copy.deepcopy(VLAN_FIXTURE[0])
         long_named["vlanName"] = "v" * 300
 
         warnings = self.loaded_with(vlans=[long_named])
 
-        self.assertIn("due to character limit exceeding", warnings)
+        self.assertIn("Truncating the name of VLAN", warnings)
 
     def test_a_device_reported_twice_is_reported(self):
         client = mock_ipfabric_client()
