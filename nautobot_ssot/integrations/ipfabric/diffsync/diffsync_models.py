@@ -980,6 +980,13 @@ class Vlan(DiffSyncExtras):
             description = attrs.get("description")
             if adapter.job.debug:
                 adapter.job.logger.debug("Creating VLAN: %s description: %s", vlan_name, description)
+            # The Location's VLAN Group is what makes one VLAN ID mean one VLAN there, which is
+            # what this model identifies a VLAN by.
+            vlan_group = tonb_nbutils.get_vlan_group_for_location(
+                location,
+                create=adapter.may_create("vlan_groups"),
+                logger=adapter.job.logger,
+            )
             vlan = tonb_nbutils.create_vlan(
                 vlan_name=vlan_name,
                 vlan_id=vlan_id,
@@ -988,6 +995,7 @@ class Vlan(DiffSyncExtras):
                 description=description,
                 logger=adapter.job.logger,
                 pending=adapter.pending,
+                vlan_group=vlan_group,
             )
             if vlan:
                 return super().create(ids=ids, adapter=adapter, attrs=attrs)

@@ -54,6 +54,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     Manufacturer = apps.get_model("dcim", "Manufacturer")
     Location = apps.get_model("dcim", "Location")
     VLAN = apps.get_model("ipam", "VLAN")
+    VLANGroup = apps.get_model("ipam", "VLANGroup")
     VRF = apps.get_model("ipam", "VRF")
     RouteTarget = apps.get_model("ipam", "RouteTarget")
     Tag = apps.get_model("extras", "Tag")
@@ -85,6 +86,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         Manufacturer,
         Location,
         VLAN,
+        VLANGroup,
         Role,
         IPAddress,
         Cable,

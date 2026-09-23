@@ -205,10 +205,21 @@ Previously the sync created a second VLAN under the new name and removed — or,
 Mode, deprecated and tagged — the one under the old name. So an estate that has been renaming VLANs
 will see a run of renames once, and stop accumulating deprecated VLANs afterwards.
 
-**Duplicates.** Nautobot does not constrain a VLAN ID to be unique at a Location, so a deployment can
-hold two VLANs with the same one. The second is reported in the job log and not loaded, and the sync
-leaves it alone. Which of the two is kept is not defined, so it is worth resolving the duplicate in
-Nautobot rather than relying on the sync to pick.
+**A VLAN Group per Location.** Nautobot enforces `(vlan_group, vid)` and `(vlan_group, name)`, and
+enforces neither where the VLAN has no group. So a Location's VLANs are filed under a VLAN Group of
+its own, named after the Location, which is what makes one VLAN ID mean one VLAN there. VLANs that
+predate the group are moved into it, since the constraint only covers what is actually in it — expect
+that on the first sync after upgrading.
+
+A VLAN Group name is unique across Nautobot. Where a group of that name already belongs to another
+Location it is left alone and reported, and that Location's VLANs are synced without a group, which
+leaves their VLAN IDs unconstrained. Selecting **VLAN Groups** under **Strict Objects** has the sync
+match an existing group rather than create one, for a deployment that governs its groups elsewhere.
+
+One consequence to know about: a group makes VLAN *names* unique within it as well as VLAN IDs. Two
+VLANs at one Location sharing a name cannot both be filed under it, so the second is reported in the
+job log and left unsynced. Without a group they would both be written, so this is a case the sync
+starts reporting rather than one it introduces.
 
 **Long names.** A VLAN name longer than the 255 characters Nautobot holds is truncated, and the full
 value is reported in the job log. The VLAN itself is still synced, since its identity does not depend

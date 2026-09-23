@@ -103,6 +103,15 @@ STRICT_OBJECTS: Tuple[StrictObject, ...] = (
         description="a stack that matches no Virtual Chassis is reported, and its membership left unrecorded",
     ),
     StrictObject(
+        key="vlan_groups",
+        scoped=False,
+        label="VLAN Groups",
+        description=(
+            "a Location with no VLAN Group of its name is reported, and its VLANs synced without "
+            "one, which leaves their VLAN IDs unconstrained"
+        ),
+    ),
+    StrictObject(
         key="interfaces",
         label="Interfaces",
         description=(
