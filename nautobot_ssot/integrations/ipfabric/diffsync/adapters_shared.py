@@ -37,6 +37,7 @@ class DiffSyncModelAdapters(Adapter):
     route_target = diffsync_models.RouteTarget
     vrf_device_assignment = diffsync_models.VrfDeviceAssignment
     interface_vrf = diffsync_models.InterfaceVrf
+    interface_vlan = diffsync_models.InterfaceVlan
 
     # Cables are top level because a link may span two Locations, and come after "location" so the
     # Devices and Interfaces they terminate on exist by the time they are created.
@@ -55,6 +56,9 @@ class DiffSyncModelAdapters(Adapter):
         # Last of all: Nautobot refuses an Interface a VRF its Device does not carry, so the
         # assignments above have to be in place first.
         "interface_vrf",
+        # Likewise, Nautobot refuses an Interface a VLAN that is not available at its Device's
+        # Location, and VLANs are written as children of their Location.
+        "interface_vlan",
     ]
 
     def __init__(

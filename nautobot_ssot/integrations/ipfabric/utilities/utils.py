@@ -278,6 +278,30 @@ class job_scoped_cache:  # pylint: disable=invalid-name
             instance.cache_clear()
 
 
+def parse_vlan_ranges(value):
+    """Return the VLAN IDs a switchport range names, as a sorted list.
+
+    IP Fabric reports a trunk's VLANs the way the device's configuration does, as a comma separated
+    mix of single IDs and inclusive ranges: `110-119,999`. A part that is not a number or a range,
+    or a range that counts backwards, is skipped rather than guessed at.
+    """
+    vlan_ids = set()
+    for part in str(value or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        bounds = part.split("-")
+        try:
+            numbers = [int(bound) for bound in bounds]
+        except ValueError:
+            continue
+        if len(numbers) == 1:
+            vlan_ids.add(numbers[0])
+        elif len(numbers) == 2 and numbers[0] <= numbers[1]:
+            vlan_ids.update(range(numbers[0], numbers[1] + 1))
+    return sorted(vlan_id for vlan_id in vlan_ids if 1 <= vlan_id <= 4094)
+
+
 def host_route_length(host):
     """Return the prefix length of the route covering only the given address."""
     try:
