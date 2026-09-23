@@ -42,6 +42,16 @@ def cabled_interfaces(device_queryset):
     interfaces = Interface.objects.filter(device__in=device_queryset).select_related("device")
     if CABLE_TERMINATIONS_ARE_JOINED:
         return interfaces.filter(cable_termination__isnull=False).select_related("cable_termination__cable__status")
+    # Nautobot 3.2 deprecated both of these lookups in favour of the `cable_termination` path taken
+    # above, and the checker flags them wherever they appear. This arm runs only on 3.0 and 3.1,
+    # where `cable_termination` does not exist and `cable` is the only way to ask, so the warning is
+    # suppressed rather than the query rewritten. It goes when those versions are no longer served.
+    #
+    # `unknown-option-value` goes first because the suppression has to hold on both Nautobot
+    # versions: the checker below ships with the `pylint-nautobot` a 3.2 environment resolves, and
+    # not with the one a 3.1 environment resolves, where naming it is an unknown message.
+    # pylint: disable=unknown-option-value
+    # pylint: disable-next=nb-deprecated-cable-lookup
     return interfaces.filter(cable__isnull=False).select_related("cable__status")
 
 
