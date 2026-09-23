@@ -457,7 +457,12 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 try:
                     self.add(vlan)
                 except ObjectAlreadyExists:
-                    self.job.logger.warning(f"Duplicate VLAN discovered, {vlan_record.name}")
+                    # Nautobot does not constrain a VLAN ID to be unique at a Location, so two can
+                    # carry the same one.
+                    self.job.logger.warning(
+                        f"Duplicate VLAN discovered at {location_record.name}: VLAN ID "
+                        f"{vlan_record.vid}, named {vlan_record.name}"
+                    )
                     continue
                 location.add_child(vlan)
 
