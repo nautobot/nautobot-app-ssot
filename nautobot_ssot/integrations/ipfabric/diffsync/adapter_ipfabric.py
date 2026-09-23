@@ -1,4 +1,6 @@
 # pylint: disable=duplicate-code
+# One module reads every IP Fabric table the sync needs.
+# pylint: disable=too-many-lines
 # The adapter carries an index per table it reads ahead.
 # pylint: disable=too-many-instance-attributes
 """DiffSync adapter class for Ip Fabric."""
@@ -149,6 +151,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         self.addresses_by_interface = defaultdict(list)
         # Physical states that name no admin state, counted so each is reported once for the run.
         self.unreadable_admin_states = Counter()
+        # Keyed as the Interface models are, so a switchport row can be matched against it.
+        self.access_vlan_by_interface = {}
         # Held because a VRF is network wide while this filter is not, so a filtered run must not
         # delete the VRFs of the sites it cannot see; see `DiffSyncModelAdapters.network_wide`.
         self.location_filter = location_filter
@@ -228,6 +232,21 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             # the Nautobot adapter reports none either and what it holds is left alone.
             if self.scope.ip_addresses:
                 self.load_interface_addresses(interface, iface, iface_name, device_primary_ips)
+            if self.scope.interface_vlans:
+                self.note_addressed_vlan(iface, interface.device_name, iface_name)
+
+    def note_addressed_vlan(self, iface, device_name, iface_name) -> None:
+        """Record the VLAN the managed address table reports for an addressed Interface.
+
+        An Interface with an address in a VLAN is in that VLAN, and the switchport table does not
+        cover a routed interface such as an SVI. Read here because this is where the Interface's
+        serial and its canonical name are both known.
+        """
+        for record in self.addresses_by_interface.get((iface.get("sn"), iface["intName"]), ()):
+            vlan_id = vlan_id_of(record.get("vlanId"))
+            if vlan_id is not None:
+                self.access_vlan_by_interface[(device_name, iface_name)] = vlan_id
+                return
 
     def prefix_length_of(self, record, iface_name, resolved):
         """Return the prefix length IP Fabric reports for a record's address, or None if it has none.
@@ -558,6 +577,36 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 count,
                 reported_mode or "nothing",
             )
+        self.load_addressed_interface_vlans()
+
+    def load_addressed_interface_vlans(self):
+        """Add the VLAN an addressed Interface sits in, where no switchport row covers it.
+
+        The switchport table describes switchports; a routed interface such as an SVI is not one,
+        and the managed address table is where IP Fabric says which VLAN it is in. The switchport
+        table wins where both speak, since it is the direct statement of the port's configuration.
+        """
+        for (device_name, interface_name), vlan_id in self.access_vlan_by_interface.items():
+            try:
+                self.get(self.interface_vlan, {"device_name": device_name, "interface_name": interface_name})
+            except ObjectNotFound:
+                pass
+            else:
+                continue
+            try:
+                self.get(self.interface, {"name": interface_name, "device_name": device_name})
+            except ObjectNotFound:
+                continue
+            self.add(
+                self.interface_vlan(
+                    adapter=self,
+                    device_name=device_name,
+                    interface_name=interface_name,
+                    mode=InterfaceModeChoices.MODE_ACCESS,
+                    untagged_vid=vlan_id,
+                    tagged_vids=[],
+                )
+            )
 
     def load_interface_vrfs(self):
         """Add the VRF each Interface is in as DiffSync InterfaceVrf models.
@@ -678,7 +727,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             # its configuration, so it belongs in Nautobot alongside the primary one.
             # Only the columns the sync reads: these are the largest requests the job makes, and
             # every row of two unfiltered tables carries each one asked for.
-            ip_columns = ["sn", "intName", "net", "ip"]
+            ip_columns = ["sn", "intName", "net", "ip", "vlanId"]
             for table in (
                 self.client.technology.addressing.managed_ip_ipv4,
                 self.client.technology.addressing.managed_ip_ipv6,
@@ -825,6 +874,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         # Read only while loading, and it holds a record per address, so it is not carried into the
         # diff and sync phases where both adapters' models are already resident.
         self.addresses_by_interface.clear()
+        self.access_vlan_by_interface.clear()
 
         for reported_state, count in sorted(self.unreadable_admin_states.items(), key=lambda item: str(item[0])):
             self.job.logger.warning(
