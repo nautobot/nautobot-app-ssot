@@ -1122,6 +1122,7 @@ class TestVlanModel(_ModelTestBase):
         """When `create_vlan` returns None, `Vlan.create` short-circuits without calling super()."""
         with (
             mock.patch.object(diffsync_models.NautobotLocation.objects, "get", return_value=mock.MagicMock()),
+            _nb_patch("get_vlan_group_for_location", return_value=None),
             mock.patch.object(diffsync_models.DiffSyncModel, "create") as mock_super,
         ):
             result = Vlan.create(
