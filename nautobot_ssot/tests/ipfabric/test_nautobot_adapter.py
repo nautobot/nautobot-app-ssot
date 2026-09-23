@@ -649,18 +649,18 @@ class TestNautobotAdapter(TestCase):
         self.assertEqual(self.nb_adapter.get_all("vlan"), [])
 
     def test_a_duplicate_vlan_is_reported_and_loaded_once(self):
-        """Two Nautobot VLANs of one name at one Location collide on the DiffSync identity."""
+        """Nautobot does not constrain a VLAN ID per Location, so two can collide on the identity."""
         self.site1.location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
-        for vid in (10, 20):
-            duplicate = VLAN.objects.create(name="same-name", vid=vid, status=self.active_status)
+        for name in ("first-name", "second-name"):
+            duplicate = VLAN.objects.create(name=name, vid=10, status=self.active_status)
             duplicate.locations.add(self.site1)
 
         with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
             self.nb_adapter.load_data()
 
-        loaded = [vlan for vlan in self.nb_adapter.get_all("vlan") if vlan.name == "same-name"]
+        loaded = [vlan for vlan in self.nb_adapter.get_all("vlan") if vlan.vid == 10]
         self.assertEqual(len(loaded), 1, "The colliding VLAN must not be loaded twice.")
-        self.assertIn("Duplicate VLAN discovered, same-name", " ".join(logs.output))
+        self.assertIn("Duplicate VLAN discovered at site1: VLAN ID 10", " ".join(logs.output))
 
     def test_a_location_missing_the_attributes_the_loader_reads_is_reported_and_skipped(self):
         """One unreadable Location must not take the rest of the sync with it."""

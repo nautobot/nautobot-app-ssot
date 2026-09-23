@@ -11,9 +11,11 @@ import ast
 import contextlib
 import pathlib
 from types import SimpleNamespace
+from typing import List
 from unittest import mock
-from uuid import UUID
+from uuid import UUID, uuid4
 
+from diffsync import Adapter, DiffSyncModel
 from django.test import SimpleTestCase
 
 from nautobot_ssot.integrations.ipfabric.bulk_writes import PendingWrites
@@ -1058,8 +1060,8 @@ class TestInterfaceAddressModel(_ModelTestBase):
 class TestVlanModel(_ModelTestBase):
     """Test `Vlan.create/update/delete` branching and regression guards."""
 
-    def _make_vlan_diff(self, location="loc"):
-        diff_model = Vlan(name="v", vid=10, status="Active", location=location)
+    def _make_vlan_diff(self, location="loc", name="v"):
+        diff_model = Vlan(name=name, vid=10, status="Active", location=location, vlan_pk=uuid4())
         diff_model.adapter = self.adapter
         return diff_model
 
@@ -1074,7 +1076,6 @@ class TestVlanModel(_ModelTestBase):
         nb_vlan.description = "old"
 
         with (
-            mock.patch.object(diffsync_models.NautobotLocation.objects, "get", return_value=mock.MagicMock()),
             mock.patch.object(diffsync_models.VLAN.objects, "get", return_value=nb_vlan),
             _nb_patch("tag_object"),
             mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
@@ -1084,17 +1085,30 @@ class TestVlanModel(_ModelTestBase):
         self.assertEqual(nb_vlan.description, "new")
         self.assertEqual(result, "ok")
 
-    def _assert_vlan_update_returns_none(self, *, location_side_effect=None, vlan_side_effect=None):
-        """Shared assertion: VLAN.update bails out (returns None, super() not invoked)."""
-        diff_model = self._make_vlan_diff()
-        location_kw = (
-            {"side_effect": location_side_effect} if location_side_effect else {"return_value": mock.MagicMock()}
-        )
-        vlan_kw = {"side_effect": vlan_side_effect} if vlan_side_effect else {"return_value": mock.MagicMock()}
+    def test_update_writes_a_new_name_to_the_vlan(self):
+        """A VLAN renamed on the network is an update, so the new name has to be written."""
+        diff_model = self._make_vlan_diff(name="old-name")
+        nb_vlan = mock.MagicMock()
+        nb_vlan.status = "Active"
+        nb_vlan.name = "old-name"
 
         with (
-            mock.patch.object(diffsync_models.NautobotLocation.objects, "get", **location_kw),
-            mock.patch.object(diffsync_models.VLAN.objects, "get", **vlan_kw) as mock_vlan_get,
+            mock.patch.object(diffsync_models.VLAN.objects, "get", return_value=nb_vlan) as mock_get,
+            _nb_patch("tag_object"),
+            mock.patch.object(diffsync_models.DiffSyncModel, "update", return_value="ok"),
+        ):
+            result = diff_model.update({"name": "new-name"})
+
+        self.assertEqual(nb_vlan.name, "new-name")
+        self.assertEqual(result, "ok")
+        self.assertEqual(mock_get.call_args.kwargs, {"pk": diff_model.vlan_pk})
+
+    def test_update_returns_none_when_the_vlan_is_gone(self):
+        """A key that no longer resolves is reported, and super().update() is not reached."""
+        diff_model = self._make_vlan_diff()
+
+        with (
+            mock.patch.object(diffsync_models.VLAN.objects, "get", side_effect=diffsync_models.VLAN.DoesNotExist),
             mock.patch.object(diffsync_models.DiffSyncModel, "update") as mock_super,
         ):
             result = diff_model.update({"description": "new"})
@@ -1102,29 +1116,6 @@ class TestVlanModel(_ModelTestBase):
         self.assertIsNone(result)
         mock_super.assert_not_called()
         self.adapter.job.logger.error.assert_called_once()
-        return mock_vlan_get
-
-    def test_update_returns_none_when_location_missing(self):
-        """`Location.DoesNotExist` -> error log, no VLAN lookup attempted, no super().update()."""
-        mock_vlan_get = self._assert_vlan_update_returns_none(
-            location_side_effect=diffsync_models.NautobotLocation.DoesNotExist
-        )
-        mock_vlan_get.assert_not_called()
-
-    def test_update_returns_none_when_location_multiple_objects(self):
-        """`Location.MultipleObjectsReturned` -> error log + return None."""
-        mock_vlan_get = self._assert_vlan_update_returns_none(
-            location_side_effect=diffsync_models.NautobotLocation.MultipleObjectsReturned
-        )
-        mock_vlan_get.assert_not_called()
-
-    def test_update_returns_none_when_vlan_multiple_objects(self):
-        """`VLAN.MultipleObjectsReturned` -> error log + return None."""
-        self._assert_vlan_update_returns_none(vlan_side_effect=diffsync_models.VLAN.MultipleObjectsReturned)
-
-    def test_update_returns_none_when_vlan_does_not_exist(self):
-        """`VLAN.DoesNotExist` -> error log + return None."""
-        self._assert_vlan_update_returns_none(vlan_side_effect=diffsync_models.VLAN.DoesNotExist)
 
     @_nb_patch("create_vlan", return_value=None)
     def test_create_returns_none_when_helper_fails(self, _mock_create_vlan):
@@ -1135,8 +1126,8 @@ class TestVlanModel(_ModelTestBase):
         ):
             result = Vlan.create(
                 adapter=self.adapter,
-                ids={"name": "v", "location": "loc"},
-                attrs={"vid": 10, "status": "Active", "description": "d"},
+                ids={"vid": 10, "location": "loc"},
+                attrs={"name": "v", "status": "Active", "description": "d"},
             )
 
         self.assertIsNone(result)
@@ -1547,3 +1538,80 @@ class TestDeferredChangeLoggingCoverage(SimpleTestCase):
                     "costs a change log rewrite per write and pins the instance for the whole job.",
                 )
         self.assertEqual(checked, 28, "Expected 28 write operations across the ten models.")
+
+
+class _Site(DiffSyncModel):
+    """Stands in for the Location a VLAN hangs under, which is all the diff needs of one."""
+
+    _modelname = "site"
+    _identifiers = ("name",)
+    _children = {"vlan": "vlans"}
+
+    name: str
+    vlans: List[str] = []
+
+
+class _VlanAdapter(Adapter):
+    """A Location with its VLANs beneath it, which is the shape both real adapters build.
+
+    The nesting matters: DiffSync keys the diff tree by shortname, so a VLAN ID only has to be
+    unique within its Location rather than across the whole run.
+    """
+
+    site = _Site
+    vlan = Vlan
+    top_level = ["site"]
+
+
+class TestVlanIdentity(SimpleTestCase):
+    """What a VLAN is identified by, which is what decides whether a change reads as an update."""
+
+    @staticmethod
+    def _adapter(sites, vlans):
+        adapter = _VlanAdapter()
+        by_name = {}
+        for name in sites:
+            site = _Site(name=name)
+            adapter.add(site)
+            by_name[name] = site
+        for kwargs in vlans:
+            vlan = Vlan(**kwargs)
+            adapter.add(vlan)
+            by_name[kwargs["location"]].add_child(vlan)
+        return adapter
+
+    def _diff(self, before, after, sites=("site1",)):
+        """Return the summary of syncing `before` towards `after`, both given as Vlan kwargs."""
+        target = self._adapter(sites, before)
+        source = self._adapter(sites, after)
+        return target.diff_from(source).summary()
+
+    def test_a_rename_is_an_update(self):
+        """The VLAN ID persists across a rename, so the name changing is a change to one VLAN."""
+        summary = self._diff(
+            [{"name": "old-name", "vid": 10, "status": "Active", "location": "site1"}],
+            [{"name": "new-name", "vid": 10, "status": "Active", "location": "site1"}],
+        )
+
+        self.assertEqual(summary["update"], 1)
+        self.assertEqual((summary["create"], summary["delete"]), (0, 0))
+
+    def test_a_different_vlan_id_is_its_own_vlan(self):
+        """Identity still has to separate two VLANs, or a second one would read as a rename."""
+        summary = self._diff(
+            [{"name": "same-name", "vid": 10, "status": "Active", "location": "site1"}],
+            [{"name": "same-name", "vid": 20, "status": "Active", "location": "site1"}],
+        )
+
+        self.assertEqual((summary["create"], summary["delete"]), (1, 1))
+
+    def test_the_same_vlan_id_at_another_location_is_its_own_vlan(self):
+        """IP Fabric reports VLANs per site, and Nautobot assigns them per Location."""
+        summary = self._diff(
+            [{"name": "users", "vid": 10, "status": "Active", "location": "site1"}],
+            [{"name": "users", "vid": 10, "status": "Active", "location": "site2"}],
+            sites=("site1", "site2"),
+        )
+
+        self.assertEqual((summary["create"], summary["delete"]), (1, 1))
+        self.assertEqual(summary["update"], 0)

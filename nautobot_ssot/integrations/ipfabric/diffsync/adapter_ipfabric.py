@@ -593,7 +593,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     self.add(vlan)
                     location.add_child(vlan)
                 except ObjectAlreadyExists:
-                    logger.warning(f"Duplicate VLAN discovered, {vlan}")
+                    logger.warning(f"Duplicate VLAN discovered at {vlan_record['siteName']}: VLAN ID {vlan_id}")
             for device in self.client.devices.by_site.get(location.name, []):
                 base_args = {
                     "diffsync": self,
