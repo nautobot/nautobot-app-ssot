@@ -1448,8 +1448,7 @@ def set_interface_vlans(  # pylint: disable=too-many-arguments
     interface_obj.untagged_vlan = untagged
 
     if pending is not None:
-        through = Interface.tagged_vlans.through
-        rows = [through(interface_id=interface_obj.pk, vlan_id=vlan.pk) for vlan in tagged]
+        rows = [Interface.tagged_vlans.through(interface_id=interface_obj.pk, vlan_id=vlan.pk) for vlan in tagged]
         if interface_obj._state.adding:  # pylint: disable=protected-access
             # A queued Interface is inserted carrying the mode and the untagged VLAN; the tagged
             # ones are join rows, written once both ends are there.

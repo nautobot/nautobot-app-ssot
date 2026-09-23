@@ -5,6 +5,7 @@ The mapping from IP Fabric's switchport table to Nautobot's `mode`, `untagged_vl
 """
 
 import unittest.mock
+from unittest.mock import patch
 
 from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.testing import TestCase
@@ -19,6 +20,11 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import Nautob
 from nautobot_ssot.integrations.ipfabric.sync_scope import SYNCABLE_OBJECTS, SyncScope
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import set_interface_vlans
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache, parse_vlan_ranges
+from nautobot_ssot.tests.ipfabric.test_ipfabric_adapter import (
+    NETWORKS_FIXTURE,
+    build_adapter,
+    mock_ipfabric_client,
+)
 
 
 class TestVlanRangeParsing(TestCase):
@@ -117,6 +123,7 @@ class TestWritingInterfaceVlans(_InterfaceVlanTestCase):
     """What `set_interface_vlans` puts on the Interface."""
 
     def write(self, mode, untagged_vid=None, tagged_vids=(), logger=None):
+        """Set this test's Interface to the given mode and VLANs."""
         return set_interface_vlans(
             device_name=self.device.name,
             interface_name=self.interface.name,
@@ -174,6 +181,7 @@ class TestLoadingInterfaceVlans(_InterfaceVlanTestCase):
     """What the Nautobot adapter reads back."""
 
     def adapter(self):
+        """Return a Nautobot adapter that has loaded this test's Device."""
         job = unittest.mock.MagicMock()
         job.debug = False
         adapter = NautobotDiffSync(
@@ -212,3 +220,91 @@ class TestInterfaceVlanScope(TestCase):
 
         self.assertFalse(entry.default, "No existing sync should change on upgrade.")
         self.assertEqual(set(entry.requires), {"interfaces", "vlans"})
+
+
+class InterfaceVlanLoadTestCase(TestCase):
+    """What the switchport table and the managed address table each contribute."""
+
+    @staticmethod
+    def _client(switchports=(), vlan_id=None):
+        """Return a mock client serving the given switchport rows, and an addressed Gi4."""
+        client = mock_ipfabric_client()
+        client.technology.interfaces.switchport.all.return_value = list(switchports)
+        client.technology.addressing.managed_ip_ipv4.all.return_value = [
+            {**NETWORKS_FIXTURE[0], **({"vlanId": vlan_id} if vlan_id is not None else {})}
+        ]
+        return client
+
+    def _loaded(self, **kwargs):
+        adapter = build_adapter(client=self._client(**kwargs), sync_interface_vlans=True)
+        return {(model.device_name, model.interface_name): model for model in adapter.get_all("interface_vlan")}
+
+    @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
+    def test_a_switchport_carries_the_mode_and_vlans_it_reports(self):
+        loaded = self._loaded(
+            switchports=[
+                {
+                    "hostname": "jcy-rtr-02",
+                    "sn": "a000a02",
+                    "intName": "Gi4",
+                    "mode": "trunk",
+                    "nativeVlan": 1,
+                    "trunkVlan": "10,20",
+                },
+            ]
+        )
+
+        model = loaded[("jcy-rtr-02", "GigabitEthernet4")]
+        self.assertEqual(model.mode, "tagged")
+        self.assertEqual(model.untagged_vid, 1)
+        self.assertEqual(model.tagged_vids, [10, 20])
+
+    @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
+    def test_an_addressed_interface_takes_the_vlan_its_address_reports(self):
+        """A routed interface is not a switchport, so the address table is where its VLAN is named."""
+        loaded = self._loaded(vlan_id=30)
+
+        model = loaded[("jcy-rtr-02", "GigabitEthernet4")]
+        self.assertEqual(model.mode, "access")
+        self.assertEqual(model.untagged_vid, 30)
+
+    @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
+    def test_the_switchport_table_wins_where_both_speak(self):
+        """It is the direct statement of the port's configuration."""
+        loaded = self._loaded(
+            switchports=[
+                {"hostname": "jcy-rtr-02", "sn": "a000a02", "intName": "Gi4", "mode": "access", "accVlan": 10},
+            ],
+            vlan_id=30,
+        )
+
+        self.assertEqual(loaded[("jcy-rtr-02", "GigabitEthernet4")].untagged_vid, 10)
+
+    @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
+    def test_a_mode_with_no_nautobot_equivalent_is_reported_once_per_mode(self):
+        client = self._client(
+            switchports=[
+                {"hostname": "jcy-rtr-02", "sn": "a000a02", "intName": "Gi4", "mode": "dot1q-tunnel"},
+                {"hostname": "nyc-leaf-01", "sn": "5254.0029.fbf2", "intName": "Et15", "mode": "dot1q-tunnel"},
+            ]
+        )
+
+        with self.assertLogs("nautobot.jobs", level="WARNING") as logs:
+            adapter = build_adapter(client=client, sync_interface_vlans=True)
+
+        self.assertEqual(adapter.get_all("interface_vlan"), [])
+        reported = [line for line in logs.output if "dot1q-tunnel" in line]
+        self.assertEqual(len(reported), 1, f"Expected one report for the mode, got {reported}")
+        self.assertIn("2 Interfaces", " ".join(reported))
+
+    def test_out_of_scope_loads_none(self):
+        adapter = build_adapter(
+            client=self._client(
+                switchports=[
+                    {"hostname": "jcy-rtr-02", "sn": "a000a02", "intName": "Gi4", "mode": "access", "accVlan": 10},
+                ]
+            ),
+            sync_interface_vlans=False,
+        )
+
+        self.assertEqual(adapter.get_all("interface_vlan"), [])
