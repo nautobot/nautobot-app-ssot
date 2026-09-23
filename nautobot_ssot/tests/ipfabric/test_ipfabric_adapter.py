@@ -102,14 +102,14 @@ class IPFabricDiffSyncTestCase(TestCase):
             {dev.get_unique_id() for dev in self.ipfabric.get_all("device") if dev.location_name != "stack"},
         )
         self.assertEqual(
-            {f"{vlan['vlanName']}__{vlan['siteName']}" for vlan in VLAN_FIXTURE if "badvlan" not in vlan["vlanName"]},
+            {f"{vlan['vlanId']}__{vlan['siteName']}" for vlan in VLAN_FIXTURE if 1 <= vlan["vlanId"] <= 4094},
             {vlan.get_unique_id() for vlan in self.ipfabric.get_all("vlan")},
         )
 
         # Assert invalid VLANs were not loaded
         all_vlans = {vlan.get_unique_id() for vlan in self.ipfabric.get_all("vlan")}
         self.assertEqual(len(all_vlans), 13)
-        self.assertNotIn("badvlan0001__JCY-SPINE-01.INFRA.NTC.COM_1", all_vlans)
+        self.assertNotIn("0__JCY-SPINE-01.INFRA.NTC.COM_1", all_vlans)
         self.assertNotIn("badvlan0002__JCY-SPINE-01.INFRA.NTC.COM_1", all_vlans)
 
         # Assert each site has a device tied to it.
