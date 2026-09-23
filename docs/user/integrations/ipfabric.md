@@ -210,6 +210,10 @@ hold two VLANs with the same one. The second is reported in the job log and not 
 leaves it alone. Which of the two is kept is not defined, so it is worth resolving the duplicate in
 Nautobot rather than relying on the sync to pick.
 
+**Long names.** A VLAN name longer than the 255 characters Nautobot holds is truncated, and the full
+value is reported in the job log. The VLAN itself is still synced, since its identity does not depend
+on the name.
+
 ## Interface Addresses
 
 An Interface carries every address IP Fabric reports for it, each synced as its own IP Address in Nautobot. Three tables are read: `technology.addressing.managed_ip_ipv4` and `managed_ip_ipv6` for the addresses configured on the interface, and `technology.fhrp.group_members` for FHRP virtual addresses. So a secondary address, an HSRP or VRRP virtual address, and IPv6 alongside IPv4 all reach Nautobot, which is what lets a template render them from Nautobot data.
