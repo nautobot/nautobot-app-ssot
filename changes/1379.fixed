@@ -1,1 +1,0 @@
-Fixed the SSoT Sync Details button on the JobResult detail view loading the entire `Sync` row, including the `diff` JSON, which can be hundreds of megabytes and overflowed the MySQL sort buffer (`Out of sort memory`) so the page failed to load. The button now fetches only the `Sync` primary key, in one query instead of two.

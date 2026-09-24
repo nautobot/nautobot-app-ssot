@@ -1,1 +1,0 @@
-Fixed Infoblox SSoT sync ignoring `nautobot_deletable_models` for VLAN and VLAN Group deletions, and added a safeguard to prevent deleting non-empty VLAN Groups.

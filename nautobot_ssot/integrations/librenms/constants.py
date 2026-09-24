@@ -423,7 +423,7 @@ LIBRENMS_LIB_MAPPER_REVERSE = {
 # Separate from LIBRENMS_LIB_MAPPER in this module, which also drives legacy naming: an entry there
 # would rename platforms (fortios -> fortinet.fortios.fortios) and move devices.
 #
-# Values are MAIN_LIB_MAPPER keys, except applogic_procera (legacy, kept for compatibility).
+# Values are MAIN_LIB_MAPPER keys.
 # Ambiguous OS values (dnos, asyncos, junose, extremeware, zynos, zywall, sonicwall, pfsense,
 # opnsense, vmwareesxi, aix, cumulus, axos) intentionally absent -> "". Map them via
 # librenms_network_driver_map.
@@ -494,8 +494,6 @@ _LIBRENMS_OS_TO_NETWORK_DRIVER_PENDING_NETUTILS = {
     "ruckuswirelesssz": "ruckus_smartzone",
     # Citrix
     "nitro": "netscaler",
-    # AppLogic -- not a netutils driver, so the known-driver fallback cannot recover it.
-    "applogic_procera": "applogic_procera",
 }
 
 # netutils wins where it has an opinion, so upstream additions take effect on upgrade. Until the

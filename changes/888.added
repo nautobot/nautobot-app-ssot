@@ -1,1 +1,0 @@
-Added an opt-in "Sync Device VRFs" option to the IP Fabric integration that records which Devices carry each VRF, as one assignment per Device per VRF so that a Device picking up a further VRF reports that assignment rather than its whole set. Each assignment inherits its VRF's route distinguisher and name, and only Devices the run covers are assigned.
