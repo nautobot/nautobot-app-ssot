@@ -7,6 +7,12 @@ from nautobot.core.choices import ColorChoices
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
 
+from nautobot_ssot.integrations.ipfabric.constants import (
+    INTERFACE_L1_CF_NAME,
+    INTERFACE_L2_CF_NAME,
+    INTERFACE_REASON_CF_NAME,
+)
+
 
 def register_signals(sender):
     """Register signals for IPFabric integration."""
@@ -95,6 +101,9 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     create_custom_field("last_synced_from_sor", "Last sync from System of Record", synced_from_models, apps=apps)
     create_custom_field("ipfabric_site_id", "IPFabric Location ID", [Location], apps=apps, cf_type="type_text")
     create_custom_field("ipfabric_type", "IPFabric Type", [Role], apps=apps, cf_type="type_text")
+    create_custom_field(INTERFACE_L1_CF_NAME, "IPFabric L1 State", [Interface], apps=apps, cf_type="type_text")
+    create_custom_field(INTERFACE_L2_CF_NAME, "IPFabric L2 State", [Interface], apps=apps, cf_type="type_text")
+    create_custom_field(INTERFACE_REASON_CF_NAME, "IPFabric State Reason", [Interface], apps=apps, cf_type="type_text")
     # What IP Fabric reported for a VRF but could not be applied, rather than nothing at all: a VRF
     # with no route distinguisher is otherwise indistinguishable from one whose devices disagreed
     # about what it should be.

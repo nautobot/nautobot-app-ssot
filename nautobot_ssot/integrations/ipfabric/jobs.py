@@ -336,6 +336,7 @@ class IpFabricDataSource(DataSource):
             scope=scope,
             strict=strict,
             addresses_without_a_subnet=ipfabric_source.addresses_without_a_subnet,
+            interfaces_without_admin_state=ipfabric_source.interfaces_without_admin_state,
         )
 
         self.logger.info("Loading current data from Nautobot...")

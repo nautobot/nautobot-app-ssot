@@ -1,0 +1,1 @@
+Added the interface state IP Fabric observed to the IP Fabric integration, as IPFabric L1 State, IPFabric L2 State and IPFabric State Reason custom fields on each Interface.

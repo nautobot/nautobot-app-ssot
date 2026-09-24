@@ -38,6 +38,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_DEVICE_STATUS,
     DEFAULT_DEVICE_STATUS_COLOR,
     DEFAULT_INTERFACE_MAC,
+    INTERFACE_STATE_FIELDS,
     LAST_SYNCHRONIZED_CF_NAME,
     SAFE_DELETE_CABLE_STATUS,
     SAFE_DELETE_DEVICE_STATUS,
@@ -603,6 +604,9 @@ class Interface(DiffSyncExtras):
         "type",
         "mgmt_only",
         "status",
+        "state_l1",
+        "state_l2",
+        "state_reason",
     )
     _children = {"interface_address": "addresses"}
 
@@ -615,6 +619,10 @@ class Interface(DiffSyncExtras):
     type: Optional[str] = None
     mgmt_only: Optional[bool] = None
     status: str
+    # What the last discovery found, as opposed to what the Interface is meant to be.
+    state_l1: Optional[str] = None
+    state_l2: Optional[str] = None
+    state_reason: Optional[str] = None
     addresses: List["InterfaceAddress"] = []
 
     @classmethod
@@ -708,7 +716,8 @@ class Interface(DiffSyncExtras):
             else:
                 if attrs.get("description"):
                     interface.description = attrs["description"]
-                if attrs.get("enabled"):
+                if attrs.get("enabled") is not None:
+                    # `False` is a value here, not an absence: it disables the Interface.
                     interface.enabled = attrs["enabled"]
                 if attrs.get("mac_address"):
                     interface.mac_address = attrs["mac_address"]
@@ -722,6 +731,11 @@ class Interface(DiffSyncExtras):
                     interface.type = attrs["type"]
                 if attrs.get("mgmt_only"):
                     interface.mgmt_only = attrs["mgmt_only"]
+                # Set even where IP Fabric now reports nothing, so a state that stops being
+                # reported is cleared rather than left saying what an earlier run found.
+                for attribute, custom_field in INTERFACE_STATE_FIELDS.items():
+                    if attribute in attrs:
+                        interface.cf[custom_field] = attrs[attribute]
                 try:
                     tonb_nbutils.tag_object(nautobot_object=interface, custom_field=LAST_SYNCHRONIZED_CF_NAME)
                 except (DjangoBaseDBError, ValidationError):
