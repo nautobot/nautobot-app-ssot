@@ -1243,6 +1243,83 @@ class VrfDeviceAssignment(DiffSyncExtras):
         return super().delete()
 
 
+class InterfaceVlan(DiffSyncExtras):
+    """The 802.1Q configuration of a switchport: its mode and the VLANs it carries.
+
+    A model of its own rather than attributes of the Interface, for the same reason the VRF is one:
+    Nautobot refuses an Interface a VLAN that is not available at its Device's Location, and VLANs
+    are written as children of that Location, which happens after the Devices under it. Kept top
+    level and last, it is written once both the Interface and the VLANs exist.
+
+    Only switchports carry one of these, on either side. An Interface IP Fabric stops reporting as a
+    switchport is therefore a delete, which clears the mode and the VLANs it carried rather than
+    removing anything; the Interface and the VLANs both remain.
+
+    VLAN IDs rather than VLAN names, because a VLAN is identified by its ID at a Location and the
+    switchport table reports IDs.
+    """
+
+    _modelname = "interface_vlan"
+    _identifiers = ("device_name", "interface_name")
+    _attributes = ("mode", "untagged_vid", "tagged_vids")
+
+    device_name: str
+    interface_name: str
+    mode: str
+    untagged_vid: Optional[int] = None
+    tagged_vids: List[int] = []
+
+    @classmethod
+    @tonb_nbutils.deferred_change_logging()
+    def create(cls, adapter, ids, attrs):
+        """Set an Interface's 802.1Q mode and VLANs in Nautobot."""
+        if not tonb_nbutils.set_interface_vlans(
+            device_name=ids["device_name"],
+            interface_name=ids["interface_name"],
+            mode=attrs["mode"],
+            untagged_vid=attrs.get("untagged_vid"),
+            tagged_vids=attrs.get("tagged_vids") or [],
+            tagged_only=adapter.sync_ipfabric_tagged_only,
+            logger=adapter.job.logger,
+        ):
+            return None
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def update(self, attrs):
+        """Change an Interface's 802.1Q mode or the VLANs it carries."""
+        if not tonb_nbutils.set_interface_vlans(
+            device_name=self.device_name,
+            interface_name=self.interface_name,
+            mode=attrs.get("mode", self.mode),
+            untagged_vid=attrs["untagged_vid"] if "untagged_vid" in attrs else self.untagged_vid,
+            tagged_vids=attrs["tagged_vids"] if "tagged_vids" in attrs else self.tagged_vids,
+            tagged_only=self.adapter.sync_ipfabric_tagged_only,
+            logger=self.adapter.job.logger,
+        ):
+            return None
+        return super().update(attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def delete(self) -> Optional["DiffSyncModel"]:
+        """Take an Interface out of 802.1Q mode in Nautobot.
+
+        Nothing is deleted, so Safe Delete Mode does not apply: the Interface and the VLANs both
+        remain, and what goes is the mode and the references between them.
+        """
+        if not tonb_nbutils.set_interface_vlans(
+            device_name=self.device_name,
+            interface_name=self.interface_name,
+            mode="",
+            untagged_vid=None,
+            tagged_vids=[],
+            tagged_only=self.adapter.sync_ipfabric_tagged_only,
+            logger=self.adapter.job.logger,
+        ):
+            return None
+        return super().delete()
+
+
 class InterfaceVrf(DiffSyncExtras):
     """The VRF an Interface belongs to.
 

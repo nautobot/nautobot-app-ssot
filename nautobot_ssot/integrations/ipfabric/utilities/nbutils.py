@@ -1347,6 +1347,133 @@ def set_route_targets(  # pylint: disable=too-many-arguments
     vrf_obj.export_targets.set(resolved_exports)
 
 
+@job_scoped_cache(group=BULK_WRITTEN_LOOKUPS)
+def get_vlan_at_location(vid: int, location_id: Any) -> Optional[VLAN]:
+    """Return the VLAN with the given ID at the given Location, if Nautobot holds one.
+
+    Nautobot does not constrain a VLAN ID to be unique at a Location, so the first is taken; the
+    adapters report the duplicate when they load it.
+    """
+    return VLAN.objects.filter(vid=vid, locations__id=location_id).first()
+
+
+def resolve_interface_vlans(  # pylint: disable=too-many-arguments
+    interface_obj: Interface,
+    untagged_vid: Optional[int],
+    tagged_vids: Iterable[int],
+    pending: Optional[Any] = None,
+    logger: Optional[logging.Logger] = None,
+) -> tuple:
+    """Return the `(untagged, tagged)` VLAN objects for an Interface, given the IDs it carries.
+
+    A VLAN this run has queued is not in the database yet, so the queue is asked first. An ID the
+    Interface's Location has no VLAN for is reported and left out, since Nautobot has nothing to
+    point the Interface at; that is the ordinary state under a Site Filter, where the run covers one
+    site's VLANs but a trunk may name another's.
+    """
+    location_id = interface_obj.device.location_id
+
+    def one(vid):
+        queued = pending.find(VLAN, (vid, location_id)) if pending is not None else None
+        return queued or get_vlan_at_location(vid, location_id)
+
+    untagged = one(untagged_vid) if untagged_vid is not None else None
+    if untagged_vid is not None and untagged is None and logger:
+        logger.warning(
+            "No VLAN with ID %s at the Location of %s, so it is not set as the untagged VLAN of %s",
+            untagged_vid,
+            interface_obj.device.name,
+            interface_obj.name,
+        )
+    tagged, missing = [], []
+    for vid in tagged_vids:
+        vlan = one(vid)
+        if vlan is None:
+            missing.append(vid)
+        else:
+            tagged.append(vlan)
+    if missing and logger:
+        logger.warning(
+            "No VLAN at the Location of %s for %s, so they are not tagged on %s",
+            interface_obj.device.name,
+            ", ".join(str(vid) for vid in missing),
+            interface_obj.name,
+        )
+    return untagged, tagged
+
+
+def set_interface_vlans(  # pylint: disable=too-many-arguments
+    device_name: str,
+    interface_name: str,
+    mode: str,
+    untagged_vid: Optional[int],
+    tagged_vids: Iterable[int],
+    tagged_only: bool,
+    logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
+) -> bool:
+    """Set an Interface's 802.1Q mode and the VLANs it carries, or clear them.
+
+    Nautobot requires a VLAN to be available at the Interface's Device's Location before an
+    Interface may reference it, which is why this is written after the VLANs rather than with the
+    Interface.
+
+    Args:
+        device_name: Name of the Device the Interface belongs to.
+        interface_name: Name of the Interface.
+        mode: One of Nautobot's 802.1Q modes, or an empty string to take the Interface out of one.
+        untagged_vid: VLAN ID to carry untagged, or None.
+        tagged_vids: VLAN IDs to carry tagged.
+        tagged_only: Mirrors the job option, so an Interface on a Device this run may not write to
+            is left alone.
+        logger: Logger to use for messaging.
+        pending: When given, the write is queued rather than saved.
+
+    Returns:
+        bool: Whether the Interface now holds what was asked for.
+    """
+    device_obj = (pending.find(Device, device_name) if pending is not None else None) or get_syncable_device(
+        device_name, tagged_only=tagged_only
+    )
+    interface_obj = None
+    if pending is not None and device_obj is not None:
+        interface_obj = pending.find(Interface, (device_obj.pk, interface_name))
+    if interface_obj is None:
+        interface_obj = get_tagged_interface(device_name, interface_name, tagged_only=tagged_only, logger=logger)
+    if interface_obj is None:
+        return False
+
+    untagged, tagged = resolve_interface_vlans(interface_obj, untagged_vid, tagged_vids, pending=pending, logger=logger)
+    interface_obj.mode = mode
+    interface_obj.untagged_vlan = untagged
+
+    if pending is not None:
+        rows = [Interface.tagged_vlans.through(interface_id=interface_obj.pk, vlan_id=vlan.pk) for vlan in tagged]
+        if interface_obj._state.adding:  # pylint: disable=protected-access
+            # A queued Interface is inserted carrying the mode and the untagged VLAN; the tagged
+            # ones are join rows, written once both ends are there.
+            for row in rows:
+                pending.add_through(row)
+            return True
+        pending.defer_update(interface_obj, {"mode": mode, "untagged_vlan": untagged})
+        for row in rows:
+            pending.add_through(row)
+        return True
+    try:
+        interface_obj.validated_save()
+        interface_obj.tagged_vlans.set(tagged)
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error(
+                "Unable to set the VLANs of %s:%s. Error: %s",
+                device_name,
+                interface_name,
+                err,
+            )
+        return False
+    return True
+
+
 def set_interface_vrf(  # pylint: disable=too-many-arguments
     device_name: str,
     interface_name: str,

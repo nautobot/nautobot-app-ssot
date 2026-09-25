@@ -427,6 +427,33 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     continue
                 location.add_child(vlan)
 
+    def load_interface_vlans(self, filtered_devices):
+        """Add each Nautobot Interface's 802.1Q mode and VLANs as DiffSync InterfaceVlan models.
+
+        Only Interfaces that are in a mode are loaded, matching what IP Fabric's switchport table
+        reports. A VLAN this run did not load is left out of the tagged list rather than reported as
+        removed, since the run holds no opinion about it; that is the ordinary state under a Site
+        Filter, where a trunk may name another site's VLANs.
+        """
+        interfaces = (
+            Interface.objects.filter(device__in=filtered_devices)
+            .exclude(mode="")
+            .select_related("device", "untagged_vlan")
+            .prefetch_related("tagged_vlans")
+        )
+        for interface in interfaces:
+            untagged = interface.untagged_vlan.vid if interface.untagged_vlan is not None else None
+            self.add(
+                self.interface_vlan(
+                    adapter=self,
+                    device_name=interface.device.name,
+                    interface_name=interface.name,
+                    mode=interface.mode,
+                    untagged_vid=untagged,
+                    tagged_vids=sorted(vlan.vid for vlan in interface.tagged_vlans.all()),
+                )
+            )
+
     def load_interface_vrfs(self, filtered_devices):
         """Add the VRF each Nautobot Interface is in as DiffSync InterfaceVrf models.
 
@@ -604,6 +631,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             self.load_vrf_device_assignments(self.get_in_scope_devices(location_objects))
         if self.scope.interface_vrfs:
             self.load_interface_vrfs(self.get_in_scope_devices(location_objects))
+        if self.scope.interface_vlans:
+            self.load_interface_vlans(self.get_in_scope_devices(location_objects))
 
         if self.placeholder_interfaces:
             self.job.logger.warning(
