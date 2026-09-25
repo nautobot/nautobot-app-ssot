@@ -15,7 +15,7 @@ from .nautobot_fixtures import create_default_proxmox_config
 class ProxmoxSyncTestMixin:
     """Create the integration's default objects and build source/target adapters."""
 
-    def setUp(self):
+    def setUp(self):  # pylint: disable=invalid-name
         """Run the database-ready signal and create a default config."""
         super().setUp()
         nautobot_database_ready_callback(sender=None, apps=django_apps)
