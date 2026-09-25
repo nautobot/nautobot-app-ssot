@@ -57,8 +57,7 @@ class DeviceRefDict(TypedDict):
 class PrefixModel(ProxmoxModelDiffSync):
     """Prefix model."""
 
-    # When syncing with a cluster filter we may not see every prefix from a previous unfiltered sync,
-    # so never delete prefixes.
+    # A cluster-filtered sync may not see every prefix, so never delete prefixes.
     model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
     _model = Prefix
@@ -105,9 +104,8 @@ class IPAddressModel(ProxmoxModelDiffSync):
     def get_queryset(cls, config, cluster_filters):  # pylint: disable=unused-argument
         """Only load IP addresses previously synced from Proxmox VE.
 
-        Scoping is derived from the ``last_synced_from_proxmox_on`` custom field (stamped on every
-        sync), not the cosmetic SSoT tag, so another integration deleting that tag can't affect
-        which objects this integration considers its own.
+        Scoped by the ``last_synced_from_proxmox_on`` custom field rather than the SSoT tag, which
+        other integrations may delete.
 
         Args:
             config (SSOTProxmoxConfig): The integration configuration object.
@@ -152,9 +150,8 @@ class DeviceInterfaceModel(ProxmoxModelDiffSync):
     enabled: bool
     status__name: str
     mtu: Optional[int] = None
-    # Intra-device interface relationships (bridge members, bond slaves, VLAN parents). The write is
-    # deferred to the adapter's `sync_complete` so it doesn't depend on interface creation order;
-    # all three target interfaces live on the same node Device.
+    # Bridge/bond/VLAN links on the same Device; written in the adapter's `sync_complete` so interface
+    # creation order doesn't matter.
     bridge__name: Optional[str] = None
     lag__name: Optional[str] = None
     parent_interface__name: Optional[str] = None
@@ -212,9 +209,7 @@ class DeviceInterfaceModel(ProxmoxModelDiffSync):
     def get_queryset(cls, config, cluster_filters):  # pylint: disable=unused-argument
         """Only load Interfaces on Devices previously synced from Proxmox VE.
 
-        Scoping traverses to the host Device's ``last_synced_from_proxmox_on`` custom field (Device
-        is the object that actually gets tagged/stamped by ``ProxmoxModelDiffSync``; the Interface
-        itself never is), not the cosmetic SSoT tag.
+        Scoped by the host Device's ``last_synced_from_proxmox_on`` custom field; Interfaces are not stamped.
 
         Args:
             config (SSOTProxmoxConfig): The integration configuration object.
@@ -252,23 +247,19 @@ class DeviceModel(ProxmoxModelDiffSync):
     role__name: str
     location__name: str
     status__name: str
-    # Membership in the Proxmox VE Cluster (Nautobot models Cluster<->Device hosts as many-to-many).
+    # Nautobot models Cluster<->Device as many-to-many.
     clusters: List[ClusterRefDict] = []
-    # Hardware / version detail from /nodes/{node}/status, stored on custom fields.
+    # From /nodes/{node}/status.
     pve_version: Annotated[Optional[str], CustomFieldAnnotation(key=NODE_PVE_VERSION_CF)] = None
     cpu_count: Annotated[Optional[int], CustomFieldAnnotation(key=NODE_CPU_COUNT_CF)] = None
     memory_gb: Annotated[Optional[int], CustomFieldAnnotation(key=NODE_MEMORY_GB_CF)] = None
-    # The node's management IP; assignment is deferred to sync_complete since the IP/interface must
-    # exist first.
+    # Assigned in sync_complete, once the IP and interface exist.
     primary_ip4__host: Optional[str] = None
     interfaces: List[DeviceInterfaceModel] = []
 
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create the node Device, deferring primary IP assignment until its IP exists.
-
-        The primary IP cannot be set until the IP/interface exist, so it is popped here and assigned
-        in the adapter's ``sync_complete`` callback.
 
         Args:
             adapter (Adapter): The Nautobot sync adapter.
@@ -299,8 +290,8 @@ class DeviceModel(ProxmoxModelDiffSync):
     def get_queryset(cls, config, cluster_filters):  # pylint: disable=unused-argument
         """Only load Devices previously synced from Proxmox VE.
 
-        Scoping is derived from the ``last_synced_from_proxmox_on`` custom field, not the cosmetic
-        SSoT tag.
+        Scoped by the ``last_synced_from_proxmox_on`` custom field rather than the SSoT tag, which
+        other integrations may delete.
 
         Args:
             config (SSOTProxmoxConfig): The integration configuration object.
@@ -338,8 +329,7 @@ class VirtualMachineModel(ProxmoxModelDiffSync):
     memory: Optional[int] = None
     disk: Optional[int] = None
     cluster__name: str
-    # Nautobot's VirtualMachine has no host-Device FK, so the Proxmox node hosting the VM is linked
-    # via the "Proxmox VM Host" custom relationship (Device -> VirtualMachine, one-to-many).
+    # VirtualMachine has no host-Device FK, so the node is linked via a custom relationship.
     host_device: Annotated[
         Optional[DeviceRefDict],
         CustomRelationshipAnnotation(name=HOST_RELATIONSHIP_LABEL, side=RelationshipSideEnum.DESTINATION),
@@ -353,9 +343,6 @@ class VirtualMachineModel(ProxmoxModelDiffSync):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create the VM, deferring primary IP assignment until interfaces/IPs exist.
-
-        The primary IPs cannot be set until the interfaces/IPs exist, so they are popped here and
-        assigned in the adapter's ``sync_complete`` callback.
 
         Args:
             adapter (Adapter): The Nautobot sync adapter.
@@ -373,8 +360,7 @@ class VirtualMachineModel(ProxmoxModelDiffSync):
                     "primary_ip6": attrs.pop("primary_ip6__host", None),
                 }
             )
-        # A None host_device means the VM has no hosting node; drop it so the contrib layer doesn't
-        # try to build a custom-relationship association from a missing value.
+        # Drop a None host_device so contrib doesn't build a relationship from a missing value.
         if attrs.get("host_device") is None:
             attrs.pop("host_device", None)
         return super().create(adapter, ids, attrs)
@@ -404,9 +390,8 @@ class VirtualMachineModel(ProxmoxModelDiffSync):
     def get_queryset(cls, config, cluster_filters):  # pylint: disable=unused-argument
         """Load existing Proxmox-synced VMs, optionally scoped to selected clusters.
 
-        Scoping is derived from the ``last_synced_from_proxmox_on`` custom field rather than the
-        cosmetic SSoT tag, so it's unaffected by another integration deleting/recreating that tag
-        mid-sync.
+        Scoped by the ``last_synced_from_proxmox_on`` custom field rather than the SSoT tag, which
+        other integrations may delete.
 
         Args:
             config (SSOTProxmoxConfig): The integration configuration object.
@@ -526,7 +511,7 @@ class TagModel(ProxmoxModelDiffSync):
         """Delete a Tag in Nautobot.
 
         Returns:
-            TagModel: The deleted Tag model, or ``None`` if the Tag was not found.
+            TagModel: The deleted Tag model, or None if the Tag was not found.
         """
         self.adapter.job.logger.debug(f"Delete Tag: {self.name}")
         try:

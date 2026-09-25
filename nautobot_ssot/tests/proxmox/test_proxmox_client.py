@@ -7,7 +7,14 @@ from nautobot_ssot.integrations.proxmox.utilities.proxmox_client import ProxmoxC
 
 
 def _config(token_id="svc@pve!nautobot"):
-    """Build a ProxmoxConfig for client tests."""
+    """Build a ProxmoxConfig for client tests.
+
+    Args:
+        token_id (str): API Token ID in `user@realm!token` form.
+
+    Returns:
+        ProxmoxConfig: Client configuration.
+    """
     return ProxmoxConfig(  # nosec
         proxmox_uri="https://pve.local:8006",
         token_id=token_id,
@@ -86,28 +93,28 @@ class TestProxmoxClient(unittest.TestCase):
         self.assertIsInstance(client.api, MagicMock)
 
     def test_get_qemu_config_propagates_exception(self, mock_api):
-        """Unlike its guest-agent sibling, get_qemu_config() has no try/except and re-raises."""
+        """get_qemu_config() propagates API errors."""
         client = ProxmoxClient(_config())
         mock_api.return_value.nodes.return_value.qemu.return_value.config.get.side_effect = OSError("boom")
         with self.assertRaises(OSError):
             client.get_qemu_config("pve1", 100)
 
     def test_get_lxc_config_propagates_exception(self, mock_api):
-        """Unlike its guest-agent sibling, get_lxc_config() has no try/except and re-raises."""
+        """get_lxc_config() propagates API errors."""
         client = ProxmoxClient(_config())
         mock_api.return_value.nodes.return_value.lxc.return_value.config.get.side_effect = OSError("boom")
         with self.assertRaises(OSError):
             client.get_lxc_config("pve1", 100)
 
     def test_get_cluster_status_propagates_exception(self, mock_api):
-        """get_cluster_status() has no try/except and re-raises."""
+        """get_cluster_status() propagates API errors."""
         client = ProxmoxClient(_config())
         mock_api.return_value.cluster.status.get.side_effect = OSError("boom")
         with self.assertRaises(OSError):
             client.get_cluster_status()
 
     def test_get_nodes_propagates_exception(self, mock_api):
-        """get_nodes() has no try/except and re-raises."""
+        """get_nodes() propagates API errors."""
         client = ProxmoxClient(_config())
         mock_api.return_value.nodes.get.side_effect = OSError("boom")
         with self.assertRaises(OSError):

@@ -2,7 +2,6 @@
 #  pylint: disable=too-few-public-methods
 #  pylint: disable=too-many-locals
 #  pylint: disable=abstract-method
-#  pylint: disable=duplicate-code
 
 """Job for the Proxmox VE integration with the SSoT app."""
 
@@ -29,7 +28,15 @@ name = "SSoT - Virtualization"  # pylint: disable=invalid-name
 
 
 def _get_proxmox_client_config(app_config, debug):
-    """Build the Proxmox client config from the SSOTProxmoxConfig instance."""
+    """Build the Proxmox client config from an SSOTProxmoxConfig.
+
+    Args:
+        app_config (SSOTProxmoxConfig): The integration config.
+        debug (bool): Whether debug logging is enabled.
+
+    Returns:
+        ProxmoxConfig: The client config.
+    """
     token_id = app_config.proxmox_instance.secrets_group.get_secret_value(
         access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
         secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
@@ -59,6 +66,8 @@ def _get_proxmox_client_config(app_config, debug):
 class ProxmoxDataSource(DataSource):  # pylint: disable=too-many-instance-attributes
     """Proxmox VE SSoT Data Source."""
 
+    # Same job variables as the vSphere job.
+    # pylint: disable=duplicate-code
     debug = BooleanVar(description="Enable for more verbose debug logging")
     config = ObjectVar(
         model=SSOTProxmoxConfig,
@@ -77,6 +86,8 @@ class ProxmoxDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         super().__init__()
         self.diffsync_flags = DiffSyncFlags.CONTINUE_ON_FAILURE
 
+    # pylint: enable=duplicate-code
+
     class Meta:
         """Metadata about this Job."""
 
@@ -87,12 +98,20 @@ class ProxmoxDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
 
     @classmethod
     def config_information(cls):
-        """Dictionary describing the configuration of this DataSource."""
+        """Describe the configuration of this DataSource.
+
+        Returns:
+            dict: Configuration details.
+        """
         return {"Instances": "Found in Extensibility -> External Integrations menu."}
 
     @classmethod
     def data_mappings(cls):
-        """List describing the data mappings involved in this DataSource."""
+        """Describe the data mappings involved in this DataSource.
+
+        Returns:
+            tuple: The DataMapping entries.
+        """
         return (
             DataMapping("Cluster", None, "ClusterGroup", reverse("virtualization:clustergroup_list")),
             DataMapping("Cluster", None, "Cluster", reverse("virtualization:cluster_list")),
@@ -104,12 +123,20 @@ class ProxmoxDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         )
 
     def log_debug(self, message):
-        """Conditionally log a debug message."""
+        """Log a debug message if debug is enabled.
+
+        Args:
+            message (str): The message to log.
+        """
         if self.debug:
             self.logger.debug(message)
 
     def load_source_adapter(self):
-        """Load the Proxmox VE adapter."""
+        """Load the Proxmox VE adapter.
+
+        Raises:
+            ValueError: If the client fails to authenticate.
+        """
         self.logger.info("Connecting to Proxmox VE.")
         client_config = _get_proxmox_client_config(self.config, self.debug)
         client = ProxmoxClient(client_config)
@@ -126,6 +153,7 @@ class ProxmoxDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         self.logger.info("Loading data from Proxmox VE...")
         self.source_adapter.load()
 
+    # pylint: disable=duplicate-code
     def load_target_adapter(self):
         """Load the Nautobot adapter."""
         self.logger.info("Connecting to Nautobot...")
@@ -138,8 +166,14 @@ class ProxmoxDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
         self.logger.info("Loading current data from Nautobot...")
         self.target_adapter.load()
 
+    # pylint: enable=duplicate-code
+
     def run(self, *args, **kwargs):
-        """Run the sync."""
+        """Run the sync.
+
+        Raises:
+            ValueError: If the config does not have sync to Nautobot enabled.
+        """
         self.dryrun = kwargs.get("dryrun")
         self.debug = kwargs.get("debug")
         self.cluster_filters = kwargs.get("cluster_filters")

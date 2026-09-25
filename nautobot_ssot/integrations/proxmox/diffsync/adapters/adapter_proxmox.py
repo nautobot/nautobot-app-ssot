@@ -69,7 +69,7 @@ def parse_net_config(net_string: str) -> Dict[str, str]:
 
 
 def mac_from_net_parts(parts: Dict[str, str]) -> Optional[str]:
-    """Return the MAC address from parsed ``netN`` parts (QEMU model= value or LXC hwaddr=).
+    """Return the MAC address from parsed ``netN`` parts (QEMU ``<model>=`` or LXC ``hwaddr=``).
 
     Args:
         parts (dict): The parsed ``netN`` key/value pairs from :func:`parse_net_config`.
@@ -125,7 +125,15 @@ class ProxmoxDiffSync(Adapter):
     top_level = ["tag", "prefix", "clustergroup", "device", "virtual_machine", "ip_address"]
 
     def __init__(self, *args, job=None, sync=None, client, config, cluster_filters, **kwargs):
-        """Initialize the ProxmoxDiffSync."""
+        """Initialize the ProxmoxDiffSync.
+
+        Args:
+            job (ProxmoxDataSource): The running SSoT job.
+            sync (Sync): The Sync record for this run.
+            client (ProxmoxClient): Authenticated Proxmox VE API client.
+            config (SSOTProxmoxConfig): The integration config.
+            cluster_filters (QuerySet): Clusters to limit the sync to.
+        """
         super().__init__(*args, **kwargs)
         self.job = job
         self.sync = sync
@@ -133,22 +141,17 @@ class ProxmoxDiffSync(Adapter):
         self.config = config
         self.cluster_filters = cluster_filters
         self.ip_address_map = {}
-        # Maps Proxmox node name -> Device name (identical here, but kept explicit for linkage).
+        # Proxmox node name -> Device name.
         self.node_device_map = {}
-        # Maps Proxmox node name -> management IP (from /cluster/status), used to pick the node primary IP.
+        # Proxmox node name -> management IP from /cluster/status, preferred as the node primary IP.
         self.node_mgmt_ip = {}
         self.cluster_name = None
 
     def load_clusters(self) -> None:
-        """Load the Cluster Group and Cluster from Proxmox VE cluster status.
-
-        Returns:
-            None
-        """
+        """Load the Cluster Group and Cluster from Proxmox VE cluster status."""
         status = self.client.get_cluster_status()
         cluster_entry = next((entry for entry in status if entry.get("type") == "cluster"), None)
 
-        # Capture each node's management IP for primary-IP selection later.
         for entry in status:
             if entry.get("type") == "node" and entry.get("name") and entry.get("ip"):
                 self.node_mgmt_ip[entry["name"]] = entry["ip"]
@@ -171,11 +174,7 @@ class ProxmoxDiffSync(Adapter):
         diffsync_clustergroup.add_child(diffsync_cluster)
 
     def load_nodes(self) -> None:
-        """Load Proxmox VE nodes as Nautobot Devices.
-
-        Returns:
-            None
-        """
+        """Load Proxmox VE nodes as Nautobot Devices."""
         nodes = self.client.get_nodes()
         self.job.log_debug(message=f"Loading Proxmox VE nodes: {nodes}")
         for node in nodes:
@@ -207,9 +206,6 @@ class ProxmoxDiffSync(Adapter):
         Args:
             node_name (str): The Proxmox VE node name.
             diffsync_device (DeviceModel): The node's Device DiffSync model.
-
-        Returns:
-            None
         """
         interfaces = self.client.get_node_network(node_name)
         self.job.log_debug(message=f"Loading network interfaces for node {node_name}: {interfaces}")
@@ -231,8 +227,7 @@ class ProxmoxDiffSync(Adapter):
                     member_parent[iface_name] = raw
 
         # Second pass: create the interfaces, their relationships, and their IPs.
-        # The Proxmox-type → Nautobot-type mapping is configurable per SSOTProxmoxConfig; fall back to
-        # the built-in default if the config field is empty.
+        # Fall back to the built-in type map if the config field is empty.
         type_map = self.config.default_node_interface_type_map or NODE_INTERFACE_TYPE_MAP
         node_ipv4 = []
         for entry in interfaces:
@@ -298,9 +293,6 @@ class ProxmoxDiffSync(Adapter):
             node_name (str): The Proxmox VE node name.
             diffsync_device (DeviceModel): The node's Device DiffSync model.
             node_ipv4 (List[ipaddress.IPv4Address]): IPv4 addresses found on the node's interfaces.
-
-        Returns:
-            None
         """
         mgmt_ip = self.node_mgmt_ip.get(node_name)
         if mgmt_ip and any(str(addr) == mgmt_ip for addr in node_ipv4):
@@ -328,11 +320,7 @@ class ProxmoxDiffSync(Adapter):
         return sorted(tags, key=lambda item: item["name"].lower())
 
     def load_virtual_machines(self) -> None:
-        """Load QEMU VMs (and LXC containers if enabled) from /cluster/resources.
-
-        Returns:
-            None
-        """
+        """Load QEMU VMs (and LXC containers if enabled) from /cluster/resources."""
         resources = self.client.get_resources(resource_type="vm")
         for resource in resources:
             resource_type = resource.get("type")
@@ -359,7 +347,7 @@ class ProxmoxDiffSync(Adapter):
                 "disk": bytes_to_gb(resource.get("maxdisk")),
                 "tags": self._vm_tag_list(resource),
             }
-            # Link the VM to its host node Device via the custom relationship (only if nodes are synced).
+            # A host Device only exists when nodes are synced.
             if self.config.sync_nodes_as_devices and node in self.node_device_map:
                 attrs["host_device"] = {"name": self.node_device_map[node]}
 
@@ -382,9 +370,6 @@ class ProxmoxDiffSync(Adapter):
         Args:
             resource (dict): The Proxmox VE VM/container resource entry.
             diffsync_vm (VirtualMachineModel): The VM DiffSync model to attach interfaces to.
-
-        Returns:
-            None
         """
         node = resource.get("node")
         vmid = resource.get("vmid")
@@ -430,19 +415,14 @@ class ProxmoxDiffSync(Adapter):
         get_name: Callable[[str, dict], str],
         get_ip_pairs: Callable[[str, dict, Optional[str]], Iterable[tuple]],
     ) -> None:
-        """Shared skeleton: iterate a VM's ``netN`` config entries, create interfaces, record IPs.
+        """Create interfaces and record IPs from a VM's ``netN`` config entries.
 
         Args:
-            vm_config (dict): The VM's Proxmox config (QEMU or LXC), as returned by the client.
+            vm_config (dict): The VM's QEMU or LXC config.
             diffsync_vm (VirtualMachineModel): The VM DiffSync model to attach interfaces to.
-            get_name (Callable[[str, dict], str]): Given the ``netN`` key and its parsed parts,
-                returns the interface name to use.
-            get_ip_pairs (Callable[[str, dict, Optional[str]], Iterable[tuple]]): Given the ``netN``
-                key, its parsed parts, and the resolved MAC address, yields ``(host, prefix_length)``
-                tuples to record against the interface.
-
-        Returns:
-            None
+            get_name (Callable[[str, dict], str]): Returns the interface name for a ``netN`` key and its parts.
+            get_ip_pairs (Callable[[str, dict, Optional[str]], Iterable[tuple]]): Yields ``(host, prefix_length)``
+                for a ``netN`` key, its parts, and its MAC.
         """
         addrs4, addrs6 = [], []
         for key, value in vm_config.items():
@@ -463,17 +443,13 @@ class ProxmoxDiffSync(Adapter):
     def _load_qemu_interfaces(
         self, vm_config: dict, agent_interfaces: List[dict], diffsync_vm: VirtualMachineModel
     ) -> None:
-        """QEMU path: NICs come from config; IPs come from the guest agent matched by MAC.
+        """Load QEMU VM interfaces from config, with IPs from the guest agent matched by MAC.
 
         Args:
             vm_config (dict): The VM's Proxmox QEMU config, as returned by the client.
             agent_interfaces (List[dict]): Interfaces reported by the QEMU guest agent.
             diffsync_vm (VirtualMachineModel): The VM DiffSync model to attach interfaces to.
-
-        Returns:
-            None
         """
-        # Build a MAC -> agent interface lookup.
         agent_by_mac = {}
         for iface in agent_interfaces:
             hw = iface.get("hardware-address")
@@ -492,14 +468,11 @@ class ProxmoxDiffSync(Adapter):
         )
 
     def _load_lxc_interfaces(self, vm_config: dict, diffsync_vm: VirtualMachineModel) -> None:
-        """LXC path: NICs and IPs both come from the container config (no agent).
+        """Load LXC container interfaces and IPs from the container config.
 
         Args:
             vm_config (dict): The VM's Proxmox LXC config, as returned by the client.
             diffsync_vm (VirtualMachineModel): The VM DiffSync model to attach interfaces to.
-
-        Returns:
-            None
         """
 
         def lxc_ip_pairs(key, parts, mac):  # pylint: disable=unused-argument
@@ -520,16 +493,16 @@ class ProxmoxDiffSync(Adapter):
     def _record_ip(
         self, host: Optional[str], prefix_length: Optional[int], assignment_key: str, assignment_value: dict
     ) -> Tuple[list, list]:
-        """Record an IP + its Prefix and its interface assignment.
+        """Record an IP, its Prefix, and its interface assignment.
 
         Args:
             host (Optional[str]): The IP address string.
             prefix_length (Optional[int]): The mask length.
-            assignment_key (str): Either ``"vm_interfaces"`` (VMInterface) or ``"interfaces"`` (DCIM Interface).
+            assignment_key (str): ``"vm_interfaces"`` or ``"interfaces"``.
             assignment_value (dict): The interface dict to assign the IP to.
 
         Returns:
-            Tuple[list, list]: ``([ipv4], [ipv6])`` lists for primary-IP selection.
+            Tuple[list, list]: ``([ipv4], [ipv6])`` for primary IP selection.
         """
         if not host or prefix_length is None:
             return [], []
@@ -573,9 +546,6 @@ class ProxmoxDiffSync(Adapter):
             ipv4_addresses (list): The VM's candidate IPv4 addresses.
             ipv6_addresses (list): The VM's candidate IPv6 addresses.
             diffsync_vm (VirtualMachineModel): The VM DiffSync model to set primary IPs on.
-
-        Returns:
-            None
         """
         ipv4_addresses.sort()
         ipv6_addresses.sort()
@@ -586,11 +556,7 @@ class ProxmoxDiffSync(Adapter):
             diffsync_vm.primary_ip6__host = str(ipv6_addresses[index])
 
     def load_ip_map(self) -> None:
-        """Load all IP Addresses accumulated in the IP map into DiffSync.
-
-        Returns:
-            None
-        """
+        """Load all IP Addresses accumulated in the IP map into DiffSync."""
         for ip, info in self.ip_address_map.items():
             self.get_or_instantiate(
                 self.ip_address,
@@ -610,12 +576,8 @@ class ProxmoxDiffSync(Adapter):
             )
 
     def load(self) -> None:
-        """Load data from Proxmox VE.
-
-        Returns:
-            None
-        """
-        # Regardless of settings, we must include the SSoT tag.
+        """Load data from Proxmox VE."""
+        # The SSoT tag is always required, regardless of settings.
         self.get_or_instantiate(self.tag, {"name": get_ssot_tag_name(self.config)})
 
         self.load_clusters()

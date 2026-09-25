@@ -1,6 +1,5 @@
 """Views implementation for SSOT Proxmox VE."""
 
-# pylint: disable=duplicate-code
 from nautobot.apps.ui import (
     Breadcrumbs,
     ModelBreadcrumbItem,
@@ -25,6 +24,12 @@ from .forms import SSOTProxmoxConfigFilterForm, SSOTProxmoxConfigForm
 from .models import SSOTProxmoxConfig
 from .tables import SSOTProxmoxConfigTable
 
+_BREADCRUMB_ITEMS = [
+    ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
+    ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:config", label="SSOT Configs"),
+    ModelBreadcrumbItem(model=SSOTProxmoxConfig),
+]
+
 
 class SSOTProxmoxConfigUIViewSet(
     ObjectDestroyViewMixin,
@@ -45,20 +50,8 @@ class SSOTProxmoxConfigUIViewSet(
     lookup_field = "pk"
     action_buttons = ("add",)
 
-    breadcrumbs = Breadcrumbs(
-        items={
-            "list": [
-                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
-                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:config", label="SSOT Configs"),
-                ModelBreadcrumbItem(model=SSOTProxmoxConfig),
-            ],
-            "detail": [
-                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:dashboard", label="Single Source of Truth"),
-                ViewNameBreadcrumbItem(view_name="plugins:nautobot_ssot:config", label="SSOT Configs"),
-                ModelBreadcrumbItem(model=SSOTProxmoxConfig),
-            ],
-        }
-    )
+    breadcrumbs = Breadcrumbs(items={"list": _BREADCRUMB_ITEMS, "detail": _BREADCRUMB_ITEMS})
+    # pylint: disable=duplicate-code
     object_detail_content = ObjectDetailContent(
         panels=[
             ObjectFieldsPanel(
@@ -98,3 +91,4 @@ class SSOTProxmoxConfigUIViewSet(
             ),
         ]
     )
+    # pylint: enable=duplicate-code

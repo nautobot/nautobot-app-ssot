@@ -1,4 +1,3 @@
-# pylint: disable=R0801
 """Proxmox VE integration model tests."""
 
 import os
@@ -112,7 +111,7 @@ class SSOTProxmoxConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
         }
 
     def test_create_config_required_fields_only(self):
-        """Create a config with only required fields (including the 5 required object references) and confirm defaults."""
+        """A config with only required fields saves and gets the expected defaults."""
         config = SSOTProxmoxConfig(
             name="ProxmoxReqOnly",
             proxmox_instance=self.external_integration,
@@ -138,15 +137,11 @@ class SSOTProxmoxConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
         self.assertEqual(config_db.default_ip_status_map, {"PREFERRED": "Active", "UNKNOWN": "Reserved"})
         self.assertEqual(config_db.primary_ip_sort_by, PrimaryIpSortByChoices.LOWEST)
         self.assertFalse(config_db.job_enabled)
-        # 4 of the 5 object-reference fields are required with no model-level default; default_ssot_tag
-        # is optional (SET_NULL) but still persists here since it was explicitly provided. Confirm all
-        # 5 persist correctly.
         self.assertEqual(config_db.default_cluster_type, self.cluster_type)
         self.assertEqual(config_db.default_ssot_tag, self.ssot_tag)
         self.assertEqual(config_db.default_location, self.location)
         self.assertEqual(config_db.default_device_type, self.device_type)
         self.assertEqual(config_db.default_device_role, self.device_role)
-        # The node interface type map defaults to the built-in mapping.
         self.assertEqual(config_db.default_node_interface_type_map["eth"], "1000base-t")
         self.assertEqual(config_db.default_node_interface_type_map["bond"], "lag")
         self.assertEqual(config_db.default_node_interface_type_map["bridge"], "bridge")
@@ -171,7 +166,7 @@ class SSOTProxmoxConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
         config.full_clean()  # must not raise
 
     def test_default_node_interface_type_map_unknown_key(self):
-        """Keys must be known Proxmox interface types."""
+        """An unknown Proxmox interface type key is rejected."""
         config_dict = deepcopy(self.proxmox_config_dict)
         config_dict["default_node_interface_type_map"] = {"wlan": "1000base-t"}
         config = SSOTProxmoxConfig(**config_dict)
@@ -181,7 +176,7 @@ class SSOTProxmoxConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
         self.assertIn("Unknown Proxmox interface type 'wlan'", failure.exception.messages[0])
 
     def test_default_node_interface_type_map_invalid_type(self):
-        """Values must be valid Nautobot interface-type slugs."""
+        """An invalid Nautobot interface type value is rejected."""
         config_dict = deepcopy(self.proxmox_config_dict)
         config_dict["default_node_interface_type_map"] = {"eth": "not-a-real-type"}
         config = SSOTProxmoxConfig(**config_dict)
@@ -191,7 +186,7 @@ class SSOTProxmoxConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
         self.assertIn("not a valid Nautobot interface type", failure.exception.messages[0])
 
     def test_default_vm_status_map_must_be_dict(self):
-        """default_vm_status_map must be a dict."""
+        """A non-dict default_vm_status_map is rejected."""
         config_dict = deepcopy(self.proxmox_config_dict)
         config_dict["default_vm_status_map"] = "not a dict"
         config = SSOTProxmoxConfig(**config_dict)
@@ -201,7 +196,7 @@ class SSOTProxmoxConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
         self.assertEqual(failure.exception.messages[0], "Virtual Machine status map must be a dict.")
 
     def test_default_vm_status_map_not_empty(self):
-        """An empty default_vm_status_map is rejected (field-level blank validation)."""
+        """An empty default_vm_status_map is rejected."""
         config_dict = deepcopy(self.proxmox_config_dict)
         config_dict["default_vm_status_map"] = {}
         config = SSOTProxmoxConfig(**config_dict)
@@ -210,7 +205,7 @@ class SSOTProxmoxConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
         self.assertIn("default_vm_status_map", failure.exception.error_dict)
 
     def test_default_vm_status_map_value_must_be_string(self):
-        """Values in default_vm_status_map must be strings."""
+        """A non-string default_vm_status_map value is rejected."""
         config_dict = deepcopy(self.proxmox_config_dict)
         config_dict["default_vm_status_map"] = {"running": 1}
         config = SSOTProxmoxConfig(**config_dict)
@@ -220,7 +215,7 @@ class SSOTProxmoxConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
         self.assertEqual(failure.exception.messages[0], "Value of 'running' must be a string.")
 
     def test_default_vm_status_map_status_must_exist(self):
-        """Values in default_vm_status_map must reference an existing Status."""
+        """A default_vm_status_map value naming a missing Status is rejected."""
         config_dict = deepcopy(self.proxmox_config_dict)
         config_dict["default_vm_status_map"] = {"running": "DoesNotExist"}
         config = SSOTProxmoxConfig(**config_dict)
@@ -230,27 +225,27 @@ class SSOTProxmoxConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
         self.assertEqual(failure.exception.messages[0], "No existing status found for 'DoesNotExist'.")
 
     def test_default_ip_status_map_invalid_key(self):
-        """default_ip_status_map only allows PREFERRED and UNKNOWN keys."""
+        """A default_ip_status_map key other than PREFERRED or UNKNOWN is rejected."""
         config_dict = deepcopy(self.proxmox_config_dict)
         config_dict["default_ip_status_map"] = {"PREFERRED": "Active", "BOGUS": "Active"}
         config = SSOTProxmoxConfig(**config_dict)
         with self.assertRaises(ValidationError) as failure:
             config.full_clean()
         self.assertIn("default_ip_status_map", failure.exception.error_dict)
-        self.assertIn("Invalid keys found in the IP status map", failure.exception.messages[0])
+        self.assertEqual(failure.exception.messages[0], "IP status map keys must be exactly: PREFERRED, UNKNOWN.")
 
     def test_default_ip_status_map_missing_key(self):
-        """default_ip_status_map must define PREFERRED and UNKNOWN."""
+        """A default_ip_status_map missing PREFERRED or UNKNOWN is rejected."""
         config_dict = deepcopy(self.proxmox_config_dict)
         config_dict["default_ip_status_map"] = {"PREFERRED": "Active"}
         config = SSOTProxmoxConfig(**config_dict)
         with self.assertRaises(ValidationError) as failure:
             config.full_clean()
         self.assertIn("default_ip_status_map", failure.exception.error_dict)
-        self.assertEqual(failure.exception.messages[0], "IP status map must have 'UNKNOWN' key defined.")
+        self.assertEqual(failure.exception.messages[0], "IP status map keys must be exactly: PREFERRED, UNKNOWN.")
 
     def test_instance_must_have_secrets_group(self):
-        """The proxmox_instance ExternalIntegration must have a SecretsGroup."""
+        """A proxmox_instance without a SecretsGroup is rejected."""
         config_dict = deepcopy(self.proxmox_config_dict)
         config_dict["proxmox_instance"].secrets_group = None
         config = SSOTProxmoxConfig(**config_dict)
@@ -263,7 +258,7 @@ class SSOTProxmoxConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
         )
 
     def test_instance_secrets_group_requires_rest_token(self):
-        """SecretsGroup must expose a REST Token secret (the API token secret)."""
+        """A SecretsGroup without a REST Token secret is rejected."""
         config_dict = deepcopy(self.proxmox_config_dict)
         config = SSOTProxmoxConfig(**config_dict)
         self.sg_token_secret.secret_type = SecretsGroupSecretTypeChoices.TYPE_PASSWORD
@@ -276,12 +271,7 @@ class SSOTProxmoxConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
         self.sg_token_secret.save()
 
     def test_default_ssot_tag_survives_tag_deletion(self):
-        """Deleting the referenced Tag nulls the FK instead of raising (SET_NULL, not PROTECT).
-
-        This is the scenario that used to crash: another integration's sync deleting this Tag while
-        a SSOTProxmoxConfig still references it. With SET_NULL, the config survives and
-        get_ssot_tag_name() still falls back to the built-in default tag name.
-        """
+        """Deleting the default SSoT Tag nulls the FK and the tag name falls back to the default."""
         config_dict = deepcopy(self.proxmox_config_dict)
         config = SSOTProxmoxConfig(**config_dict)
         config.validated_save()

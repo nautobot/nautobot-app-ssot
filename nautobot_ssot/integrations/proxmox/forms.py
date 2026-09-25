@@ -83,13 +83,8 @@ class SSOTProxmoxConfigForm(NautobotModelForm):  # pylint: disable=too-many-ance
             self.fields["proxmox_timeout"].initial = instance.timeout
 
         if self.instance._state.adding:  # pylint: disable=protected-access
-            # `pk` is always truthy here (SSOTProxmoxConfig's UUID pk defaults to uuid.uuid4() at
-            # instantiation, not at save), so `_state.adding` is the only reliable way to detect an
-            # unsaved instance. Pre-populate the object-reference fields with the well-known defaults
-            # that signals.py creates on app startup, so a from-scratch config saves cleanly without
-            # the admin having to hunt down each object manually. Use .filter().first() rather than
-            # .get() so the form still renders (as an empty dropdown — required for most of these
-            # fields, but optional for default_ssot_tag) if a default is missing.
+            # The UUID pk is set at instantiation, so `pk` can't detect a new instance.
+            # Prefill the defaults created by signals.py; .first() keeps the form rendering if one is missing.
             self.fields["default_ssot_tag"].initial = Tag.objects.filter(name=SSOT_TAG_NAME).first()
             self.fields["default_cluster_type"].initial = ClusterType.objects.filter(name=CLUSTER_TYPE_NAME).first()
             self.fields["default_location"].initial = Location.objects.filter(name=NODE_LOCATION_NAME).first()
@@ -99,14 +94,11 @@ class SSOTProxmoxConfigForm(NautobotModelForm):  # pylint: disable=too-many-ance
     def clean(self):
         """Apply the pass-through fields to the selected ExternalIntegration before model validation.
 
-        This must happen in `clean()`, not `save()` — `ModelForm._post_clean()` calls
-        `self.instance.full_clean()` (which validates `proxmox_instance.secrets_group` via
-        `SSOTProxmoxConfig._clean_proxmox_instance`) right after this method returns, so the
-        ExternalIntegration object needs the new values in memory before that check runs.
+        Done here, not in save(), because full_clean() validates the integration's secrets group next.
+        NautobotModelForm's super().clean() returns None, so ``self.cleaned_data`` is used instead.
 
-        Uses `self.cleaned_data` rather than `super().clean()`'s return value: NautobotModelForm's
-        `RelationshipModelFormMixin.clean()` calls `super().clean()` without returning it, so that
-        return value is always `None` here — `self.cleaned_data` is the dict actually kept up to date.
+        Returns:
+            dict: The cleaned form data.
         """
         super().clean()
         integration = self.cleaned_data.get("proxmox_instance")
@@ -118,7 +110,14 @@ class SSOTProxmoxConfigForm(NautobotModelForm):  # pylint: disable=too-many-ance
         return self.cleaned_data
 
     def save(self, commit=True):
-        """Persist the pass-through fields already applied to the related ExternalIntegration in clean()."""
+        """Save the config and the ExternalIntegration updated in clean().
+
+        Args:
+            commit (bool): Whether to save to the database.
+
+        Returns:
+            SSOTProxmoxConfig: The saved config.
+        """
         config = super().save(commit=commit)
         if commit:
             config.proxmox_instance.validated_save()

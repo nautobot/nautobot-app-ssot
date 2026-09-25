@@ -1,5 +1,4 @@
 # pylint: disable=too-many-locals
-# pylint: disable=duplicate-code
 # pylint: disable=invalid-name
 
 """Signal handlers for the nautobot_ssot Proxmox VE integration."""
@@ -35,13 +34,22 @@ config = settings.PLUGINS_CONFIG["nautobot_ssot"]
 
 
 def register_signals(sender):
-    """Register signals for the Proxmox VE integration."""
+    """Register signals for the Proxmox VE integration.
+
+    Args:
+        sender (NautobotAppConfig): The app config the signals are connected for.
+    """
     nautobot_database_ready.connect(nautobot_database_ready_callback, sender=sender)
     nautobot_database_ready.connect(create_default_proxmox_config, sender=sender)
 
 
 def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
-    """Create Tag, CustomField, ClusterType, Statuses, and node-Device prerequisites for SSoT."""
+    """Create the Tag, CustomFields, Relationship, ClusterType, Statuses, and node-Device prerequisites.
+
+    Args:
+        sender (NautobotAppConfig): The app config sending the signal.
+        apps (Apps): The app registry used to load historical models.
+    """
     Tag = apps.get_model("extras", "Tag")
     Role = apps.get_model("extras", "Role")
     Status = apps.get_model("extras", "Status")
@@ -137,10 +145,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
 
     active_status.content_types.add(ContentType.objects.get_for_model(Location))
     active_status.content_types.add(device_ct)
-    # Unlike the other prerequisites above, this default Location has no sync-time consumer of its
-    # own (nothing looks it up by NODE_LOCATION_NAME) — it exists purely as an initial value for a
-    # fresh SSOTProxmoxConfig's default_location field, so it's only worth creating alongside the
-    # rest of the auto-bootstrap config that would otherwise point at it.
+    # The sync never looks this Location up; it only seeds the default config's default_location.
     if config.get("proxmox_create_default_secrets", True):
         Location.objects.get_or_create(
             name=NODE_LOCATION_NAME,
@@ -151,9 +156,11 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
 def create_default_proxmox_config(sender, *, apps, **kwargs):  # pylint: disable=unused-argument
     """Create the default Proxmox VE config, SecretsGroup, and ExternalIntegration.
 
-    Skipped entirely when ``proxmox_create_default_secrets`` is disabled in PLUGINS_CONFIG — without
-    the default Secrets/SecretsGroup there is nothing for the default ExternalIntegration and config
-    to reference, so operators managing those objects themselves opt out of the whole bootstrap.
+    Skipped when ``proxmox_create_default_secrets`` is disabled, since there would be no secrets to reference.
+
+    Args:
+        sender (NautobotAppConfig): The app config sending the signal.
+        apps (Apps): The app registry used to load historical models.
     """
     if not config.get("proxmox_create_default_secrets", True):
         return
@@ -169,9 +176,7 @@ def create_default_proxmox_config(sender, *, apps, **kwargs):  # pylint: disable
     DeviceType = apps.get_model("dcim", "DeviceType")
     Location = apps.get_model("dcim", "Location")
 
-    # nautobot_database_ready_callback (connected before this receiver in register_signals()) has
-    # already created all of these — a strict .get() is safe and appropriately loud if that ordering
-    # is ever wrong.
+    # Created by nautobot_database_ready_callback, which is connected first; .get() fails loudly if not.
     default_ssot_tag = Tag.objects.get(name=SSOT_TAG_NAME)
     default_cluster_type = ClusterType.objects.get(name=CLUSTER_TYPE_NAME)
     default_device_role = Role.objects.get(name=NODE_DEVICE_ROLE_NAME)

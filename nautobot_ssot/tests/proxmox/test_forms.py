@@ -1,4 +1,3 @@
-# pylint: disable=R0801
 """Proxmox VE integration form tests."""
 
 from nautobot.apps.testing import TestCase
@@ -37,8 +36,7 @@ class SSOTProxmoxConfigFormTestCase(TestCase):
             timeout=30,
         )
         cls.ssot_tag = Tag.objects.get_or_create(name="ProxmoxFormUnitTestTag")[0]
-        # "Suspended" and "Reserved" aren't Nautobot's own built-in defaults (unlike "Active"/"Offline");
-        # they're normally created by nautobot_database_ready_callback, which this test doesn't invoke.
+        # Not built into Nautobot; normally created by nautobot_database_ready_callback, which isn't run here.
         Status.objects.get_or_create(name="Suspended")
         Status.objects.get_or_create(name="Reserved")
         cls.cluster_type = ClusterType.objects.get_or_create(name="ProxmoxFormUnitTestClusterType")[0]
@@ -81,6 +79,15 @@ class SSOTProxmoxConfigFormTestCase(TestCase):
 
     @staticmethod
     def _build_secrets_group(name, with_token):
+        """Create a Secrets Group with a REST Username secret and, optionally, a REST Token secret.
+
+        Args:
+            name (str): Secrets Group name, also used as the Secret name prefix.
+            with_token (bool): Whether to add the REST Token secret.
+
+        Returns:
+            SecretsGroup: The created or existing group.
+        """
         secrets_group, _ = SecretsGroup.objects.get_or_create(name=name)
         token_id, _ = Secret.objects.get_or_create(
             name=f"{name}-id",
@@ -132,7 +139,7 @@ class SSOTProxmoxConfigFormTestCase(TestCase):
         self.assertEqual(self.integration.timeout, 45)
 
     def test_secrets_and_secrets_group_are_never_created_by_the_form(self):
-        """The form only selects an existing Secrets Group; it never creates Secret/SecretsGroup objects."""
+        """Saving the form creates no Secret or SecretsGroup objects."""
         secret_count_before = Secret.objects.count()
         secrets_group_count_before = SecretsGroup.objects.count()
 

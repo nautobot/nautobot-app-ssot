@@ -1,8 +1,4 @@
-"""Client for interacting with the Proxmox VE REST API.
-
-This is a thin wrapper around :mod:`proxmoxer` that handles API-token authentication and
-exposes the read endpoints needed by the SSoT source adapter.
-"""
+"""Thin :mod:`proxmoxer` wrapper for reading from the Proxmox VE REST API with an API token."""
 
 import logging
 import re
@@ -19,7 +15,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def parse_url(address):
-    """Handle the case where the protocol isn't included in the URL address.
+    """Parse a URL, defaulting the scheme to ``https`` if none is given.
 
     Args:
         address (str): URL set by the end user for the Proxmox VE instance.
@@ -55,13 +51,16 @@ class ProxmoxClient:
     """Class for interacting with Proxmox VE via the proxmoxer library."""
 
     def __init__(self, config: ProxmoxConfig):
-        """Initialize the Proxmox VE client and authenticate using an API token."""
+        """Initialize the client and authenticate with an API token.
+
+        Args:
+            config (ProxmoxConfig): Connection and sync settings.
+        """
         self.config = config
         self.is_authenticated = False
         parsed = self._parse_proxmox_uri(config.proxmox_uri)
         self.host = parsed.netloc or parsed.path
-        # An API Token ID has the form ``user@realm!tokenid``; proxmoxer wants the user and token
-        # name separately, with the token secret (a UUID) passed as ``token_value``.
+        # Token IDs look like ``user@realm!tokenid``; proxmoxer takes the user and token name separately.
         user, _, token_name = config.token_id.partition("!")
         self.user = user
         self.token_name = token_name
@@ -80,7 +79,17 @@ class ProxmoxClient:
         self._authenticate()
 
     def _parse_proxmox_uri(self, uri: str):
-        """Validate and normalize the configured Proxmox VE URI."""
+        """Validate and normalize the configured Proxmox VE URI.
+
+        Args:
+            uri (str): The configured URI.
+
+        Returns:
+            ParseResult: The parsed URI.
+
+        Raises:
+            InvalidUrlScheme: If the scheme is not ``http`` or ``https``.
+        """
         parsed = parse_url(uri.strip())
         if parsed.scheme not in ("http", "https"):
             raise InvalidUrlScheme(parsed.scheme)
@@ -97,26 +106,44 @@ class ProxmoxClient:
             LOGGER.error("Failed to authenticate Proxmox VE client: %s", err)
 
     def get_cluster_status(self):
-        """Return cluster status entries (``type`` of ``cluster`` or ``node``).
+        """Return ``/cluster/status`` entries.
 
-        On standalone hosts (no cluster configured) this typically returns only node entries.
+        Standalone hosts return only ``node`` entries, with no ``cluster`` entry.
+
+        Returns:
+            list: The cluster and node status entries.
         """
         return self.api.cluster.status.get()
 
     def get_resources(self, resource_type=None):
-        """Return the flattened ``/cluster/resources`` inventory, optionally filtered by type."""
+        """Return the ``/cluster/resources`` inventory.
+
+        Args:
+            resource_type (Optional[str]): Resource type to filter by, e.g. ``"vm"``.
+
+        Returns:
+            list: The resource entries.
+        """
         if resource_type:
             return self.api.cluster.resources.get(type=resource_type)
         return self.api.cluster.resources.get()
 
     def get_nodes(self):
-        """Return the list of nodes from ``/nodes``."""
+        """Return the list of nodes from ``/nodes``.
+
+        Returns:
+            list: The node entries.
+        """
         return self.api.nodes.get()
 
     def get_node_network(self, node):
-        """Return the network interface configuration for a node from ``/nodes/{node}/network``.
+        """Return a node's interface configuration from ``/nodes/{node}/network``.
 
-        Returns an empty list if the endpoint is unavailable rather than raising.
+        Args:
+            node (str): The node name.
+
+        Returns:
+            list: The interface entries, or an empty list if the endpoint is unavailable.
         """
         try:
             return self.api.nodes(node).network.get()
@@ -125,9 +152,13 @@ class ProxmoxClient:
             return []
 
     def get_node_status(self, node):
-        """Return node hardware/version detail from ``/nodes/{node}/status``.
+        """Return node hardware and version details from ``/nodes/{node}/status``.
 
-        Returns an empty dict if the endpoint is unavailable rather than raising.
+        Args:
+            node (str): The node name.
+
+        Returns:
+            dict: The node status, or an empty dict if the endpoint is unavailable.
         """
         try:
             return self.api.nodes(node).status.get()
@@ -136,18 +167,40 @@ class ProxmoxClient:
             return {}
 
     def get_qemu_config(self, node, vmid):
-        """Return the QEMU VM configuration for the given node and vmid."""
+        """Return a QEMU VM's configuration.
+
+        Args:
+            node (str): The node name.
+            vmid (int): The VM ID.
+
+        Returns:
+            dict: The VM configuration.
+        """
         return self.api.nodes(node).qemu(vmid).config.get()
 
     def get_lxc_config(self, node, vmid):
-        """Return the LXC container configuration for the given node and vmid."""
+        """Return an LXC container's configuration.
+
+        Args:
+            node (str): The node name.
+            vmid (int): The container ID.
+
+        Returns:
+            dict: The container configuration.
+        """
         return self.api.nodes(node).lxc(vmid).config.get()
 
     def get_qemu_agent_interfaces(self, node, vmid):
-        """Return guest-agent network interfaces for a QEMU VM.
+        """Return a QEMU VM's network interfaces as reported by the guest agent.
 
-        Requires the QEMU guest agent to be installed and running and the VM to be powered on.
-        Returns an empty list when the agent is unavailable rather than raising.
+        Requires the VM to be running with the guest agent installed.
+
+        Args:
+            node (str): The node name.
+            vmid (int): The VM ID.
+
+        Returns:
+            list: The agent's interface entries, or an empty list if the agent is unavailable.
         """
         try:
             result = self.api.nodes(node).qemu(vmid).agent("network-get-interfaces").get()

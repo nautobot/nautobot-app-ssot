@@ -10,7 +10,14 @@ from nautobot_ssot.integrations.proxmox import jobs
 
 
 def _mock_app_config(**overrides):
-    """Build a MagicMock exposing the attributes _get_proxmox_client_config()/run() read."""
+    """Build a mock SSOTProxmoxConfig for job tests.
+
+    Args:
+        **overrides: Attribute values to set on the mock.
+
+    Returns:
+        MagicMock: Mock with the attributes _get_proxmox_client_config() and run() read.
+    """
     app_config = MagicMock()
     app_config.proxmox_instance.remote_url = "https://pve.local:8006"
     app_config.proxmox_instance.verify_ssl = False
@@ -33,7 +40,7 @@ class ProxmoxJobTest(TestCase):
     """Test the Proxmox VE job."""
 
     def test_metadata(self):
-        """Verify correctness of the Job Meta attributes."""
+        """Job Meta attributes have the expected values."""
         self.assertEqual("Proxmox VE ⟹ Nautobot", jobs.ProxmoxDataSource.name)
         self.assertEqual("Proxmox VE ⟹ Nautobot", jobs.ProxmoxDataSource.Meta.name)
         self.assertEqual("Proxmox VE", jobs.ProxmoxDataSource.Meta.data_source)
@@ -43,7 +50,7 @@ class ProxmoxJobTest(TestCase):
         )
 
     def test_data_mappings(self):
-        """Verify correctness of the data_mappings() API."""
+        """data_mappings() returns the expected source/target mappings."""
         mappings = jobs.ProxmoxDataSource.data_mappings()
 
         expected = [

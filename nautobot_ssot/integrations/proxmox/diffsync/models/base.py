@@ -22,11 +22,7 @@ from nautobot_ssot.integrations.proxmox.constants import (
 
 
 class ProxmoxModelDiffSync(NautobotModel):
-    """Proxmox VE Model DiffSync base model.
-
-    Tags every synced Device/VirtualMachine/VMInterface/IPAddress with the SSoT tag and stamps the
-    ``last_synced_from_proxmox_on`` custom field. Also threads ``config`` through the load queryset.
-    """
+    """Base model that tags and stamps synced objects and passes ``config`` to the load queryset."""
 
     @classmethod
     def _update_obj_with_parameters(cls, obj, parameters, adapter):
@@ -72,15 +68,12 @@ class ProxmoxModelDiffSync(NautobotModel):
                     custom_field_obj.content_types.add(ContentType.objects.get_for_model(model))
                 custom_field_obj.validated_save()
 
-            # Stamp at call time (not import time).
             nautobot_object.cf[custom_field_key] = timezone.now().date().isoformat()
         nautobot_object.validated_save()
 
     @classmethod
     def _get_queryset(cls, config, cluster_filters):
-        """Get the queryset used to load the model's data from Nautobot, passing in the config object.
-
-        Foreign-key parameters (those containing ``__``) are prefetched so they load in the first query.
+        """Return the load queryset with foreign-key fields prefetched.
 
         Args:
             config (SSOTProxmoxConfig): The integration configuration object.
@@ -99,7 +92,7 @@ class ProxmoxModelDiffSync(NautobotModel):
 
     @classmethod
     def get_queryset(cls, config, cluster_filters):  # pylint: disable=unused-argument
-        """Return the queryset for the model. Overridden to accept the config object.
+        """Return the queryset used to load the model.
 
         Args:
             config (SSOTProxmoxConfig): The integration configuration object.
@@ -114,13 +107,15 @@ class ProxmoxModelDiffSync(NautobotModel):
     def _update_obj_save_first(cls, obj, parameters, adapter):
         """Save the ORM object with ``save()`` before relationship handling.
 
-        Works around the ``validated_save`` ordering bug for objects (like Prefix) whose validation
-        depends on the object already existing. See nautobot/nautobot#6738.
+        Works around nautobot/nautobot#6738 for objects like Prefix whose validation needs a saved object.
 
         Args:
             obj (Any): The Nautobot ORM object to save.
             parameters (dict[str, Any]): The parameters to set on the object.
             adapter (Adapter): The adapter used to look up related objects in the cache.
+
+        Raises:
+            ObjectCrudException: If saving the object fails.
         """
         relationship_fields = {
             "foreign_keys": defaultdict(dict),

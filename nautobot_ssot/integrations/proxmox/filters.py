@@ -20,7 +20,16 @@ class SSOTProxmoxConfigFilterSet(NautobotFilterSet):
         fields = "__all__"
 
     def search(self, queryset, _name, value):
-        """String search of SSOTProxmoxConfig records."""
+        """Filter SSOTProxmoxConfig records by name.
+
+        Args:
+            queryset (QuerySet): The queryset to filter.
+            _name (str): The filter field name (unused).
+            value (str): The search string.
+
+        Returns:
+            QuerySet: The filtered queryset.
+        """
         if not value.strip():
             return queryset
         return queryset.filter(Q(name__icontains=value))  # pylint: disable=unsupported-binary-operation

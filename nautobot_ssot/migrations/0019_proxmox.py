@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("dcim", "0081_alter_device_device_redundancy_group_priority_and_more"),
         ("extras", "0132_approval_workflow_seed_data"),
-        ("nautobot_ssot", "0017_ssotvsphereconfig_sync_vsphere_tags"),
+        ("nautobot_ssot", "0018_ssotinfobloxconfig_infoblox_location_ext_attr"),
         ("virtualization", "0030_alter_virtualmachine_local_config_context_data_owner_content_type_and_more"),
     ]
 

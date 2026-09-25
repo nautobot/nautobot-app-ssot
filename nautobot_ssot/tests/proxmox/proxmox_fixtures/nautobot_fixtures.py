@@ -1,4 +1,3 @@
-# pylint: disable=R0801
 """Nautobot object fixtures and helpers for Proxmox VE integration tests."""
 
 from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer
@@ -33,7 +32,14 @@ DEFAULT_IP_STATUS_MAP = {"PREFERRED": "Active", "UNKNOWN": "Reserved"}
 
 
 def create_default_proxmox_config(proxmox_url="https://pve.local:8006"):
-    """Create a default SSOTProxmoxConfig (with SecretsGroup + ExternalIntegration) for testing."""
+    """Create an SSOTProxmoxConfig with its SecretsGroup, ExternalIntegration and default objects.
+
+    Args:
+        proxmox_url (str): Remote URL for the ExternalIntegration.
+
+    Returns:
+        SSOTProxmoxConfig: The created or existing config.
+    """
     secrets_group, _ = SecretsGroup.objects.get_or_create(name="ProxmoxSSOTUnitTesting")
     token_id, _ = Secret.objects.get_or_create(
         name="Proxmox Token ID - Unit Testing",
@@ -69,9 +75,7 @@ def create_default_proxmox_config(proxmox_url="https://pve.local:8006"):
         timeout=30,
     )
 
-    # Reuse the same canonical names nautobot_database_ready_callback creates (and that other tests in
-    # this suite hardcode/expect), rather than inventing fixture-specific names — a mismatched marker
-    # tag here previously caused the sync to try to delete the real marker tag as "not in source".
+    # Use the names nautobot_database_ready_callback creates; a different SSoT tag would be deleted by the sync.
     ssot_tag, _ = Tag.objects.get_or_create(name=SSOT_TAG_NAME)
     cluster_type, _ = ClusterType.objects.get_or_create(name=CLUSTER_TYPE_NAME)
     location_type, _ = LocationType.objects.get_or_create(name="Proxmox VE Location")
@@ -110,7 +114,14 @@ def create_default_proxmox_config(proxmox_url="https://pve.local:8006"):
 
 
 def _get_virtual_machine_dict(attrs):
-    """Build the dict used to instantiate a Virtual Machine DiffSync model."""
+    """Build the dict used to instantiate a Virtual Machine DiffSync model.
+
+    Args:
+        attrs (dict): Values that override the defaults.
+
+    Returns:
+        dict: Keyword arguments for the DiffSync model.
+    """
     virtual_machine_dict = {
         "status__name": "Active",
         "vcpus": 4,
@@ -127,7 +138,14 @@ def _get_virtual_machine_dict(attrs):
 
 
 def _get_device_interface_dict(attrs):
-    """Build the dict used to instantiate a node DCIM Interface DiffSync model."""
+    """Build the dict used to instantiate a node DCIM Interface DiffSync model.
+
+    Args:
+        attrs (dict): Values that override the defaults.
+
+    Returns:
+        dict: Keyword arguments for the DiffSync model.
+    """
     interface_dict = {
         "type": "1000base-t",
         "enabled": True,
@@ -142,7 +160,14 @@ def _get_device_interface_dict(attrs):
 
 
 def _get_vm_interface_dict(attrs):
-    """Build the dict used to instantiate a VMInterface DiffSync model."""
+    """Build the dict used to instantiate a VMInterface DiffSync model.
+
+    Args:
+        attrs (dict): Values that override the defaults.
+
+    Returns:
+        dict: Keyword arguments for the DiffSync model.
+    """
     vm_interface_dict = {
         "enabled": True,
         "status__name": "Active",
@@ -150,3 +175,23 @@ def _get_vm_interface_dict(attrs):
     }
     vm_interface_dict.update(attrs)
     return vm_interface_dict
+
+
+def _get_node_device_dict(attrs):
+    """Build the dict used to instantiate a node Device DiffSync model.
+
+    Args:
+        attrs (dict): Values that override the defaults.
+
+    Returns:
+        dict: Keyword arguments for the DiffSync model.
+    """
+    device_dict = {
+        "device_type__model": NODE_DEVICE_TYPE_NAME,
+        "role__name": NODE_DEVICE_ROLE_NAME,
+        "location__name": NODE_LOCATION_NAME,
+        "status__name": "Active",
+        "clusters": [{"name": "TestCluster"}],
+    }
+    device_dict.update(attrs)
+    return device_dict

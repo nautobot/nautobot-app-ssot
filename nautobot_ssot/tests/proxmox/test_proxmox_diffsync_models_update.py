@@ -1,55 +1,23 @@
-# pylint: disable=R0801
 """Update-path tests for the Proxmox VE DiffSync models (DB-backed)."""
 
-from unittest.mock import MagicMock
-
-from django.apps import apps as django_apps
 from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Interface
 from nautobot.extras.models import Tag
 from nautobot.virtualization.models import VirtualMachine
 
-from nautobot_ssot.integrations.proxmox.constants import SSOT_TAG_DESCRIPTION, SSOT_TAG_NAME
-from nautobot_ssot.integrations.proxmox.diffsync.adapters.adapter_nautobot import NBAdapter
-from nautobot_ssot.integrations.proxmox.diffsync.adapters.adapter_proxmox import ProxmoxDiffSync
-from nautobot_ssot.integrations.proxmox.signals import nautobot_database_ready_callback
+from nautobot_ssot.integrations.proxmox.constants import SSOT_TAG_NAME
 
 from .proxmox_fixtures import (
+    ProxmoxSyncTestMixin,
     _get_device_interface_dict,
+    _get_node_device_dict,
     _get_virtual_machine_dict,
     _get_vm_interface_dict,
-    create_default_proxmox_config,
 )
 
 
-class TestProxmoxDiffSyncModelsUpdate(TestCase):
+class TestProxmoxDiffSyncModelsUpdate(ProxmoxSyncTestMixin, TestCase):
     """Update-path tests: sync, then re-sync changed source models and assert ORM updates."""
-
-    def setUp(self):
-        """Build scaffolding + config."""
-        nautobot_database_ready_callback(sender=None, apps=django_apps)
-        self.config = create_default_proxmox_config()
-
-    def _source(self):
-        return ProxmoxDiffSync(
-            job=MagicMock(), sync=MagicMock(), client=MagicMock(), config=self.config, cluster_filters=None
-        )
-
-    def _nb_adapter(self):
-        nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
-        nb_adapter.job = MagicMock()
-        nb_adapter.load()
-        return nb_adapter
-
-    def _seed_cluster(self, source):
-        source.add(source.tag(name=SSOT_TAG_NAME, description=SSOT_TAG_DESCRIPTION))
-        clustergroup = source.clustergroup(name="TestClusterGroup")
-        cluster = source.cluster(
-            name="TestCluster", cluster_type__name="Proxmox VE", cluster_group__name="TestClusterGroup"
-        )
-        source.add(clustergroup)
-        source.add(cluster)
-        clustergroup.add_child(cluster)
 
     def test_virtual_machine_update(self):
         """Changing a VM's resources updates the Nautobot VirtualMachine."""
@@ -70,14 +38,7 @@ class TestProxmoxDiffSyncModelsUpdate(TestCase):
         """Changing a node interface's MTU updates the Nautobot Interface."""
         source = self._source()
         self._seed_cluster(source)
-        device = source.device(
-            name="pve1",
-            device_type__model="Proxmox Node",
-            role__name="Proxmox Node",
-            location__name="Proxmox VE Default Location",
-            status__name="Active",
-            clusters=[{"name": "TestCluster"}],
-        )
+        device = source.device(**_get_node_device_dict({"name": "pve1"}))
         interface = source.device_interface(
             **_get_device_interface_dict({"name": "eth0", "device__name": "pve1", "mtu": 1500})
         )
@@ -89,14 +50,7 @@ class TestProxmoxDiffSyncModelsUpdate(TestCase):
 
         source2 = self._source()
         self._seed_cluster(source2)
-        device2 = source2.device(
-            name="pve1",
-            device_type__model="Proxmox Node",
-            role__name="Proxmox Node",
-            location__name="Proxmox VE Default Location",
-            status__name="Active",
-            clusters=[{"name": "TestCluster"}],
-        )
+        device2 = source2.device(**_get_node_device_dict({"name": "pve1"}))
         interface2 = source2.device_interface(
             **_get_device_interface_dict({"name": "eth0", "device__name": "pve1", "mtu": 9000})
         )
@@ -155,14 +109,7 @@ class TestProxmoxDiffSyncModelsUpdate(TestCase):
         """Adding a bridge relationship on re-sync links the two existing node Interfaces."""
         source = self._source()
         self._seed_cluster(source)
-        device = source.device(
-            name="pve1",
-            device_type__model="Proxmox Node",
-            role__name="Proxmox Node",
-            location__name="Proxmox VE Default Location",
-            status__name="Active",
-            clusters=[{"name": "TestCluster"}],
-        )
+        device = source.device(**_get_node_device_dict({"name": "pve1"}))
         eth0 = source.device_interface(**_get_device_interface_dict({"name": "eth0", "device__name": "pve1"}))
         vmbr0 = source.device_interface(
             **_get_device_interface_dict({"name": "vmbr0", "device__name": "pve1", "type": "bridge"})
@@ -177,14 +124,7 @@ class TestProxmoxDiffSyncModelsUpdate(TestCase):
 
         source2 = self._source()
         self._seed_cluster(source2)
-        device2 = source2.device(
-            name="pve1",
-            device_type__model="Proxmox Node",
-            role__name="Proxmox Node",
-            location__name="Proxmox VE Default Location",
-            status__name="Active",
-            clusters=[{"name": "TestCluster"}],
-        )
+        device2 = source2.device(**_get_node_device_dict({"name": "pve1"}))
         eth0_2 = source2.device_interface(
             **_get_device_interface_dict({"name": "eth0", "device__name": "pve1", "bridge__name": "vmbr0"})
         )

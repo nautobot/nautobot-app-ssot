@@ -41,7 +41,14 @@ class NBAdapter(NautobotAdapter):
     ip_address = IPAddressModel
 
     def __init__(self, *args, job=None, sync=None, config, cluster_filters, **kwargs):
-        """Initialize the adapter."""
+        """Initialize the adapter.
+
+        Args:
+            job (ProxmoxDataSource): The running SSoT job.
+            sync (Sync): The Sync record for this run.
+            config (SSOTProxmoxConfig): The integration config.
+            cluster_filters (QuerySet): Clusters to limit the sync to.
+        """
         super().__init__(*args, job=job, sync=sync, **kwargs)
         self.config = config
         self.cluster_filters = cluster_filters
@@ -50,19 +57,26 @@ class NBAdapter(NautobotAdapter):
         self._interface_links = []
 
     def load_param_mac_address(self, parameter_name, database_object):
-        """Force mac address to string when loading it into the diffsync store."""
+        """Load the MAC address as a string.
+
+        Args:
+            parameter_name (str): The attribute name to read.
+            database_object (Model): The ORM object to read from.
+
+        Returns:
+            str: The MAC address as a string.
+        """
         return str(getattr(database_object, parameter_name))
 
     def _safe_get(self, model, lookup_kwargs, not_found_message, multiple_message=None):
-        """Look up a single related object, logging the exact existing warning on failure.
+        """Get a single object, logging a warning if it cannot be found.
 
         Args:
             model (Type[Model]): The Django model class to query.
-            lookup_kwargs (dict): Keyword arguments for the ``.objects.get()`` lookup.
-            not_found_message (str): Warning message to log if the object does not exist.
-            multiple_message (Optional[str]): Warning message to log if multiple objects are
-                returned. If ``None``, ``MultipleObjectsReturned`` is not handled here and
-                propagates to the caller, matching call sites that never caught it before.
+            lookup_kwargs (dict): Keyword arguments for ``.objects.get()``.
+            not_found_message (str): Warning to log if the object does not exist.
+            multiple_message (Optional[str]): Warning to log if multiple objects match. If ``None``,
+                ``MultipleObjectsReturned`` propagates to the caller.
 
         Returns:
             Optional[Model]: The model instance, or ``None`` if the lookup failed.
@@ -79,12 +93,11 @@ class NBAdapter(NautobotAdapter):
             return None
 
     def _safe_validated_save(self, obj, error_context):
-        """Call ``validated_save()``, logging the exact existing error message on failure.
+        """Call ``validated_save()``, logging an error on ``ValidationError``.
 
         Args:
             obj (Any): The Nautobot ORM object to save.
-            error_context (str): Text describing the operation, inserted into
-                ``f"Unable to {error_context}: {err}"`` to match the current message format exactly.
+            error_context (str): Description of the operation, used in the error message.
 
         Returns:
             bool: ``True`` if the save succeeded, ``False`` if a ``ValidationError`` was raised.
@@ -97,7 +110,14 @@ class NBAdapter(NautobotAdapter):
             return False
 
     def sync_complete(self, source, diff, flags: DiffSyncFlags = DiffSyncFlags.NONE, logger=None):
-        """Update VMs with their primary IPs once the sync is complete."""
+        """Assign deferred primary IPs and interface relationships once the sync is complete.
+
+        Args:
+            source (Adapter): The source adapter.
+            diff (Diff): The diff that was applied.
+            flags (DiffSyncFlags): Flags used for the sync.
+            logger (Optional[Logger]): Logger passed by DiffSync.
+        """
         for info in self._primary_ips:
             vm = self._safe_get(
                 VirtualMachine,
@@ -180,7 +200,11 @@ class NBAdapter(NautobotAdapter):
             self._safe_validated_save(device, f"set primary IP {info} on {device}")
 
     def _load_objects(self, diffsync_model):
-        """Override _load_objects so we can pass in the config object to the models."""
+        """Load objects using a queryset filtered by the config and cluster filters.
+
+        Args:
+            diffsync_model (Type[DiffSyncModel]): The DiffSync model class to load.
+        """
         parameter_names = self._get_parameter_names(diffsync_model)
         for database_object in diffsync_model._get_queryset(self.config, self.cluster_filters):
             self._load_single_object(database_object, diffsync_model, parameter_names)

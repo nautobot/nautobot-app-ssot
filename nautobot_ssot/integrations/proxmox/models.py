@@ -1,5 +1,3 @@
-#  pylint: disable=duplicate-code
-
 """Models implementation for SSOT Proxmox VE."""
 
 from django.core.exceptions import ValidationError
@@ -25,25 +23,47 @@ from nautobot_ssot.integrations.proxmox.constants import NODE_INTERFACE_TYPE_MAP
 
 
 def _get_default_vm_status_map():
-    """Provide default value for SSOTProxmoxConfig default_vm_status_map field.
+    """Return the default value for ``default_vm_status_map``.
 
-    Keys are Proxmox VE resource statuses (``/cluster/resources``), values are Nautobot Status names.
+    Returns:
+        dict[str, str]: Proxmox VE resource status (``/cluster/resources``) to Nautobot Status name.
     """
     return {"running": "Active", "stopped": "Offline", "paused": "Suspended"}
 
 
 def _get_default_ip_status_map():
-    """Provide default value for SSOTProxmoxConfig default_ip_status_map field."""
+    """Return the default value for ``default_ip_status_map``.
+
+    Returns:
+        dict[str, str]: IP status to Nautobot Status name.
+    """
     return {"PREFERRED": "Active", "UNKNOWN": "Reserved"}
 
 
 def _get_default_node_interface_type_map():
-    """Provide default value for SSOTProxmoxConfig default_node_interface_type_map field.
+    """Return the default value for ``default_node_interface_type_map``.
 
-    Keys are Proxmox VE node interface types (``/nodes/{node}/network``), values are Nautobot DCIM
-    interface type slugs.
+    Returns:
+        dict[str, str]: Proxmox VE node interface type (``/nodes/{node}/network``) to Nautobot interface type.
     """
     return dict(NODE_INTERFACE_TYPE_MAP)
+
+
+def _validate_status_name(field_name, key, value):
+    """Check that a status map value names an existing Status.
+
+    Args:
+        field_name (str): Model field being validated, used as the error key.
+        key (str): Map key the value belongs to.
+        value (str): Status name to look up.
+
+    Raises:
+        ValidationError: If the value is not a string or no Status has that name.
+    """
+    if not isinstance(value, str):
+        raise ValidationError({field_name: f"Value of '{key}' must be a string."})
+    if not Status.objects.filter(name=value).exists():
+        raise ValidationError({field_name: f"No existing status found for '{value}'."})
 
 
 class SSOTProxmoxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
@@ -102,6 +122,8 @@ class SSOTProxmoxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
     default_node_interface_type_map = models.JSONField(
         default=_get_default_node_interface_type_map, encoder=DjangoJSONEncoder, blank=True
     )
+    # Same field definitions as the vSphere config model.
+    # pylint: disable=duplicate-code
     primary_ip_sort_by = models.CharField(
         max_length=CHARFIELD_MAX_LENGTH,
         default=PrimaryIpSortByChoices.LOWEST,
@@ -119,6 +141,7 @@ class SSOTProxmoxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         verbose_name="Enabled for Sync Job",
         help_text="Enable use of this configuration in the sync jobs.",
     )
+    # pylint: enable=duplicate-code
     default_clustergroup_name = models.CharField(
         max_length=CHARFIELD_MAX_LENGTH,
         verbose_name="Default Cluster Group Name",
@@ -163,11 +186,15 @@ class SSOTProxmoxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
         verbose_name_plural = "SSOT Proxmox VE Configs"
 
     def __str__(self):
-        """String representation of singleton instance."""
+        """Return the config name."""
         return self.name
 
     def _clean_default_vm_status_map(self):
-        """Perform validation of the default_vm_status_map field."""
+        """Validate the default_vm_status_map field.
+
+        Raises:
+            ValidationError: If the map is not a non-empty dict of existing Status names.
+        """
         if not isinstance(self.default_vm_status_map, dict):
             raise ValidationError({"default_vm_status_map": "Virtual Machine status map must be a dict."})
 
@@ -175,46 +202,32 @@ class SSOTProxmoxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
             raise ValidationError({"default_vm_status_map": "Virtual Machine status map must not be empty."})
 
         for key, value in self.default_vm_status_map.items():
-            if not isinstance(value, str):
-                raise ValidationError({"default_vm_status_map": f"Value of '{key}' must be a string."})
-
-            try:
-                Status.objects.get(name=value)
-            except Status.DoesNotExist:
-                raise ValidationError(  # pylint: disable=raise-missing-from
-                    {"default_vm_status_map": f"No existing status found for '{value}'."}
-                )
+            _validate_status_name("default_vm_status_map", key, value)
 
     def _clean_default_ip_status_map(self):
-        """Perform validation of the default_ip_status_map field."""
-        allowed_keys = {"PREFERRED", "UNKNOWN"}
+        """Validate the default_ip_status_map field.
 
+        Raises:
+            ValidationError: If the map is not a dict with exactly the required keys and existing Status names.
+        """
         if not isinstance(self.default_ip_status_map, dict):
             raise ValidationError({"default_ip_status_map": "IP status map must be a dict."})
 
-        invalid_keys = set(self.default_ip_status_map.keys()) - allowed_keys
-        if invalid_keys:
+        required_keys = {"PREFERRED", "UNKNOWN"}
+        if set(self.default_ip_status_map) != required_keys:
             raise ValidationError(
-                {"default_ip_status_map": f"Invalid keys found in the IP status map: {', '.join(invalid_keys)}."}
+                {"default_ip_status_map": f"IP status map keys must be exactly: {', '.join(sorted(required_keys))}."}
             )
 
-        for key in allowed_keys:
-            if key not in self.default_ip_status_map:
-                raise ValidationError({"default_ip_status_map": f"IP status map must have '{key}' key defined."})
-
-            value = self.default_ip_status_map[key]
-            if not isinstance(value, str):
-                raise ValidationError({"default_ip_status_map": f"Value of '{key}' must be a string."})
-
-            try:
-                Status.objects.get(name=value)
-            except Status.DoesNotExist:
-                raise ValidationError(  # pylint: disable=raise-missing-from
-                    {"default_ip_status_map": f"No existing status found for {value}."}
-                )
+        for key, value in self.default_ip_status_map.items():
+            _validate_status_name("default_ip_status_map", key, value)
 
     def _clean_default_node_interface_type_map(self):
-        """Perform validation of the default_node_interface_type_map field."""
+        """Validate the default_node_interface_type_map field.
+
+        Raises:
+            ValidationError: If the map is not a dict of known Proxmox types to valid Nautobot interface types.
+        """
         # An empty value is allowed; the sync falls back to the built-in default map.
         if not self.default_node_interface_type_map:
             return
@@ -238,10 +251,12 @@ class SSOTProxmoxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
                 )
 
     def _clean_proxmox_instance(self):
-        """Perform validation of the proxmox_instance field.
+        """Validate the proxmox_instance field.
 
-        The SecretsGroup must provide a REST Token ID (stored as the username secret, in the form
-        ``user@realm!tokenid``) and a REST Token Secret (stored as the secret/token secret).
+        The SecretsGroup must hold a REST Username secret (Token ID, ``user@realm!tokenid``) and a REST Token secret.
+
+        Raises:
+            ValidationError: If the SecretsGroup or either secret is missing.
         """
         if not self.proxmox_instance.secrets_group:
             raise ValidationError({"proxmox_instance": "Proxmox VE instance must have Secrets group assigned."})
@@ -271,7 +286,7 @@ class SSOTProxmoxConfig(PrimaryModel):  # pylint: disable=too-many-ancestors
             )
 
     def clean(self):
-        """Clean method for SSOTProxmoxConfig."""
+        """Validate the config."""
         super().clean()
         self._clean_proxmox_instance()
         self._clean_default_vm_status_map()
