@@ -42,6 +42,7 @@ This Nautobot application framework includes the following integrations:
 - Slurpit
 - SolarWinds
 - vSphere
+- Proxmox VE
 
 Read more about integrations [here](https://docs.nautobot.com/projects/ssot/en/latest/user/integrations). To enable and configure integrations follow the instructions from [the install guide](https://docs.nautobot.com/projects/ssot/en/latest/admin/install/#integrations-configuration).
 
@@ -103,6 +104,7 @@ The SSoT framework includes a number of integrations with external Systems of Re
 * Slurpit
 * SolarWinds
 * vSphere
+* Proxmox VE
 
 ### Contributing to the Documentation
 

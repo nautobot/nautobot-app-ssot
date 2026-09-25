@@ -105,3 +105,4 @@ Set up each integration using the specific guides:
 - [ServiceNow](./integrations/servicenow_setup.md)
 - [Slurpit](./integrations/slurpit_setup.md)
 - [SolarWinds](./integrations/solarwinds_setup.md)
+- [Proxmox VE](./integrations/proxmox_setup.md)
