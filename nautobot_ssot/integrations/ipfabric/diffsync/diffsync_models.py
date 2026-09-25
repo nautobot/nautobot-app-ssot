@@ -940,9 +940,9 @@ class Vlan(DiffSyncExtras):
     """VLAN model."""
 
     _modelname = "vlan"
-    _identifiers = ("name", "location")
-    _shortname = ("name",)
-    _attributes = ("vid", "status", "description")
+    _identifiers = ("vid", "location")
+    _shortname = ("vid",)
+    _attributes = ("name", "status", "description")
 
     name: str
     vid: int
@@ -957,8 +957,8 @@ class Vlan(DiffSyncExtras):
         """Create VLANs in Nautobot under the site."""
         status = attrs["status"].lower().capitalize()
         location_name = ids["location"]
-        vlan_id = attrs["vid"]
-        vlan_name = ids["name"]
+        vlan_id = ids["vid"]
+        vlan_name = attrs["name"]
         # A Location queued earlier in this run is not in the database yet, so it is looked for
         # there first. Falls through to the database, which is where it is on any other run.
         location = None
@@ -980,6 +980,13 @@ class Vlan(DiffSyncExtras):
             description = attrs.get("description")
             if adapter.job.debug:
                 adapter.job.logger.debug("Creating VLAN: %s description: %s", vlan_name, description)
+            # The Location's VLAN Group is what makes one VLAN ID mean one VLAN there, which is
+            # what this model identifies a VLAN by.
+            vlan_group = tonb_nbutils.get_vlan_group_for_location(
+                location,
+                create=adapter.may_create("vlan_groups"),
+                logger=adapter.job.logger,
+            )
             vlan = tonb_nbutils.create_vlan(
                 vlan_name=vlan_name,
                 vlan_id=vlan_id,
@@ -988,6 +995,7 @@ class Vlan(DiffSyncExtras):
                 description=description,
                 logger=adapter.job.logger,
                 pending=adapter.pending,
+                vlan_group=vlan_group,
             )
             if vlan:
                 return super().create(ids=ids, adapter=adapter, attrs=attrs)
@@ -1019,33 +1027,15 @@ class Vlan(DiffSyncExtras):
     def update(self, attrs):
         """Update VLAN object in Nautobot."""
         try:
-            location_obj = NautobotLocation.objects.get(name=self.location)
-        except NautobotLocation.MultipleObjectsReturned:
-            self.adapter.job.logger.error(
-                f"Multiple Locations found with the name {self.location}, unable to "
-                f"Retrieve the VLAN named {self.name} to perform updates"
-            )
-            return None
-        except NautobotLocation.DoesNotExist:
-            self.adapter.job.logger.error(
-                f"Could not find a Location with the name {self.location}, unable to "
-                f"Retrieve the VLAN named {self.name} to perform updates"
-            )
-            return None
-        try:
-            vlan = VLAN.objects.get(name=self.name, vid=self.vid, location=location_obj)
-        except VLAN.MultipleObjectsReturned:
-            self.adapter.job.logger.error(
-                f"Multiple VLANs found with a name {self.name} and VLAN ID {self.vid} "
-                f"at a Location named {self.location}, unable to perform updates"
-            )
-            return None
+            vlan = VLAN.objects.get(pk=self.vlan_pk)
         except VLAN.DoesNotExist:
             self.adapter.job.logger.error(
-                f"Could not find a VLAN named {self.name} and VLAN ID {self.vid} "
-                f"at a Location named {self.location}, unable to perform updates"
+                f"Could not find a VLAN with VLAN ID {self.vid} at a Location named {self.location} "
+                f"and an ID of {self.vlan_pk}, unable to perform updates"
             )
             return None
+        if "name" in attrs:
+            vlan.name = attrs["name"]
         if attrs.get("status") == "Active":
             if not vlan.status == "Active":
                 vlan.status = resolve_status(self.adapter, "Active", ColorChoices.COLOR_GREEN)
@@ -1056,7 +1046,7 @@ class Vlan(DiffSyncExtras):
             tonb_nbutils.tag_object(nautobot_object=vlan, custom_field=LAST_SYNCHRONIZED_CF_NAME)
         except (DjangoBaseDBError, ValidationError):
             self.adapter.job.logger.warning(
-                f"Unable to perform a validated_save() on VLAN {self.name} with an ID of {vlan.id}"
+                f"Unable to perform a validated_save() on VLAN {vlan.name} with an ID of {vlan.id}"
             )
             return None
         return super().update(attrs)

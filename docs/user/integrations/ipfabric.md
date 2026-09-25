@@ -125,12 +125,15 @@ Currently, this integration will provide the ability to sync the following IP Fa
 
 ### IPFabric VLAN
 
-| IP Fabric (Source) | DiffSync Model | Nautobot (Destination) |
-| ------------------ | -------------- | ---------------------- |
-| vlanName           | Vlan.name      | VLAN.name              |
-| vlanId             | Vlan.vid       | VLAN.vid               |
-| status             | Vlan.status    | VLAN.status            |
-| siteName           | Vlan.site      | VLAN.site              |
+| IP Fabric (Source) | DiffSync Model   | Nautobot (Destination) |
+| ------------------ | ---------------- | ---------------------- |
+| vlanId             | Vlan.vid         | VLAN.vid               |
+| siteName           | Vlan.location    | VLAN.locations         |
+| vlanName           | Vlan.name        | VLAN.name              |
+| dscr               | Vlan.description | VLAN.description       |
+| —                  | Vlan.status      | VLAN.status            |
+
+The first two rows are what identify a VLAN; see [How a VLAN is identified](#how-a-vlan-is-identified).
 
 ### IPFabric VRF
 
@@ -188,6 +191,39 @@ Cables are built from IP Fabric's connectivity matrix (`tables/interfaces/connec
 | localHost/remoteHost | Cable.termination_b_device   | Cable.termination_b.device  |
 | localInt/remoteInt   | Cable.termination_b_name     | Cable.termination_b.name    |
 | N/A                  | Cable.status                 | Cable.status                |
+
+## How a VLAN is identified
+
+A VLAN is identified by its **VLAN ID at a Location**. The name is an attribute, not part of the
+identity, which is what makes a rename on the network read as an update to the VLAN Nautobot already
+holds rather than as one VLAN replacing another. The VLAN ID is the identifier that persists across
+a rename on the device, and it is what IP Fabric keys its per-site VLAN summary on.
+
+**What this changes on upgrade.** If Nautobot already holds a VLAN with the same VLAN ID at the same
+Location but a different name, the first sync after upgrading renames it to what IP Fabric reports.
+Previously the sync created a second VLAN under the new name and removed — or, under Safe Delete
+Mode, deprecated and tagged — the one under the old name. So an estate that has been renaming VLANs
+will see a run of renames once, and stop accumulating deprecated VLANs afterwards.
+
+**A VLAN Group per Location.** Nautobot enforces `(vlan_group, vid)` and `(vlan_group, name)`, and
+enforces neither where the VLAN has no group. So a Location's VLANs are filed under a VLAN Group of
+its own, named after the Location, which is what makes one VLAN ID mean one VLAN there. VLANs that
+predate the group are moved into it, since the constraint only covers what is actually in it — expect
+that on the first sync after upgrading.
+
+A VLAN Group name is unique across Nautobot. Where a group of that name already belongs to another
+Location it is left alone and reported, and that Location's VLANs are synced without a group, which
+leaves their VLAN IDs unconstrained. Selecting **VLAN Groups** under **Strict Objects** has the sync
+match an existing group rather than create one, for a deployment that governs its groups elsewhere.
+
+One consequence to know about: a group makes VLAN *names* unique within it as well as VLAN IDs. Two
+VLANs at one Location sharing a name cannot both be filed under it, so the second is reported in the
+job log and left unsynced. Without a group they would both be written, so this is a case the sync
+starts reporting rather than one it introduces.
+
+**Long names.** A VLAN name longer than the 255 characters Nautobot holds is truncated, and the full
+value is reported in the job log. The VLAN itself is still synced, since its identity does not depend
+on the name.
 
 ## Interface Addresses
 

@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 from ipfabric.models.device import Device
 from nautobot.apps.testing import TestCase
 from nautobot.extras.models import JobResult
+from nautobot.ipam.models import VLAN
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import (
     IPFabricDiffSync,
@@ -25,6 +26,8 @@ from nautobot_ssot.integrations.ipfabric.sync_scope import (
     SyncScope,
 )
 from nautobot_ssot.tests.ipfabric.supporting_objects import addresses_of
+
+VLAN_NAME_MAX_LENGTH = VLAN._meta.get_field("name").max_length
 
 
 def load_json(path):
@@ -102,14 +105,14 @@ class IPFabricDiffSyncTestCase(TestCase):
             {dev.get_unique_id() for dev in self.ipfabric.get_all("device") if dev.location_name != "stack"},
         )
         self.assertEqual(
-            {f"{vlan['vlanName']}__{vlan['siteName']}" for vlan in VLAN_FIXTURE if "badvlan" not in vlan["vlanName"]},
+            {f"{vlan['vlanId']}__{vlan['siteName']}" for vlan in VLAN_FIXTURE if 1 <= vlan["vlanId"] <= 4094},
             {vlan.get_unique_id() for vlan in self.ipfabric.get_all("vlan")},
         )
 
         # Assert invalid VLANs were not loaded
         all_vlans = {vlan.get_unique_id() for vlan in self.ipfabric.get_all("vlan")}
         self.assertEqual(len(all_vlans), 13)
-        self.assertNotIn("badvlan0001__JCY-SPINE-01.INFRA.NTC.COM_1", all_vlans)
+        self.assertNotIn("0__JCY-SPINE-01.INFRA.NTC.COM_1", all_vlans)
         self.assertNotIn("badvlan0002__JCY-SPINE-01.INFRA.NTC.COM_1", all_vlans)
 
         # Assert each site has a device tied to it.
@@ -223,6 +226,27 @@ class IPFabricScopeTestCase(TestCase):
 
         self.assertEqual(adapter.get_all("vlan"), [])
         self.assertNotEqual(adapter.get_all("device"), [], "Devices should still load.")
+
+    def test_a_vlan_whose_name_is_too_long_is_still_loaded(self):
+        """The VLAN ID identifies the VLAN, so a name Nautobot cannot hold does not withhold it."""
+        long_name = "x" * (VLAN_NAME_MAX_LENGTH + 20)
+        client = mock_ipfabric_client()
+        client.fetch_all = MagicMock(
+            side_effect=lambda table: (
+                [{"siteName": "NYC-LEAF-01", "vlanName": long_name, "vlanId": 3001, "dscr": "None"}]
+                if table == "tables/vlan/site-summary"
+                else ""
+            )
+        )
+
+        # The VLAN loader reports through the module logger rather than the job's.
+        with self.assertLogs("nautobot.jobs", level="WARNING") as logs:
+            adapter = build_adapter(client=client)
+
+        loaded = {vlan.vid: vlan.name for vlan in adapter.get_all("vlan")}
+        self.assertIn(3001, loaded, "The VLAN must be loaded rather than skipped.")
+        self.assertEqual(loaded[3001], long_name[:VLAN_NAME_MAX_LENGTH])
+        self.assertIn("Truncating the name of VLAN 3001", " ".join(logs.output))
 
     def test_ip_addresses_out_of_scope_reports_no_address(self):
         """Every loaded Interface reports no address, rather than the Interfaces being skipped."""

@@ -1,0 +1,1 @@
+Fixed the IP Fabric integration skipping a VLAN whose name is longer than Nautobot's name field. The name is truncated and the full value reported in the job log, rather than the VLAN going unsynced.

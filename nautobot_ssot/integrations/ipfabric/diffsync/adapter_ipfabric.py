@@ -579,9 +579,10 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 vlan_label = vlan_name if vlan_name else f"{vlan_record['siteName']}:{vlan_id}"
                 if len(vlan_label) > name_max_length:
                     logger.warning(
-                        f"Not syncing VLAN, {vlan_label} due to character limit exceeding {name_max_length}."
+                        f"Truncating the name of VLAN {vlan_id} at {vlan_record['siteName']} to the "
+                        f"{name_max_length} characters Nautobot holds: {vlan_label}"
                     )
-                    continue
+                    vlan_label = vlan_label[:name_max_length]
                 try:
                     vlan = self.vlan(
                         name=vlan_label,
@@ -593,7 +594,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     self.add(vlan)
                     location.add_child(vlan)
                 except ObjectAlreadyExists:
-                    logger.warning(f"Duplicate VLAN discovered, {vlan}")
+                    logger.warning(f"Duplicate VLAN discovered at {vlan_record['siteName']}: VLAN ID {vlan_id}")
             for device in self.client.devices.by_site.get(location.name, []):
                 base_args = {
                     "diffsync": self,
