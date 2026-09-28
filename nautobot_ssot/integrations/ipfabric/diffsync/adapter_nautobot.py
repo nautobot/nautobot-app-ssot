@@ -472,8 +472,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         """Add the Route Targets this integration created as DiffSync RouteTarget models.
 
         Scoped to the ones carrying the sync's Tag, rather than every Route Target Nautobot holds.
-        A Route Target has no Location, no Device and no Namespace — it is a bare value, unique
-        across the whole of Nautobot — so there is no containment to bound a load by, and loading
+        A Route Target has no Location, no Device and no Namespace, being a bare value unique
+        across the whole of Nautobot, so there is no containment to bound a load by, and loading
         all of them would have this sync delete every Route Target another system owns the moment
         IP Fabric stopped reporting it.
 

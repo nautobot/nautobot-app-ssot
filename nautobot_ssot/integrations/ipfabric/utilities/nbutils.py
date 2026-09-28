@@ -900,7 +900,7 @@ def resolve_new_ip(address: str, status_obj: Status, logger: Optional[logging.Lo
 
     The parent is set here rather than left to Nautobot to work out on save. Nautobot's own
     determination refuses a parent longer than the address's mask, so an address IP Fabric reports
-    with a /24 mask is rejected when the only Prefix covering it is a /25 — even though that /25 is
+    with a /24 mask is rejected when the only Prefix covering it is a /25, even though that /25 is
     the parent Nautobot then says it expected. Setting it explicitly takes the same answer
     `clean()` would give and avoids that.
 
@@ -1352,8 +1352,8 @@ def create_vrf_device_assignment(
     """Record that a Device carries a VRF.
 
     The assignment inherits the VRF's route distinguisher and name, which is what Nautobot's own
-    `clean()` would do. Set here rather than left to it, so that a row written in a batch — where
-    `clean()` never runs — is the same row as one written on its own.
+    `clean()` would do. Set here rather than left to it, so that a row written in a batch, where
+    `clean()` never runs, is the same row as one written on its own.
 
     Args:
         vrf_name: Name of the VRF, in the Global Namespace.

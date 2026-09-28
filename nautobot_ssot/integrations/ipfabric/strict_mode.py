@@ -124,7 +124,7 @@ def validate_registry(objects: Iterable[StrictObject]) -> Dict[str, StrictObject
 
     A duplicate key would collapse two object types into one choice. A `scoped` value disagreeing
     with the sync scope registry means the two are joined on a key one of them does not have, which
-    `SyncScope.covers` reads as a type the scope does not govern and so always covers — silently the
+    `SyncScope.covers` reads as a type the scope does not govern and so always covers, silently the
     wrong answer for what is usually a typo. Both are mistakes worth failing at import rather than
     at sync time.
     """

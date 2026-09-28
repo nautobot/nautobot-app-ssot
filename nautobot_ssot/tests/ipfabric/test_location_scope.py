@@ -2,7 +2,7 @@
 
 Locations are the root of the object tree, so they cannot simply be left unloaded: every Device and
 VLAN is a child of one. Deselecting them withholds *writing* Locations while still using them to
-reach their children, and these tests pin that distinction where it is decided — in the diff for what
+reach their children, and these tests pin that distinction where it is decided: in the diff for what
 gets considered, and in a real sync for what gets written.
 """
 

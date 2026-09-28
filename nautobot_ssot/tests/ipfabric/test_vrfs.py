@@ -536,7 +536,7 @@ class VrfConvergenceTestCase(VrfTestCase):
     """A second sync of unchanged VRFs must report nothing to do.
 
     A sync that reports the same change on every run is as much a defect as one that fails, and it
-    comes from the two adapters describing one object differently — an empty route distinguisher as
+    comes from the two adapters describing one object differently: an empty route distinguisher as
     `""` on one side and `None` on the other, or target lists in different orders.
     """
 
