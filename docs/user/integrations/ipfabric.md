@@ -189,6 +189,43 @@ Cables are built from IP Fabric's connectivity matrix (`tables/interfaces/connec
 | localInt/remoteInt   | Cable.termination_b_name     | Cable.termination_b.name    |
 | N/A                  | Cable.status                 | Cable.status                |
 
+## Interface state
+
+IP Fabric records what it found at the last discovery: the physical (L1) and data link (L2) state of
+each interface, and the reason it gives for the L2 one. All three are synced to custom fields on the
+Interface (**IPFabric L1 State**, **IPFabric L2 State** and **IPFabric State Reason**), so what the
+network was doing is visible beside the interface rather than folded into Nautobot's own fields.
+
+**`Enabled` is derived from the L1 state and the reason together**, because Nautobot's `enabled` is
+whether an interface is *meant* to be up, not whether it was found up. Most platforms report a shut
+port as plain `down` and put the administrative fact in the reason, so the reason is what separates a
+port somebody turned off from one whose cable is out:
+
+| L1 state | Reason | Nautobot `enabled` |
+| -------- | ------ | ------------------ |
+| names the administrator (`adminDown`, `admin-down`), or is `shutdown` or `disabled` | any | unchecked |
+| `up` | any | checked |
+| `down` | names the administrator (`admin`, `admin-down`) | unchecked |
+| `down` | anything else, or none | checked |
+| anything else | | left as Nautobot holds it |
+
+A `down` interface with no administrative reason counts as enabled on purpose: it is meant to be
+running and is not, which is an operational problem rather than a decision, and the operational side
+is already recorded in the L1 and L2 custom fields.
+
+`errDisabled` is deliberately not read as disabled, in either column. The switch took that port down
+for a fault it found, while the configuration still asks for it to be up. States are never matched
+by substring for that reason, since a substring match on `disabled` would catch it.
+
+A state that names neither is reported in the job log, once per distinct value rather than once per
+interface, and the interface's `enabled` is left exactly as Nautobot holds it. The interface is
+reported as absent by *both* adapters, so `enabled` is not diffed against a guess on every run. An
+address with no reported subnet mask gets the same treatment.
+
+An interface IP Fabric reports no state for at all is left alone the same way, but is not reported,
+there being no reading to report. That covers the pseudo management interface the sync fabricates to
+carry a NAT address.
+
 ## Interface Addresses
 
 An Interface carries every address IP Fabric reports for it, each synced as its own IP Address in Nautobot. Three tables are read: `technology.addressing.managed_ip_ipv4` and `managed_ip_ipv6` for the addresses configured on the interface, and `technology.fhrp.group_members` for FHRP virtual addresses. So a secondary address, an HSRP or VRRP virtual address, and IPv6 alongside IPv4 all reach Nautobot, which is what lets a template render them from Nautobot data.

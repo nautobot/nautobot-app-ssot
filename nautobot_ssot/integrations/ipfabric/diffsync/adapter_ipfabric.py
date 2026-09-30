@@ -1,9 +1,11 @@
 # pylint: disable=duplicate-code
+# The adapter carries an index per table it reads ahead.
+# pylint: disable=too-many-instance-attributes
 """DiffSync adapter class for Ip Fabric."""
 
 import ipaddress
 import logging
-from collections import defaultdict
+from collections import Counter, defaultdict
 from itertools import chain
 
 from diffsync import ObjectAlreadyExists
@@ -53,6 +55,47 @@ FHRP_VIRTUAL_ADDRESS_KEYS = ("vip", "virtualIp", "virtualIP")
 INHERITS_SUBNET = "_inherits_subnet"
 
 
+# Physical states that say somebody turned the port off, compared with case and punctuation stripped
+# since the same state is written `adminDown`, `admin-down` and `admin down` across platforms. Never
+# by substring: `errDisabled` is a fault the switch found, not a state anybody asked for.
+ADMINISTRATIVELY_DOWN_L1_STATES = frozenset({"admindown", "administrativelydown", "shutdown", "disabled"})
+
+
+def bare(reported):
+    """Return a reported state with its case and punctuation removed, for comparing whole."""
+    return "".join(character for character in str(reported or "").lower() if character.isalnum())
+
+
+def names_the_administrator(state):
+    """Whether a reported state or reason says somebody turned the port off."""
+    return state in ADMINISTRATIVELY_DOWN_L1_STATES or state.startswith("admin")
+
+
+def admin_state_of(reported_l1, reported_reason=None):
+    """Return whether an Interface is administratively enabled, or None where that cannot be read.
+
+    Nautobot's `enabled` is whether an Interface is meant to be up, not whether it was found up. The
+    physical state answers that on its own only when it names the administrator. Most platforms
+    report a shut port as plain `down` and put the administrative fact in the reason instead, so a
+    port that is down is only administratively down if the reason says so. Down for any other reason
+    is enabled as far as Nautobot is concerned: the Interface is meant to be running and is not,
+    which is an operational problem rather than an intent.
+
+    Anything else returns None, and the caller reports it rather than asserting either way.
+    """
+    state = bare(reported_l1)
+    if names_the_administrator(state):
+        return False
+    if state == "up":
+        # Reachable at layer one, so whatever the reason says it is not a shut port.
+        return True
+    if names_the_administrator(bare(reported_reason)):
+        return False
+    if state == "down":
+        return True
+    return None
+
+
 # pylint: disable=too-many-locals,too-many-nested-blocks,too-many-branches
 class IPFabricDiffSync(DiffSyncModelAdapters):
     """IPFabric adapter for DiffSync."""
@@ -70,6 +113,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         self._reported_missing_subnet = set()
         # Every address IP Fabric reports, indexed by the Interface it sits on.
         self.addresses_by_interface = defaultdict(list)
+        # Physical states that name no admin state, counted so each is reported once for the run.
+        self.unreadable_admin_states = Counter()
         # Held because a VRF is network wide while this filter is not, so a filtered run must not
         # delete the VRFs of the sites it cannot see; see `DiffSyncModelAdapters.network_wide`.
         self.location_filter = location_filter
@@ -111,12 +156,22 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
                 iface_name = canonical_interface_name(iface_name)
 
+            enabled = admin_state_of(iface.get("l1"), iface.get("reason"))
+            if enabled is None:
+                # Registered so the Nautobot side reports no admin state either and the value it
+                # holds is left alone rather than diffed against a guess.
+                self.interfaces_without_admin_state.add((iface.get("hostname"), iface_name))
+                if bare(iface.get("l1")):
+                    # Only a state IP Fabric actually reported. The pseudo management Interface is
+                    # fabricated here, so naming IP Fabric as the source of nothing would be noise.
+                    self.unreadable_admin_states[iface.get("l1")] += 1
+
             try:
                 interface = self.interface(
                     name=iface_name,
                     device_name=iface.get("hostname"),
                     description=iface.get("dscr", ""),
-                    enabled=True,
+                    enabled=enabled,
                     mac_address=(
                         mac_to_format(iface.get("mac"), "MAC_COLON_TWO").upper()
                         if iface.get("mac")
@@ -126,6 +181,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     type=ipfabric_utils.convert_media_type(iface.get("media"), iface_name),
                     mgmt_only=iface.get("mgmt_only", False),
                     status="Active",
+                    state_l1=iface.get("l1"),
+                    state_l2=iface.get("l2"),
+                    state_reason=iface.get("reason"),
                 )
                 self.add(interface)
                 device_model.add_child(interface)
@@ -670,6 +728,14 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         # Read only while loading, and it holds a record per address, so it is not carried into the
         # diff and sync phases where both adapters' models are already resident.
         self.addresses_by_interface.clear()
+
+        for reported_state, count in sorted(self.unreadable_admin_states.items(), key=lambda item: str(item[0])):
+            self.job.logger.warning(
+                "IP Fabric reports a physical state of %s for %d Interfaces, which names no "
+                "administrative state, so whether Nautobot has them enabled is left alone.",
+                reported_state,
+                count,
+            )
 
         if self.addresses_without_a_subnet:
             self.job.logger.warning(

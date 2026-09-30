@@ -24,6 +24,9 @@ from nautobot_ssot.integrations.ipfabric.bulk_writes import PendingWrites
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_MAC,
     DEFAULT_INTERFACE_MTU,
+    INTERFACE_L1_CF_NAME,
+    INTERFACE_L2_CF_NAME,
+    INTERFACE_REASON_CF_NAME,
     PSEUDO_MANAGEMENT_INTERFACE_NAME,
     SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
@@ -226,7 +229,13 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 name=interface_record.name,
                 device_name=device_record.name,
                 description=interface_record.description if interface_record.description else None,
-                enabled=True,
+                # No admin state where IP Fabric reported none it could read: see
+                # `interfaces_without_admin_state`.
+                enabled=(
+                    None
+                    if (device_record.name, interface_record.name) in self.interfaces_without_admin_state
+                    else interface_record.enabled
+                ),
                 mac_address=(
                     mac_to_format(str(interface_record.mac_address), "MAC_COLON_TWO").upper()
                     if interface_record.mac_address
@@ -235,6 +244,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 mtu=interface_record.mtu if interface_record.mtu else DEFAULT_INTERFACE_MTU,
                 type=interface_record.type,
                 mgmt_only=interface_record.mgmt_only if interface_record.mgmt_only else False,
+                state_l1=interface_record.cf.get(INTERFACE_L1_CF_NAME),
+                state_l2=interface_record.cf.get(INTERFACE_L2_CF_NAME),
+                state_reason=interface_record.cf.get(INTERFACE_REASON_CF_NAME),
                 pk=interface_record.pk,
             )
             self.add(interface)

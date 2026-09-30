@@ -94,8 +94,13 @@ class SyncConvergenceTestCase(TestCase):
         adapter.load()
         return adapter
 
-    def destination(self, job, scope, bulk_write_mode=False):
-        """Return a loaded Nautobot adapter."""
+    def destination(self, job, scope, bulk_write_mode=False, source=None):
+        """Return a loaded Nautobot adapter.
+
+        Handed what the source recorded while loading, as the job does: what one side reports as
+        absent the other has to report as absent too, or the difference is diffed on every run and
+        never settles.
+        """
         adapter = NautobotDiffSync(
             job=job,
             sync=unittest.mock.MagicMock(),
@@ -103,6 +108,8 @@ class SyncConvergenceTestCase(TestCase):
             location_filter=None,
             bulk_write_mode=bulk_write_mode,
             scope=scope,
+            addresses_without_a_subnet=source.addresses_without_a_subnet if source else None,
+            interfaces_without_admin_state=source.interfaces_without_admin_state if source else None,
         )
         adapter.load()
         return adapter
@@ -112,7 +119,7 @@ class SyncConvergenceTestCase(TestCase):
         job = self.job()
         scope = SyncScope.from_job_kwargs({})
         source = self.source(job, scope)
-        destination = self.destination(job, scope, bulk_write_mode=bulk_write_mode)
+        destination = self.destination(job, scope, bulk_write_mode=bulk_write_mode, source=source)
         destination.sync_from(source, flags=DiffSyncFlags.CONTINUE_ON_FAILURE)
         return job
 
@@ -121,7 +128,7 @@ class SyncConvergenceTestCase(TestCase):
         job = self.job()
         scope = SyncScope.from_job_kwargs({})
         source = self.source(job, scope)
-        destination = self.destination(job, scope)
+        destination = self.destination(job, scope, source=source)
         return destination.diff_from(source)
 
     def changed_attributes(self, diff):

@@ -42,7 +42,7 @@ from nautobot.ipam.models import (
 )
 from netutils.lib_mapper import NAPALM_LIB_MAPPER
 
-from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
+from nautobot_ssot.integrations.ipfabric.constants import INTERFACE_STATE_FIELDS, LAST_SYNCHRONIZED_CF_NAME
 from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length, job_scoped_cache
 
 # pylint: disable=too-many-branches
@@ -1123,6 +1123,13 @@ def create_interface(  # pylint: disable=too-many-arguments
         "mgmt_only",
     )
     defaults = {k: v for k, v in interface_details.items() if k in interface_fields and v}
+    if isinstance(interface_details.get("enabled"), bool):
+        # Kept out of the filter above, which drops a falsy value as an absence. `False` is a value
+        # here: an Interface IP Fabric reports as shut is meant to be disabled.
+        defaults["enabled"] = interface_details["enabled"]
+    reported_state = {
+        custom_field: interface_details.get(attribute) for attribute, custom_field in INTERFACE_STATE_FIELDS.items()
+    }
     try:
         if pending is not None and device_obj._state.adding:  # pylint: disable=protected-access
             # The Device is queued and has no rows of its own yet, so it can hold no Interface.
@@ -1131,6 +1138,7 @@ def create_interface(  # pylint: disable=too-many-arguments
             interface_obj = device_obj.interfaces.filter(name=interface_name, status=status_obj).first()
         if interface_obj is None:
             interface_obj = Interface(device=device_obj, name=interface_name, status=status_obj, **defaults)
+            interface_obj.cf.update(reported_state)
             if pending is not None:
                 return queue_new_object(pending, interface_obj, key=(device_obj.pk, interface_name))
             # Stamped before the one save a new Interface takes, so the Tag row that follows is

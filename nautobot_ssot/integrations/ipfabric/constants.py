@@ -20,6 +20,18 @@ DEFAULT_INTERFACE_MAC = CONFIG.get("ipfabric_default_interface_mac", "00:00:00:0
 DEFAULT_INTERFACE_MTU = int(CONFIG.get("ipfabric_default_interface_mtu", 1500))
 DEFAULT_INTERFACE_TYPE = CONFIG.get("ipfabric_default_interface_type", "1000base-t")
 DEFAULT_CABLE_STATUS = CONFIG.get("ipfabric_default_cable_status", "Connected")
+
+# What IP Fabric observed of an Interface at the last discovery. Custom fields rather than Nautobot
+# fields, because Nautobot's own fields hold the state an Interface is meant to be in.
+INTERFACE_L1_CF_NAME = "ipfabric_state_l1"
+INTERFACE_L2_CF_NAME = "ipfabric_state_l2"
+INTERFACE_REASON_CF_NAME = "ipfabric_state_reason"
+
+INTERFACE_STATE_FIELDS = {
+    "state_l1": INTERFACE_L1_CF_NAME,
+    "state_l2": INTERFACE_L2_CF_NAME,
+    "state_reason": INTERFACE_REASON_CF_NAME,
+}
 SAFE_DELETE_DEVICE_STATUS = CONFIG.get("ipfabric_safe_delete_device_status", "Offline")
 SAFE_DELETE_LOCATION_STATUS = CONFIG.get("ipfabric_safe_delete_location_status", "Decommissioning")
 SAFE_DELETE_VLAN_STATUS = CONFIG.get("ipfabric_safe_delete_vlan_status", "Deprecated")

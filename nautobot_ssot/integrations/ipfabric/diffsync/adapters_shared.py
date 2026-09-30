@@ -63,6 +63,7 @@ class DiffSyncModelAdapters(Adapter):
         scope: Optional[SyncScope] = None,
         strict: Optional[StrictObjects] = None,
         addresses_without_a_subnet: Optional[Set[Tuple[str, str, str]]] = None,
+        interfaces_without_admin_state: Optional[Set[Tuple[str, str]]] = None,
         **kwargs,
     ):
         """Initialize the adapter with the object types this run covers.
@@ -74,6 +75,11 @@ class DiffSyncModelAdapters(Adapter):
         The two controls answer different questions. The scope decides which object types this run
         covers; strictness is a further check, on the types it does cover, that what IP Fabric
         reported about them can be taken on trust.
+
+        `interfaces_without_admin_state` holds the `(device name, interface name)` of every Interface
+        IP Fabric reported a physical state this integration cannot read as an admin state. Both
+        adapters report no `enabled` for those, so the value Nautobot holds is left alone rather than
+        diffed against a guess on every run.
 
         `addresses_without_a_subnet` holds the `(device name, interface name, host)` of every address
         IP Fabric reports no usable subnet for. The IP Fabric adapter fills it while loading and
@@ -87,6 +93,9 @@ class DiffSyncModelAdapters(Adapter):
         self.scope = scope if scope is not None else SyncScope.from_job_kwargs({})
         self.strict = strict if strict is not None else StrictObjects.from_job_kwargs({})
         self.addresses_without_a_subnet = set() if addresses_without_a_subnet is None else addresses_without_a_subnet
+        self.interfaces_without_admin_state = (
+            set() if interfaces_without_admin_state is None else interfaces_without_admin_state
+        )
         # VRF names the Global Namespace holds more than one of, which the Nautobot adapter declines
         # to load. Recorded so that `Vrf.create` can decline them because the name is ambiguous,
         # rather than inferring it from the loader having skipped them. Per adapter rather than per
