@@ -420,6 +420,22 @@ themselves are written in batches.
 
 Deletions are unaffected. **Safe Delete Mode** governs those, and it is independent of this setting.
 
+## Objects the sync finds unchanged
+
+Most of what a nightly sync sees is what it wrote the night before. Every object the sync touches
+records that it did, through the `SSoT Synced from IPFabric` tag and the `last_synced_from_sor`
+custom field, and for an object nothing else changed about, that stamp is the entire write.
+
+It is applied with a single update of the custom field data rather than a full save. What that skips
+is Nautobot's validation, the signals, and **a change log entry for the stamp itself**. So an object
+IP Fabric still reports exactly as Nautobot holds it no longer gains a change log entry on every run;
+its `last_synced_from_sor` date still moves, and the Change Log tab now shows the runs that changed
+something rather than one entry per run. An object the sync does change is written in full, with
+validation and a change log entry as before.
+
+This applies in either write mode. **Bulk Write Mode** is about objects the sync creates; this is
+about the ones it finds already correct, which on a settled estate is nearly all of them.
+
 ## Safe Delete Mode
 
 By design, a Nautobot SSoT app using DiffSync will Create, Update or Delete when synchronizing two data sources. However, this may not always be what we want to happen with our Source of Truth (Nautobot). A job configuration option is available and enabled by default to prevent deleting objects from the database and instead, update the `Status` of said object alongside assigning a default Tag, `SSoT Safe Delete`. For example, if an additional snapshot is created from IPFabric, synchronized with Nautobot and, it just so happens that a device was unreachable, down for maintenance, etc., This doesn't `always` mean that our Source of Truth should delete this object, but we may need to bring attention to this matter. We let you decide what should happen. One thing to note is that some of the objects will auto recover from the changed status if a new job shows the object is present. However, currently, IP addresses and Interfaces will not auto-update to remove the `SSoT Safe Delete` Tag. The user is responsible for reviewing and updating accordingly. Safe delete tagging of objects works in an idempotent way. If an object has been tagged already, the custom field defining the last update will not be updated with a new sync date from IPFabric. So, if you re-run your sync job days apart and, you'd expect the date to change, but the object has been flagged as safe to delete; you will not see an updated date on the object custom field unless the status changed, in which case the tag (depending on the object) would be removed followed by updating the last date of sync.

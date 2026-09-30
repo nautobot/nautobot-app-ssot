@@ -111,8 +111,7 @@ def get_or_create_location_object(
 
     try:
         location_type = LocationType.objects.get(name="Site")
-        if not location_type.content_types.filter(app_label="ipam", model="vlan").exists():
-            location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
+        allow_vlans_at_location_type(location_type.pk)
         try:
             location_obj = Location.objects.get(name=location_name, location_type=location_type)
             is_new = False
@@ -120,7 +119,7 @@ def get_or_create_location_object(
             location_obj = Location(
                 name=location_name,
                 location_type=location_type,
-                status=Status.objects.get(name="Active"),
+                status=get_status_by_name("Active"),
             )
             is_new = True
     except Location.MultipleObjectsReturned:
@@ -153,9 +152,13 @@ def get_or_create_location_object(
     if is_new and pending is not None:
         return queue_new_object(pending, location_obj, key=location_name)
 
-    # tag_object performs validated_save(), which is the only save a new Location takes.
     try:
-        tag_object(nautobot_object=location_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        if is_new:
+            # tag_object performs validated_save(), which is the only save a new Location takes.
+            tag_object(nautobot_object=location_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        else:
+            # The site ID above is custom field data, so it rides the same statement as the stamp.
+            restamp_synced(location_obj, LAST_SYNCHRONIZED_CF_NAME)
     except (DjangoBaseDBError, ValidationError):
         if logger:
             logger.warning(
@@ -682,6 +685,34 @@ def get_status_for_model(model: Any, status_name: str) -> Status:
 
 
 @job_scoped_cache
+def get_status_by_name(status_name: str) -> Status:
+    """Return the Status of the given name, wherever it is enabled.
+
+    Cached because a sync resolves the same handful of Status names for every object it writes.
+    Raises as the bare lookup does, so a caller can tell a missing Status from an ambiguous one.
+
+    Distinct from `get_status_for_model`, which restricts to the Statuses enabled for one model and
+    so refuses a Status that exists but has not been enabled there.
+    """
+    return Status.objects.get(name=status_name)
+
+
+@job_scoped_cache
+def allow_vlans_at_location_type(location_type_id: Any) -> None:
+    """Ensure a LocationType permits VLANs, asked once per LocationType rather than once per VLAN.
+
+    A Location cannot hold a VLAN unless its LocationType lists the content type, and a sync
+    creating VLANs at a site Nautobot has never held one at has to add it. The answer is the same
+    for every VLAN at every Location of that type, so it is worth asking once.
+    """
+    permitted = LocationType.objects.filter(
+        pk=location_type_id, content_types__app_label="ipam", content_types__model="vlan"
+    ).exists()
+    if not permitted:
+        LocationType.objects.get(pk=location_type_id).content_types.add(ContentType.objects.get_for_model(VLAN))
+
+
+@job_scoped_cache
 def get_global_namespace() -> Namespace:
     """Return the Global Namespace, which every Prefix this integration creates belongs to.
 
@@ -849,7 +880,13 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
             mask_changed = ip_obj.mask_length != mask_length
             ip_obj.mask_length = mask_length
             try:
-                tag_object(nautobot_object=ip_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+                if mask_changed:
+                    tag_object(nautobot_object=ip_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+                else:
+                    # The usual case on a re-sync, and the one worth keeping cheap: IP Fabric
+                    # reports the address exactly as Nautobot already holds it, so the stamp is the
+                    # only thing left to write.
+                    restamp_synced(ip_obj, LAST_SYNCHRONIZED_CF_NAME)
             except (DjangoBaseDBError, ValidationError) as err:
                 if logger and mask_changed:
                     logger.error(
@@ -980,13 +1017,21 @@ def resolve_ip(address: str, status_obj: Status, logger: Optional[logging.Logger
     Asked before anything is built, rather than after. Nautobot 3.2 reports a duplicate from
     `clean()`, so building first cannot tell an address that needs a Prefix from one that already
     exists.
+
+    Both candidates are keyed on the same host, so they are read in one query and chosen between in
+    Python. Asked as two, the pair runs in full for every address of a first import, where both miss.
     """
-    existing = IPAddress.objects.filter(address=address).first()
-    if existing is not None:
-        return existing
-    existing = IPAddress.objects.filter(host=address.split("/")[0], parent__namespace=get_global_namespace()).first()
-    if existing is not None:
-        return existing
+    host = address.split("/")[0]
+    candidates = list(IPAddress.objects.filter(host=host).select_related("parent"))
+    # An exact match on the mask as well, which is what `filter(address=...)` is shorthand for. Taken
+    # ahead of the Namespace match, and from any Namespace, as the original pair of lookups did.
+    for existing in candidates:
+        if existing.mask_length == mask_length_of(address):
+            return existing
+    namespace = get_global_namespace()
+    for existing in candidates:
+        if existing.parent.namespace_id == namespace.pk:
+            return existing
     return resolve_new_ip(address, status_obj, logger=logger)
 
 
@@ -1099,10 +1144,11 @@ def create_interface(  # pylint: disable=too-many-arguments
             logger.error(f"Unable to create a new Interface named {interface_name} on Device named {device_obj.name}")
         return None
 
-    # An Interface Nautobot already holds is re-stamped in place. Separate from the creation above
-    # so that a failure here still returns the existing Interface rather than None.
+    # An Interface Nautobot already holds is re-stamped in place. Nothing above changes a field on
+    # it, so the stamp is the whole of the write. Separate from the creation above so that a failure
+    # here still returns the existing Interface rather than None.
     try:
-        tag_object(nautobot_object=interface_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        restamp_synced(interface_obj, LAST_SYNCHRONIZED_CF_NAME)
     except (DjangoBaseDBError, ValidationError):
         if logger:
             logger.warning(
@@ -1137,9 +1183,10 @@ def create_vlan(  # pylint: disable=too-many-arguments
         VLAN: When a VLAN Object is retrieved or created.
         None: When there is a failure in getting or creating a VLAN.
     """
-    # Ensure LocationType allows VLANs
-    if location_obj and not location_obj.location_type.content_types.filter(app_label="ipam", model="vlan").exists():
-        location_obj.location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
+    if location_obj:
+        # Taken from the Location's own column rather than through the relation, which would fetch
+        # the LocationType only to read its primary key back.
+        allow_vlans_at_location_type(location_obj.location_type_id)
 
     try:
         try:
@@ -1151,7 +1198,7 @@ def create_vlan(  # pylint: disable=too-many-arguments
             vlan_obj = VLAN(
                 vid=vlan_id,
                 name=vlan_name,
-                status=Status.objects.get(name=vlan_status),
+                status=get_status_by_name(vlan_status),
                 description=description,
                 location=location_obj,
             )
@@ -1171,9 +1218,14 @@ def create_vlan(  # pylint: disable=too-many-arguments
         )
         return queue_new_object(pending, vlan_obj, through_rows=assignments)
 
-    # tag_object performs validated_save(), which is the only save a new VLAN takes.
     try:
-        tag_object(nautobot_object=vlan_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        if is_new:
+            # tag_object performs validated_save(), which is the only save a new VLAN takes.
+            tag_object(nautobot_object=vlan_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        else:
+            # Nothing above changes a field on a VLAN Nautobot already holds, so the stamp is the
+            # whole of the write.
+            restamp_synced(vlan_obj, LAST_SYNCHRONIZED_CF_NAME)
     except (DjangoBaseDBError, ValidationError):
         if logger:
             logger.warning(f"Unable to perform validated_save() on VLAN named {vlan_name} with an ID of {vlan_obj.id}")
@@ -1547,6 +1599,33 @@ def stamp_synced(nautobot_object: Any, custom_field: str):
     if hasattr(nautobot_object, "cf"):
         nautobot_object.cf["system_of_record"] = "IPFabric"
         nautobot_object.cf[custom_field] = datetime.date.today().isoformat()
+
+
+def restamp_synced(nautobot_object: Any, custom_field: str, tag_name: str = "SSoT Synced from IPFabric"):
+    """Record this run against an object the sync found unchanged, in as few statements as it takes.
+
+    A re-sync that changes nothing still has to say it saw each object, and for most of them the
+    stamp is the only thing to write. Doing that through `validated_save()` costs about eleven
+    queries an object, because `IPAddress.save()` calls `clean()` and `clean()` issues three of its
+    own, so on an estate of a hundred thousand addresses the run that changes nothing is the most
+    expensive thing the integration does. One `UPDATE` of the custom field data says the same.
+
+    What that skips is validation, the signals and the change log entry. None is a loss here: the
+    object is unchanged apart from this integration's own bookkeeping, nothing revalidates by
+    standing still, and an entry recording only that the date moved is noise in an object's history.
+
+    For a caller that did change a field, `tag_object` is still the way to write it.
+    """
+    if not hasattr(nautobot_object, "cf"):
+        return
+    tag = synced_tag_for(nautobot_object, tag_name=tag_name)
+    # `tags.add` is its own pair of statements, so it is asked for only where the Tag is missing.
+    if hasattr(nautobot_object, "tags") and nautobot_object.pk not in get_tagged_pks(type(nautobot_object), tag.id):
+        nautobot_object.tags.add(tag)
+    stamp_synced(nautobot_object, custom_field)
+    type(nautobot_object).objects.filter(pk=nautobot_object.pk).update(
+        _custom_field_data=nautobot_object._custom_field_data  # pylint: disable=protected-access
+    )
 
 
 def tag_object(

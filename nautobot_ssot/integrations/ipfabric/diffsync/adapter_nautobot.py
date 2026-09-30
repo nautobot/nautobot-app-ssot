@@ -63,39 +63,39 @@ DELETE_ORDER = (
 PENDING_WRITE_HIGH_WATER = 5000
 
 
-def delete_objects(nautobot_objects: List):
-    """Delete the given Nautobot objects, in as few statements as their relations allow.
+def delete_objects(queued_deletions: List):
+    """Delete the queued objects, given as `(model, pk)` pairs, in as few statements as they allow.
 
     Deleting one at a time makes Django walk that object's relations and issue its own statements;
     deleting a batch walks them once. A batch Nautobot refuses is retried an object at a time, so one
     protected object neither takes the rest with it nor goes unreported.
     """
     by_model = defaultdict(list)
-    for nautobot_object in nautobot_objects:
-        by_model[type(nautobot_object)].append(nautobot_object)
+    for model, pk in queued_deletions:
+        by_model[model].append(pk)
 
-    for model, objects in by_model.items():
-        for start in range(0, len(objects), DELETE_BATCH_SIZE):
-            batch = objects[start : start + DELETE_BATCH_SIZE]
+    for model, pks in by_model.items():
+        for start in range(0, len(pks), DELETE_BATCH_SIZE):
+            batch = pks[start : start + DELETE_BATCH_SIZE]
             try:
                 # Its own savepoint, so a refused batch leaves the transaction usable. Deferring the
                 # change log within it turns one entry per deleted object into one bulk insert.
                 with transaction.atomic(), tonb_utils.deferred_change_logging():
-                    model.objects.filter(pk__in=[nautobot_object.pk for nautobot_object in batch]).delete()
+                    model.objects.filter(pk__in=batch).delete()
             except IntegrityError:
-                delete_objects_one_at_a_time(batch)
+                delete_objects_one_at_a_time([(model, pk) for pk in batch])
 
 
-def delete_objects_one_at_a_time(nautobot_objects: List):
-    """Delete the given Nautobot objects individually, naming each one Nautobot refuses."""
-    for nautobot_object in nautobot_objects:
+def delete_objects_one_at_a_time(queued_deletions: List):
+    """Delete the queued `(model, pk)` pairs individually, naming each one Nautobot refuses."""
+    for model, pk in queued_deletions:
         try:
             with transaction.atomic():
-                nautobot_object.delete()
+                model.objects.filter(pk=pk).delete()
         except ProtectedError:
-            logger.warning("Deletion failed protected object", extra={"object": nautobot_object})
+            logger.warning("Deletion failed protected object", extra={"object": f"{model.__name__} {pk}"})
         except IntegrityError:
-            logger.warning(f"Deletion failed due to IntegrityError with {nautobot_object}")
+            logger.warning(f"Deletion failed due to IntegrityError with {model.__name__} {pk}")
 
 
 class NautobotDiffSync(DiffSyncModelAdapters):
