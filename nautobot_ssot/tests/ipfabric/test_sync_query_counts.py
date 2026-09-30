@@ -347,6 +347,47 @@ class DeleteCostTestCase(_CostTestCase):
         )
         self.assertEqual(other.objects_to_delete["_interface"], [])
 
+    def another_adapter(self, safe_delete_mode):
+        """A second adapter, as a concurrent run in the same worker would hold."""
+        job = unittest.mock.MagicMock()
+        job.debug = False
+        return NautobotDiffSync(
+            job=job,
+            sync=unittest.mock.MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+            safe_delete_mode=safe_delete_mode,
+        )
+
+    def test_safe_delete_mode_is_not_shared_between_adapters(self):
+        """The reason it is per run: a run with it on must not delete because another had it off.
+
+        The careful run is constructed second on purpose. State shared between runs shows up as the
+        later construction deciding for both, so the ordering is what gives the assertion something
+        to catch.
+        """
+        lax = self.another_adapter(safe_delete_mode=False)
+        careful = self.another_adapter(safe_delete_mode=True)
+
+        self.assertFalse(lax.safe_delete_mode, "The second run's choice reached the first.")
+        self.assertTrue(careful.safe_delete_mode)
+
+    def test_a_model_reads_safe_delete_mode_from_the_adapter_it_is_bound_to(self):
+        """Two runs hold two adapters, so a model has to ask its own rather than its class."""
+        interface = self.interfaces(1, "bound")[0]
+        model = self.interface_model("bound0")
+        model.adapter = self.another_adapter(safe_delete_mode=False)
+        # Built second on purpose: shared state would show up as this one deciding for the model above.
+        self.another_adapter(safe_delete_mode=True)
+
+        model.delete()
+
+        self.assertEqual(
+            model.adapter.objects_to_delete["_interface"],
+            [(Interface, interface.pk)],
+            "The model read another run's Safe Delete Mode rather than its own.",
+        )
+
     def test_an_object_the_database_refuses_does_not_stop_the_rest_of_its_batch(self):
         """The retry a refused batch falls back to is per object, so one refusal must not end it.
 
@@ -379,7 +420,7 @@ class DeleteCostTestCase(_CostTestCase):
         interface = self.interfaces(1, "retained")[0]
         model = self.interface_model("retained0")
 
-        with unittest.mock.patch.object(InterfaceModel, "safe_delete_mode", False):
+        with unittest.mock.patch.object(self.adapter, "safe_delete_mode", False):
             model.delete()
 
         self.assertEqual(self.adapter.objects_to_delete["_interface"], [(Interface, interface.pk)])
@@ -388,7 +429,6 @@ class DeleteCostTestCase(_CostTestCase):
         """The counterpart to safe delete mode: with it off, `sync_complete` is what does the deleting."""
         queued = self.interfaces(3, "swept")
         self.adapter.objects_to_delete["_interface"] = self.queued(*queued)
-        # Set on the instance rather than the class, which every other adapter would otherwise read.
         self.adapter.safe_delete_mode = False
 
         self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
