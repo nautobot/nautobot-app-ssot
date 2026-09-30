@@ -1,7 +1,7 @@
 # pylint: disable=too-many-lines
 """Tests for IPFabric diffsync models.
 
-Focused on the model-specific branching logic — early returns, conditional
+Focused on the model-specific branching logic: early returns, conditional
 calls, regression guards for fixed bugs. Nautobot ORM calls and the
 `nbutils` helpers are mocked; the heavy lifting is covered by their own
 test suites.
@@ -1498,7 +1498,7 @@ class TestDeferredChangeLoggingCoverage(SimpleTestCase):
 
     The scope is applied as a decorator on each operation, since DiffSync calls `create`, `update`
     and `delete` itself and each subclass does its writes before delegating to `super()`. Hand
-    application means a new model, or a rename, can silently lose it — this asserts the invariant
+    application means a new model, or a rename, can silently lose it, so this asserts the invariant
     instead of relying on it being remembered.
     """
 

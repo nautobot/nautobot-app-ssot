@@ -849,8 +849,8 @@ class InterfaceAddress(DiffSyncExtras):
         """Record the address as the Device's primary one for its IP version.
 
         A validated save, so the refusal is reported rather than written. It validates the whole
-        Device, so a Device this sync deliberately wrote despite `Device.clean()` — one whose
-        Platform names a different Manufacturer to its DeviceType — is refused here for a reason
+        Device, so a Device this sync deliberately wrote despite `Device.clean()`, one whose
+        Platform names a different Manufacturer to its DeviceType, is refused here for a reason
         that has nothing to do with the address, and keeps whatever primary it had.
         """
         field = cls.primary_field(address_object)

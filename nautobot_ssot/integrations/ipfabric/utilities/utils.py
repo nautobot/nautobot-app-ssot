@@ -222,7 +222,7 @@ class job_scoped_cache:  # pylint: disable=invalid-name
     def __call__(self, *args, **kwargs):
         """Handle call to function, checks cache, calls function if missing and caches result."""
         if not hasattr(self, "_fn"):
-            # Called as @job_scoped_cache(group="...") — receives the function
+            # Called as @job_scoped_cache(group="..."), so this receives the function
             self._init_fn(args[0])
             return self
         state = self._get_state()

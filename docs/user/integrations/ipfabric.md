@@ -232,19 +232,19 @@ An Interface carries every address IP Fabric reports for it, each synced as its 
 
 A prefix length is what the sync records, not a dotted netmask, which is what makes an IPv6 address expressible at all: a netmask is undefined above a length of 32. Each address is diffed on its own. An Interface gaining a third address reports that one address rather than its whole set, one IP Fabric stops reporting is removed without touching the rest, and the job log names the address that moved. An address is matched on its host within its Interface, not on its address, because the mask is the attribute IP Fabric can change for an address it keeps reporting; matching on the mask as well would report a corrected mask as one address replacing another.
 
-Because every address on a synced Interface is now read, an address IP Fabric does not report is removed rather than being invisible to the sync — including an IPv6 address, or a second IPv4 one, that another system put there. Safe Delete Mode, which is on by default, marks and tags such an address rather than deleting it. Take an Interface out of scope, or deselect **Sync IP Addresses**, where another system owns the addresses on it.
+Because every address on a synced Interface is now read, an address IP Fabric does not report is removed rather than being invisible to the sync, including an IPv6 address, or a second IPv4 one, that another system put there. Safe Delete Mode, which is on by default, marks and tags such an address rather than deleting it. Take an Interface out of scope, or deselect **Sync IP Addresses**, where another system owns the addresses on it.
 
-Removing an address goes through Safe Delete Mode as any other object does, and with that mode disabled the address is deleted rather than only reported as deleted. Removal happens only where no other Interface holds it — one Nautobot IP Address can be assigned to several Interfaces, and deleting it for one would take it from all of them. An address on another Interface is unassigned from this one instead.
+Removing an address goes through Safe Delete Mode as any other object does, and with that mode disabled the address is deleted rather than only reported as deleted. Removal happens only where no other Interface holds it: one Nautobot IP Address can be assigned to several Interfaces, and deleting it for one would take it from all of them. An address on another Interface is unassigned from this one instead.
 
-The Device's `primary_ip4` and `primary_ip6` are set by marking an address already synced from the Interface carrying it. IP Fabric reports `loginIpv4` and `loginIpv6` separately, so a dual-stack Device names one of each and Nautobot carries both; a release reporting only the older single `loginIp` column marks that one. Marking an address primary resolves nothing of its own — the prefix length is the one the Interface already reported for it. **Sync Primary IP** governs the marking alone; deselecting it still syncs the addresses themselves.
+The Device's `primary_ip4` and `primary_ip6` are set by marking an address already synced from the Interface carrying it. IP Fabric reports `loginIpv4` and `loginIpv6` separately, so a dual-stack Device names one of each and Nautobot carries both; a release reporting only the older single `loginIp` column marks that one. Marking an address primary resolves nothing of its own; the prefix length is the one the Interface already reported for it. **Sync Primary IP** governs the marking alone; deselecting it still syncs the addresses themselves.
 
-An address that stops being logged in on is unmarked, so the Device stops recording it as primary — either because the primary moved to another address or because IP Fabric reports no login address for the Device at all. The unmarking is keyed on the address the Device currently points at, so a primary that moves settles whichever of the two addresses the sync writes first.
+An address that stops being logged in on is unmarked, so the Device stops recording it as primary, either because the primary moved to another address or because IP Fabric reports no login address for the Device at all. The unmarking is keyed on the address the Device currently points at, so a primary that moves settles whichever of the two addresses the sync writes first.
 
 The exception is a management address reached through NAT, which belongs to no interface and so is on none of them to mark; that is what [Placeholder Interfaces](#placeholder-interfaces) covers.
 
 ### FHRP virtual addresses
 
-A virtual address has no subnet of its own in IP Fabric's FHRP tables, so it resolves at the third rung described under [Subnet Masks](#subnet-masks): the subnet of whichever of its Interface's addresses contains it. Where none covers it, it is withheld exactly as any other address with no usable subnet is, and counted in the same summary — it is not written under a guessed mask.
+A virtual address has no subnet of its own in IP Fabric's FHRP tables, so it resolves at the third rung described under [Subnet Masks](#subnet-masks): the subnet of whichever of its Interface's addresses contains it. Where none covers it, it is withheld exactly as any other address with no usable subnet is, and counted in the same summary; it is not written under a guessed mask.
 
 The column carrying the virtual address is not the same in every IP Fabric release, and IP Fabric reports a table's columns from the appliance rather than declaring them, so the sync looks for it under `vip`, `virtualIp` and `virtualIP`. A group member carrying none of those is reported, so a release that names it differently shows up in the job log rather than silently syncing nothing.
 
@@ -262,15 +262,15 @@ With **IP Addresses** selected under [Strict Objects](#strict-objects), which is
 
 The selection governs reading on both sides, as **Sync Tagged Only** does, so that an address withheld from writing is not reported as a difference on every run.
 
-Deselecting it syncs the address as a host route instead — a `/32`, or a `/128` for IPv6. That puts it under the wrong parent Prefix and leaves nothing to distinguish it from an address genuinely configured as a host route, so every use of the fallback is logged as a warning naming the address. Deselect it only where a host route is preferable to no change at all.
+Deselecting it syncs the address as a host route instead: a `/32`, or a `/128` for IPv6. That puts it under the wrong parent Prefix and leaves nothing to distinguish it from an address genuinely configured as a host route, so every use of the fallback is logged as a warning naming the address. Deselect it only where a host route is preferable to no change at all.
 
-A NAT management address is unaffected by this selection. It belongs to no interface, so IP Fabric reports no subnet for it and a host route is the whole of it — the value rather than a fallback. Whether that address is carried at all is decided by the **Interfaces** selection instead, since it needs an Interface the device does not have; see [Placeholder Interfaces](#placeholder-interfaces).
+A NAT management address is unaffected by this selection. It belongs to no interface, so IP Fabric reports no subnet for it and a host route is the whole of it, the value rather than a fallback. Whether that address is carried at all is decided by the **Interfaces** selection instead, since it needs an Interface the device does not have; see [Placeholder Interfaces](#placeholder-interfaces).
 
 A subnet that does not parse counts as none reported: it is logged and passed over rather than raised, since one such row would otherwise end the job while it was still reading and lose every address that was fine. Either IP version is accepted, since what the sync records is a prefix length. Whether the subnet contains the address it was reported for is not checked; that is a different kind of wrong data, and one this sync has no better answer for than the mask itself.
 
 ## Strict Objects
 
-**Strict Objects** is a check on the data IP Fabric reported, applied on top of what is in scope. The scope decides which object types a run covers; this decides, for the types it does cover, whether what IP Fabric said about them is taken on trust or checked first. Nothing here brings a type into scope, and selecting a type that is out of scope does nothing — the job says so rather than leaving the selection looking like the reason nothing was written.
+**Strict Objects** is a check on the data IP Fabric reported, applied on top of what is in scope. The scope decides which object types a run covers; this decides, for the types it does cover, whether what IP Fabric said about them is taken on trust or checked first. Nothing here brings a type into scope, and selecting a type that is out of scope does nothing; the job says so rather than leaving the selection looking like the reason nothing was written.
 
 Left unselected, the sync takes the report at face value and fills any gap itself: a site name becomes a Location, a model becomes a Device Type, a family becomes a Platform, an address with no reported subnet becomes a host route. Where the data is good that is exactly right, and it is what makes bootstrapping an empty Nautobot work. Where it is not, a typo mints a near duplicate that is indistinguishable from a curated record.
 
@@ -292,9 +292,9 @@ What a failed check costs differs by type:
 
 Only **IP Addresses** is selected by default. Whether a name may be trusted depends on who owns the object, which only you know, so every other type defaults to taking the report on trust and an existing sync does not change behaviour on upgrade. A mask the source never reported is not data whoever owns IPAM, which is why that one is checked by default. Each default can be set for the whole instance with an `ipfabric_strict_<type>` setting, for example `ipfabric_strict_locations`.
 
-For a type the sync only ever creates — Manufacturers, Device Types, Platforms, Statuses — a failed check and a deselected **Sync** option leave Nautobot in the same state, since creating is all the sync would have done. They still answer different questions: deselecting **Sync Manufacturers** means this run does not sync vendors at all, while selecting Manufacturers here means it does sync them and reports a vendor whose Manufacturer is missing rather than inventing one.
+For a type the sync only ever creates (Manufacturers, Device Types, Platforms, Statuses), a failed check and a deselected **Sync** option leave Nautobot in the same state, since creating is all the sync would have done. They still answer different questions: deselecting **Sync Manufacturers** means this run does not sync vendors at all, while selecting Manufacturers here means it does sync them and reports a vendor whose Manufacturer is missing rather than inventing one.
 
-Safe Delete Mode's own statuses are outside this control. They are the integration's vocabulary rather than anything IP Fabric reported, so there is nothing to check, and refusing to create one would leave a record neither deleted nor marked — the outcome Safe Delete Mode exists to prevent.
+Safe Delete Mode's own statuses are outside this control. They are the integration's vocabulary rather than anything IP Fabric reported, so there is nothing to check, and refusing to create one would leave a record neither deleted nor marked, the outcome Safe Delete Mode exists to prevent.
 
 ### Placeholder Interfaces
 
@@ -302,7 +302,7 @@ Where a Device's management address matches no Interface IP Fabric reported, whi
 
 Selecting **Interfaces** under Strict Objects stops it being invented. The Interfaces IP Fabric did report are synced as before; only the placeholder is withheld, and the management address goes with it, since it had no Interface of its own to sit on.
 
-The selection stops new placeholders rather than removing those an earlier run created. One already in Nautobot is left alone — withdrawing it from only one side of the diff would read as absent from IP Fabric and delete it — and the job names every one it found, so they can be dealt with deliberately.
+The selection stops new placeholders rather than removing those an earlier run created. One already in Nautobot is left alone, since withdrawing it from only one side of the diff would read as absent from IP Fabric and delete it. The job names every one it found, so they can be dealt with deliberately.
 
 ## Sync Tagged Only
 
@@ -336,7 +336,7 @@ A Route Target's name is unique across the whole of Nautobot, so one that anothe
 created is the same object this sync would have made. It is adopted and marked as synced rather than
 duplicated, which is what lets a first run converge against an existing estate.
 
-Only the Route Targets this integration created are loaded back from Nautobot — those carrying the
+Only the Route Targets this integration created are loaded back from Nautobot: those carrying the
 `SSoT Synced from IPFabric` Tag. A Route Target has no Location, no Device and no Namespace to bound
 a load by, so loading all of them would have the sync delete every Route Target another system owns
 the moment IP Fabric stopped reporting it.
@@ -369,7 +369,7 @@ cannot be set at the same time.
 
 Only Interfaces that are in a VRF are tracked, on either side. An Interface IP Fabric stops
 reporting a VRF for is taken out of the one it is in; nothing is deleted, so **Safe Delete Mode**
-does not apply — the Interface and the VRF both remain, and what goes is the reference between them.
+does not apply: the Interface and the VRF both remain, and what goes is the reference between them.
 
 ### What the sync will not do
 
@@ -432,7 +432,7 @@ known to carry rows Nautobot will refuse, so that less is re-read to find them.
 
 Devices created in bulk do not get the components their Device Type templates define. IP Fabric
 reports the interfaces a device actually has, and those are what the sync creates, so for this
-integration that is usually what you want — but if you rely on Device Type templates populating
+integration that is usually what you want, but if you rely on Device Type templates populating
 components, do not use this mode.
 
 A duplicate Location name is not caught. Nautobot constrains a Location's name to be unique among its

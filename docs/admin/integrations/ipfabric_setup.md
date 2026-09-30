@@ -184,7 +184,7 @@ Devices excluded would have nothing left to do.
 
 Manufacturers, Device Types, Roles and Platforms are not part of the object tree. Nothing is a child
 of them; they are created as a side effect of syncing a Device that needs one. Deselecting them
-therefore does not stop Devices syncing — it turns a get-or-create into a lookup, so this sync uses
+therefore does not stop Devices syncing; it turns a get-or-create into a lookup, so this sync uses
 what Nautobot already holds and never adds to the catalogue.
 
 What happens when the supporting object is absent depends on whether Nautobot requires it:
@@ -192,9 +192,9 @@ What happens when the supporting object is absent depends on whether Nautobot re
 | Deselected      | A Device needing one Nautobot does not hold                                     |
 |-----------------|---------------------------------------------------------------------------------|
 | `manufacturers` | Skipped, if a Device Type would have had to be created under the missing vendor |
-| `device_types`  | Skipped — Nautobot requires a Device Type                                       |
-| `roles`         | Skipped — Nautobot requires a Role                                              |
-| `platforms`     | Synced without a Platform — Nautobot treats it as optional                      |
+| `device_types`  | Skipped: Nautobot requires a Device Type                                        |
+| `roles`         | Skipped: Nautobot requires a Role                                               |
+| `platforms`     | Synced without a Platform: Nautobot treats it as optional                       |
 
 Each skipped Device is named in the Job log, so a run against a catalogue that has not caught up
 reads as work to retry rather than as data that vanished.
@@ -212,7 +212,7 @@ Two further consequences:
 ### Locations
 
 Locations are the root of the object tree: every Device and VLAN belongs to one. Deselecting them
-therefore does not stop Locations being *read* — it stops them being *written*. No Location is
+therefore does not stop Locations being *read*; it stops them being *written*. No Location is
 created, updated or deleted, and the `ipfabric_site_id` custom field is left alone, but Devices at
 Locations that already exist in Nautobot still sync normally.
 
@@ -234,7 +234,7 @@ Three consequences follow, all of them intended:
 The `ipfabric_site_id` custom field is only ever written while Locations are in scope; out of scope it
 belongs to whichever system owns the Location.
 
-Deselect Locations where another system owns the site list. Leave it selected — the default — to keep
+Deselect Locations where another system owns the site list. Leave it selected (the default) to keep
 the existing behaviour.
 
 An object type is skipped when a type it requires is not selected, and the Job log says which
