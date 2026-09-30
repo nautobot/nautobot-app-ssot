@@ -4,7 +4,7 @@
 # One module holds every synced model #  pylint:disable=too-many-lines
 """DiffSyncModel subclasses for Nautobot-to-IPFabric data sync."""
 
-from typing import Any, ClassVar, List, Optional
+from typing import Any, List, Optional
 from uuid import UUID
 
 from diffsync import DiffSyncModel
@@ -143,8 +143,6 @@ def resolve_platform(adapter, platform_name: str, manufacturer_object):
 class DiffSyncExtras(DiffSyncModel):
     """Additional components to mix and subclass from with `DiffSyncModel`."""
 
-    safe_delete_mode: ClassVar[bool] = True
-
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Record the object in the store, writing any batch that has grown large enough first.
@@ -171,7 +169,7 @@ class DiffSyncExtras(DiffSyncModel):
         """
         update = False
         model_name = type(nautobot_object).__name__
-        if not self.safe_delete_mode:  # This could just check self, refactor.
+        if not self.adapter.safe_delete_mode:
             self.adapter.safe_delete_tally[(model_name, "deleted, Safe Delete Mode being off")] += 1
             # This allows private class naming of nautobot objects to be ordered for delete()
             # Example definition in adapter class var: _site = Location
@@ -1429,7 +1427,7 @@ class Cable(DiffSyncExtras):
             cable = interface.cable
             if cable is None:
                 continue
-            if cls.safe_delete_mode:
+            if adapter.safe_delete_mode:
                 adapter.job.logger.warning(
                     f"Not creating a Cable for {link} because {interface.device.name}:{interface.name} is already "
                     f"cabled and Safe Delete Mode will not remove the existing Cable with an ID of {cable.id}"
@@ -1491,7 +1489,7 @@ class Cable(DiffSyncExtras):
         if cable is None:
             self.adapter.job.logger.info(f"No Cable for {link} remains in Nautobot, so there is nothing to delete")
             return super().delete()
-        if self.safe_delete_mode:
+        if self.adapter.safe_delete_mode:
             self.safe_delete(cable, SAFE_DELETE_CABLE_STATUS, self.adapter.safe_delete_tag)
         else:
             # Removed here rather than queued for the adapter's `sync_complete()` like the other

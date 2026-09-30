@@ -8,7 +8,7 @@ Nautobot's own validation while the repeated writes are what this integration co
 
 import datetime
 import re
-import unittest.mock
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
@@ -102,11 +102,11 @@ class _CostTestCase(TestCase):
     @staticmethod
     def make_adapter(location_filter=None):
         """Return an adapter with a mocked job, which is all these tests need of one."""
-        job = unittest.mock.MagicMock()
+        job = MagicMock()
         job.debug = False
         return NautobotDiffSync(
             job=job,
-            sync=unittest.mock.MagicMock(),
+            sync=MagicMock(),
             sync_ipfabric_tagged_only=False,
             location_filter=location_filter,
         )
@@ -297,7 +297,7 @@ class DeleteCostTestCase(_CostTestCase):
     def test_safe_delete_mode_deletes_nothing(self):
         """Nothing is queued in safe delete mode, and `sync_complete` must not delete regardless."""
         self.adapter.objects_to_delete["_interface"] = self.queued(*self.interfaces(3, "safe"))
-        self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
+        self.adapter.sync_complete(MagicMock(), MagicMock())
         self.assertEqual(Interface.objects.filter(device=self.device).count(), 3)
         self.assertEqual(self.adapter.objects_to_delete["_interface"], [])
 
@@ -315,7 +315,7 @@ class DeleteCostTestCase(_CostTestCase):
         self.adapter.objects_to_delete["_ipaddress"] = self.queued(address)
         self.adapter.safe_delete_mode = False
 
-        self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
+        self.adapter.sync_complete(MagicMock(), MagicMock())
 
         self.assertFalse(IPAddress.objects.filter(pk=address.pk).exists())
         self.assertEqual(self.adapter.objects_to_delete["_ipaddress"], [])
@@ -329,7 +329,7 @@ class DeleteCostTestCase(_CostTestCase):
         self.adapter.objects_to_delete["_somethingnew"] = self.queued(spare)
         self.adapter.safe_delete_mode = False
 
-        self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
+        self.adapter.sync_complete(MagicMock(), MagicMock())
 
         self.assertFalse(Location.objects.filter(pk=spare.pk).exists())
         self.assertIn("_somethingnew", str(self.adapter.job.logger.warning.call_args))
@@ -337,15 +337,56 @@ class DeleteCostTestCase(_CostTestCase):
     def test_objects_to_delete_is_not_shared_between_adapters(self):
         """A run that fails before `sync_complete` must not leave work for the next run in the worker."""
         self.adapter.objects_to_delete["_interface"].extend(self.queued(*self.interfaces(1, "leak")))
-        job = unittest.mock.MagicMock()
+        job = MagicMock()
         job.debug = False
         other = NautobotDiffSync(
             job=job,
-            sync=unittest.mock.MagicMock(),
+            sync=MagicMock(),
             sync_ipfabric_tagged_only=False,
             location_filter=None,
         )
         self.assertEqual(other.objects_to_delete["_interface"], [])
+
+    def another_adapter(self, safe_delete_mode):
+        """A second adapter, as a concurrent run in the same worker would hold."""
+        job = MagicMock()
+        job.debug = False
+        return NautobotDiffSync(
+            job=job,
+            sync=MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+            safe_delete_mode=safe_delete_mode,
+        )
+
+    def test_safe_delete_mode_is_not_shared_between_adapters(self):
+        """The reason it is per run: a run with it on must not delete because another had it off.
+
+        The careful run is constructed second on purpose. State shared between runs shows up as the
+        later construction deciding for both, so the ordering is what gives the assertion something
+        to catch.
+        """
+        lax = self.another_adapter(safe_delete_mode=False)
+        careful = self.another_adapter(safe_delete_mode=True)
+
+        self.assertFalse(lax.safe_delete_mode, "The second run's choice reached the first.")
+        self.assertTrue(careful.safe_delete_mode)
+
+    def test_a_model_reads_safe_delete_mode_from_the_adapter_it_is_bound_to(self):
+        """Two runs hold two adapters, so a model has to ask its own rather than its class."""
+        interface = self.interfaces(1, "bound")[0]
+        model = self.interface_model("bound0")
+        model.adapter = self.another_adapter(safe_delete_mode=False)
+        # Built second on purpose: shared state would show up as this one deciding for the model above.
+        self.another_adapter(safe_delete_mode=True)
+
+        model.delete()
+
+        self.assertEqual(
+            model.adapter.objects_to_delete["_interface"],
+            [(Interface, interface.pk)],
+            "The model read another run's Safe Delete Mode rather than its own.",
+        )
 
     def test_an_object_the_database_refuses_does_not_stop_the_rest_of_its_batch(self):
         """The retry a refused batch falls back to is per object, so one refusal must not end it.
@@ -364,7 +405,7 @@ class DeleteCostTestCase(_CostTestCase):
 
         logger = job_logger()
 
-        with unittest.mock.patch.object(QuerySet, "delete", refuse_the_doomed):
+        with patch.object(QuerySet, "delete", refuse_the_doomed):
             delete_objects_one_at_a_time(self.queued(doomed, keeper), logger=logger)
 
         self.assertTrue(Interface.objects.filter(pk=doomed.pk).exists())
@@ -380,7 +421,7 @@ class DeleteCostTestCase(_CostTestCase):
         interface = self.interfaces(1, "retained")[0]
         model = self.interface_model("retained0")
 
-        with unittest.mock.patch.object(InterfaceModel, "safe_delete_mode", False):
+        with patch.object(self.adapter, "safe_delete_mode", False):
             model.delete()
 
         self.assertEqual(self.adapter.objects_to_delete["_interface"], [(Interface, interface.pk)])
@@ -389,10 +430,9 @@ class DeleteCostTestCase(_CostTestCase):
         """The counterpart to safe delete mode: with it off, `sync_complete` is what does the deleting."""
         queued = self.interfaces(3, "swept")
         self.adapter.objects_to_delete["_interface"] = self.queued(*queued)
-        # Set on the instance rather than the class, which every other adapter would otherwise read.
         self.adapter.safe_delete_mode = False
 
-        self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
+        self.adapter.sync_complete(MagicMock(), MagicMock())
 
         self.assertFalse(Interface.objects.filter(pk__in=[interface.pk for interface in queued]).exists())
         self.assertEqual(self.adapter.objects_to_delete["_interface"], [])
@@ -563,7 +603,7 @@ class ResyncCostTestCase(_CostTestCase):
         Nothing about the address changed, so there is nothing to validate and nothing to write but
         the custom field data.
         """
-        with unittest.mock.patch.object(IPAddress, "validated_save", autospec=True) as mock_save:
+        with patch.object(IPAddress, "validated_save", autospec=True) as mock_save:
             nbutils.create_ip("10.70.0.5", 24)
 
         mock_save.assert_not_called()
@@ -574,14 +614,14 @@ class ResyncCostTestCase(_CostTestCase):
 
     def test_a_changed_mask_is_still_written_through_validation(self):
         """Validation is what settles which Prefix an address hangs under, so a change still needs it."""
-        with unittest.mock.patch.object(IPAddress, "validated_save", autospec=True) as mock_save:
+        with patch.object(IPAddress, "validated_save", autospec=True) as mock_save:
             nbutils.create_ip("10.70.0.5", 25)
 
         mock_save.assert_called_once()
 
     def test_an_unchanged_interface_is_stamped_without_being_revalidated(self):
         """An Interface Nautobot already holds has no field set on it, so the stamp is the whole write."""
-        with unittest.mock.patch.object(Interface, "validated_save", autospec=True) as mock_save:
+        with patch.object(Interface, "validated_save", autospec=True) as mock_save:
             nbutils.create_interface(self.device, {"name": self.interface.name, "type": "1000base-t"})
 
         mock_save.assert_not_called()
@@ -637,7 +677,7 @@ class CableWriteCostTestCase(_CostTestCase):
         """Every Cable on a re-sync that changes nothing, so it is worth not revalidating."""
         cable = cables.create_cable(self.int_a, self.int_b, "Connected")
 
-        with unittest.mock.patch.object(Cable, "validated_save", autospec=True) as mock_save:
+        with patch.object(Cable, "validated_save", autospec=True) as mock_save:
             self.assertTrue(cables.update_cable_status(cable, "Connected"))
 
         mock_save.assert_not_called()
@@ -663,7 +703,7 @@ class AddressLookupCostTestCase(_CostTestCase):
 
     def test_an_address_nautobot_does_not_hold_is_looked_for_once(self):
         """The case a first import is made of: both candidates miss, for every address in the estate."""
-        with unittest.mock.patch.object(nbutils, "resolve_new_ip", return_value=None) as mock_new:
+        with patch.object(nbutils, "resolve_new_ip", return_value=None) as mock_new:
             reads = self.address_reads(lambda: nbutils.resolve_ip("10.80.9.9/24", self.active_status))
 
         mock_new.assert_called_once()

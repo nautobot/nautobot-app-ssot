@@ -1,7 +1,7 @@
 """Diff sync shared adapter class attritbutes to synchronize applications."""
 
 from collections import Counter
-from typing import ClassVar, Optional, Set, Tuple
+from typing import Optional, Set, Tuple
 
 from diffsync import Adapter
 from diffsync.enum import DiffSyncModelFlags
@@ -17,8 +17,6 @@ from nautobot_ssot.integrations.ipfabric.sync_scope import (
 
 class DiffSyncModelAdapters(Adapter):
     """Nautobot adapter for DiffSync."""
-
-    safe_delete_mode: ClassVar[bool] = True
 
     # The collector to queue writes into, or None when they go one at a time. Declared here so that
     # a model may ask any adapter; only the destination adapter ever sets it.
@@ -65,6 +63,7 @@ class DiffSyncModelAdapters(Adapter):
         strict: Optional[StrictObjects] = None,
         addresses_without_a_subnet: Optional[Set[Tuple[str, str, str]]] = None,
         interfaces_without_admin_state: Optional[Set[Tuple[str, str]]] = None,
+        safe_delete_mode: bool = True,
         **kwargs,
     ):
         """Initialize the adapter with the object types this run covers.
@@ -82,6 +81,13 @@ class DiffSyncModelAdapters(Adapter):
         adapters report no `enabled` for those, so the value Nautobot holds is left alone rather than
         diffed against a guess on every run.
 
+        `safe_delete_mode` is whether an object IP Fabric stops reporting is marked and tagged
+        rather than deleted. Per adapter rather than per class, so two runs in one worker cannot see
+        each other's choice: a run with it selected would otherwise delete because a concurrent run
+        without it started later. Models read it from the adapter they are bound to, and both
+        adapters are given the run's choice although only the destination writes, so that a run has
+        one answer rather than two.
+
         `addresses_without_a_subnet` holds the `(device name, interface name, host)` of every address
         IP Fabric reports no usable subnet for. The IP Fabric adapter fills it while loading and
         reports none of those addresses; the Nautobot adapter is handed it afterwards so that it
@@ -91,6 +97,7 @@ class DiffSyncModelAdapters(Adapter):
         second address that is fine still reports that one.
         """
         super().__init__(*args, **kwargs)
+        self.safe_delete_mode = safe_delete_mode
         # What Safe Delete Mode did, counted by object type and outcome and reported once the sync
         # is over. A job log entry is a database write, so naming every object would turn a teardown
         # of a large estate into one write per object, for a list nobody reads.
