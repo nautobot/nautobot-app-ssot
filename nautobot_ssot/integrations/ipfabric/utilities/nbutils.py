@@ -1213,6 +1213,19 @@ def get_vlan_group_for_location(location_obj: Location, create: bool, logger: Op
     return group
 
 
+def vlan_group_is_attainable(location_name: str, create: bool) -> bool:
+    """Whether a Location's VLANs can be filed under a VLAN Group of its own.
+
+    Read only, and asked by the IP Fabric side before it reports a VLAN as grouped. A Location whose
+    group cannot be had is then reported as ungrouped by both sides, rather than diffed every run
+    against a group that will never exist.
+    """
+    existing = VLANGroup.objects.filter(name=location_name).first()
+    if existing is not None:
+        return existing.location is not None and existing.location.name == location_name
+    return create
+
+
 def vlan_group_refuses_name(group, vlan_name: str, vlan_id: int) -> bool:
     """Whether the group already holds a different VLAN under this name.
 
@@ -1292,7 +1305,8 @@ def create_vlan(  # pylint: disable=too-many-arguments,too-many-return-statement
             logger.error(f"Unable to create a new VLAN named {vlan_name} with an ID {vlan_id}. Error: {err}")
         return None
 
-    if not is_new and vlan_group is not None and vlan_obj.vlan_group_id != vlan_group.pk:
+    adopted = not is_new and vlan_group is not None and vlan_obj.vlan_group_id != vlan_group.pk
+    if adopted:
         # A VLAN that predates the group is filed under it, since the constraint only covers what is
         # actually in the group.
         vlan_obj.vlan_group = vlan_group
@@ -1304,11 +1318,12 @@ def create_vlan(  # pylint: disable=too-many-arguments,too-many-return-statement
         return queue_new_object(pending, vlan_obj, through_rows=assignments)
 
     try:
-        if is_new:
-            # tag_object performs validated_save(), which is the only save a new VLAN takes.
+        if is_new or adopted:
+            # tag_object performs validated_save(), which is the only save a new VLAN takes and the
+            # one that persists the group a VLAN has just been filed under.
             tag_object(nautobot_object=vlan_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
         else:
-            # Nothing above changes a field on a VLAN Nautobot already holds, so the stamp is the
+            # Nothing above changed a field on a VLAN Nautobot already holds, so the stamp is the
             # whole of the write.
             restamp_synced(vlan_obj, LAST_SYNCHRONIZED_CF_NAME)
     except (DjangoBaseDBError, ValidationError):

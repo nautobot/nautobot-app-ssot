@@ -244,9 +244,15 @@ VLANs will see a run of renames once, and stop accumulating deprecated VLANs aft
 
 **A VLAN Group per Location.** Nautobot enforces `(vlan_group, vid)` and `(vlan_group, name)`, and
 enforces neither where the VLAN has no group. So a Location's VLANs are filed under a VLAN Group of
-its own, named after the Location, which is what makes one VLAN ID mean one VLAN there. VLANs that
-predate the group are moved into it, since the constraint only covers what is actually in it. Expect
-that on the first sync after upgrading.
+its own, named after the Location, which is what makes one VLAN ID mean one VLAN there.
+
+VLANs that predate the group are moved into it, since the constraint only covers what is actually in
+it. Expect that on the first sync after upgrading. Being in a group is synced as a property of the
+VLAN rather than applied only when one is created, so a VLAN nothing else about has changed is
+adopted too. Two VLANs are left where they are: one already filed under some other group keeps it,
+because the constraint is what this needs and re-filing would fight whatever put it there; and one
+whose VLAN ID or name is already taken inside the group stays ungrouped and is reported, since a
+group makes both unique within it.
 
 A VLAN Group name is unique across Nautobot. Where a group of that name already belongs to another
 Location it is left alone and reported, and that Location's VLANs are synced without a group, which
