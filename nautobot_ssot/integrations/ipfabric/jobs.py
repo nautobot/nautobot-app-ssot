@@ -18,8 +18,6 @@ from nautobot.extras.jobs import BooleanVar, ChoiceVar, ScriptVariable
 from nautobot_ssot.integrations.ipfabric import constants, strict_mode
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
-from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
-from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import DiffSyncExtras
 from nautobot_ssot.integrations.ipfabric.sync_scope import (
     SyncScope,
     disabled_keys,
@@ -317,13 +315,10 @@ class IpFabricDataSource(DataSource):
             location_filter=location_filter_object.name if location_filter_object else None,
             scope=scope,
             strict=strict,
+            safe_delete_mode=safe_mode,
         )
         self.logger.info("Loading current data from IP Fabric...")
         ipfabric_source.load()
-
-        # Set safe mode either way (Defaults to True)
-        DiffSyncModelAdapters.safe_delete_mode = safe_mode
-        DiffSyncExtras.safe_delete_mode = safe_mode
 
         # Constructed after the source has loaded, so that the addresses it could not find a subnet
         # for are known and this side can withhold the same ones.
@@ -332,6 +327,7 @@ class IpFabricDataSource(DataSource):
             sync=self.sync,
             sync_ipfabric_tagged_only=tagged_only,
             bulk_write_mode=bulk_write_mode,
+            safe_delete_mode=safe_mode,
             location_filter=location_filter_object,
             scope=scope,
             strict=strict,
