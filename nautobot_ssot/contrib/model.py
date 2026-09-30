@@ -3,8 +3,10 @@
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
+import sys
 from collections import defaultdict
 from datetime import datetime
+from typing import Optional, Self
 
 from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException, ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
@@ -15,7 +17,7 @@ from nautobot.extras.choices import RelationshipTypeChoices
 from nautobot.extras.models import Relationship, RelationshipAssociation
 from nautobot.extras.models.metadata import ObjectMetadata
 
-from nautobot_ssot.contrib.base import BaseNautobotModel
+from nautobot_ssot.contrib.base import BaseNautobotAdapter, BaseNautobotModel
 from nautobot_ssot.contrib.types import (
     CustomFieldAnnotation,
     CustomRelationshipAnnotation,
@@ -26,14 +28,97 @@ from nautobot_ssot.utils.diffsync import DiffSyncModelUtilityMixin
 
 class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel):
     """
-    Base model for any diffsync models interfacing with Nautobot through the ORM.
-
+    Base model for describing Nautobot/Django ORM objects using DiffSync.
+    
     This provides the `create`, `update` and `delete` operations in a generic fashion, meaning you don't have to
     implement them yourself.
 
     In order to accomplish this, the `_model` field has to be set on subclasses to map them to the corresponding ORM
     model class.
     """
+
+    @classmethod
+    def create(cls, adapter: BaseNautobotAdapter, ids: dict, attrs: dict) -> Optional[Self]:
+        """Create a new ORM object from the DiffSync model.
+
+        Identifiers and attributes are merged into a single parameter dictionary, used to populate and save a new
+        instance of the mapped `_model`. If the adapter defines a `metadata_type`, object metadata is also created.
+
+        Parameters:
+            adapter (diffsync.Adapter): The DiffSync adapter coordinating the sync, used to resolve related objects
+                and object metadata.
+            ids (dict): Mapping of identifier field names to their values, uniquely identifying the object.
+            attrs (dict): Mapping of attribute field names to their values to set on the new object.
+
+        Raises:
+            ObjectNotCreated: If populating/saving the ORM object or its metadata fails (wraps the underlying
+                `ObjectCrudException` with additional information).
+
+        Returns:
+            Optional[Self]: The newly created DiffSync model instance.
+        """
+        # NOTE: Converting to the ORM format requires identifers and attributes to be in a single dictionary.
+        parameters = ids.copy()
+        parameters.update(attrs)
+
+        obj = cls._model()
+        try:
+            cls._update_obj_with_parameters(obj, parameters, adapter)
+        except ObjectCrudException as error:
+            raise ObjectNotCreated(f"Failed to save DiffSyncModel to ORM: {cls.__name__} -> {ids}") from error
+        if getattr(adapter, "metadata_type", None):
+            try:
+                cls._update_obj_metadata(obj, adapter)
+            except ObjectCrudException as error:
+                raise ObjectNotCreated(f"Failed to save object metadata: {cls.__name__} -> {ids}") from error
+        return super().create(adapter, ids, attrs)
+
+    def update(self, attrs: dict) -> Optional[Self]:
+        """Update an existing ORM object from the  DiffSync model.
+
+        The existing ORM object is loaded from the database by primary key and updated with the given attributes. If
+        the adapter defines a `metadata_type`, object metadata is also updated.
+
+        Parameters:
+            attrs (dict): Mapping of attribute field names to their new values to set on the object.
+
+        Raises:
+            ObjectNotUpdated: If loading, populating/saving the ORM object or its metadata fails (wraps the underlying
+                `ObjectCrudException`).
+
+        Returns:
+            Optional[Self]: The updated DiffSync model instance.
+        """
+        try:
+            obj = self.get_from_db()
+            self._update_obj_with_parameters(obj, attrs, self.adapter)
+            if getattr(self.adapter, "metadata_type", None):
+                self._update_obj_metadata(obj, self.adapter)
+        except ObjectCrudException as error:
+            raise ObjectNotUpdated(error) from error
+        return super().update(attrs)
+
+    def delete(self) -> Optional[Self]:
+        """Delete the ORM object corresponding to this DiffSync model.
+
+        The existing ORM object is loaded from the database by primary key and deleted.
+
+        Raises:
+            ObjectNotDeleted: If the ORM object cannot be loaded, or if it cannot be deleted because it is still
+                referenced by another object (wraps the underlying `ObjectCrudException` or `ProtectedError`).
+
+        Returns:
+            Optional[Self]: The deleted DiffSync model instance.
+        """
+        try:
+            obj = self.get_from_db()
+        except ObjectCrudException as error:
+            raise ObjectNotDeleted(error) from error
+        try:
+            obj.delete()
+        except ProtectedError as error:
+            raise ObjectNotDeleted(f"Couldn't delete {obj} as it is referenced by another object") from error
+        return super().delete()
 
     @classmethod
     def _get_queryset(cls) -> QuerySet:
@@ -52,7 +137,19 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
 
     @classmethod
     def get_queryset(cls) -> QuerySet:
-        """Get the queryset used to load the models data from Nautobot."""
+        """Get the queryset used to load this model's data from Nautobot.
+
+        This is the intended override point for customized data loading. Override it on a subclass to scope the data
+        synced from Nautobot, for example to filter, annotate, or otherwise restrict the objects returned. By default
+        all objects of the mapped `_model` are returned.
+
+        Note:
+            `_get_queryset` wraps this method to additionally `prefetch_related` any foreign-key fields derived from
+            the model's synced attributes, so overrides do not need to handle prefetching themselves.
+
+        Returns:
+            QuerySet: The queryset of `_model` objects to load.
+        """
         return cls._model.objects.all()
 
     @classmethod
@@ -67,53 +164,6 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
             return self.adapter.get_from_orm_cache({"pk": self.pk}, self._model)
         except self._model.DoesNotExist as error:
             raise ObjectCrudException(f"No such {self._model._meta.verbose_name} instance with PK {self.pk}") from error
-
-    def update(self, attrs):
-        """Update the ORM object corresponding to this diffsync object."""
-        try:
-            obj = self.get_from_db()
-            self._update_obj_with_parameters(obj, attrs, self.adapter)
-            if getattr(self.adapter, "metadata_type", None):
-                self._update_obj_metadata(obj, self.adapter)
-        except ObjectCrudException as error:
-            raise ObjectNotUpdated(error) from error
-        return super().update(attrs)
-
-    def delete(self):
-        """Delete the ORM object corresponding to this diffsync object."""
-        try:
-            obj = self.get_from_db()
-        except ObjectCrudException as error:
-            raise ObjectNotDeleted(error) from error
-        try:
-            obj.delete()
-        except ProtectedError as error:
-            raise ObjectNotDeleted(f"Couldn't delete {obj} as it is referenced by another object") from error
-        return super().delete()
-
-    @classmethod
-    def create(cls, adapter, ids, attrs):
-        """Create the ORM object corresponding to this diffsync object."""
-        # Only diffsync cares about the distinction between ids and attrs, we do not.
-        # Therefore, we merge the two into parameters.
-        parameters = ids.copy()
-        parameters.update(attrs)
-
-        # This is in fact callable, because it is a model
-        obj = cls._model()  # pylint: disable=not-callable
-
-        try:
-            cls._update_obj_with_parameters(obj, parameters, adapter)
-        except ObjectCrudException as error:
-            raise ObjectNotCreated(error) from error
-
-        if getattr(adapter, "metadata_type", None):
-            try:
-                cls._update_obj_metadata(obj, adapter)
-            except ObjectCrudException as error:
-                raise ObjectNotCreated(error) from error
-
-        return super().create(adapter, ids, attrs)
 
     @classmethod
     def _handle_single_field(cls, field, obj, value, relationship_fields, adapter):  # pylint: disable=too-many-arguments,too-many-locals, too-many-branches

@@ -15,7 +15,7 @@ contrib-provided class can properly interact without raising errors.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Optional
+from typing import Any, Callable, ClassVar, Optional, Union
 from uuid import UUID
 
 from diffsync import DiffSyncModel
@@ -38,7 +38,7 @@ class BaseNautobotAdapter(ABC):
 class BaseNautobotModel(ABC):
     """Abstract Base Class for `NautobotModel`."""
 
-    _model: ClassVar[Model]
+    _model: ClassVar[Union[Model, Callable]]
     _type_hints: ClassVar[dict[str, Any]]
     adapter: Optional[BaseNautobotAdapter]
 
