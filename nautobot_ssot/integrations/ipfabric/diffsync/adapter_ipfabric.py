@@ -1,8 +1,6 @@
 # pylint: disable=duplicate-code
 # One module reads every IP Fabric table the sync needs.
 # pylint: disable=too-many-lines
-# The adapter carries an index per table it reads ahead.
-# pylint: disable=too-many-instance-attributes
 """DiffSync adapter class for Ip Fabric."""
 
 import ipaddress
@@ -104,7 +102,6 @@ def admin_state_of(reported_l1, reported_reason=None):
     return None
 
 
-# pylint: disable=too-many-locals,too-many-nested-blocks,too-many-branches
 def vlan_id_of(value) -> Optional[int]:
     """Return a usable VLAN ID from whatever the switchport table reports, or None."""
     try:
@@ -133,8 +130,8 @@ def switchport_vlans(row) -> Optional[tuple]:
     return None
 
 
-class IPFabricDiffSync(DiffSyncModelAdapters):
-    """IPFabric adapter for DiffSync."""
+class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-instance-attributes
+    """IPFabric adapter for DiffSync: it carries an index per table it reads ahead."""
 
     def __init__(self, job, sync, client: IPFClient, location_filter, *args, **kwargs):
         """Initialize the NautobotDiffSync."""
@@ -752,7 +749,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             stacks[stack["sn"]].append(stack)
         return vlans_by_location, stacks, interfaces
 
-    def load(self):  # pylint: disable=too-many-locals,too-many-statements
+    def load(self):  # pylint: disable=too-many-locals,too-many-statements,too-many-branches
         """Load data from IP Fabric."""
         self.load_sites()
         vlans_by_location, stacks, interfaces = self.load_data()
@@ -1041,7 +1038,7 @@ def agreed_targets(by_device):
     return sorted(next(iter(reported), frozenset())), False
 
 
-def reconcile_vrfs(detail_rows, target_rows):
+def reconcile_vrfs(detail_rows, target_rows):  # pylint: disable=too-many-locals
     """Return the network wide value of each VRF's attributes, keyed by VRF name.
 
     IP Fabric reports a route distinguisher per device and route targets per device and address
