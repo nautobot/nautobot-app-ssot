@@ -1,6 +1,6 @@
 # Contrib Module
 
-The `nautobot_ssot.contrib` module is a toolkit for building custom SSoT integrations syncing data from an external system into the local Nautobot instance. It provides base classes and reusable code to perform CRUD operations against the Nautobot ORM with some configurations and minimal additional code.
+The `nautobot_ssot.contrib` module is a toolkit for building custom SSoT integrations syncing data from an external system into the local Nautobot instance. It provides several base classes and reusable code to perform CRUD operations against the Nautobot ORM only requiring some basic configurations. The base classes can also be extended for more advanced functionality.
 
 You declare your data models as thin, conventional descriptions of the corresponding Nautobot models, and `contrib` infers the rest — loading existing data, and creating, updating, and deleting records as a synchronization requires. This is the recommended starting point whenever you build a [custom integration](../integrations/index.md) of your own.
 
