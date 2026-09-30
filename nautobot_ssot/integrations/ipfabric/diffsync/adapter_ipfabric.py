@@ -1,10 +1,6 @@
 # pylint: disable=duplicate-code
 # One module reads every IP Fabric table the sync needs.
 # pylint: disable=too-many-lines
-# The adapter carries an index per table it reads ahead.
-# pylint: disable=too-many-instance-attributes
-# One module reads every IP Fabric table the sync needs.
-# pylint: disable=too-many-lines
 """DiffSync adapter class for Ip Fabric."""
 
 import ipaddress
@@ -124,7 +120,6 @@ def admin_state_of(reported_l1, reported_reason=None):
     return None
 
 
-# pylint: disable=too-many-locals,too-many-nested-blocks,too-many-branches
 def vlan_id_of(value) -> Optional[int]:
     """Return a usable VLAN ID from whatever the switchport table reports, or None."""
     try:
@@ -153,8 +148,8 @@ def switchport_vlans(row) -> Optional[tuple]:
     return None
 
 
-class IPFabricDiffSync(DiffSyncModelAdapters):
-    """IPFabric adapter for DiffSync."""
+class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-instance-attributes
+    """IPFabric adapter for DiffSync: it carries an index per table it reads ahead."""
 
     def __init__(self, job, sync, client: IPFClient, location_filter, *args, **kwargs):
         """Initialize the NautobotDiffSync."""
@@ -253,32 +248,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
                 iface_name = canonical_interface_name(iface_name)
 
-            # Only where the port is one this Device reported: the parent has to be a real Interface
-            # for Nautobot to point at, and a name with a dot in it is not proof of one.
-            parent = ipfabric_utils.parent_interface_name(iface_name)
-            if parent is not None and parent not in ports:
-                self.subinterfaces_without_their_port[ipfabric_utils.interface_name_kind(iface_name)] += 1
-                parent = None
-            if parent is not None:
-                self.subinterfaces += 1
-
-            lag = self.lag_by_member.get((iface.get("sn"), iface["intName"]))
-            if lag is not None and IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
-                lag = canonical_interface_name(lag)
-            if lag is not None and parent is not None:
-                # Nautobot refuses a port channel on a virtual Interface, and a subinterface is
-                # one. Reported rather than silently dropped, being a shape nothing expects.
-                self.job.logger.warning(
-                    "Not putting %s on Device %s in port channel %s, as it is configured on %s and "
-                    "so is virtual, which Nautobot does not allow in a port channel.",
-                    iface_name,
-                    iface.get("hostname"),
-                    lag,
-                    parent,
-                )
-                lag = None
-            if lag is not None:
-                self.lag_members += 1
+            parent, lag = self.interfaces_related_to(iface, iface_name, ports)
 
             enabled = admin_state_of(iface.get("l1"), iface.get("reason"))
             if enabled is None:
@@ -341,6 +311,40 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 self.load_interface_addresses(interface, iface, iface_name, device_primary_ips)
             if self.scope.interface_vlans:
                 self.note_addressed_vlan(iface, interface.device_name, iface_name)
+
+    def interfaces_related_to(self, iface, iface_name, ports):
+        """Return the names of the port an Interface is configured on and the port channel it is in.
+
+        Either is None where there is none to set, and the counts behind the job's summary are kept
+        as they are resolved.
+        """
+        # Only where the port is one this Device reported: the parent has to be a real Interface
+        # for Nautobot to point at, and a name with a dot in it is not proof of one.
+        parent = ipfabric_utils.parent_interface_name(iface_name)
+        if parent is not None and parent not in ports:
+            self.subinterfaces_without_their_port[ipfabric_utils.interface_name_kind(iface_name)] += 1
+            parent = None
+        if parent is not None:
+            self.subinterfaces += 1
+
+        lag = self.lag_by_member.get((iface.get("sn"), iface["intName"]))
+        if lag is not None and IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
+            lag = canonical_interface_name(lag)
+        if lag is not None and parent is not None:
+            # Nautobot refuses a port channel on a virtual Interface, and a subinterface is
+            # one. Reported rather than silently dropped, being a shape nothing expects.
+            self.job.logger.warning(
+                "Not putting %s on Device %s in port channel %s, as it is configured on %s and "
+                "so is virtual, which Nautobot does not allow in a port channel.",
+                iface_name,
+                iface.get("hostname"),
+                lag,
+                parent,
+            )
+            lag = None
+        if lag is not None:
+            self.lag_members += 1
+        return parent, lag
 
     def note_addressed_vlan(self, iface, device_name, iface_name) -> None:
         """Record the VLAN the managed address table reports for an addressed Interface.
@@ -935,7 +939,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             stacks[stack["sn"]].append(stack)
         return vlans_by_location, stacks, interfaces
 
-    def load(self):  # pylint: disable=too-many-locals,too-many-statements
+    def load(self):  # pylint: disable=too-many-locals,too-many-statements,too-many-branches
         """Load data from IP Fabric."""
         self.load_sites()
         vlans_by_location, stacks, interfaces = self.load_data()
@@ -1292,7 +1296,7 @@ def agreed_targets(by_device):
     return sorted(next(iter(reported), frozenset())), False
 
 
-def reconcile_vrfs(detail_rows, target_rows):
+def reconcile_vrfs(detail_rows, target_rows):  # pylint: disable=too-many-locals
     """Return the network wide value of each VRF's attributes, keyed by VRF name.
 
     IP Fabric reports a route distinguisher per device and route targets per device and address
