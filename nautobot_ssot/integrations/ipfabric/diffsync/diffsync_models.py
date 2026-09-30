@@ -10,7 +10,7 @@ from uuid import UUID
 from diffsync import DiffSyncModel
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, Q
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.constants import NONCONNECTABLE_IFACE_TYPES
 from nautobot.dcim.models import (
@@ -1037,13 +1037,18 @@ class Vlan(DiffSyncExtras):
     _modelname = "vlan"
     _identifiers = ("vid", "location")
     _shortname = ("vid",)
-    _attributes = ("name", "status", "description")
+    _attributes = ("name", "status", "description", "in_vlan_group")
 
     name: str
     vid: int
     status: str
     location: str
     description: Optional[str] = None
+    # Whether the VLAN is filed under a VLAN Group, which is what makes Nautobot constrain one VLAN
+    # ID to one VLAN at a Location. Diffed rather than applied on create alone, or a VLAN Nautobot
+    # already held would stay ungrouped and unconstrained for as long as nothing else about it
+    # changed. False on both sides where the Location's group cannot be had.
+    in_vlan_group: bool = False
     vlan_pk: Optional[UUID] = None
 
     @classmethod
@@ -1059,6 +1064,13 @@ class Vlan(DiffSyncExtras):
         location = None
         if adapter.pending is not None:
             location = adapter.pending.find(NautobotLocation, location_name)
+            if location is not None and attrs.get("in_vlan_group") and location._state.adding:  # pylint: disable=protected-access
+                # A VLAN Group points at a Location, so the Location has to exist before the group
+                # can. Under Bulk Write Mode it is still queued at this point, so the queue is
+                # written out first. That costs one batch boundary on the run's first VLAN and
+                # nothing afterwards, since the Location is in the database from then on.
+                adapter.flush_pending_writes()
+                location = None
         # Cached for the run, since every VLAN at a site asks the same question. The lookup reports
         # an ambiguous or missing Location itself, leaving only the consequence to say here.
         location = location or tonb_nbutils.get_location_object(location_name, logger=adapter.job.logger)
@@ -1133,6 +1145,8 @@ class Vlan(DiffSyncExtras):
             vlan.tags.remove(self.adapter.safe_delete_tag)
         if attrs.get("description"):
             vlan.description = attrs.get("description")
+        if attrs.get("in_vlan_group") and vlan.vlan_group_id is None:
+            self.file_under_location_group(vlan)
         try:
             tonb_nbutils.tag_object(nautobot_object=vlan, custom_field=LAST_SYNCHRONIZED_CF_NAME)
         except (DjangoBaseDBError, ValidationError):
@@ -1141,6 +1155,42 @@ class Vlan(DiffSyncExtras):
             )
             return None
         return super().update(attrs)
+
+    def file_under_location_group(self, vlan):
+        """Put a VLAN Nautobot holds ungrouped into its Location's VLAN Group.
+
+        What adopts the VLANs that predate the group. Only ever fills an empty group: one already
+        filed keeps the group it has, since the constraint is what this needs and re-filing would
+        fight whatever put it there.
+        """
+        location = NautobotLocation.objects.filter(name=self.location).first()
+        if location is None:
+            return
+        group = tonb_nbutils.get_vlan_group_for_location(
+            location,
+            create=self.adapter.may_create("vlan_groups"),
+            logger=self.adapter.job.logger,
+        )
+        if group is None:
+            return
+        clash = (
+            VLAN.objects.filter(vlan_group=group)
+            .filter(Q(vid=vlan.vid) | Q(name=vlan.name))
+            .exclude(pk=vlan.pk)
+            .first()
+        )
+        if clash is not None:
+            self.adapter.job.logger.warning(
+                "VLAN %s (VLAN ID %s) at %s is left ungrouped: the VLAN Group there already holds "
+                "%s (VLAN ID %s), and a group makes both the VLAN ID and the name unique within it.",
+                vlan.name,
+                vlan.vid,
+                self.location,
+                clash.name,
+                clash.vid,
+            )
+            return
+        vlan.vlan_group = group
 
 
 class RouteTarget(DiffSyncExtras):
