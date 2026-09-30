@@ -1422,6 +1422,7 @@ class InterfaceVlan(DiffSyncExtras):
             tagged_vids=attrs.get("tagged_vids") or [],
             tagged_only=adapter.sync_ipfabric_tagged_only,
             logger=adapter.job.logger,
+            pending=adapter.pending,
         ):
             return None
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
@@ -1437,6 +1438,7 @@ class InterfaceVlan(DiffSyncExtras):
             tagged_vids=attrs["tagged_vids"] if "tagged_vids" in attrs else self.tagged_vids,
             tagged_only=self.adapter.sync_ipfabric_tagged_only,
             logger=self.adapter.job.logger,
+            pending=self.adapter.pending,
         ):
             return None
         return super().update(attrs)
@@ -1456,6 +1458,7 @@ class InterfaceVlan(DiffSyncExtras):
             tagged_vids=[],
             tagged_only=self.adapter.sync_ipfabric_tagged_only,
             logger=self.adapter.job.logger,
+            pending=self.adapter.pending,
         ):
             return None
         return super().delete()

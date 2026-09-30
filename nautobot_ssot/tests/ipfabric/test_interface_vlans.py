@@ -15,10 +15,12 @@ from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Role, Status
 from nautobot.ipam.models import VLAN
 
+from nautobot_ssot.integrations.ipfabric.bulk_writes import PendingWrites
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import switchport_vlans, vlan_id_of
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
+from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import InterfaceVlan as InterfaceVlanModel
 from nautobot_ssot.integrations.ipfabric.sync_scope import SYNCABLE_OBJECTS, SyncScope
-from nautobot_ssot.integrations.ipfabric.utilities.nbutils import set_interface_vlans
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import create_interface, set_interface_vlans
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache, parse_vlan_ranges
 from nautobot_ssot.tests.ipfabric.job_log import job_log_text, job_logger
 from nautobot_ssot.tests.ipfabric.test_ipfabric_adapter import (
@@ -310,3 +312,86 @@ class InterfaceVlanLoadTestCase(TestCase):
         )
 
         self.assertEqual(adapter.get_all("interface_vlan"), [])
+
+
+class TestInterfaceVlansUnderBulkWriteMode(_InterfaceVlanTestCase):
+    """Bulk Write Mode leaves a new Interface in the queue, so its VLANs have to find it there.
+
+    Sync Cables is the only thing that forces a full flush before the VLAN phase, and it is off by
+    default, so on a modest sync the Interface is still queued when its VLANs are written.
+    """
+
+    def bulk_adapter(self):
+        """A real adapter in Bulk Write Mode, since the model validates the one it is handed."""
+        job = unittest.mock.MagicMock()
+        job.debug = False
+        return NautobotDiffSync(
+            job=job,
+            sync=unittest.mock.MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+            bulk_write_mode=True,
+        )
+
+    def queue_interface(self, pending, name="eth9"):
+        """Queue a new Interface on this test's Device, as a bulk mode sync would."""
+        create_interface(
+            device_obj=self.device,
+            interface_details={"name": name, "type": "1000base-t"},
+            pending=pending,
+        )
+        self.assertFalse(
+            Interface.objects.filter(device=self.device, name=name).exists(),
+            "The Interface is meant to be queued rather than written at this point.",
+        )
+
+    def test_creating_reaches_the_queued_interface(self):
+        """Regression: the model has to hand the queue down, or this falls back to the database."""
+        adapter = self.bulk_adapter()
+        pending = adapter.pending
+        self.queue_interface(pending)
+
+        InterfaceVlanModel.create(
+            adapter=adapter,
+            ids={"device_name": self.device.name, "interface_name": "eth9"},
+            attrs={"mode": InterfaceModeChoices.MODE_ACCESS, "untagged_vid": 10, "tagged_vids": []},
+        )
+        pending.flush()
+
+        interface = Interface.objects.get(device=self.device, name="eth9")
+        self.assertEqual(interface.mode, InterfaceModeChoices.MODE_ACCESS)
+        self.assertEqual(interface.untagged_vlan, self.vlans[10])
+
+    def test_a_queued_interface_gets_its_tagged_vlans_too(self):
+        """The tagged VLANs are join rows, so they are queued behind the Interface itself."""
+        adapter = self.bulk_adapter()
+        pending = adapter.pending
+        self.queue_interface(pending)
+
+        InterfaceVlanModel.create(
+            adapter=adapter,
+            ids={"device_name": self.device.name, "interface_name": "eth9"},
+            attrs={"mode": InterfaceModeChoices.MODE_TAGGED, "untagged_vid": 10, "tagged_vids": [20]},
+        )
+        pending.flush()
+
+        interface = Interface.objects.get(device=self.device, name="eth9")
+        self.assertEqual(interface.mode, InterfaceModeChoices.MODE_TAGGED)
+        self.assertEqual(list(interface.tagged_vlans.all()), [self.vlans[20]])
+
+    def test_the_helper_reports_failure_when_the_queue_is_withheld(self):
+        """What the defect looked like: the Interface exists only in the queue, so nothing is written."""
+        pending = PendingWrites(job_logger())
+        self.queue_interface(pending)
+
+        written = set_interface_vlans(
+            device_name=self.device.name,
+            interface_name="eth9",
+            mode=InterfaceModeChoices.MODE_ACCESS,
+            untagged_vid=10,
+            tagged_vids=[],
+            tagged_only=False,
+            pending=None,
+        )
+
+        self.assertFalse(written, "Without the queue there is no Interface to find, which is the bug.")
