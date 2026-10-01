@@ -1,0 +1,8 @@
+{
+    "hostname": "ct-dns",
+    "cores": 1,
+    "memory": 512,
+    "ostype": "debian",
+    "rootfs": "local-lvm:subvol-200-disk-0,size=8G",
+    "net0": "name=eth0,bridge=vmbr0,hwaddr=AA:BB:CC:DD:EE:02,ip=10.0.20.10/24,gw=10.0.20.1,type=veth"
+}

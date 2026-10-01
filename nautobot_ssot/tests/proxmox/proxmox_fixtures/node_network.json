@@ -1,0 +1,16 @@
+[
+    {"iface": "eth0", "type": "eth", "active": 1, "mtu": 1500},
+    {"iface": "eth1", "type": "eth", "active": 1, "mtu": 9000},
+    {"iface": "bond0", "type": "bond", "active": 1, "slaves": "eth1", "mtu": 9000},
+    {
+        "iface": "vmbr0",
+        "type": "bridge",
+        "active": 1,
+        "cidr": "10.0.0.1/24",
+        "address": "10.0.0.1",
+        "netmask": "255.255.255.0",
+        "bridge_ports": "eth0",
+        "mtu": 1500
+    },
+    {"iface": "vmbr0.10", "type": "vlan", "active": 1, "vlan-raw-device": "vmbr0"}
+]
