@@ -4,7 +4,6 @@
 # The adapter carries the job's options  #  pylint: disable=too-many-instance-attributes
 """DiffSync adapter class for Nautobot as source-of-truth."""
 
-import logging
 from collections import defaultdict
 from typing import Any, ClassVar, Dict, List, Optional
 
@@ -32,9 +31,6 @@ from nautobot_ssot.integrations.ipfabric.constants import (
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
-
-logger = logging.getLogger("nautobot.ssot.ipfabric")
-
 
 # How many objects to delete per statement. Django walks the relations of a whole batch once, so
 # larger batches cost fewer queries, at the price of a longer `IN` list and a wider lock.
@@ -66,7 +62,7 @@ DELETE_ORDER = (
 PENDING_WRITE_HIGH_WATER = 5000
 
 
-def delete_objects(queued_deletions: List):
+def delete_objects(queued_deletions: List, logger):
     """Delete the queued objects, given as `(model, pk)` pairs, in as few statements as they allow.
 
     Deleting one at a time makes Django walk that object's relations and issue its own statements;
@@ -86,10 +82,10 @@ def delete_objects(queued_deletions: List):
                 with transaction.atomic(), tonb_utils.deferred_change_logging():
                     model.objects.filter(pk__in=batch).delete()
             except IntegrityError:
-                delete_objects_one_at_a_time([(model, pk) for pk in batch])
+                delete_objects_one_at_a_time([(model, pk) for pk in batch], logger=logger)
 
 
-def delete_objects_one_at_a_time(queued_deletions: List):
+def delete_objects_one_at_a_time(queued_deletions: List, logger):
     """Delete the queued `(model, pk)` pairs individually, naming each one Nautobot refuses."""
     for model, pk in queued_deletions:
         try:
@@ -128,7 +124,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         # Present only in bulk write mode, so that whether writes are batched is one fact rather
         # than two. Passed in rather than set on the class, so two runs in one worker cannot see
         # each other's choice; `safe_delete_mode` is still set on the class, so two runs share it.
-        self.pending = PendingWrites() if bulk_write_mode else None
+        self.pending = PendingWrites(job.logger) if bulk_write_mode else None
         # Per adapter rather than per class, so that a run which fails before `sync_complete` cannot
         # leave objects queued for a later run in the same worker to delete.
         self.objects_to_delete = defaultdict(list)
@@ -174,14 +170,21 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 )
             for grouping in (*DELETE_ORDER, *unordered):
                 if not self.safe_delete_mode:
-                    delete_objects(self.objects_to_delete[grouping])
+                    delete_objects(self.objects_to_delete[grouping], logger=self.job.logger)
                 self.objects_to_delete[grouping] = []
         finally:
             # Thread local, so on a long lived worker these hold what this run cached until something
             # empties them. Emptied even when the writes above fail, so that a failure cannot hand a
             # later run objects whose rows were rolled back.
             job_scoped_cache.clear_all()
+        self.report_safe_delete_tally()
         return super().sync_complete(source, *args, **kwargs)
+
+    def report_safe_delete_tally(self):
+        """Report what Safe Delete Mode did, one line per object type and outcome."""
+        for (model_name, outcome), count in sorted(self.safe_delete_tally.items()):
+            self.job.logger.warning("%d %s objects %s.", count, model_name, outcome)
+        self.safe_delete_tally.clear()
 
     def flush_pending_writes_if_full(self) -> int:
         """Write the queue if it has grown past what is worth holding in memory.
@@ -302,10 +305,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         for cable_record, endpoints in endpoints_by_cable.items():
             if len(endpoints) == 1:
                 if self.job.debug:
-                    logger.debug("Not loading Cable %s as only one of its ends is in scope", cable_record.pk)
+                    self.job.logger.debug("Not loading Cable %s as only one of its ends is in scope", cable_record.pk)
                 continue
             if len(endpoints) > 2:
-                logger.warning(
+                self.job.logger.warning(
                     f"Not loading Cable {cable_record.pk} as it terminates on {len(endpoints)} in scope Interfaces, "
                     "which IP Fabric's point to point connectivity matrix cannot describe"
                 )
@@ -322,7 +325,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             try:
                 self.add(cable)
             except ObjectAlreadyExists:
-                logger.warning(f"Duplicate Cable discovered, {cable.get_unique_id()}")
+                self.job.logger.warning(f"Duplicate Cable discovered, {cable.get_unique_id()}")
 
     def get_in_scope_devices(self, location_objects):
         """Return the Devices at the given Locations that this sync covers.
@@ -369,10 +372,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             location = locations_by_name.get(device_record.location.name)
             if location is None:
                 # Its Location failed to load, so there is no parent to add the Device to.
-                logger.error("Unable to find Location, %s.", device_record.location.name)
+                self.job.logger.error("Unable to find Location, %s.", device_record.location.name)
                 continue
             if self.job.debug:
-                logger.debug("Loading Nautobot Device: %s", device_record.name)
+                self.job.logger.debug("Loading Nautobot Device: %s", device_record.name)
             ipfabric_type = device_record.role.cf.get("ipfabric_type")
             device_role = str(ipfabric_type) if ipfabric_type else device_record.role.name
             device = self.device(
@@ -394,7 +397,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             try:
                 self.add(device)
             except ObjectAlreadyExists:
-                logger.warning(f"Duplicate device discovered, {device_record.name}")
+                self.job.logger.warning(f"Duplicate device discovered, {device_record.name}")
                 continue
 
             location.add_child(device)
@@ -430,7 +433,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 try:
                     self.add(vlan)
                 except ObjectAlreadyExists:
-                    logger.warning(f"Duplicate VLAN discovered, {vlan_record.name}")
+                    self.job.logger.warning(f"Duplicate VLAN discovered, {vlan_record.name}")
                     continue
                 location.add_child(vlan)
 
@@ -515,7 +518,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         for name, vrf_records in by_name.items():
             if len(vrf_records) > 1:
                 self.ambiguous_vrf_names.add(name)
-                logger.warning(
+                self.job.logger.warning(
                     "Not syncing the VRF named %s, as the Global Namespace holds %d VRFs of that name "
                     "and IP Fabric reports nothing that tells them apart",
                     name,
@@ -553,7 +556,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             if self.location_filter:
                 location_objects = location_objects.filter(name=self.location_filter.name)
                 if not location_objects:
-                    logger.warning(
+                    self.job.logger.warning(
                         f"{self.location_filter.name} was used to filter, alongside SSoT Tag. {self.location_filter.name} is not tagged."
                     )
         elif not self.sync_ipfabric_tagged_only:
@@ -576,10 +579,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         location_objects = self.get_initial_location(self.ssot_tag)
         # The parent object that stores all children, is the Location.
         if self.job.debug:
-            logger.debug("Found %s Nautobot Location objects to start sync from", len(location_objects))
+            self.job.logger.debug("Found %s Nautobot Location objects to start sync from", len(location_objects))
 
         if not location_objects:
-            logger.warning("No Nautobot records to load.")
+            self.job.logger.warning("No Nautobot records to load.")
             return
 
         locations_by_name = {}
@@ -591,7 +594,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     status=location_record.status.name,
                 )
             except AttributeError:
-                logger.error("Error loading %s, invalid or missing attributes on object. Skipping...", location_record)
+                self.job.logger.error(
+                    "Error loading %s, invalid or missing attributes on object. Skipping...", location_record
+                )
                 continue
             self.add(location)
             locations_by_name[location_record.name] = location

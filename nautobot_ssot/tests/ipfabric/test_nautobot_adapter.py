@@ -34,6 +34,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyn
 from nautobot_ssot.integrations.ipfabric.strict_mode import StrictObjects
 from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
+from nautobot_ssot.tests.ipfabric.job_log import job_log_text
 from nautobot_ssot.tests.ipfabric.supporting_objects import addresses_of
 
 
@@ -185,12 +186,35 @@ class TestNautobotAdapter(TestCase):
         A Location that failed to load leaves its Devices with no parent to hang off, which has to
         be reported rather than silently dropping them or raising.
         """
-        with self.assertLogs("nautobot.ssot.ipfabric", level="ERROR") as logs:
-            self.nb_adapter.load_devices(Device.objects.filter(location=self.site1), {})
+        self.nb_adapter.load_devices(Device.objects.filter(location=self.site1), {})
 
         self.assertEqual(self.nb_adapter.get_all("device"), [])
         mock_load_interfaces.assert_not_called()
-        self.assertTrue(any("site1" in message for message in logs.output), logs.output)
+        self.assertIn("site1", job_log_text(self.nb_adapter.job.logger, "error"))
+
+    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models.Location", autospec=True)
+    @unittest.mock.patch.object(NautobotDiffSync, "load_interfaces")
+    def test_two_nautobot_devices_of_one_name_are_loaded_once_and_reported(self, _mock_interfaces, mock_location):
+        """Nautobot does not constrain a Device name, so an estate can hold the same one twice."""
+        first = Device.objects.filter(location=self.site1).first()
+        # Nautobot constrains a Device name within a Location, so the twin lives at another one.
+        # A DiffSync Device is identified by name alone, which is where the two collide.
+        Device.objects.create(
+            name=first.name,
+            device_type=first.device_type,
+            role=first.role,
+            location=self.stack_site,
+            status=first.status,
+        )
+
+        self.nb_adapter.load_devices(
+            Device.objects.filter(location__in=[self.site1, self.stack_site]),
+            {"site1": mock_location, "stack": mock_location},
+        )
+
+        loaded = [device for device in self.nb_adapter.get_all("device") if device.name == first.name]
+        self.assertEqual(len(loaded), 1)
+        self.assertIn("Duplicate device discovered", job_log_text(self.nb_adapter.job.logger, "warning"))
 
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models.Location", autospec=True)
     @unittest.mock.patch.object(NautobotDiffSync, "load_interfaces")
@@ -285,13 +309,10 @@ class TestNautobotAdapter(TestCase):
         """Untagged `location_filter` with `sync_ipfabric_tagged_only` returns empty + warning."""
         self.nb_adapter.sync_ipfabric_tagged_only = True
         self.nb_adapter.location_filter = self.site1
-        with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as captured:
-            locations = list(self.nb_adapter.get_initial_location(self.ssot_tag))
+        locations = list(self.nb_adapter.get_initial_location(self.ssot_tag))
         self.assertEqual(len(locations), 0)
-        self.assertTrue(
-            any("is not tagged" in line for line in captured.output),
-            f"Expected 'is not tagged' warning, got: {captured.output}",
-        )
+        warnings = job_log_text(self.nb_adapter.job.logger, "warning")
+        self.assertIn("is not tagged", warnings, f"Expected an 'is not tagged' warning, got: {warnings}")
 
     def test_load_interfaces_populates_ip_data(self):
         """`load_interfaces` loads every address on the Interface as a model of its own."""
@@ -655,12 +676,11 @@ class TestNautobotAdapter(TestCase):
             duplicate = VLAN.objects.create(name="same-name", vid=vid, status=self.active_status)
             duplicate.locations.add(self.site1)
 
-        with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
-            self.nb_adapter.load_data()
+        self.nb_adapter.load_data()
 
         loaded = [vlan for vlan in self.nb_adapter.get_all("vlan") if vlan.name == "same-name"]
         self.assertEqual(len(loaded), 1, "The colliding VLAN must not be loaded twice.")
-        self.assertIn("Duplicate VLAN discovered, same-name", " ".join(logs.output))
+        self.assertIn("Duplicate VLAN discovered, same-name", job_log_text(self.nb_adapter.job.logger, "warning"))
 
     def test_a_location_missing_the_attributes_the_loader_reads_is_reported_and_skipped(self):
         """One unreadable Location must not take the rest of the sync with it."""
@@ -671,13 +691,12 @@ class TestNautobotAdapter(TestCase):
         with unittest.mock.patch.object(
             self.nb_adapter, "get_initial_location", return_value=[self.site1, self.stack_site]
         ):
-            with self.assertLogs("nautobot.ssot.ipfabric", level="ERROR") as logs:
-                self.nb_adapter.load_data()
+            self.nb_adapter.load_data()
 
         loaded = {location.name for location in self.nb_adapter.get_all("location")}
         self.assertNotIn("site1", loaded)
         self.assertIn("stack", loaded, "The readable Location must still load.")
-        self.assertIn("site1", " ".join(logs.output))
+        self.assertIn("site1", job_log_text(self.nb_adapter.job.logger, "error"))
 
     def _interface(self, device_name, interface_name):
         """Create a cableable Interface on the named Device.
@@ -795,11 +814,10 @@ class TestNautobotAdapter(TestCase):
             records.append(record)
 
         with unittest.mock.patch.object(tonb_cables, "cabled_interfaces", return_value=records):
-            with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as captured:
-                self.nb_adapter.load_cables(Device.objects.none())
+            self.nb_adapter.load_cables(Device.objects.none())
 
         self.assertEqual(self.nb_adapter.get_all("cable"), [])
-        self.assertTrue(any("terminates on 3 in scope Interfaces" in line for line in captured.output))
+        self.assertIn("terminates on 3 in scope Interfaces", job_log_text(self.nb_adapter.job.logger, "warning"))
 
     def test_load_cables_warns_on_duplicate_endpoint_pairs(self):
         """Two Cables resolving to the same endpoint pair cannot both be loaded."""
@@ -819,11 +837,10 @@ class TestNautobotAdapter(TestCase):
                 records.append(record)
 
         with unittest.mock.patch.object(tonb_cables, "cabled_interfaces", return_value=records):
-            with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as captured:
-                self.nb_adapter.load_cables(Device.objects.none())
+            self.nb_adapter.load_cables(Device.objects.none())
 
         self.assertEqual(len(self.nb_adapter.get_all("cable")), 1)
-        self.assertTrue(any("Duplicate Cable discovered" in line for line in captured.output))
+        self.assertIn("Duplicate Cable discovered", job_log_text(self.nb_adapter.job.logger, "warning"))
 
     def test_get_in_scope_devices_honours_tagged_only(self):
         """`sync_ipfabric_tagged_only` narrows Device scope to tagged Devices."""
