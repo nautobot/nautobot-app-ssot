@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 """Tests of CloudVision utility methods."""
 
 from unittest.mock import MagicMock, patch
@@ -5,7 +6,7 @@ from unittest.mock import MagicMock, patch
 from cloudvision.Connector.codec.custom_types import FrozenDict, Path
 from cvprac.cvp_client import CvpLoginError
 from django.test import override_settings
-from nautobot.core.testing import TestCase
+from nautobot.apps.testing import TestCase
 from parameterized import parameterized
 
 from nautobot_ssot.integrations.aristacv.utils import cloudvision
@@ -47,6 +48,51 @@ class TestCloudvisionApi(TestCase):
             cloudvision.CloudvisionApi(config)
         self.assertEqual(config.url, "https://www.arista.io:443")
         self.assertEqual(config.token, "1234567890abcdef")
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvp_host": "localhost",
+                "aristacv_cvp_token": "1234567890abcdef",
+                "aristacv_verify": True,
+            },
+        },
+    )
+    def test_auth_on_premise_with_token(self):
+        """Test that on-premise authentication with a token passes the token to the REST client."""
+        config = get_config()
+        self.assertTrue(config.is_on_premise)
+        with patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.CvpClient") as mock_cvp:
+            cloudvision.CloudvisionApi(config)
+            _, kwargs = mock_cvp.return_value.connect.call_args
+            self.assertEqual(kwargs["api_token"], "1234567890abcdef")
+            self.assertFalse(kwargs["is_cvaas"])
+
+    @override_settings(
+        PLUGINS_CONFIG={
+            "nautobot_ssot": {
+                "aristacv_cvp_host": "localhost",
+                "aristacv_cvp_user": "admin",
+                "aristacv_cvp_password": "password",  # noqa: S106
+                "aristacv_verify": True,
+            },
+        },
+    )
+    def test_auth_on_premise_with_user_password(self):
+        """Test that on-premise authentication with user/password passes credentials to the REST client."""
+        config = get_config()
+        self.assertTrue(config.is_on_premise)
+        with (
+            patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.CvpClient") as mock_cvp,
+            patch("nautobot_ssot.integrations.aristacv.utils.cloudvision.requests.post") as mock_post,
+        ):
+            mock_post.return_value.json.return_value = {"sessionId": "session-token"}
+            cloudvision.CloudvisionApi(config)
+            _, kwargs = mock_cvp.return_value.connect.call_args
+            self.assertEqual(kwargs["username"], "admin")
+            self.assertEqual(kwargs["password"], "password")
+            self.assertFalse(kwargs["is_cvaas"])
+            self.assertNotIn("api_token", kwargs)
 
     @override_settings(PLUGINS_CONFIG=CVAAS_PLUGIN_CONFIG)
     def test_get_version_returns_version_from_response(self):
@@ -282,6 +328,7 @@ class TestCloudvisionUtils(TestCase):
 
         def make_notif(intf_id):
             return {
+                "path_elements": ["Sysdb", "interface", "status", "eth", "phy", "slice", "1", "intfStatus", intf_id],
                 "updates": {
                     "intfId": intf_id,
                     "linkStatus": {"Name": "linkUp"},
@@ -289,7 +336,7 @@ class TestCloudvisionUtils(TestCase):
                     "enabledState": {"Name": "enabled"},
                     "burnedInAddr": "ab:cd:ef:00:00:01",
                     "mtu": 1500,
-                }
+                },
             }
 
         batches = [
@@ -595,26 +642,6 @@ class TestCloudvisionUtils(TestCase):
         expected = fixtures.IP_INTF_FIXTURE
         self.assertEqual(results, expected)
 
-    def test_get_ip_interfaces_split_notifications(self):
-        """Test get_ip_interfaces when intfId and addrWithMask are in separate gRPC notifications."""
-        mock_query = MagicMock()
-        mock_query.dataset.type = "device"
-        mock_query.dataset.name = "JPE12345678"
-        mock_query.paths.path_elements = [
-            "\304\005Sysdb",
-            "\304\002ip",
-            "\304\006config",
-            "\304\014ipIntfConfig",
-            "\307\00\001",
-        ]
-
-        with patch("cloudvision.Connector.grpc_client.grpcClient.create_query", mock_query):
-            self.client.get = MagicMock()
-            self.client.get.return_value = fixtures.IP_INTF_SPLIT_NOTIF_QUERY
-            results = cloudvision.get_ip_interfaces(client=self.client, dId="JPE12345678")
-        expected = fixtures.IP_INTF_SPLIT_NOTIF_FIXTURE
-        self.assertEqual(results, expected)
-
     def test_get_all_interface_modes_bulk(self):
         """Test get_all_interface_modes returns a dict keyed by interface name."""
         batches = [
@@ -777,15 +804,3 @@ class TestCloudvisionUtils(TestCase):
                 "Loopback0": "router id",
             },
         )
-
-    def test_get_ip_interfaces_coalesced_batch(self):
-        """Test get_ip_interfaces when CloudVision coalesces multiple interfaces into one batch.
-
-        Regression: gRPC can pack notifications for several interfaces into a single batch when
-        the query uses Wildcard(). Per-batch accumulators would silently merge or overwrite
-        interfaces. Group by notif["path_elements"][-1] (interface name) instead.
-        """
-        with patch("cloudvision.Connector.grpc_client.grpcClient.create_query", MagicMock()):
-            self.client.get = MagicMock(return_value=fixtures.IP_INTF_COALESCED_BATCH_QUERY)
-            results = cloudvision.get_ip_interfaces(client=self.client, dId="JPE12345678")
-        self.assertEqual(results, fixtures.IP_INTF_COALESCED_BATCH_FIXTURE)

@@ -9,7 +9,7 @@ from django.contrib.contenttypes.models import ContentType
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, Manufacturer
 from nautobot.extras.choices import CustomFieldTypeChoices
-from nautobot.extras.models import CustomField, Tag
+from nautobot.extras.models import CustomField, Tag, TaggedItem
 
 from . import models
 
@@ -143,44 +143,62 @@ class NautobotDiffSync(Adapter):
         for model in [Device, DeviceType, Interface, Manufacturer, Location]:
             custom_field.content_types.add(ContentType.objects.get_for_model(model))
 
-        for modelname in [
-            "company",
-            "device",
-            "interface",
-            "location",
-            "product_model",
-        ]:
+        today = datetime.date.today().isoformat()
+        # Map each DiffSync model name to its corresponding Nautobot model class.
+        nautobot_models = {
+            "company": Manufacturer,
+            "device": Device,
+            "interface": Interface,
+            "location": Location,
+            "product_model": DeviceType,
+        }
+        for modelname, nautobot_model in nautobot_models.items():
+            # Collect the PKs of all objects that now have a counterpart in the target DiffSync.
+            synced_pks = []
             for local_instance in self.get_all(modelname):
                 unique_id = local_instance.get_unique_id()
-                # Verify that the object now has a counterpart in the target DiffSync
                 try:
                     target.get(modelname, unique_id)
                 except ObjectNotFound:
                     continue
+                if local_instance.pk is not None:
+                    synced_pks.append(local_instance.pk)
 
-                self.tag_object(modelname, unique_id, tag, custom_field)
+            if synced_pks:
+                self.tag_objects(nautobot_model, synced_pks, tag, custom_field, today)
 
-    def tag_object(self, modelname, unique_id, tag, custom_field):
-        """Apply the given tag and custom field to the identified object."""
-        model_instance = self.get(modelname, unique_id)
-        today = datetime.date.today().isoformat()
+    # pylint: disable=too-many-arguments
+    def tag_objects(self, nautobot_model, pks, tag, custom_field, today):
+        """Bulk-apply the given tag and custom field to many objects of a single Nautobot model.
 
-        def _tag_object(nautobot_object):
-            """Apply custom field and tag to object, if applicable."""
-            if hasattr(nautobot_object, "tags"):
-                nautobot_object.tags.add(tag)
-            if hasattr(nautobot_object, "cf"):
+        This deliberately uses bulk database operations rather than a per-object
+        ``validated_save()``. Re-running each model's ``clean()`` and emitting a change-log
+        entry for every object makes tagging tens of thousands of objects take hours; the bulk
+        approach reduces this to minutes, at the cost of not change-logging the tag/custom-field
+        bookkeeping update.
+        """
+        content_type = ContentType.objects.get_for_model(nautobot_model)
+
+        # Apply the Tag through the TaggedItem table, skipping objects that already carry it.
+        if hasattr(nautobot_model, "tags"):
+            already_tagged = set(
+                TaggedItem.objects.filter(tag=tag, content_type=content_type, object_id__in=pks).values_list(
+                    "object_id", flat=True
+                )
+            )
+            TaggedItem.objects.bulk_create(
+                [
+                    TaggedItem(tag=tag, content_type=content_type, object_id=pk)
+                    for pk in pks
+                    if pk not in already_tagged
+                ],
+                batch_size=1000,
+                ignore_conflicts=True,
+            )
+
+        # Stamp the "last synced" date custom field, reading and writing _custom_field_data in bulk.
+        if hasattr(nautobot_model, "cf"):
+            objects_to_update = list(nautobot_model.objects.filter(pk__in=pks))
+            for nautobot_object in objects_to_update:
                 nautobot_object.cf[custom_field.key] = today
-            nautobot_object.validated_save()
-
-        if modelname == "company":
-            _tag_object(Manufacturer.objects.get(pk=model_instance.pk))
-        elif modelname == "device":
-            _tag_object(Device.objects.get(pk=model_instance.pk))
-        elif modelname == "interface":
-            _tag_object(Interface.objects.get(pk=model_instance.pk))
-        elif modelname == "location":
-            if model_instance.pk is not None:
-                _tag_object(Location.objects.get(pk=model_instance.pk))
-        elif modelname == "product_model":
-            _tag_object(DeviceType.objects.get(pk=model_instance.pk))
+            nautobot_model.objects.bulk_update(objects_to_update, ["_custom_field_data"], batch_size=1000)

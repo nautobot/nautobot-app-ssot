@@ -1,6 +1,7 @@
 # pylint: disable=too-many-lines,too-many-public-methods,R0801
 """Unit tests for the Infoblox Diffsync models."""
 
+import uuid
 from unittest.mock import Mock
 
 from django.contrib.contenttypes.models import ContentType
@@ -1200,16 +1201,52 @@ class TestModelNautobotVlanGroupNamespaceVlan(TestCase):
         self.assertTrue(CustomField.objects.filter(key="department").exists())
 
     def test_vlangroup_delete(self):
-        """Validate VLANGroup object is deleted when absent from source."""
+        """Validate VLANGroup object is deleted when absent from source and enabled in deletable models."""
         self._add_source_namespaces(include_dev=True)
         VLANGroup.objects.get_or_create(name="VG-To-Delete")
 
+        self.config.nautobot_deletable_models = [NautobotDeletableModelChoices.VLAN_GROUP]
         nb_adapter = NautobotAdapter(config=self.config)
         nb_adapter.job = Mock(debug=True)
         nb_adapter.load()
         self.infoblox_adapter.sync_to(nb_adapter)
 
         self.assertFalse(VLANGroup.objects.filter(name="VG-To-Delete").exists())
+
+    def test_vlangroup_delete_not_in_deletable_models(self):
+        """Validate VLANGroup object is not deleted when absent from source if not in deletable models."""
+        self._add_source_namespaces(include_dev=True)
+        VLANGroup.objects.get_or_create(name="VG-Keep")
+
+        self.config.nautobot_deletable_models = []
+        nb_adapter = NautobotAdapter(config=self.config)
+        nb_adapter.job = Mock(debug=True)
+        nb_adapter.load()
+        self.infoblox_adapter.sync_to(nb_adapter)
+
+        self.assertTrue(VLANGroup.objects.filter(name="VG-Keep").exists())
+
+    def test_vlangroup_delete_has_vlans_skips_deletion(self):
+        """Validate VLANGroup object is not deleted if it still contains VLANs."""
+        self._add_source_namespaces(include_dev=True)
+        vg, _ = VLANGroup.objects.get_or_create(name="VG-With-VLAN")
+        VLAN.objects.get_or_create(
+            vid=100,
+            name="VLAN100",
+            vlan_group=vg,
+            status=self.status_active,
+        )
+
+        self.config.nautobot_deletable_models = [NautobotDeletableModelChoices.VLAN_GROUP]
+        nb_adapter = NautobotAdapter(config=self.config)
+        nb_adapter.job = Mock(debug=True, logger=Mock())
+        nb_adapter.load()
+        self.infoblox_adapter.sync_to(nb_adapter)
+
+        self.assertTrue(VLANGroup.objects.filter(name="VG-With-VLAN").exists())
+        nb_adapter.job.logger.warning.assert_any_call(
+            "VLAN Group VG-With-VLAN cannot be deleted because it still contains VLANs."
+        )
 
     def test_namespace_update_ext_attrs(self):
         """Validate Namespace update applies ext attrs via sync."""
@@ -1275,6 +1312,46 @@ class TestModelNautobotVlanGroupNamespaceVlan(TestCase):
         self.assertEqual("Operations", vlan.custom_field_data.get("department"))
         self.assertEqual(self.location.id, vg.location_id)
 
+    def test_vlan_delete_not_in_deletable_models(self):
+        """Validate VLAN object is not deleted when absent from source if not in deletable models."""
+        self._add_source_namespaces(include_dev=True)
+        vg, _ = VLANGroup.objects.get_or_create(name="VG-Test-Keep")
+        VLAN.objects.get_or_create(
+            vid=300,
+            name="VLAN300",
+            vlan_group=vg,
+            status=self.status_active,
+        )
+        self.infoblox_adapter.add(self.infoblox_adapter.vlangroup(name="VG-Test-Keep", description="", ext_attrs={}))
+
+        self.config.nautobot_deletable_models = []
+        nb_adapter = NautobotAdapter(config=self.config)
+        nb_adapter.job = Mock(debug=True)
+        nb_adapter.load()
+        self.infoblox_adapter.sync_to(nb_adapter)
+
+        self.assertTrue(VLAN.objects.filter(name="VLAN300", vid=300).exists())
+
+    def test_vlan_delete_success(self):
+        """Validate VLAN object is deleted when absent from source and enabled in deletable models."""
+        self._add_source_namespaces(include_dev=True)
+        vg, _ = VLANGroup.objects.get_or_create(name="VG-Test-Del")
+        VLAN.objects.get_or_create(
+            vid=301,
+            name="VLAN301",
+            vlan_group=vg,
+            status=self.status_active,
+        )
+        self.infoblox_adapter.add(self.infoblox_adapter.vlangroup(name="VG-Test-Del", description="", ext_attrs={}))
+
+        self.config.nautobot_deletable_models = [NautobotDeletableModelChoices.VLAN]
+        nb_adapter = NautobotAdapter(config=self.config)
+        nb_adapter.job = Mock(debug=True)
+        nb_adapter.load()
+        self.infoblox_adapter.sync_to(nb_adapter)
+
+        self.assertFalse(VLAN.objects.filter(name="VLAN301", vid=301).exists())
+
 
 class TestModelNautobotBranchMatrix(TestCase):
     """Additional branch-matrix tests for Infoblox Nautobot model coverage."""
@@ -1315,6 +1392,9 @@ class TestModelNautobotBranchMatrix(TestCase):
 
         adapter = Mock()
         adapter.job = Mock(logger=Mock())
+        # Blank -> backwards-compatible site/facility/location matching. A bare Mock would otherwise
+        # return a truthy Mock here and disable the built-in location names.
+        adapter.config = Mock(infoblox_location_ext_attr="")
         adapter.tenant_map = {"Tenant Matrix": tenant.id}
         adapter.role_map = {"Matrix IP Role": role.id}
         adapter.location_map = {}
@@ -1340,6 +1420,9 @@ class TestModelNautobotBranchMatrix(TestCase):
 
         adapter = Mock()
         adapter.job = Mock(logger=Mock())
+        # Blank -> backwards-compatible site/facility/location matching. A bare Mock would otherwise
+        # return a truthy Mock here and disable the built-in location names.
+        adapter.config = Mock(infoblox_location_ext_attr="")
         adapter.location_map = {}
         adapter.vrf_map = {}
         adapter.role_map = {}
@@ -1361,6 +1444,136 @@ class TestModelNautobotBranchMatrix(TestCase):
         self.assertEqual("['Missing VRF']", prefix.custom_field_data.get("vrf"))
         self.assertEqual("['Role One', 'Role Two']", prefix.custom_field_data.get("role"))
         self.assertEqual("['Tenant One']", prefix.custom_field_data.get("tenant"))
+
+    def test_process_ext_attrs_location_wrong_type_skips_gracefully(self):
+        """A Location whose LocationType cannot contain the object is skipped with a warning, not a crash."""
+        prefix = self._base_prefix(prefix="10.99.5.0/24")
+
+        adapter = Mock()
+        adapter.job = Mock(logger=Mock())
+        adapter.config = Mock(infoblox_location_ext_attr="")
+        # Mirrors a Region: found by name, but its LocationType does not permit Prefixes.
+        adapter.location_map = {
+            "example region": {"id": uuid.uuid4(), "location_type": "Region", "content_types": {"device"}},
+        }
+        adapter.vrf_map = {}
+        adapter.role_map = {}
+        adapter.tenant_map = {}
+
+        # execute=True runs any scheduled on_commit callbacks inside the block; if a
+        # locations.add() had been deferred it would fire here and raise the Region
+        # ValidationError. A clean exit plus an empty locations set proves the graceful skip.
+        with self.captureOnCommitCallbacks(execute=True):
+            process_ext_attrs(adapter=adapter, obj=prefix, extattrs={"site": "EXAMPLE REGION"})
+
+        self.assertEqual(0, prefix.locations.count())
+        adapter.job.logger.warning.assert_called_once()
+        self.assertIn("not permitted to contain", adapter.job.logger.warning.call_args[0][0])
+        # The raw value is still preserved as a custom field.
+        self.assertEqual("EXAMPLE REGION", prefix.custom_field_data.get("site"))
+
+    def test_process_ext_attrs_location_case_insensitive_match(self):
+        """A location extattr resolves to a prefix-capable Location regardless of value case."""
+        site_type = LocationType.objects.create(name="Matrix Site")
+        site_type.content_types.add(ContentType.objects.get_for_model(Prefix))
+        location = Location.objects.create(name="Example Site", location_type=site_type, status=self.status_active)
+        prefix = self._base_prefix(prefix="10.99.6.0/24")
+
+        adapter = Mock()
+        adapter.job = Mock(logger=Mock())
+        adapter.config = Mock(infoblox_location_ext_attr="")
+        adapter.location_map = {
+            location.name.lower(): {
+                "id": location.id,
+                "location_type": site_type.name,
+                "content_types": {ct.model for ct in site_type.content_types.all()},
+            }
+        }
+        adapter.vrf_map = {}
+        adapter.role_map = {}
+        adapter.tenant_map = {}
+
+        with self.captureOnCommitCallbacks(execute=True):
+            process_ext_attrs(adapter=adapter, obj=prefix, extattrs={"location": "EXAMPLE SITE"})
+
+        self.assertIn(location, list(prefix.locations.all()))
+        adapter.job.logger.warning.assert_not_called()
+
+    def test_process_ext_attrs_location_list_value_warns(self):
+        """A list-valued location extattr warns (multiple locations unsupported) instead of erroring."""
+        prefix = self._base_prefix(prefix="10.99.7.0/24")
+
+        adapter = Mock()
+        adapter.job = Mock(logger=Mock())
+        adapter.config = Mock(infoblox_location_ext_attr="")
+        adapter.location_map = {}
+        adapter.vrf_map = {}
+        adapter.role_map = {}
+        adapter.tenant_map = {}
+
+        # execute=True runs any deferred on_commit callbacks here; none should add a location.
+        with self.captureOnCommitCallbacks(execute=True):
+            process_ext_attrs(adapter=adapter, obj=prefix, extattrs={"location": ["Site A", "Site B"]})
+
+        self.assertEqual(0, prefix.locations.count())
+        adapter.job.logger.warning.assert_called_once()
+        self.assertIn("Multiple locations", adapter.job.logger.warning.call_args[0][0])
+
+    def test_process_ext_attrs_configured_location_attr_maps_location(self):
+        """A custom-named location extattr resolves to a Location when infoblox_location_ext_attr is set."""
+        site_type = LocationType.objects.create(name="Configured Site")
+        site_type.content_types.add(ContentType.objects.get_for_model(Prefix))
+        location = Location.objects.create(name="Example Site", location_type=site_type, status=self.status_active)
+        prefix = self._base_prefix(prefix="10.99.9.0/24")
+
+        adapter = Mock()
+        adapter.job = Mock(logger=Mock())
+        adapter.config = Mock(infoblox_location_ext_attr="region_site")
+        adapter.location_map = {
+            location.name.lower(): {
+                "id": location.id,
+                "location_type": site_type.name,
+                "content_types": {ct.model for ct in site_type.content_types.all()},
+            }
+        }
+        adapter.vrf_map = {}
+        adapter.role_map = {}
+        adapter.tenant_map = {}
+
+        with self.captureOnCommitCallbacks(execute=True):
+            process_ext_attrs(adapter=adapter, obj=prefix, extattrs={"region_site": "Example Site"})
+
+        self.assertIn(location, list(prefix.locations.all()))
+        adapter.job.logger.warning.assert_not_called()
+
+    def test_process_ext_attrs_configured_location_attr_shadows_builtins(self):
+        """When a custom location extattr is configured, the built-in site/facility/location names are inert."""
+        site_type = LocationType.objects.create(name="Shadowed Site")
+        site_type.content_types.add(ContentType.objects.get_for_model(Prefix))
+        location = Location.objects.create(name="Example Site", location_type=site_type, status=self.status_active)
+        prefix = self._base_prefix(prefix="10.99.10.0/24")
+
+        adapter = Mock()
+        adapter.job = Mock(logger=Mock())
+        adapter.config = Mock(infoblox_location_ext_attr="region_site")
+        adapter.location_map = {
+            location.name.lower(): {
+                "id": location.id,
+                "location_type": site_type.name,
+                "content_types": {ct.model for ct in site_type.content_types.all()},
+            }
+        }
+        adapter.vrf_map = {}
+        adapter.role_map = {}
+        adapter.tenant_map = {}
+
+        # "site" is a built-in default name, but a custom name is configured, so it must NOT map to a
+        # Location -- it should fall through to an ordinary custom field instead.
+        with self.captureOnCommitCallbacks(execute=True):
+            process_ext_attrs(adapter=adapter, obj=prefix, extattrs={"site": "Example Site"})
+
+        self.assertEqual(0, prefix.locations.count())
+        self.assertEqual("Example Site", prefix.custom_field_data.get("site"))
 
     def test_dns_host_record_update_paths(self):
         """Validate Host record update both in configured and non-configured modes."""

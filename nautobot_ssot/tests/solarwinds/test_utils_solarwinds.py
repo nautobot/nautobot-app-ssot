@@ -6,7 +6,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import requests
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.extras.models import JobResult
 from parameterized import parameterized
 
@@ -18,27 +18,34 @@ from nautobot_ssot.integrations.solarwinds.utils.solarwinds import (
 from nautobot_ssot.tests.solarwinds.conftest import create_solarwinds_client
 
 
-class TestSolarWindsClientTestCase(TransactionTestCase):  # pylint: disable=too-many-public-methods
+class TestSolarWindsClientTestCase(TestCase):  # pylint: disable=too-many-public-methods
     """Test the SolarWindsClient class."""
 
     databases = ("default", "job_logs")
 
     def setUp(self):
-        """Configure shared variables for tests."""
-        self.job = SolarWindsDataSource()
-        self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, task_name="Fake task", user=None, id=uuid.uuid4()
-        )
-        self.job.integration = MagicMock()
-        self.job.integration.extra_config = {"batch_size": 10}
-        self.job.logger.debug = MagicMock()
-        self.job.logger.error = MagicMock()
-        self.job.logger.info = MagicMock()
-        self.job.logger.warning = MagicMock()
-        self.test_client = create_solarwinds_client(job=self.job)
+        self.job.logger.debug.reset_mock()
+        self.job.logger.error.reset_mock()
+        self.job.logger.info.reset_mock()
+        self.job.logger.warning.reset_mock()
 
-        self.test_nodes = [{"Name": "Router01", "MemberPrimaryID": 1}, {"Name": "Switch01", "MemberPrimaryID": 2}]
-        self.node_details = {1: {"NodeHostname": "Router01", "NodeID": 1}, 2: {"NodeHostname": "Switch01", "NodeID": 2}}
+    @classmethod
+    def setUpTestData(cls):
+        """Configure shared variables for tests."""
+        cls.job = SolarWindsDataSource()
+        cls.job.job_result = JobResult.objects.create(
+            name=cls.job.class_path, task_name="Fake task", user=None, id=uuid.uuid4()
+        )
+        cls.job.integration = MagicMock()
+        cls.job.integration.extra_config = {"batch_size": 10}
+        cls.job.logger.debug = MagicMock()
+        cls.job.logger.error = MagicMock()
+        cls.job.logger.info = MagicMock()
+        cls.job.logger.warning = MagicMock()
+        cls.test_client = create_solarwinds_client(job=cls.job)
+
+        cls.test_nodes = [{"Name": "Router01", "MemberPrimaryID": 1}, {"Name": "Switch01", "MemberPrimaryID": 2}]
+        cls.node_details = {1: {"NodeHostname": "Router01", "NodeID": 1}, 2: {"NodeHostname": "Switch01", "NodeID": 2}}
 
     def test_solarwinds_client_initialization(self):
         """Validate the SolarWindsClient functionality."""

@@ -1,7 +1,8 @@
 """Unittests for caching classes."""
 
-from nautobot.core.testing import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Location, LocationType
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Status
 
 from nautobot_ssot.utils.cache import ORMCache
@@ -12,6 +13,7 @@ class TestORMCache(TestCase):
 
     def setUp(self):
         """Setup the test cases."""
+        populate_status_choices()
         status = Status.objects.get(name="Active")
         location_type_1 = LocationType.objects.create(name="Location Type 1")
         Location.objects.create(

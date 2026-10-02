@@ -4,8 +4,9 @@ from unittest.mock import MagicMock, patch
 
 from django.contrib.contenttypes.models import ContentType
 from django.test import override_settings
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device, Location, LocationType
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import JobResult, Status
 
 from nautobot_ssot.integrations.meraki.diffsync.adapters.meraki import MerakiAdapter
@@ -13,50 +14,51 @@ from nautobot_ssot.integrations.meraki.jobs import MerakiDataSource
 from nautobot_ssot.tests.meraki.fixtures import fixtures as fix
 
 
-class TestMerakiAdapterTestCase(TransactionTestCase):
+# pylint: disable=too-many-public-methods
+class TestMerakiAdapterTestCase(TestCase):
     """Test NautobotSsotMerakiAdapter class."""
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Initialize test case."""
-        super().setUp()
+        super().setUpTestData()
+        populate_status_choices()
 
-        self.status_active = Status.objects.get(name="Active")
-        self.meraki_client = MagicMock()
-        self.meraki_client.get_org_networks.return_value = fix.GET_ORG_NETWORKS_SENT_FIXTURE
-        self.meraki_client.network_map = fix.NETWORK_MAP_FIXTURE
-        self.meraki_client.get_org_devices.return_value = fix.GET_ORG_DEVICES_FIXTURE
-        self.meraki_client.get_org_device_statuses.return_value = fix.GET_ORG_DEVICE_STATUSES_RECV_FIXTURE
-        self.meraki_client.get_org_uplink_addresses_by_device.return_value = (
+        cls.status_active = Status.objects.get(name="Active")
+        cls.meraki_client = MagicMock()
+        cls.meraki_client.get_org_networks.return_value = fix.GET_ORG_NETWORKS_SENT_FIXTURE
+        cls.meraki_client.network_map = fix.NETWORK_MAP_FIXTURE
+        cls.meraki_client.get_org_devices.return_value = fix.GET_ORG_DEVICES_FIXTURE
+        cls.meraki_client.get_org_device_statuses.return_value = fix.GET_ORG_DEVICE_STATUSES_RECV_FIXTURE
+        cls.meraki_client.get_org_uplink_addresses_by_device.return_value = (
             fix.GET_ORG_UPLINK_ADDRESSES_BY_DEVICE_FIXTURE
         )
-        self.meraki_client.get_management_ports.return_value = fix.GET_MANAGEMENT_PORTS_RECV_FIXTURE
-        self.meraki_client.get_uplink_settings.return_value = fix.GET_UPLINK_SETTINGS_RECV
-        self.meraki_client.get_switchport_statuses.return_value = fix.GET_SWITCHPORT_STATUSES
-        self.meraki_client.get_org_uplink_statuses.return_value = fix.GET_ORG_UPLINK_STATUSES_RECV_FIXTURE
-        self.meraki_client.get_appliance_switchports.return_value = fix.GET_APPLIANCE_SWITCHPORTS_FIXTURE
-        self.meraki_client.get_org_switchports.return_value = fix.GET_ORG_SWITCHPORTS_RECV_FIXTURE
+        cls.meraki_client.get_management_ports.return_value = fix.GET_MANAGEMENT_PORTS_RECV_FIXTURE
+        cls.meraki_client.get_uplink_settings.return_value = fix.GET_UPLINK_SETTINGS_RECV
+        cls.meraki_client.get_switchport_statuses.return_value = fix.GET_SWITCHPORT_STATUSES
+        cls.meraki_client.get_org_uplink_statuses.return_value = fix.GET_ORG_UPLINK_STATUSES_RECV_FIXTURE
+        cls.meraki_client.get_appliance_switchports.return_value = fix.GET_APPLIANCE_SWITCHPORTS_FIXTURE
+        cls.meraki_client.get_org_switchports.return_value = fix.GET_ORG_SWITCHPORTS_RECV_FIXTURE
 
         site_loctype = LocationType.objects.get_or_create(name="Site")[0]
         site_loctype.content_types.add(ContentType.objects.get_for_model(Device))
-        self.job = MerakiDataSource()
-        self.job.logger.debug = MagicMock()
-        self.job.logger.warning = MagicMock()
-        self.job.instance = MagicMock()
-        self.job.instance.controller_managed_device_groups = MagicMock()
-        self.job.instance.controller_managed_device_groups.first().name = "Meraki Managed Device Group"
-        self.job.instance.controller_managed_device_groups.count().return_value = 1
-        self.job.hostname_mapping = []
-        self.job.devicetype_mapping = [("MS", "Switch"), ("MX", "Firewall")]
-        self.job.network_loctype = site_loctype
-        self.job.location_map = {}
-        self.job.device_status = None
-        self.job.location = None
-        self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, task_name="fake task", worker="default"
-        )
-        self.meraki = MerakiAdapter(job=self.job, sync=None, client=self.meraki_client)
+        cls.job = MerakiDataSource()
+        cls.job.logger.debug = MagicMock()
+        cls.job.logger.warning = MagicMock()
+        cls.job.instance = MagicMock()
+        cls.job.instance.controller_managed_device_groups = MagicMock()
+        cls.job.instance.controller_managed_device_groups.first().name = "Meraki Managed Device Group"
+        cls.job.instance.controller_managed_device_groups.count().return_value = 1
+        cls.job.hostname_mapping = []
+        cls.job.devicetype_mapping = [("MS", "Switch"), ("MX", "Firewall")]
+        cls.job.network_loctype = site_loctype
+        cls.job.location_map = {}
+        cls.job.device_status = None
+        cls.job.location = None
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
+        cls.meraki = MerakiAdapter(job=cls.job, sync=None, client=cls.meraki_client)
 
     def test_data_loading(self):
         """Test Nautobot SSoT for Meraki load() function."""
@@ -447,6 +449,36 @@ class TestMerakiAdapterTestCase(TransactionTestCase):
             },
             {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")},
         )
+
+    @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"meraki_allow_dhcp_mgmt_ips": True}})
+    @patch("nautobot_ssot.integrations.meraki.diffsync.adapters.meraki.get_mgmt_port_from_uplinks")
+    def test_load_firewall_ports_skips_empty_dhcp_uplinks(self, mock_get_mgmt_port_from_uplinks):
+        """Validate load_firewall_ports() skips DHCP uplink lookup when no uplink ports are returned."""
+        mock_device = MagicMock()
+        mock_device.name = "HQ MX"
+
+        self.meraki_client.get_management_ports.return_value = {"wan1": {}}
+        self.meraki_client.get_uplink_settings.return_value = {
+            "wan1": {
+                "enabled": True,
+                "vlanTagging": {"enabled": False},
+                "svis": {"ipv4": {"assignmentMode": "dynamic"}},
+                "pppoe": {"enabled": False},
+            }
+        }
+        self.meraki_client.get_appliance_switchports.return_value = []
+        self.meraki_client.get_org_uplink_addresses_by_device.return_value = []
+
+        self.meraki.load_firewall_ports(
+            device=mock_device,
+            serial="V4GD-ABDP-YVCK",
+            network_id="L_165471703274884707",
+            lan_ip="146.171.212.44",
+        )
+
+        mock_get_mgmt_port_from_uplinks.assert_not_called()
+        self.assertEqual({"wan1__HQ MX"}, {port.get_unique_id() for port in self.meraki.get_all("port")})
+        self.assertEqual(set(), {ip.get_unique_id() for ip in self.meraki.get_all("ipaddress")})
 
     @override_settings(PLUGINS_CONFIG={"nautobot_ssot": {"meraki_allow_dhcp_mgmt_ips": True}})
     def test_default_location(self):

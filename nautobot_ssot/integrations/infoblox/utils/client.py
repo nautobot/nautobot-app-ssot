@@ -87,6 +87,17 @@ def get_dns_name(possible_fqdn: str) -> str:
     return dns_name
 
 
+# WAPI '_return_fields' used when bulk-loading each record type up front (see
+# 'get_all_records_by_type'). Kept here so the field list lives with the client
+# rather than being repeated at every call site.
+BULK_RECORD_RETURN_FIELDS = {
+    "record:a": "name,view,ipv4addr,comment,extattrs",
+    "record:host": "name,view,ipv4addrs,comment,extattrs",
+    "record:ptr": "name,ptrdname,ipv4addr,ipv6addr,view,comment,extattrs",
+    "fixedaddress": "mac,network,network_view,comment,extattrs,name",
+}
+
+
 class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instance-attributes
     """Representation and methods for interacting with Infoblox."""
 
@@ -387,18 +398,59 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             }
             return query
 
+        def get_ipaddrs_paged(prefix: str, view: str, page_size: int = 1000) -> list:
+            """Retrieve all USED IP addresses for a single prefix using WAPI paging.
+
+            Large prefixes are fetched one bounded page at a time (mirroring 'get_all_subnets')
+            instead of asking for every address in a single response. A single unpaged request
+            for a large prefix can exceed the read timeout or be truncated mid-stream by the Grid.
+
+            Args:
+                prefix (str): The prefix to get IP addresses for.
+                view (str): The Network View of the prefix being queried.
+                page_size (int): Maximum number of results to request per page.
+
+            Returns:
+                list: List of dicts of IP Addresses for the prefix, or an empty list on error.
+            """
+            params = {
+                "_paging": 1,
+                "_return_as_object": 1,
+                "_max_results": page_size,
+                "_return_fields": "ip_address,mac_address,names,network,network_view,objects,status,types,usage,comment,extattrs",
+                "network": prefix,
+                "network_view": view,
+                "status": "USED",
+            }
+            results = []
+            try:
+                response = self._request("GET", "ipv4address", params=params)
+            except HTTPError as err:
+                logger.error(err.response.text)
+                return results
+            json_response = response.json()
+            results.extend(json_response.get("result", []))
+            counter = 1
+            while json_response.get("next_page_id"):
+                logger.info(f"Call {counter} for 'get_ipaddrs_paged({prefix})'.")
+                params["_page_id"] = json_response.get("next_page_id")
+                response = self._request("GET", "ipv4address", params=params)
+                json_response = response.json()
+                results.extend(json_response.get("result", []))
+                counter += 1
+            return results
+
         url_path = "request"
         payload, ipaddrs = [], []
         num_hosts = 0
         for prefix in prefixes:
             view = prefix[1]
             network = ipaddress.ip_network(prefix[0])
-            # Due to default of 1000 max_results from Infoblox we must specify a max result limit or limit response to 1000.
-            # Make individual request if it's larger than 1000 hosts and specify max result limit to be number of hosts in prefix.
+            # Infoblox defaults to 1000 max_results. Small prefixes are batched together below; a
+            # prefix larger than 1000 hosts is fetched on its own using paging so no single response
+            # is large enough to exceed the read timeout or be truncated mid-stream by the Grid.
             if network.num_addresses > 1000:
-                pf_payload = create_payload(prefix=prefix[0], view=view)
-                pf_payload["args"]["_max_results"] = network.num_addresses
-                ipaddrs += get_ipaddrs(url_path=url_path, data=[pf_payload])
+                ipaddrs += get_ipaddrs_paged(prefix=prefix[0], view=view)
             # append payloads to list until number of hosts is 1000
             elif network.num_addresses + num_hosts <= 1000:
                 num_hosts += network.num_addresses
@@ -663,44 +715,6 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.error(response.text)
             return response.text
 
-    def get_host_record_by_ref(self, ref: str):
-        """Get the Host record by ref.
-
-        Args:
-            ref (str): reference to the Host record
-
-        Returns:
-            (dict) Host record
-
-        Return Response:
-        {
-            "_ref": "record:host/ZG5zLmhvc3QkLl9kZWZhdWx0LnRlc3QudGVzdGRldmljZTE:testdevice1.test/default",
-            "ipv4addrs": [
-                {
-                    "_ref": "record:host_ipv4addr/ZG5zLmhvc3RfYWRkcmVzcyQuX2RlZmF1bHQudGVzdC50ZXN0ZGV2aWNlMS4xMC4yMjAuMC4xMDEu:10.220.0.101/testdevice1.test/default",
-                    "configure_for_dhcp": true,
-                    "host": "testdevice1.test",
-                    "ipv4addr": "10.220.0.101",
-                    "mac": "11:11:11:11:11:11"
-                }
-            ],
-            "name": "testdevice1.test",
-            "view": "default"
-        }
-        """
-        url_path = f"{ref}"
-        params = {
-            "_return_fields": "name,view,ipv4addrs,comment",
-        }
-        response = self._request("GET", path=url_path, params=params)
-        logger.error(response.text)
-        try:
-            logger.debug(response.json())
-            return response.json()
-        except json.decoder.JSONDecodeError:
-            logger.error(response.text)
-            return response.text
-
     def get_a_record_by_name(self, fqdn, network_view: Optional[str] = None):
         """Get the A record for a FQDN.
 
@@ -775,38 +789,6 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             return results[0]
         return None
 
-    def get_a_record_by_ref(self, ref: str):
-        """Get the A record by ref.
-
-        Args:
-            ref (str): reference to the A record
-
-        Returns:
-            (dict) A record
-
-        Return Response:
-        [
-            {
-                "_ref": "record:a/ZG5zLmJpbmRfYSQuX2RlZmF1bHQudGVzdCx0ZXN0ZGV2aWNlMSwxMC4yMjAuMC4xMDE:testdevice1.test/default",
-                "ipv4addr": "10.220.0.101",
-                "name": "testdevice1.test",
-                "view": "default"
-            }
-        ]
-        """
-        url_path = f"{ref}"
-        params = {
-            "_return_fields": "name,view,ipv4addr,comment,extattrs",
-        }
-        response = self._request("GET", path=url_path, params=params)
-        logger.error(response.text)
-        try:
-            logger.debug(response.json())
-            return response.json()
-        except json.decoder.JSONDecodeError:
-            logger.error(response.text)
-            return response.text
-
     def delete_a_record_by_ref(self, ref):
         """Delete DNS A record by ref.
 
@@ -824,37 +806,6 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
 
         logger.debug(response)
         return response
-
-    def get_ptr_record_by_ref(self, ref: str):
-        """Get the PTR record by FQDN.
-
-        Args:
-            ref (str): Reference to PTR record
-
-        Returns:
-            (dict) PTR Record
-
-        Return Response:
-        [
-            {
-                "_ref": "record:ptr/ZG5zLmJpbmRfcHRyJC5fZGVmYXVsdC50ZXN0LjEwMS4wLjIyMC4xMC50ZXN0ZGV2aWNlMS50ZXN0:10.220.0.101.test/default",
-                "ptrdname": "testdevice1.test",
-                "view": "default"
-            }
-        ]
-        """
-        url_path = f"{ref}"
-        params = {
-            "_return_fields": "name,ptrdname,ipv4addr,ipv6addr,view,comment",
-        }
-        response = self._request("GET", path=url_path, params=params)
-        logger.error(response.text)
-        try:
-            logger.debug(response.json())
-            return response.json()
-        except json.decoder.JSONDecodeError:
-            logger.error(response.text)
-            return response.text
 
     def get_ptr_record_by_ip(self, ip_address, network_view: Optional[str] = None):  # pylint: disable=inconsistent-return-statements
         """Get the PTR record by FQDN.
@@ -1241,6 +1192,52 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             logger.info("Support for DHCP Ranges is not currently supported for IPv6 Networks.")
         return results
 
+    def get_all_records_by_type(
+        self, record_type: str, return_fields: Optional[str] = None, max_results: int = 10000
+    ) -> dict:
+        """Fetch all records of a given object type, keyed by their '_ref'.
+
+        This is used to bulk-load DNS and fixed-address records up front so that IP address
+        loading can enrich each IP with a dict lookup instead of issuing one WAPI request per
+        IP (N+1 pattern).
+
+        Args:
+            record_type (str): WAPI object type, e.g. 'record:a', 'record:host', 'record:ptr', 'fixedaddress'.
+            return_fields (str): Comma-separated list of fields to return for each record. When omitted,
+                the default field list for 'record_type' from 'BULK_RECORD_RETURN_FIELDS' is used.
+            max_results (int): Page size for the paged WAPI query.
+
+        Returns:
+            (dict): Mapping of object '_ref' to the record dict.
+        """
+        if return_fields is None:
+            return_fields = BULK_RECORD_RETURN_FIELDS[record_type]
+        records = {}
+        params = {
+            "_paging": 1,
+            "_return_as_object": 1,
+            "_return_fields": return_fields,
+            "_max_results": max_results,
+        }
+        try:
+            response = self._request("GET", record_type, params=params)
+        except HTTPError as err:
+            logger.error(err.response.text)
+            return records
+        json_response = response.json()
+        for record in json_response.get("result", []):
+            records[record["_ref"]] = record
+        counter = 1
+        while json_response.get("next_page_id"):
+            logger.info(f"Call {counter} for 'get_all_records_by_type({record_type})'.")
+            params["_page_id"] = json_response.get("next_page_id")
+            response = self._request("GET", record_type, params=params)
+            json_response = response.json()
+            for record in json_response.get("result", []):
+                records[record["_ref"]] = record
+            counter += 1
+        return records
+
     def get_authoritative_zone(self, network_view: Optional[str] = None):
         """Get authoritative zones.
 
@@ -1385,40 +1382,6 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             next_ip_avail = response.json().get("ips")[0]
 
         return next_ip_avail
-
-    def get_fixed_address_by_ref(self, ref: str):
-        """Get the Fixed Address object by ref.
-
-        Args:
-            ref (str): reference to the Fixed Address object
-
-        Returns:
-            (dict) Fixed Address object
-
-        Return Response:
-        {
-            "_ref": "fixedaddress/ZG5zLmZpeGVkX2FkZHJlc3MkMTAuMC4wLjIuMi4u:10.0.0.2/dev",
-            "extattrs": {
-
-            },
-            "mac": "52:1f:83:d4:9a:2e",
-            "name": "host-fixed1",
-            "network": "10.0.0.0/24",
-            "network_view": "dev"
-        }
-        """
-        url_path = f"{ref}"
-        params = {
-            "_return_fields": "mac,network,network_view,comment,extattrs,name",
-        }
-        response = self._request("GET", path=url_path, params=params)
-        logger.error(response.text)
-        try:
-            logger.debug(response.json())
-            return response.json()
-        except json.decoder.JSONDecodeError:
-            logger.error(response.text)
-            return response.text
 
     def delete_fixed_address_record_by_ref(self, ref):
         """Delete Fixed Address record by ref.

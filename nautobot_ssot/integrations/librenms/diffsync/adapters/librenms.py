@@ -25,6 +25,10 @@ from nautobot_ssot.integrations.librenms.utils import (
     normalize_gps_coordinates,
 )
 from nautobot_ssot.integrations.librenms.utils.librenms import LibreNMSApi
+from nautobot_ssot.integrations.librenms.utils.nautobot import (
+    clear_network_driver_caches,
+    librenms_os_to_network_driver,
+)
 from nautobot_ssot.utils import parse_hostname_for_location, parse_hostname_for_role
 
 
@@ -49,6 +53,9 @@ class LibrenmsAdapter(Adapter):
         self.sync = sync
         self.lnms_api = librenms_api
         self.failed_import_devices = []
+        # Read once per sync so both adapters and ensure_platform agree within a run.
+        self.consolidated_platforms = bool(PLUGIN_CFG.get("librenms_consolidated_platforms", False))
+        self.platform_resolutions = {}  # os -> platform, for the summary log
 
     def load_location(self, location: dict):
         """Load Location objects from LibreNMS into DiffSync models."""
@@ -134,11 +141,17 @@ class LibrenmsAdapter(Adapter):
                         self.job.default_role.name if self.job.default_role else None,
                     )
 
-                    # Normalize the platform name using the LIBRENMS_LIB_MAPPER dictionary (ie: "procera" -> "applogic_procera")
-                    normalized_platform_network_driver = LIBRENMS_LIB_MAPPER.get(device["os"], device["os"])
-                    normalized_platform_name = ANSIBLE_LIB_MAPPER_REVERSE.get(
-                        normalized_platform_network_driver, normalized_platform_network_driver
-                    )
+                    if self.consolidated_platforms:
+                        # Driver-space identity, shared with device-onboarding. An OS with no
+                        # known driver keeps its raw value rather than an invented one.
+                        normalized_platform_name = librenms_os_to_network_driver(device["os"]) or device["os"]
+                    else:
+                        # FQCN naming via LIBRENMS_LIB_MAPPER (ie: "procera" -> "applogic_procera")
+                        normalized_platform_network_driver = LIBRENMS_LIB_MAPPER.get(device["os"], device["os"])
+                        normalized_platform_name = ANSIBLE_LIB_MAPPER_REVERSE.get(
+                            normalized_platform_network_driver, normalized_platform_network_driver
+                        )
+                    self.platform_resolutions[device["os"]] = normalized_platform_name
 
                     ip_address = device.get("ip", None)
                     ip_info = None  # Initialize ip_info to None
@@ -252,6 +265,20 @@ class LibrenmsAdapter(Adapter):
 
     def load(self):
         """Load data from LibreNMS into DiffSync models."""
+        # Pick up NETWORK_DRIVERS / librenms_network_driver_map edits per sync.
+        clear_network_driver_caches()
+        self.platform_resolutions = {}
+        if self.consolidated_platforms:
+            self.job.logger.info(
+                "Platform naming: consolidated. Platforms are named after the network driver and "
+                "shared with device-onboarding."
+            )
+        else:
+            self.job.logger.info(
+                "Platform naming: legacy. Platforms are named after the Ansible collection FQCN. "
+                "Set librenms_consolidated_platforms to share Platforms with device-onboarding."
+            )
+
         all_devices = self.lnms_api.get_librenms_devices()
 
         self.job.logger.info(f'Loading {all_devices["count"]} Devices from LibreNMS.')
@@ -265,6 +292,12 @@ class LibrenmsAdapter(Adapter):
 
         for _device in all_devices["devices"]:
             self.load_device(device=_device)
+
+        if self.platform_resolutions:
+            _resolutions = ", ".join(
+                f"{librenms_os} -> {platform}" for librenms_os, platform in sorted(self.platform_resolutions.items())
+            )
+            self.job.logger.info(f"LibreNMS OS to Platform resolutions seen this sync: {_resolutions}")
 
         if PLUGIN_CFG.get("librenms_show_failures"):
             if self.failed_import_devices:

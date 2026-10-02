@@ -28,6 +28,7 @@ from nautobot_ssot.integrations.aristacv.constants import PORT_TYPE_MAP
 from nautobot_ssot.integrations.aristacv.types import CloudVisionAppConfig
 
 RPC_TIMEOUT = 30
+UNSET_IP_ADDRESS = "0.0.0.0/0"
 TIME_TYPE = Union[pbts.Timestamp, datetime]
 UPDATE_TYPE = Tuple[Any, Any]
 UPDATES_TYPE = List[UPDATE_TYPE]
@@ -249,20 +250,25 @@ class CloudvisionApi:  # pylint: disable=too-many-instance-attributes, too-many-
         if not parsed_url.hostname:
             raise ValueError(f"Invalid URL provided for CloudVision. {config.url}")
         try:
-            if config.token and not config.is_on_premise:
+            if config.token:
                 client.connect(
                     nodes=[parsed_url.hostname],
                     username="",
                     password="",
-                    is_cvaas=True,
+                    is_cvaas=not config.is_on_premise,
                     api_token=config.token,
                 )
-            else:
+            elif config.cvp_user and config.cvp_password:
                 client.connect(
                     nodes=[parsed_url.hostname],
                     username=config.cvp_user,
                     password=config.cvp_password,
                     is_cvaas=False,
+                )
+            else:
+                raise AuthFailure(
+                    error_code="Missing Credentials",
+                    message="Unable to authenticate due to missing credentials.",
                 )
         except CvpLoginError as err:
             raise AuthFailure(
@@ -417,6 +423,10 @@ def remove_tag_from_device(client, device_id: str, label: str, value: str):
 def get_query(client, dataset, pathElts):
     """Returns a query on a path element.
 
+    Merges the updates of every notification into one flat dict, so it must only be used with a
+    path that resolves to a single object. Use `collate_notifications` for a path containing a
+    `Wildcard()`, which would otherwise collapse distinct objects into each other.
+
     Args:
         client (obj): GRPC client connection.
         dataset (dict): Data related to query.
@@ -511,30 +521,14 @@ def get_interfaces_chassis(client: CloudvisionApi, dId):
     dataset = dId
     query = get_query(client, dataset, pathElts)
     queryLC = unfreeze_frozen_dict(query).keys()
-    intfStatusChassis = []
 
-    # Go through each linecard and get the state of all interfaces
+    # Interface names are unique across linecards, so a single accumulator spans all of them.
+    per_intf = {}
     for lc in queryLC:
         pathElts = ["Sysdb", "interface", "status", "eth", "phy", "slice", lc, "intfStatus", Wildcard()]
-
-        for batch in clean_query_results(pathElts, client, dataset):
-            for notif in batch["notifications"]:
-                results = notif["updates"]
-                if not results.get("intfId"):
-                    continue
-                new_intf = {"interface": results["intfId"]}
-                if results.get("linkStatus"):
-                    new_intf["link_status"] = "up" if results["linkStatus"]["Name"] == "linkUp" else "down"
-                if results.get("operStatus"):
-                    new_intf["oper_status"] = "up" if results["operStatus"]["Name"] == "intfOperUp" else "down"
-                if results.get("enabledState"):
-                    new_intf["enabled"] = bool(results["enabledState"]["Name"] == "enabled")
-                if results.get("burnedInAddr"):
-                    new_intf["mac_addr"] = results["burnedInAddr"]
-                if results.get("mtu"):
-                    new_intf["mtu"] = results["mtu"]
-                intfStatusChassis.append(new_intf)
-    return intfStatusChassis
+        for intf_name, updates in collate_notifications(client, dataset, pathElts).items():
+            per_intf.setdefault(intf_name, {}).update(updates)
+    return [_interface_status_entry(name, updates) for name, updates in per_intf.items()]
 
 
 def get_interfaces_fixed(client: CloudvisionApi, dId: str):
@@ -546,25 +540,9 @@ def get_interfaces_fixed(client: CloudvisionApi, dId: str):
     """
     pathElts = ["Sysdb", "interface", "status", "eth", "phy", "slice", "1", "intfStatus", Wildcard()]
 
-    intfStatusFixed = []
-    for batch in clean_query_results(pathElts, client, dId):
-        for notif in batch["notifications"]:
-            results = notif["updates"]
-            if not results.get("intfId"):
-                continue
-            new_intf = {"interface": results["intfId"]}
-            if results.get("enabledState"):
-                new_intf["enabled"] = bool(results["enabledState"]["Name"] == "enabled")
-            if results.get("burnedInAddr"):
-                new_intf["mac_addr"] = results["burnedInAddr"]
-            if results.get("mtu"):
-                new_intf["mtu"] = results["mtu"]
-            if results.get("operStatus"):
-                new_intf["oper_status"] = "up" if results["operStatus"]["Name"] == "intfOperUp" else "down"
-            if results.get("linkStatus"):
-                new_intf["link_status"] = "up" if results["linkStatus"]["Name"] == "linkUp" else "down"
-            intfStatusFixed.append(new_intf)
-    return intfStatusFixed
+    return [
+        _interface_status_entry(name, updates) for name, updates in collate_notifications(client, dId, pathElts).items()
+    ]
 
 
 def clean_query_results(path_elements: List[str], client: CloudvisionApi, dataset: str):
@@ -576,7 +554,58 @@ def clean_query_results(path_elements: List[str], client: CloudvisionApi, datase
     return query
 
 
-# pylint: disable=too-many-branches
+def collate_notifications(client: CloudvisionApi, dId: str, path_elements: List[str], key_index: int = -1) -> dict:
+    """Merge the updates of a query into a single attribute dict per object.
+
+    CloudVision streams an object's attributes across an arbitrary number of notifications and
+    batches, and a notification carrying state routinely omits the object's identity key (`intfId`,
+    `name`). The wildcard element of the gRPC path is the only reliable identity, so notifications
+    are grouped by that element and their updates merged.
+
+    Callers must interpret the merged result rather than an individual notification. Choosing
+    between attributes, or requiring two attributes to be present together, is only correct once
+    every frame for that object has been merged.
+
+    Args:
+        client (CloudvisionApi): CloudVision connection.
+        dId (str): Device ID to query.
+        path_elements (List[str]): Query path, normally containing a `Wildcard()`.
+        key_index (int): Index into a notification's path elements identifying the object.
+
+    Returns:
+        dict[str, dict]: Object name mapped to its merged updates, in first-seen order.
+    """
+    collated = {}
+    for batch in clean_query_results(path_elements, client, dId):
+        for notif in batch["notifications"]:
+            collated.setdefault(notif["path_elements"][key_index], {}).update(notif["updates"])
+    return collated
+
+
+def _interface_status_entry(name: str, updates: dict) -> dict:
+    """Build an interface entry from merged `intfStatus` updates.
+
+    Args:
+        name (str): Interface name taken from the query path.
+        updates (dict): Merged updates for that interface.
+
+    Returns:
+        dict: Interface attributes, omitting anything CloudVision did not report.
+    """
+    entry = {"interface": updates.get("intfId") or name}
+    if updates.get("linkStatus"):
+        entry["link_status"] = "up" if updates["linkStatus"]["Name"] == "linkUp" else "down"
+    if updates.get("operStatus"):
+        entry["oper_status"] = "up" if updates["operStatus"]["Name"] == "intfOperUp" else "down"
+    if updates.get("enabledState"):
+        entry["enabled"] = bool(updates["enabledState"]["Name"] == "enabled")
+    if updates.get("burnedInAddr"):
+        entry["mac_addr"] = updates["burnedInAddr"]
+    if updates.get("mtu"):
+        entry["mtu"] = updates["mtu"]
+    return entry
+
+
 def get_interfaces_port_channel(client: CloudvisionApi, dId: str):
     """Gets information about Port-Channel (LAG) interfaces for a device.
 
@@ -590,46 +619,55 @@ def get_interfaces_port_channel(client: CloudvisionApi, dId: str):
     """
     status_path = ["Sysdb", "lag", "input", "interface", "lag", "intfStatus", Wildcard()]
 
-    pc_interfaces = {}
-    for batch in clean_query_results(status_path, client, dId):
-        for notif in batch["notifications"]:
-            results = notif["updates"]
-            intf_id = results.get("intfId")
-            if not intf_id:
-                continue
-            entry = pc_interfaces.setdefault(intf_id, {"interface": intf_id})
-            if results.get("linkStatus"):
-                entry["link_status"] = "up" if results["linkStatus"]["Name"] == "linkUp" else "down"
-            if results.get("operStatus"):
-                entry["oper_status"] = "up" if results["operStatus"]["Name"] == "intfOperUp" else "down"
-            if results.get("addr"):
-                entry["mac_addr"] = results["addr"]
-            if results.get("mtu"):
-                entry["mtu"] = results["mtu"]
-            if "active" in results and "enabled" not in entry:
-                entry["enabled"] = bool(results["active"])
-
     config_path = ["Sysdb", "interface", "config", "eth", "lag", "intfConfig", Wildcard()]
 
-    for batch in clean_query_results(config_path, client, dId):
-        for notif in batch["notifications"]:
-            results = notif["updates"]
-            name = results.get("name")
-            if not name:
-                continue
-            entry = pc_interfaces.setdefault(name, {"interface": name})
-            if results.get("mtu") and not entry.get("mtu"):
-                entry["mtu"] = results["mtu"]
-            if results.get("addr") and not entry.get("mac_addr"):
-                entry["mac_addr"] = results["addr"]
-            if "enabled" not in entry:
-                state_local = results.get("enabledStateLocal")
-                if isinstance(state_local, dict) and state_local.get("Name"):
-                    entry["enabled"] = state_local["Name"] == "enabled"
-                elif "enabledDefault" in results:
-                    entry["enabled"] = bool(results["enabledDefault"])
+    # The two subtrees are collated separately rather than merged: they share attribute names
+    # (mtu, addr) and the operational values from intfStatus take precedence over the configured
+    # ones from intfConfig.
+    status = collate_notifications(client, dId, status_path)
+    config = collate_notifications(client, dId, config_path)
+
+    pc_interfaces = {}
+    for name in dict.fromkeys([*status, *config]):
+        status_updates = status.get(name, {})
+        config_updates = config.get(name, {})
+        entry = {"interface": status_updates.get("intfId") or config_updates.get("intfId") or name}
+        if status_updates.get("linkStatus"):
+            entry["link_status"] = "up" if status_updates["linkStatus"]["Name"] == "linkUp" else "down"
+        if status_updates.get("operStatus"):
+            entry["oper_status"] = "up" if status_updates["operStatus"]["Name"] == "intfOperUp" else "down"
+        mac_addr = status_updates.get("addr") or config_updates.get("addr")
+        if mac_addr:
+            entry["mac_addr"] = mac_addr
+        mtu = status_updates.get("mtu") or config_updates.get("mtu")
+        if mtu:
+            entry["mtu"] = mtu
+        enabled = _port_channel_enabled(status_updates, config_updates)
+        if enabled is not None:
+            entry["enabled"] = enabled
+        pc_interfaces[name] = entry
 
     return list(pc_interfaces.values())
+
+
+def _port_channel_enabled(status_updates: dict, config_updates: dict):
+    """Resolve a Port-Channel's enabled state, preferring operational data over configuration.
+
+    Args:
+        status_updates (dict): Merged updates from the `lag/input/interface/lag/intfStatus` subtree.
+        config_updates (dict): Merged updates from the `interface/config/eth/lag/intfConfig` subtree.
+
+    Returns:
+        bool: The enabled state, or None when CloudVision reported neither source.
+    """
+    if "active" in status_updates:
+        return bool(status_updates["active"])
+    state_local = config_updates.get("enabledStateLocal")
+    if isinstance(state_local, dict) and state_local.get("Name"):
+        return state_local["Name"] == "enabled"
+    if "enabledDefault" in config_updates:
+        return bool(config_updates["enabledDefault"])
+    return None
 
 
 def get_port_channel_members(client: CloudvisionApi, dId: str) -> dict:
@@ -646,13 +684,10 @@ def get_port_channel_members(client: CloudvisionApi, dId: str) -> dict:
     pathElts = ["Sysdb", "lag", "input", "config", "cli", "phyIntf", Wildcard()]
 
     members = {}
-    for batch in clean_query_results(pathElts, client, dId):
-        for notif in batch["notifications"]:
-            results = notif["updates"]
-            intf_id = results.get("intfId")
-            lag_path = results.get("lag")
-            if intf_id and isinstance(lag_path, list) and lag_path:
-                members[intf_id] = lag_path[-1]
+    for intf_name, updates in collate_notifications(client, dId, pathElts).items():
+        lag_path = updates.get("lag")
+        if isinstance(lag_path, list) and lag_path:
+            members[updates.get("intfId") or intf_name] = lag_path[-1]
     return members
 
 
@@ -666,17 +701,33 @@ def get_interface_transceiver(client: CloudvisionApi, dId: str, interface: str):
     """
     pathElts = ["Sysdb", "hardware", "archer", "xcvr", "status", "all", interface]
 
-    for batch in clean_query_results(pathElts, client, dId):
-        for notif in batch["notifications"]:
-            if notif["updates"].get("actualIdEepromContents") and notif["updates"]["actualIdEepromContents"].get(
-                "mediaType"
-            ):
-                return notif["updates"]["actualIdEepromContents"]["mediaType"]
-            if notif["updates"].get("mediaType"):
-                return notif["updates"]["mediaType"]["Name"]
-            if notif["updates"].get("localMediaType"):
-                return notif["updates"]["localMediaType"]["Name"]
+    for updates in collate_notifications(client, dId, pathElts).values():
+        media_type = _transceiver_media_type(updates)
+        if media_type:
+            return media_type
     return "Unknown"
+
+
+def _transceiver_media_type(updates: dict) -> str:
+    """Resolve a transceiver's media type from merged updates, most authoritative source first.
+
+    The priority has to be applied once to the merged attributes. Applying it per notification lets
+    a frame carrying only `localMediaType` win over a frame carrying the eeprom contents.
+
+    Args:
+        updates (dict): Merged updates for one transceiver.
+
+    Returns:
+        str: The media type, or an empty string when CloudVision reported none.
+    """
+    eeprom = updates.get("actualIdEepromContents")
+    if isinstance(eeprom, dict) and eeprom.get("mediaType"):
+        return eeprom["mediaType"]
+    if updates.get("mediaType"):
+        return updates["mediaType"]["Name"]
+    if updates.get("localMediaType"):
+        return updates["localMediaType"]["Name"]
+    return ""
 
 
 def get_all_interface_transceivers(client: CloudvisionApi, dId: str) -> dict:
@@ -693,17 +744,10 @@ def get_all_interface_transceivers(client: CloudvisionApi, dId: str) -> dict:
     pathElts = ["Sysdb", "hardware", "archer", "xcvr", "status", "all", Wildcard()]
 
     transceivers = {}
-    for batch in clean_query_results(pathElts, client, dId):
-        for notif in batch["notifications"]:
-            updates = notif["updates"]
-            intf = notif["path_elements"][-1]
-            eeprom = updates.get("actualIdEepromContents")
-            if isinstance(eeprom, dict) and eeprom.get("mediaType"):
-                transceivers[intf] = eeprom["mediaType"]
-            elif updates.get("mediaType"):
-                transceivers[intf] = updates["mediaType"]["Name"]
-            elif updates.get("localMediaType"):
-                transceivers[intf] = updates["localMediaType"]["Name"]
+    for intf, updates in collate_notifications(client, dId, pathElts).items():
+        media_type = _transceiver_media_type(updates)
+        if media_type:
+            transceivers[intf] = media_type
     return transceivers
 
 
@@ -739,12 +783,9 @@ def get_all_interface_modes(client: CloudvisionApi, dId: str) -> dict:
     pathElts = ["Sysdb", "bridging", "switchIntfConfig", "switchIntfConfig", Wildcard()]
 
     modes = {}
-    for batch in clean_query_results(pathElts, client, dId):
-        for notif in batch["notifications"]:
-            mode = notif["updates"].get("switchportMode")
-            if not mode:
-                continue
-            intf = notif["path_elements"][-1]
+    for intf, updates in collate_notifications(client, dId, pathElts).items():
+        mode = updates.get("switchportMode")
+        if mode:
             modes[intf] = mode["Name"]
     return modes
 
@@ -840,13 +881,10 @@ def get_all_interface_descriptions(client: CloudvisionApi, dId: str) -> dict:
 
     descriptions = {}
     for pathElts in paths:
-        for batch in clean_query_results(pathElts, client, dId):
-            for notif in batch["notifications"]:
-                updates = notif["updates"]
-                intf = updates.get("intfId")
-                description = updates.get("description")
-                if intf and description:
-                    descriptions[intf] = description
+        for intf, updates in collate_notifications(client, dId, pathElts).items():
+            description = updates.get("description")
+            if description:
+                descriptions[intf] = description
     return descriptions
 
 
@@ -863,12 +901,8 @@ def get_routed_interface_description(client: CloudvisionApi, dId: str, interface
     """
     pathElts = ["Sysdb", "interface", "config", Wildcard(), Wildcard(), "intfConfig", Wildcard()]
 
-    for batch in clean_query_results(pathElts, client, dId):
-        for notif in batch["notifications"]:
-            updates = notif["updates"]
-            if updates.get("intfId") == interface:
-                return updates.get("description") or ""
-    return ""
+    collated = collate_notifications(client, dId, pathElts)
+    return collated.get(interface, {}).get("description") or ""
 
 
 def get_interface_vrf(client: CloudvisionApi, dId: str, interface: str) -> str:
@@ -898,25 +932,12 @@ def get_ip_interfaces(client: CloudvisionApi, dId: str):
     pathElts = ["Sysdb", "ip", "config", "ipIntfConfig", Wildcard()]
 
     ip_intfs = []
-    for batch in clean_query_results(pathElts, client, dId):
-        # Group notifications by the wildcarded interface name from the path. gRPC can coalesce
-        # multiple interfaces into one batch, so per-batch accumulators would silently overwrite
-        # earlier interfaces' state.
-        per_intf = {}
-        for notif in batch["notifications"]:
-            intf_name = notif["path_elements"][-1]
-            entry = per_intf.setdefault(intf_name, {})
-            updates = notif["updates"]
-            if updates.get("intfId"):
-                entry["interface"] = updates["intfId"]
-            if updates.get("addrWithMask") and updates["addrWithMask"] != "0.0.0.0/0":
-                entry["addr"] = updates["addrWithMask"]
-            if updates.get("virtualAddrWithMask") and updates["virtualAddrWithMask"] != "0.0.0.0/0":
-                entry["virtual_addr"] = updates["virtualAddrWithMask"]
-        for entry in per_intf.values():
-            address = entry.get("addr") or entry.get("virtual_addr")
-            if entry.get("interface") and address:
-                ip_intfs.append({"interface": entry["interface"], "address": address})
+    for intf_name, updates in collate_notifications(client, dId, pathElts).items():
+        addresses = [updates.get("addrWithMask"), updates.get("virtualAddrWithMask")]
+        # CloudVision reports 0.0.0.0/0 for an interface with no address of that kind.
+        address = next((addr for addr in addresses if addr and addr != UNSET_IP_ADDRESS), None)
+        if address:
+            ip_intfs.append({"interface": updates.get("intfId") or intf_name, "address": address})
     return ip_intfs
 
 

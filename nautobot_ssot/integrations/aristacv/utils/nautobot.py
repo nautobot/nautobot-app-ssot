@@ -97,6 +97,9 @@ def get_config() -> CloudVisionAppConfig:
         "delete_devices_on_sync": is_truthy(
             app_settings.get("aristacv_delete_devices_on_sync", constants.DEFAULT_DELETE_DEVICES_ON_SYNC)
         ),
+        "delete_ipaddresses_on_sync": is_truthy(
+            app_settings.get("aristacv_delete_ipaddresses_on_sync", constants.DEFAULT_DELETE_IPADDRESSES_ON_SYNC)
+        ),
         "delete_namespaces_on_sync": is_truthy(
             app_settings.get("aristacv_delete_namespaces_on_sync", constants.DEFAULT_DELETE_NAMESPACES_ON_SYNC)
         ),

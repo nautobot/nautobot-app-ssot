@@ -6,11 +6,12 @@ from copy import deepcopy
 from unittest import mock
 
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.extras.choices import (
     SecretsGroupAccessTypeChoices,
     SecretsGroupSecretTypeChoices,
 )
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import (
     ExternalIntegration,
     Secret,
@@ -33,8 +34,10 @@ from nautobot_ssot.integrations.vsphere.models import SSOTvSphereConfig
 class SSOTvSphereConfigTestCase(TestCase):  # pylint: disable=too-many-public-methods
     """Tests for the SSOTvSphereConfig models."""
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Setup testing."""
+        populate_status_choices()
         vm_status_map = {
             "POWERED_OFF": "Offline",
             "POWERED_ON": "Active",
@@ -57,7 +60,7 @@ class SSOTvSphereConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
                 "parameters": {"variable": "NAUTOBOT_SSOT_VSPHERE_PASSWORD"},
             },
         )
-        self.sg_username, _ = SecretsGroupAssociation.objects.get_or_create(
+        cls.sg_username, _ = SecretsGroupAssociation.objects.get_or_create(
             secrets_group=secrets_group,
             access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
             secret_type=SecretsGroupSecretTypeChoices.TYPE_USERNAME,
@@ -65,7 +68,7 @@ class SSOTvSphereConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
                 "secret": inf_username,
             },
         )
-        self.sg_password, _ = SecretsGroupAssociation.objects.get_or_create(
+        cls.sg_password, _ = SecretsGroupAssociation.objects.get_or_create(
             secrets_group=secrets_group,
             access_type=SecretsGroupAccessTypeChoices.TYPE_REST,
             secret_type=SecretsGroupSecretTypeChoices.TYPE_PASSWORD,
@@ -73,7 +76,7 @@ class SSOTvSphereConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
                 "secret": inf_password,
             },
         )
-        self.external_integration = ExternalIntegration.objects.create(
+        cls.external_integration = ExternalIntegration.objects.create(
             name="vSphereModelUnitTestInstance",
             remote_url="https://vsphere.local",
             secrets_group=secrets_group,
@@ -81,10 +84,10 @@ class SSOTvSphereConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
             timeout=60,
         )
 
-        self.vsphere_config_dict = {
+        cls.vsphere_config_dict = {
             "name": "vSphereModelUnitTestConfig",
             "description": "Unit Test Config",
-            "vsphere_instance": self.external_integration,
+            "vsphere_instance": cls.external_integration,
             "enable_sync_to_nautobot": True,
             "default_vm_status_map": vm_status_map,
             "default_ip_status_map": ip_status_map,
@@ -94,7 +97,7 @@ class SSOTvSphereConfigTestCase(TestCase):  # pylint: disable=too-many-public-me
             "job_enabled": True,
         }
 
-        self.suspended_status, _ = Status.objects.get_or_create(name="Suspended")
+        cls.suspended_status, _ = Status.objects.get_or_create(name="Suspended")
 
     def test_create_vsphere_config_required_fields_only(self):
         """Successfully create vSphere config with required fields only."""

@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock
 
 from diffsync.exceptions import ObjectNotFound
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.citrix_adm.diffsync.adapters.citrix_adm import CitrixAdmAdapter
@@ -17,7 +17,7 @@ from nautobot_ssot.tests.citrix_adm.fixtures import (
 )
 
 
-class TestCitrixAdmAdapterTestCase(TransactionTestCase):  # pylint: disable=too-many-instance-attributes
+class TestCitrixAdmAdapterTestCase(TestCase):  # pylint: disable=too-many-instance-attributes
     """Test NautobotSsotCitrixAdmAdapter class."""
 
     databases = ("default", "job_logs")
@@ -32,32 +32,31 @@ class TestCitrixAdmAdapterTestCase(TransactionTestCase):  # pylint: disable=too-
         self.addr = None
         super().__init__(*args, **kwargs)
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Configure shared objects for test cases."""
-        super().setUp()
-        self.instance = MagicMock()
-        self.instance.name = "Test"
-        self.instance.remote_url = "https://test.example.com"
-        self.instance.verify_ssl = True
+        super().setUpTestData()
+        cls.instance = MagicMock()
+        cls.instance.name = "Test"
+        cls.instance.remote_url = "https://test.example.com"
+        cls.instance.verify_ssl = True
 
-        self.citrix_adm_client = MagicMock()
-        self.citrix_adm_client.get_sites.return_value = SITE_FIXTURE_RECV
-        self.citrix_adm_client.get_devices.return_value = DEVICE_FIXTURE_RECV
-        self.citrix_adm_client.get_vlan_bindings.side_effect = VLAN_FIXTURE_RECV
-        self.citrix_adm_client.get_nsip6.side_effect = NSIP6_FIXTURE_RECV
-        self.job = CitrixAdmDataSource()
-        self.job.debug = True
-        self.job.location_map = {}
-        self.job.parent_location = None
-        self.job.hostname_mapping = {}
-        self.job.logger.warning = MagicMock()
-        self.job.logger.info = MagicMock()
-        self.job.logger.debug = MagicMock()
-        self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, task_name="fake task", worker="default"
-        )
-        self.citrix_adm = CitrixAdmAdapter(job=self.job, sync=None, instances=[self.instance])
-        self.citrix_adm.conn = self.citrix_adm_client
+        cls.citrix_adm_client = MagicMock()
+        cls.citrix_adm_client.get_sites.return_value = SITE_FIXTURE_RECV
+        cls.citrix_adm_client.get_devices.return_value = DEVICE_FIXTURE_RECV
+        cls.citrix_adm_client.get_vlan_bindings.side_effect = VLAN_FIXTURE_RECV
+        cls.citrix_adm_client.get_nsip6.side_effect = NSIP6_FIXTURE_RECV
+        cls.job = CitrixAdmDataSource()
+        cls.job.debug = True
+        cls.job.location_map = {}
+        cls.job.parent_location = None
+        cls.job.hostname_mapping = {}
+        cls.job.logger.warning = MagicMock()
+        cls.job.logger.info = MagicMock()
+        cls.job.logger.debug = MagicMock()
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
+        cls.citrix_adm = CitrixAdmAdapter(job=cls.job, sync=None, instances=[cls.instance])
+        cls.citrix_adm.conn = cls.citrix_adm_client
 
     def test_load_site(self):
         """Test Nautobot SSoT Citrix ADM load_site() function."""

@@ -5,9 +5,10 @@ from uuid import UUID
 
 from diffsync.exceptions import ObjectNotFound
 from django.contrib.contenttypes.models import ContentType
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
 from nautobot.extras.choices import CustomFieldTypeChoices
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import CustomField, Role, Status
 from nautobot.ipam.models import VLAN
 
@@ -20,37 +21,37 @@ from nautobot_ssot.integrations.device42.utils.nautobot import (
 )
 
 
-class TestNautobotUtils(TransactionTestCase):  # pylint: disable=too-many-instance-attributes
+class TestNautobotUtils(TestCase):  # pylint: disable=too-many-instance-attributes
     """Test Nautobot utility methods."""
 
     databases = ("default", "job_logs")
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Setup shared test objects."""
-        super().setUp()
-        self.status_active = Status.objects.get(name="Active")
-        self.cisco_manu, _ = Manufacturer.objects.get_or_create(name="Cisco")
+        super().setUpTestData()
+        populate_status_choices()
+        cls.status_active = Status.objects.get(name="Active")
+        cls.cisco_manu, _ = Manufacturer.objects.get_or_create(name="Cisco")
         site_lt = LocationType.objects.get_or_create(name="Site")[0]
         site_lt.content_types.add(ContentType.objects.get_for_model(Device))
         site_lt.content_types.add(ContentType.objects.get_for_model(VLAN))
-        self.site = Location.objects.create(
+        cls.site = Location.objects.create(
             name="Test Site",
-            status=self.status_active,
+            status=cls.status_active,
             location_type=site_lt,
         )
-        self.site.validated_save()
-        _dt = DeviceType.objects.create(model="CSR1000v", manufacturer=self.cisco_manu)
+        cls.site.validated_save()
+        _dt = DeviceType.objects.create(model="CSR1000v", manufacturer=cls.cisco_manu)
         _dt.validated_save()
         _dr = Role.objects.create(name="CORE")
         _dr.content_types.add(ContentType.objects.get_for_model(Device))
         _dr.validated_save()
-        self.dev = Device(name="Test", role=_dr, device_type=_dt, location=self.site, status=self.status_active)
-        self.dev.validated_save()
-        self.intf = Interface(
-            name="Management", type="virtual", mode="access", device=self.dev, status=self.status_active
-        )
-        self.intf.validated_save()
-        self.mock_dev = NautobotDevice(
+        cls.dev = Device(name="Test", role=_dr, device_type=_dt, location=cls.site, status=cls.status_active)
+        cls.dev.validated_save()
+        cls.intf = Interface(name="Management", type="virtual", mode="access", device=cls.dev, status=cls.status_active)
+        cls.intf.validated_save()
+        cls.mock_dev = NautobotDevice(
             name="Test",
             building="Microsoft HQ",
             room=None,
@@ -69,23 +70,23 @@ class TestNautobotUtils(TransactionTestCase):  # pylint: disable=too-many-instan
             custom_fields=None,
             uuid=None,
         )
-        self.mock_vlan = VLAN(
+        cls.mock_vlan = VLAN(
             vid=1,
             name="Test",
-            location=self.site,
-            status=self.status_active,
+            location=cls.site,
+            status=cls.status_active,
         )
-        self.mock_vlan.validated_save()
-        self.adapter = MagicMock()
-        self.adapter.get = MagicMock()
-        self.adapter.platform_map = {}
-        self.adapter.vlan_map = {"Microsoft HQ": {}, "Global": {}}
-        self.adapter.vlan_map["Microsoft HQ"][1] = self.mock_vlan.id
-        self.adapter.site_map = {}
-        self.adapter.status_map = {}
-        self.adapter.objects_to_create = {"platforms": [], "vlans": [], "tagged_vlans": []}
-        self.adapter.site_map["Test Site"] = self.site.id
-        self.adapter.status_map["Active"] = self.status_active.id
+        cls.mock_vlan.validated_save()
+        cls.adapter = MagicMock()
+        cls.adapter.get = MagicMock()
+        cls.adapter.platform_map = {}
+        cls.adapter.vlan_map = {"Microsoft HQ": {}, "Global": {}}
+        cls.adapter.vlan_map["Microsoft HQ"][1] = cls.mock_vlan.id
+        cls.adapter.site_map = {}
+        cls.adapter.status_map = {}
+        cls.adapter.objects_to_create = {"platforms": [], "vlans": [], "tagged_vlans": []}
+        cls.adapter.site_map["Test Site"] = cls.site.id
+        cls.adapter.status_map["Active"] = cls.status_active.id
 
     def test_verify_platform_ios(self):
         """Test the verify_platform method with IOS."""

@@ -1,0 +1,86 @@
+[
+    {
+        "localHost": "nyc-rtr-01",
+        "localInt": "eth1",
+        "localSn": "VM60D5EE2211",
+        "localMedia": "10GBase-SR",
+        "protocol": "lldp",
+        "remoteHost": "nyc-leaf-01",
+        "remoteInt": "Et15",
+        "remoteSn": "5254.0029.fbf2",
+        "remoteMedia": "10GBase-SR",
+        "siteName": "NYC-RTR-01"
+    },
+    {
+        "localHost": "nyc-leaf-01",
+        "localInt": "Et15",
+        "localSn": "5254.0029.fbf2",
+        "localMedia": "10GBase-SR",
+        "protocol": "lldp",
+        "remoteHost": "nyc-rtr-01",
+        "remoteInt": "eth1",
+        "remoteSn": "VM60D5EE2211",
+        "remoteMedia": "10GBase-SR",
+        "siteName": "NYC-LEAF-01"
+    },
+    {
+        "localHost": "nyc-leaf-01",
+        "localInt": "Et20",
+        "localSn": "5254.0029.fbf2",
+        "localMedia": "10GBase-SR",
+        "protocol": "lldp",
+        "remoteHost": "nyc-spine-02",
+        "remoteInt": "Et5",
+        "remoteSn": "5254.00d3.a91d",
+        "remoteMedia": "10GBase-SR",
+        "siteName": "NYC-LEAF-01"
+    },
+    {
+        "localHost": "jcy-rtr-01",
+        "localInt": "Gi1",
+        "localSn": "a000a01",
+        "localMedia": "1000BaseTX",
+        "protocol": "cdp",
+        "remoteHost": "jcy-spine-01.infra.ntc.com",
+        "remoteInt": "Et1",
+        "remoteSn": "a000a04",
+        "remoteMedia": "1000BaseTX",
+        "siteName": "JCY-RTR-01_1"
+    },
+    {
+        "localHost": "nyc-rtr-01",
+        "localInt": "ipip",
+        "localSn": "VM60D5EE2211",
+        "localMedia": null,
+        "protocol": "cdp",
+        "remoteHost": "jcy-rtr-02",
+        "remoteInt": "Gi4",
+        "remoteSn": "a000a02",
+        "remoteMedia": "Virtual",
+        "siteName": "NYC-RTR-01"
+    },
+    {
+        "localHost": "nyc-rtr-01",
+        "localInt": "eth1",
+        "localSn": "VM60D5EE2211",
+        "localMedia": "10GBase-SR",
+        "protocol": "lldp",
+        "remoteHost": null,
+        "remoteInt": null,
+        "remoteSn": null,
+        "remoteMedia": null,
+        "siteName": "NYC-RTR-01"
+    },
+    {
+        "localHost": "nyc-rtr-01",
+        "localInt": "ipip",
+        "localSn": "VM60D5EE2211",
+        "localMedia": null,
+        "protocol": "cdp",
+        "remoteHost": "nyc-rtr-01",
+        "remoteInt": "ipip",
+        "remoteSn": "VM60D5EE2211",
+        "remoteMedia": null,
+        "siteName": "NYC-RTR-01"
+    }
+]

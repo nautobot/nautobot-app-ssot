@@ -121,6 +121,52 @@ class TestVsphereAdapter(unittest.TestCase):
         self.assertEqual(len(vm2.tags), 1)
         self.assertIn("SSoT Synced from vSphere", [tag["name"] for tag in vm2.tags])
 
+    def test_load_virtualmachines_skips_duplicate_name(self):
+        """Duplicate VM names within a cluster are warned and skipped instead of crashing.
+
+        Regression test #1236. vSphere allows multiple VMs with the same name in a cluster,
+        but Nautobot's VirtualMachine is unique on (cluster, tenant, name). Before
+        this guard, the second same-named VM resolved to the existing diffsync VM and
+        load_vm_interfaces raised ObjectAlreadyExists on add_child.
+        """
+        self.vsphere_adapter.client.get_vms_from_cluster.return_value = self.resp_with_json(
+            f"{FIXTURES}/get_vms_from_cluster_duplicate.json"
+        )
+
+        mock_response_vm_details = unittest.mock.MagicMock()
+        mock_response_vm_details.json.side_effect = [
+            json_fixture(f"{FIXTURES}/vm_details_nautobot.json"),
+            json_fixture(f"{FIXTURES}/vm_details_nautobot.json"),
+        ]
+        self.vsphere_adapter.client.get_vm_details.return_value = mock_response_vm_details
+
+        mock_response_get_vm_interfaces = unittest.mock.MagicMock()
+        mock_response_get_vm_interfaces.json.side_effect = [
+            json_fixture(f"{FIXTURES}/get_vm_interfaces.json"),
+        ]
+        self.vsphere_adapter.client.get_vm_interfaces.return_value = mock_response_get_vm_interfaces
+
+        cluster_json_info = {"cluster": "domain-c123", "name": "HeshLawCluster"}
+        diffsync_cluster, _ = self.vsphere_adapter.get_or_instantiate(
+            self.vsphere_adapter.cluster,
+            {"name": "HeshLawCluster", "cluster_type__name": "VMWare vSphere"},
+        )
+
+        self.vsphere_adapter.load_virtualmachines(cluster_json_info, diffsync_cluster)
+
+        vms = [
+            vm
+            for vm in self.vsphere_adapter.get_all("virtual_machine")
+            if vm.name == "DuplicateNamedVM" and vm.cluster__name == "HeshLawCluster"
+        ]
+        self.assertEqual(len(vms), 1)
+        warning_calls = [
+            call_args
+            for call_args in self.vsphere_adapter.job.logger.warning.call_args_list
+            if "Duplicate Virtual Machine name 'DuplicateNamedVM'" in call_args.args[0]
+        ]
+        self.assertEqual(len(warning_calls), 1)
+
     def test_load_vm_interfaces(self):
         vm_detail_json = json_fixture(f"{FIXTURES}/vm_details_nautobot.json")["value"]
         diffsync_vm, _ = self.vsphere_adapter.get_or_instantiate(

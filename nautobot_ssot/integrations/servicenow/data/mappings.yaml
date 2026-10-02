@@ -67,6 +67,16 @@ device:
         key: "model_id"
         table: "cmdb_hardware_product_model"
         column: "name"
+        # Several manufacturers can share a model name, so `name` alone does not identify a product model.
+        # Narrow the lookup by manufacturer, reusing the sys_id resolved by the mapping above where available
+        # and falling back to resolving `manufacturer_name` when it is not part of the data being written.
+        match:
+          - column: "manufacturer"
+            key: "manufacturer"
+            field: "manufacturer_name"
+            reference:
+              table: "core_company"
+              column: "name"
     - field: "serial"
       column: "serial_number"
 interface:

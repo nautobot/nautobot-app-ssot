@@ -4,8 +4,18 @@ from unittest.mock import MagicMock
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
-from nautobot.core.testing import TransactionTestCase
-from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer, Platform
+from nautobot.apps.testing import TestCase
+from nautobot.dcim.models import (
+    Device,
+    DeviceType,
+    Interface,
+    Location,
+    LocationType,
+    Manufacturer,
+    Platform,
+    SoftwareVersion,
+)
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import JobResult, Note, Role, Status
 from nautobot.ipam.models import IPAddress, IPAddressToInterface, Namespace, Prefix
 
@@ -15,30 +25,32 @@ from nautobot_ssot.integrations.meraki.jobs import MerakiDataSource
 User = get_user_model()
 
 
-class NautobotDiffSyncTestCase(TransactionTestCase):
+class NautobotDiffSyncTestCase(TestCase):
     """Test the NautobotAdapter class."""
 
     databases = ("default", "job_logs")
 
-    def setUp(self):  # pylint: disable=too-many-locals disable=too-many-statements
+    @classmethod
+    def setUpTestData(cls):  # pylint: disable=too-many-locals disable=too-many-statements
         """Per-test-case data setup."""
-        super().setUp()
-        self.status_active = Status.objects.get(name="Active")
+        super().setUpTestData()
+        populate_status_choices()
+        cls.status_active = Status.objects.get(name="Active")
 
-        self.region_type = LocationType.objects.get_or_create(name="Region", defaults={"nestable": True})[0]
+        cls.region_type = LocationType.objects.get_or_create(name="Region", defaults={"nestable": True})[0]
         global_region = Location.objects.create(
             name="Global Region",
-            location_type=self.region_type,
-            status=self.status_active,
+            location_type=cls.region_type,
+            status=cls.status_active,
         )
         global_region.validated_save()
-        self.site_type = LocationType.objects.get_or_create(name="Site")[0]
-        self.site_type.content_types.add(ContentType.objects.get_for_model(Device))
-        self.site_type.content_types.add(ContentType.objects.get_for_model(Prefix))
+        cls.site_type = LocationType.objects.get_or_create(name="Site")[0]
+        cls.site_type.content_types.add(ContentType.objects.get_for_model(Device))
+        cls.site_type.content_types.add(ContentType.objects.get_for_model(Prefix))
         site1 = Location.objects.create(
             name="Lab",
-            location_type=self.site_type,
-            status=self.status_active,
+            location_type=cls.site_type,
+            status=cls.status_active,
             time_zone="America/Chicago",
         )
         site1.validated_save()
@@ -66,7 +78,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
         lab01 = Device.objects.create(
             name="Lab01",
             serial="ABC-123-456",
-            status=self.status_active,
+            status=cls.status_active,
             role=core_role,
             device_type=mx84,
             platform=meraki_plat,
@@ -91,7 +103,7 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
             mode="access",
             mgmt_only=True,
             type="1000base-t",
-            status=self.status_active,
+            status=cls.status_active,
         )
         lab01_mgmt.validated_save()
         lab01_mgmt.custom_field_data["system_of_record"] = "Meraki SSoT"
@@ -99,9 +111,9 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
 
         test_ns = Namespace.objects.create(name="Test")
         lab_prefix = Prefix.objects.create(
-            prefix="10.0.0.0/24", location=site1, namespace=test_ns, status=self.status_active
+            prefix="10.0.0.0/24", location=site1, namespace=test_ns, status=cls.status_active
         )
-        lab01_mgmt_ip = IPAddress.objects.create(address="10.0.0.1/24", parent=lab_prefix, status=self.status_active)
+        lab01_mgmt_ip = IPAddress.objects.create(address="10.0.0.1/24", parent=lab_prefix, status=cls.status_active)
         lab_prefix.custom_field_data["system_of_record"] = "Meraki SSoT"
         lab_prefix.validated_save()
         lab01_mgmt_ip.custom_field_data["system_of_record"] = "Meraki SSoT"
@@ -113,11 +125,11 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
         job.parent_location = global_region
         job.hostname_mapping = []
         job.devicetype_mapping = [("MS", "Switch"), ("MX", "Firewall")]
-        job.network_loctype = self.site_type
+        job.network_loctype = cls.site_type
         job.tenant = None
         job.device_status = None
         job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
-        self.nb_adapter = NautobotAdapter(job=job, sync=None)
+        cls.nb_adapter = NautobotAdapter(job=job, sync=None)
 
     def test_data_loading(self):
         """Test the load() function."""
@@ -143,3 +155,112 @@ class NautobotDiffSyncTestCase(TransactionTestCase):
             {"10.0.0.1__Lab01__Test__wan1"},
             {map.get_unique_id() for map in self.nb_adapter.get_all("ipassignment")},
         )
+
+    def test_ipassignment_primary_for_synced_device(self):
+        """Validate an IP marked primary for the synced device loads as primary."""
+        lab01 = Device.objects.get(name="Lab01")
+        lab01_mgmt_ip = IPAddress.objects.get(host="10.0.0.1")
+        lab01.primary_ip4 = lab01_mgmt_ip
+        lab01.validated_save()
+
+        self.nb_adapter.load()
+
+        assignment = self.nb_adapter.get("ipassignment", "10.0.0.1__Lab01__Test__wan1")
+        self.assertTrue(assignment.primary)
+
+    def test_ipassignment_primary_for_other_device(self):
+        """Validate an IP primary for a different device is not marked primary for the synced device."""
+        lab01_mgmt_ip = IPAddress.objects.get(host="10.0.0.1")
+        lab01 = Device.objects.get(name="Lab01")
+
+        # Assign the same IP to a second device and make it that device's primary.
+        lab02 = Device.objects.create(
+            name="Lab02",
+            serial="DEF-456-789",
+            status=self.status_active,
+            role=lab01.role,
+            device_type=lab01.device_type,
+            platform=lab01.platform,
+            location=lab01.location,
+        )
+        lab02.custom_field_data["system_of_record"] = "Meraki SSoT"
+        lab02.validated_save()
+        lab02_mgmt = Interface.objects.create(
+            name="wan1",
+            device=lab02,
+            enabled=True,
+            mode="access",
+            mgmt_only=True,
+            type="1000base-t",
+            status=self.status_active,
+        )
+        lab02_mgmt.custom_field_data["system_of_record"] = "Meraki SSoT"
+        lab02_mgmt.validated_save()
+        IPAddressToInterface.objects.create(ip_address=lab01_mgmt_ip, interface=lab02_mgmt)
+        lab02.primary_ip4 = lab01_mgmt_ip
+        lab02.validated_save()
+
+        self.nb_adapter.load()
+
+        # The IP is only primary for Lab02, so the Lab01 assignment must not be flagged primary.
+        lab01_assignment = self.nb_adapter.get("ipassignment", "10.0.0.1__Lab01__Test__wan1")
+        self.assertFalse(lab01_assignment.primary)
+        lab02_assignment = self.nb_adapter.get("ipassignment", "10.0.0.1__Lab02__Test__wan1")
+        self.assertTrue(lab02_assignment.primary)
+
+    def test_sync_complete_deletes_deferred_osversion(self):
+        """Validate a deferred SoftwareVersion is deleted once the Device has moved to the new version."""
+        self.nb_adapter.job.debug = False
+        lab01 = Device.objects.get(name="Lab01")
+        old_version = SoftwareVersion.objects.create(
+            version="15.42", platform=lab01.platform, status=self.status_active
+        )
+        new_version = SoftwareVersion.objects.create(
+            version="16.00", platform=lab01.platform, status=self.status_active
+        )
+        lab01.software_version = old_version
+        lab01.validated_save()
+
+        # NautobotDevice.update() repoints the Device during the sync, before sync_complete runs.
+        lab01.software_version = new_version
+        lab01.validated_save()
+        self.nb_adapter.objects_to_delete["osversions"].append(old_version)
+
+        self.nb_adapter.sync_complete(source=MagicMock(), diff=MagicMock())
+
+        self.assertFalse(SoftwareVersion.objects.filter(version="15.42").exists())
+        self.assertEqual([], self.nb_adapter.objects_to_delete["osversions"])
+
+    def test_sync_complete_warns_on_still_referenced_osversion(self):
+        """Validate a SoftwareVersion still in use logs a warning instead of raising ProtectedError."""
+        self.nb_adapter.job.debug = False
+        lab01 = Device.objects.get(name="Lab01")
+        old_version = SoftwareVersion.objects.create(
+            version="15.42", platform=lab01.platform, status=self.status_active
+        )
+        lab01.software_version = old_version
+        lab01.validated_save()
+        self.nb_adapter.objects_to_delete["osversions"].append(old_version)
+
+        self.nb_adapter.sync_complete(source=MagicMock(), diff=MagicMock())
+
+        self.nb_adapter.job.logger.warning.assert_called_once_with(f"Deletion failed protected object: {old_version}")
+        self.assertTrue(SoftwareVersion.objects.filter(version="15.42").exists())
+
+    def test_sync_complete_deletes_device_before_osversion(self):
+        """Validate a Device queued for deletion is removed before its SoftwareVersion, releasing the protected FK."""
+        self.nb_adapter.job.debug = False
+        lab01 = Device.objects.get(name="Lab01")
+        old_version = SoftwareVersion.objects.create(
+            version="15.42", platform=lab01.platform, status=self.status_active
+        )
+        lab01.software_version = old_version
+        lab01.validated_save()
+        self.nb_adapter.objects_to_delete["devices"].append(lab01)
+        self.nb_adapter.objects_to_delete["osversions"].append(old_version)
+
+        self.nb_adapter.sync_complete(source=MagicMock(), diff=MagicMock())
+
+        # Had the SoftwareVersion been processed before the Device, the protected FK would have blocked its deletion.
+        self.assertFalse(Device.objects.filter(name="Lab01").exists())
+        self.assertFalse(SoftwareVersion.objects.filter(version="15.42").exists())

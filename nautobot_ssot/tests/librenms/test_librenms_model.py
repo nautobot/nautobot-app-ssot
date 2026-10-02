@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 from diffsync import Adapter
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device as NautobotDevice
 from nautobot.dcim.models import DeviceType, Location, LocationType, Manufacturer
 from nautobot.extras.models import Role, Status

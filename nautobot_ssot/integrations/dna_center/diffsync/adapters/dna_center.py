@@ -578,7 +578,7 @@ class DnaCenterAdapter(Adapter):
                     "port_type": port_type,
                     "port_mode": "tagged" if port["portMode"] == "trunk" else "access",
                     "mac_addr": port["macAddress"].upper() if port.get("macAddress") else None,
-                    "mtu": port["mtu"] if port.get("mtu") else 1500,
+                    "mtu": port["mtu"] if port.get("mtu") and port.get("mtu") != "0" else None,
                     "status": port_status,
                     "uuid": None,
                 },

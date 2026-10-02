@@ -4,7 +4,7 @@
 from unittest.mock import MagicMock
 
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.extras.models.statuses import Status
 from nautobot.extras.models.tags import Tag
 from nautobot.ipam.models import IPAddress, Prefix

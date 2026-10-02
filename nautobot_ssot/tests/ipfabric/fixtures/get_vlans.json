@@ -76,5 +76,17 @@
       "vlanName":"dbvlan0001",
       "vlanId":393,
       "dscr":"None"
+   },
+   {
+      "siteName":"JCY-SPINE-01.INFRA.NTC.COM_1",
+      "vlanName":"badvlan0001",
+      "vlanId":0,
+      "dscr":"None"
+   },
+   {
+      "siteName":"JCY-SPINE-01.INFRA.NTC.COM_1",
+      "vlanName":"badvlan0002",
+      "vlanId":5000,
+      "dscr":"None"
    }
 ]

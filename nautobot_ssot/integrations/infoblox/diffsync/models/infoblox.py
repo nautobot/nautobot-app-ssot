@@ -68,19 +68,20 @@ class InfobloxNetwork(Network):
             network_view_to_namespace_map=self.adapter.config.infoblox_network_view_to_namespace_map,
             direction="ns_to_nv",
         )
-        network_type = attrs.get("network_type", self.network_type)
-        if network_type != "container":
-            self.adapter.conn.update_network(
-                prefix=self.get_identifiers()["network"],
-                network_view=network_view,
-                comment=attrs.get("description", ""),
-            )
-        else:
-            self.adapter.conn.update_network_container(
-                prefix=self.get_identifiers()["network"],
-                network_view=network_view,
-                comment=attrs.get("description", ""),
-            )
+        if "description" in attrs:
+            network_type = attrs.get("network_type", self.network_type)
+            if network_type != "container":
+                self.adapter.conn.update_network(
+                    prefix=self.get_identifiers()["network"],
+                    network_view=network_view,
+                    comment=attrs.get("description", ""),
+                )
+            else:
+                self.adapter.conn.update_network_container(
+                    prefix=self.get_identifiers()["network"],
+                    network_view=network_view,
+                    comment=attrs.get("description", ""),
+                )
         if attrs.get("ranges"):
             self.adapter.job.logger.warning(
                 f"Prefix, {self.network}-{self.namespace}, has a change of Ranges in Nautobot, but"

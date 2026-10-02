@@ -122,7 +122,7 @@ class VsphereDiffSync(Adapter):
             diffsync_cluster (ClusterModel): Current DiffSync Cluster object.
             cluster_name (str): Name of the cluster to which the VM belongs.
         """
-        diffsync_virtualmachine, _ = self.get_or_instantiate(
+        diffsync_virtualmachine, created = self.get_or_instantiate(
             self.virtual_machine,
             {"name": virtual_machine.get("name"), "cluster__name": cluster_name},
             {
@@ -135,6 +135,13 @@ class VsphereDiffSync(Adapter):
                 "tags": tags,
             },
         )
+        # vSphere allows duplicate VM names within a cluster, but Nautobot has a uniqueness constraint on cluster,
+        # tenant (not applicable here), and name. If it wasn't created via get_or_instantiate, we can assume it's a duplicate.
+        if not created:
+            self.job.logger.warning(
+                f"Duplicate Virtual Machine name '{virtual_machine.get('name')}' found in cluster '{cluster_name}'. Skipping duplicate VM."
+            )
+            return
         self.load_vm_interfaces(
             vsphere_virtual_machine_details=virtual_machine_details,
             vm_id=virtual_machine["vm"],

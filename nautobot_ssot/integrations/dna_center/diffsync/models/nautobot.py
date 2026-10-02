@@ -480,7 +480,7 @@ class NautobotIPAddress(base.IPAddress):
         """Create IPAddress in Nautobot from IPAddress object."""
         new_ip = IPAddress(
             address=f"{ids['host']}/{attrs['mask_length']}",
-            namespace=adapter.namespace_map[ids["namespace"]],
+            namespace=Namespace.objects.get(id=adapter.namespace_map[ids["namespace"]]),
             status_id=adapter.status_map["Active"],
         )
         if attrs.get("tenant"):

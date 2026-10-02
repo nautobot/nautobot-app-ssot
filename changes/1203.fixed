@@ -1,1 +1,0 @@
-Fixed an AttributeError in Infoblox SSoT integration when updating Prefix VLAN assignments.

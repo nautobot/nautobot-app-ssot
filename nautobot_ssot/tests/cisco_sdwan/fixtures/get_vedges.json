@@ -1,0 +1,35 @@
+{
+    "data": [
+        {
+            "deviceType": "vedge",
+            "host-name": "sdwan-edge-01",
+            "deviceModel": "vedge-C8000V",
+            "uuid": "C8K-9D6F2A41-1111-2222-3333-AAAA1111BBBB",
+            "version": "17.06.03a.0.6476",
+            "system-ip": "10.255.1.1",
+            "deviceIP": "10.255.1.1",
+            "reachability": "reachable",
+            "site-id": "101",
+            "validity": "valid"
+        },
+        {
+            "deviceType": "vedge",
+            "host-name": "sdwan-edge-02",
+            "deviceModel": "vedge-ISR4451-X",
+            "uuid": "ISR-1B2C3D4E-4444-5555-6666-CCCC2222DDDD",
+            "version": "17.9.4",
+            "system-ip": "10.255.1.2",
+            "deviceIP": "10.255.1.2",
+            "reachability": "reachable",
+            "site-id": "102",
+            "validity": "valid"
+        },
+        {
+            "deviceType": "vedge",
+            "deviceModel": "vedge-C8000V",
+            "uuid": "C8K-0F9E8D7C-7777-8888-9999-EEEE3333FFFF",
+            "version": "",
+            "validity": "valid"
+        }
+    ]
+}

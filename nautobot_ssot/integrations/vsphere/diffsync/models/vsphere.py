@@ -275,7 +275,7 @@ class VirtualMachineModel(vSphereModelDiffSync):
         if attrs.get("primary_ip4__host") or attrs.get("primary_ip6__host"):
             self.adapter._primary_ips.append(
                 {
-                    "device": {"name": self.name},
+                    "device": {"name": self.name, "cluster__name": self.cluster__name},
                     "primary_ip4": attrs.pop("primary_ip4__host", None),
                     "primary_ip6": attrs.pop("primary_ip6__host", None),
                 }

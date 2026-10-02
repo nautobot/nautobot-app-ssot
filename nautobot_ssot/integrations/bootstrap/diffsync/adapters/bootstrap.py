@@ -934,7 +934,6 @@ class BootstrapAdapter(Adapter, LabelMixin):
         """Load ScheduledJob objects from Bootstrap into DiffSync Models."""
         if self.job.debug:
             self.job.logger.debug(f"Loading Bootstrap ScheduledJob {scheduled_job}")
-        print(f"\n\n\nHUHUHWHAT: {scheduled_job=}")
         scheduled_job = self.load_branch_values(item_type="scheduled_job", original_item=scheduled_job)
         try:
             self.get(self.scheduled_job, scheduled_job["name"])
@@ -975,7 +974,6 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 crontab=crontab,
                 job_vars=job_vars,
                 profile=scheduled_job.get("profile", False),
-                approval_required=scheduled_job.get("approval_required", False),
                 task_queue=scheduled_job.get("task_queue"),
                 enabled=scheduled_job.get("enabled", True),
             )

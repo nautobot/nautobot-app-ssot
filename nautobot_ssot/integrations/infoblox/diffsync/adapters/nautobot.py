@@ -564,7 +564,25 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
 
         self.relationship_map = {r.label: r.id for r in Relationship.objects.only("id", "label")}
         self.status_map = {s.name: s.id for s in Status.objects.only("id", "name")}
-        self.location_map = {loc.name: loc.id for loc in Location.objects.only("id", "name")}
+        # Keyed by lower-cased Location name so extattr lookups are case-insensitive. Also grab
+        # the LocationType's permitted content-types so that callers can skip assigning an object
+        # to a Location whose type cannot contain it.
+        self.location_map = {}
+        for location in Location.objects.select_related("location_type").prefetch_related(
+            "location_type__content_types"
+        ):
+            location_key = location.name.lower()
+            if location_key in self.location_map:
+                self.job.logger.warning(
+                    f"Multiple Locations share the case-insensitive name '{location_key}' "
+                    f"(e.g. '{location.name}'). Extensibility Attribute location matching may be "
+                    f"nondeterministic; consider giving these Locations distinct names."
+                )
+            self.location_map[location_key] = {
+                "id": location.id,
+                "location_type": location.location_type.name,
+                "content_types": {ct.model for ct in location.location_type.content_types.all()},
+            }
         self.tenant_map = {t.name: t.id for t in Tenant.objects.only("id", "name")}
         self.role_map = {r.name: r.id for r in Role.objects.only("id", "name")}
         self.load_namespaces(sync_filters=sync_filters, network_view_to_namespace_map=network_view_to_namespace_map)

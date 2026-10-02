@@ -4,7 +4,7 @@ from io import StringIO
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import (
     Device,
     DeviceType,

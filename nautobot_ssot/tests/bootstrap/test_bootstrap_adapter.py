@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import yaml
 from deepdiff import DeepDiff
-from nautobot.core.testing import TransactionTestCase
+from nautobot.apps.testing import TestCase
 from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.bootstrap.diffsync.adapters.bootstrap import (
@@ -110,7 +110,7 @@ def assert_deep_diff(test_case, actual, expected, keys_to_normalize=None):
     test_case.assertEqual(diff, {})
 
 
-class TestBootstrapAdapterTestCase(TransactionTestCase):
+class TestBootstrapAdapterTestCase(TestCase):
     """Test NautobotSsotBootstrapAdapter class."""
 
     databases = ("default", "job_logs")
@@ -119,19 +119,18 @@ class TestBootstrapAdapterTestCase(TransactionTestCase):
         super().__init__(*args, **kwargs)
         self.max_diff = None
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         """Initialize test case."""
-        self.job = BootstrapDataSource()
-        self.job.job_result = JobResult.objects.create(
-            name=self.job.class_path, task_name="fake task", worker="default"
-        )
+        cls.job = BootstrapDataSource()
+        cls.job.job_result = JobResult.objects.create(name=cls.job.class_path, task_name="fake task", worker="default")
 
-        self.bootstrap_client = MagicMock()
-        self.bootstrap_client.get_global_settings.return_value = GLOBAL_YAML_SETTINGS
-        self.bootstrap_client.get_develop_settings.return_value = DEVELOP_YAML_SETTINGS
-        self.bootstrap_client.get_production_settings.return_value = GLOBAL_YAML_SETTINGS
+        cls.bootstrap_client = MagicMock()
+        cls.bootstrap_client.get_global_settings.return_value = GLOBAL_YAML_SETTINGS
+        cls.bootstrap_client.get_develop_settings.return_value = DEVELOP_YAML_SETTINGS
+        cls.bootstrap_client.get_production_settings.return_value = GLOBAL_YAML_SETTINGS
 
-        self.bootstrap = BootstrapAdapter(job=self.job, sync=None, client=self.bootstrap_client)
+        cls.bootstrap = BootstrapAdapter(job=cls.job, sync=None, client=cls.bootstrap_client)
 
     def test_develop_settings(self):
         self.assertEqual(self.bootstrap_client.get_develop_settings(), DEVELOP_YAML_SETTINGS)

@@ -3,7 +3,7 @@
 import warnings
 from unittest.mock import MagicMock, mock_open, patch
 
-from nautobot.core.testing import TestCase
+from nautobot.apps.testing import TestCase
 
 from nautobot_ssot.integrations.servicenow.third_party.pysnow.attachment import Attachment
 

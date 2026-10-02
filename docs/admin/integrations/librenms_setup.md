@@ -26,9 +26,21 @@ PLUGINS_CONFIG = {
         "librenms_permitted_values": {  # Allows the SSOT to only sync certain values from LibreNMS
             "role": ["network"],
         },
+        # Name Platforms after the network driver (cisco_ios) to share them with
+        # device-onboarding, instead of the Ansible FQCN (cisco.ios.ios).
+        # Enabling this is a migration -- read the docs section linked below first.
+        "librenms_consolidated_platforms": is_truthy(
+            os.getenv("NAUTOBOT_SSOT_LIBRENMS_CONSOLIDATED_PLATFORMS", "false")
+        ),
+        # Override the bundled os -> driver mappings.
+        "librenms_network_driver_map": {},
   }
 }
 ```
+
+See [Platform naming and network drivers](../../user/integrations/librenms.md#platform-naming-and-network-drivers)
+for what `librenms_consolidated_platforms` changes, how existing Platforms are adopted rather than
+duplicated, and the recommended sequence for enabling it.
 
 ### External Integrations
 
@@ -39,6 +51,16 @@ The way you add your LibreNMS server instance is through the "External Integrati
 Once this is created, go into the Extensibility Menu and select `External Integrations`. Add an External Intergration with the Remote URL being your LibreNMS server URL (including http(s)://), set the method to `GET`, and select any other headers/settings you might need for your specific instance. Select the secrets group you created as this will inject the API token. Once created, you will select this External Integration when you run the LibreNMS to Nautobot SSoT job.
 
 ![LibreNMS External Integration](../../images/librenms-external-integration.png)
+
+##### Device Secrets Group
+
+The `LibreNMS to Nautobot` job has a second, optional Secrets Group field, `Device Secrets Group`. This one is separate from the API token group above and serves a different purpose: it is assigned to each Device the job creates, and holds the credentials used to log in to the device itself.
+
+Devices need this because credential-dependent jobs read it off the Device. nautobot-device-onboarding's `Sync Network Data From Network`, for example, has no credentials field on its own form and resolves credentials only from `Device.secrets_group`; without it, the job fails with `A paramiko SSHException occurred during connection creation: No authentication methods available`.
+
+To build it, create Secrets for your network service account's username and password, then create a SecretsGroup and add both with the Access Type set to `Generic` and the Secret Types set to `Username` and `Password` respectively. That is the combination `nautobot-plugin-nornir` reads when resolving device credentials.
+
+Leaving the field blank is supported; Devices are then created without a Secrets Group, as before.
 
 #### LibreNMS as DataTarget
 NotYetImplemented

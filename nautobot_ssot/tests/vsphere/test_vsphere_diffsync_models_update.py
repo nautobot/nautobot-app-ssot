@@ -4,7 +4,8 @@
 from unittest.mock import MagicMock
 
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase
+from nautobot.apps.testing import TestCase
+from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models.statuses import Status
 from nautobot.extras.models.tags import Tag
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
@@ -33,6 +34,7 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
 
     def setUp(self):
         """Test class SetUp."""
+        populate_status_choices()
         self.config = create_default_vsphere_config()
         self.vsphere_adapter = VsphereDiffSync(
             client=MagicMock(),
@@ -488,6 +490,47 @@ class TestVSphereDiffSyncModelsUpdate(TestCase):
         nb_vm = VirtualMachine.objects.get(name="TestVM")
         self.assertEqual(nb_vm.name, "TestVM")
         self.assertEqual(nb_vm.primary_ip.host, "2001:db8:abcd:42::abcd")
+
+    def test_vm_update_primary_ips_dict_includes_cluster(self):
+        """VirtualMachineModel.update appends a _primary_ips entry whose device dict includes cluster__name.
+
+        Without cluster__name, sync_complete's VirtualMachine.objects.get(**info["device"])
+        can raise MultipleObjectsReturned (or update the wrong VM) when vSphere contains
+        duplicate VM names. The dict must mirror what create() builds from ids.
+        """
+        nb_clustergroup, _ = ClusterGroup.objects.get_or_create(name="TestClusterGroup")
+        nb_clustertype, _ = ClusterType.objects.get_or_create(name="VMWare vSphere")
+        nb_cluster = Cluster.objects.create(
+            name="TestCluster",
+            cluster_group=nb_clustergroup,
+            cluster_type=nb_clustertype,
+        )
+        nb_vm = VirtualMachine.objects.create(
+            name="TestVM",
+            status=self.active_status,
+            vcpus=1,
+            memory=1,
+            disk=1,
+            cluster=nb_cluster,
+        )
+        nb_vm.tags.set([self.ssot_tag])
+
+        nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
+        nb_adapter.job = MagicMock()
+        nb_adapter.load()
+
+        diffsync_vm = nb_adapter.get(
+            self.vsphere_adapter.virtual_machine,
+            {"name": "TestVM", "cluster__name": "TestCluster"},
+        )
+
+        diffsync_vm.update({"primary_ip4__host": "192.168.1.1", "primary_ip6__host": None})
+
+        self.assertEqual(len(nb_adapter._primary_ips), 1)  # pylint: disable=protected-access
+        self.assertEqual(
+            nb_adapter._primary_ips[0]["device"],  # pylint: disable=protected-access
+            {"name": "TestVM", "cluster__name": "TestCluster"},
+        )
 
     def test_tag_update(self):
         tag, _ = Tag.objects.get_or_create(name="Owner__EEE", description="")

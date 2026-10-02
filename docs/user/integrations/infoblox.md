@@ -21,7 +21,7 @@ Extensibility Attributes in Infoblox are a method of adding additional contextua
 
 ### Network (Prefixes)
 
-- Site/Facility
+- Site/Facility/Location
 - VRF
 - Role
 - Tenant/Department
@@ -34,17 +34,26 @@ Extensibility Attributes in Infoblox are a method of adding additional contextua
 
 ### VLAN Group
 
-- Site/Facility
+- Site/Facility/Location
 
 ### VLAN
 
-- Site/Facility
+- Site/Facility/Location
 - Role
 - Tenant/Department
 
 ### Aggregate
 
 - Tenant/Department
+
+!!! note
+    Extensibility Attribute name matching is **case-insensitive**. An attribute named `SITE`, `Site`, or `site` is all treated as a location link.
+
+#### Location matching
+
+By default, an Extensibility Attribute named `site`, `facility`, or `location` is matched (by value) to a Nautobot Location. Matching is case-insensitive on both the attribute name and its value, so an Infoblox value of `MEMPHIS` will match a Nautobot Location named `Memphis`. The referenced Location must already exist in Nautobot - it is not created by the sync.
+
+If your Infoblox instance stores the Location under a different attribute name, set the **Infoblox Location Extensibility Attribute** (`infoblox_location_ext_attr`) option on the SSoT config. When set, **only** that attribute name is matched to a Location, and the built-in `site`/`facility`/`location` names become ordinary Custom Fields. Leave the option blank to keep the default `site`/`facility`/`location` behavior.
 
 ## Screenshots
 

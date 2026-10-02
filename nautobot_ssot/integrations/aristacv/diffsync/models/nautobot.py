@@ -278,9 +278,12 @@ class NautobotIPAddress(IPAddress):
 
     def delete(self):
         """Delete IPAddress in Nautobot."""
-        super().delete()
-        ipaddr = OrmIPAddress.objects.get(id=self.uuid)
-        self.adapter.objects_to_delete["ipaddresses"].append(ipaddr)
+        if self.adapter.job.app_config.delete_ipaddresses_on_sync:
+            super().delete()
+            if self.adapter.job.debug:
+                self.adapter.job.logger.warning(f"IPAddress {self.address} will be deleted per app settings.")
+            ipaddr = OrmIPAddress.objects.get(id=self.uuid)
+            self.adapter.objects_to_delete["ipaddresses"].append(ipaddr)
         return self
 
 

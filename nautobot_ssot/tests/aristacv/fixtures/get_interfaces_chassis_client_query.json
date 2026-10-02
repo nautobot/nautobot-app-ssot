@@ -582,7 +582,18 @@
                         "mode200GbpsFull8Lane": false,
                         "mode400GbpsFull8Lane": false
                     }
-                }
+                },
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "status",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "Linecard1",
+                    "intfStatus",
+                    "Ethernet8/36"
+                ]
             }
         ]
     },
@@ -1169,7 +1180,18 @@
                         "mode200GbpsFull8Lane": false,
                         "mode400GbpsFull8Lane": false
                     }
-                }
+                },
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "status",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "Linecard1",
+                    "intfStatus",
+                    "Ethernet8/49/3"
+                ]
             }
         ]
     },
@@ -1756,7 +1778,18 @@
                         "mode200GbpsFull8Lane": false,
                         "mode400GbpsFull8Lane": false
                     }
-                }
+                },
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "status",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "Linecard1",
+                    "intfStatus",
+                    "Ethernet8/27"
+                ]
             }
         ]
     },
@@ -2343,7 +2376,18 @@
                         "mode200GbpsFull8Lane": false,
                         "mode400GbpsFull8Lane": false
                     }
-                }
+                },
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "status",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "Linecard1",
+                    "intfStatus",
+                    "Ethernet8/40"
+                ]
             }
         ]
     },
@@ -2930,7 +2974,18 @@
                         "mode200GbpsFull8Lane": false,
                         "mode400GbpsFull8Lane": false
                     }
-                }
+                },
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "status",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "Linecard1",
+                    "intfStatus",
+                    "Ethernet8/37"
+                ]
             }
         ]
     },
@@ -3517,7 +3572,18 @@
                         "mode200GbpsFull8Lane": false,
                         "mode400GbpsFull8Lane": false
                     }
-                }
+                },
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "status",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "Linecard1",
+                    "intfStatus",
+                    "Ethernet8/38"
+                ]
             }
         ]
     },
@@ -4104,7 +4170,18 @@
                         "mode200GbpsFull8Lane": false,
                         "mode400GbpsFull8Lane": false
                     }
-                }
+                },
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "status",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "Linecard1",
+                    "intfStatus",
+                    "Ethernet8/50/1"
+                ]
             }
         ]
     },
@@ -4691,7 +4768,18 @@
                         "mode200GbpsFull8Lane": false,
                         "mode400GbpsFull8Lane": false
                     }
-                }
+                },
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "status",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "Linecard1",
+                    "intfStatus",
+                    "Ethernet8/50/2"
+                ]
             }
         ]
     },
@@ -5278,7 +5366,18 @@
                         "mode200GbpsFull8Lane": false,
                         "mode400GbpsFull8Lane": false
                     }
-                }
+                },
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "status",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "Linecard1",
+                    "intfStatus",
+                    "Ethernet8/45"
+                ]
             }
         ]
     },
@@ -5865,7 +5964,18 @@
                         "mode200GbpsFull8Lane": false,
                         "mode400GbpsFull8Lane": false
                     }
-                }
+                },
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "status",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "Linecard1",
+                    "intfStatus",
+                    "Ethernet8/49/4"
+                ]
             }
         ]
     },
@@ -6452,7 +6562,18 @@
                         "mode200GbpsFull8Lane": false,
                         "mode400GbpsFull8Lane": false
                     }
-                }
+                },
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "status",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "Linecard1",
+                    "intfStatus",
+                    "Ethernet8/41"
+                ]
             }
         ]
     },
@@ -7039,7 +7160,18 @@
                         "mode200GbpsFull8Lane": false,
                         "mode400GbpsFull8Lane": false
                     }
-                }
+                },
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "status",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "Linecard1",
+                    "intfStatus",
+                    "Ethernet8/9"
+                ]
             }
         ]
     },
@@ -7626,7 +7758,18 @@
                         "mode200GbpsFull8Lane": false,
                         "mode400GbpsFull8Lane": false
                     }
-                }
+                },
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "status",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "Linecard1",
+                    "intfStatus",
+                    "Ethernet8/8"
+                ]
             }
         ]
     },
@@ -8213,7 +8356,18 @@
                         "mode200GbpsFull8Lane": false,
                         "mode400GbpsFull8Lane": false
                     }
-                }
+                },
+                "path_elements": [
+                    "Sysdb",
+                    "interface",
+                    "status",
+                    "eth",
+                    "phy",
+                    "slice",
+                    "Linecard1",
+                    "intfStatus",
+                    "Ethernet8/26"
+                ]
             }
         ]
     }

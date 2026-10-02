@@ -44,6 +44,7 @@ When an Arista device exists in Nautobot but not in CloudVision, this integratio
 | Configuration Variable          | Type    | Usage                                                                                                                                                              | Default |
 | ------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
 | aristacv_delete_devices_on_sync | boolean | If true, devices in Nautobot with device type manufacturer name set to Arista that do not exist in CloudVision but do exist in Nautobot upon sync will be deleted. | False   |
+| aristacv_delete_ipaddresses_on_sync | boolean | If true, IP addresses in Nautobot that do not exist in CloudVision but do exist in Nautobot upon sync will be deleted. | False   |
 | aristacv_delete_namespaces_on_sync | boolean | If true, namespaces in Nautobot that do not exist in CloudVision but do exist in Nautobot upon sync will be deleted. | False   |
 | aristacv_delete_prefixes_on_sync | boolean | If true, prefixes in Nautobot that do not exist in CloudVision but do exist in Nautobot upon sync will be deleted. | False   |
 
@@ -96,6 +97,7 @@ PLUGINS_CONFIG = {
         "aristacv_from_cloudvision_default_device_role": "",
         "aristacv_from_cloudvision_default_device_role_color": "",
         "aristacv_delete_devices_on_sync": is_truthy(os.getenv("NAUTOBOT_ARISTACV_DELETE_ON_SYNC", False)),
+        "aristacv_delete_ipaddresses_on_sync": is_truthy(os.getenv("NAUTOBOT_ARISTACV_DELETE_IPADDRESSES_ON_SYNC", False)),
         "aristacv_delete_namespaces_on_sync": is_truthy(os.getenv("NAUTOBOT_ARISTACV_DELETE_NAMESPACES_ON_SYNC", False)),
         "aristacv_delete_prefixes_on_sync": is_truthy(os.getenv("NAUTOBOT_ARISTACV_DELETE_PREFIXES_ON_SYNC", False)),
         "aristacv_apply_import_tag": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_TAG", False)),
@@ -189,6 +191,7 @@ Other custom fields may need to be created by the user. When a sync is run and a
             "aristacv_from_cloudvision_default_device_role": "",
             "aristacv_from_cloudvision_default_device_role_color": "",
             "aristacv_delete_devices_on_sync": is_truthy(os.getenv("NAUTOBOT_ARISTACV_DELETE_ON_SYNC", False)),
+            "aristacv_delete_ipaddresses_on_sync": is_truthy(os.getenv("NAUTOBOT_ARISTACV_DELETE_IPADDRESSES_ON_SYNC", False)),
             "aristacv_delete_namespaces_on_sync": is_truthy(os.getenv("NAUTOBOT_ARISTACV_DELETE_NAMESPACES_ON_SYNC", False)),
             "aristacv_delete_prefixes_on_sync": is_truthy(os.getenv("NAUTOBOT_ARISTACV_DELETE_PREFIXES_ON_SYNC", False)),
             "aristacv_apply_import_tag": is_truthy(os.getenv("NAUTOBOT_ARISTACV_IMPORT_TAG", False)),
