@@ -1,8 +1,8 @@
 # Adapters
 
-In SSoT, an *adapter* loads data from one system into a set of DiffSync models so that DiffSync can compare the two sides and reconcile the differences. A custom integration always has two adapters: one for the remote system and one for Nautobot.
+In [`DiffSync`](https://github.com/networktocode/diffsync), an *adapter* loads data from one system into defined `DiffSyncModel` instances and saves them to its internal datastore. Each adapter is specific to a data source, such as Nautobot, ServiceNow API, and more. A *diff* requires two adapters to be loaded to determine the differences between the two.
 
-The `nautobot_ssot.contrib.NautobotAdapter` base class implements the Nautobot side for you. As long as your [models](./models.md) follow the contrib conventions, you do not have to write a `load` method — the adapter infers how to read each model and its relationships from the Nautobot ORM.
+The `nautobot_ssot.contrib.adapter` module provides reusable boilerplate code for loading Nautobot ORM objects into a [`NautobotModel` class](./models.md). This eliminates the development effort required for creating custom DiffSync adapters for any custom SSoT integration importing data into Nautobot. As long as your `DiffSync` models use `nautobot_ssot.contrib.model.NautobotModel`, you do not have to write a `load` method. The adapter infers how to read each model, its relationships from the Nautobot ORM, and how to perform required CRUD operations.
 
 ## Creating a Nautobot adapter
 
