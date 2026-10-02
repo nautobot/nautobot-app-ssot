@@ -125,6 +125,8 @@ def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=
                 "key": slugify(attr).replace("-", "_"),
                 "type": CustomFieldTypeChoices.TYPE_TEXT,
                 "label": attr,
+                "description": f"Auto-created by the Infoblox SSoT integration to mirror Infoblox Extensibility Attribute '{attr}'.",
+                "grouping": "Infoblox",
             }
             field, _ = OrmCF.objects.get_or_create(key=_cf_dict["key"], defaults=_cf_dict)
             field.content_types.add(ContentType.objects.get_for_model(type(obj)).id)
