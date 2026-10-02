@@ -20,10 +20,12 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import switch
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import InterfaceVlan as InterfaceVlanModel
 from nautobot_ssot.integrations.ipfabric.sync_scope import SYNCABLE_OBJECTS, SyncScope
-from nautobot_ssot.integrations.ipfabric.utilities.nbutils import create_interface, set_interface_vlans
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import create_interface, create_vlan, set_interface_vlans
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache, parse_vlan_ranges
 from nautobot_ssot.tests.ipfabric.test_ipfabric_adapter import (
+    INTERFACE_FIXTURE,
     NETWORKS_FIXTURE,
+    VLAN_FIXTURE,
     build_adapter,
     mock_ipfabric_client,
 )
@@ -214,6 +216,96 @@ class TestLoadingInterfaceVlans(_InterfaceVlanTestCase):
         self.assertEqual(self.adapter().get_all("interface_vlan"), [])
 
 
+class TestTheSviVlanWithoutAddressesInScope(TestCase):
+    """An SVI's VLAN comes from the address table, which is read for the VLAN as well as the address.
+
+    Sourcing it only when IP Addresses are in scope left the Nautobot side reporting an SVI the
+    source said nothing about, so a run with Interface VLANs on and IP Addresses off cleared what an
+    earlier run had written.
+    """
+
+    def test_the_address_table_is_read_for_the_vlan_alone(self):
+        client = mock_ipfabric_client()
+        adapter = build_adapter(
+            client=client,
+            sync_interface_vlans=True,
+            sync_interfaces=True,
+            sync_vlans=True,
+            sync_ip_addresses=False,
+        )
+
+        client.technology.addressing.managed_ip_ipv4.all.assert_called()
+        self.assertEqual(adapter.get_all("interface_address"), [], "No addresses are synced by it.")
+
+    def test_an_addressed_interface_still_reports_its_vlan(self):
+        client = mock_ipfabric_client()
+        client.technology.addressing.managed_ip_ipv4.all.return_value = [
+            {"sn": record["sn"], "intName": record["intName"], "net": "10.0.0.0/24", "ip": "10.0.0.1", "vlanId": 77}
+            for record in INTERFACE_FIXTURE[:1]
+        ]
+
+        adapter = build_adapter(
+            client=client,
+            sync_interface_vlans=True,
+            sync_interfaces=True,
+            sync_vlans=True,
+            sync_ip_addresses=False,
+        )
+
+        self.assertIn(
+            77,
+            [model.untagged_vid for model in adapter.get_all("interface_vlan")],
+            "The VLAN the address table reports has to survive IP Addresses being out of scope.",
+        )
+
+
+class TestAVlanThisRunCannotReach(TestCase):
+    """A trunk names the VLANs a port allows, which need not all exist at that Location.
+
+    Nothing can point an Interface at a VLAN that is not there, so reporting one would leave the
+    difference diffed on every run and never applied.
+    """
+
+    def loaded(self, trunk, native=1):
+        """Load a trunk allowing `trunk`, with only VLAN 1 present at the Device's Location."""
+        client = switchport_client(
+            switchports=[
+                {
+                    "hostname": "jcy-rtr-02",
+                    "sn": "a000a02",
+                    "intName": "Gi4",
+                    "mode": "trunk",
+                    "nativeVlan": native,
+                    "trunkVlan": trunk,
+                }
+            ],
+            vlans_at=(),
+        )
+        # Only VLAN 1, so anything else the trunk allows is out of this run's reach.
+        client.fetch_all = unittest.mock.MagicMock(
+            side_effect=lambda table: (
+                [{"siteName": "JCY-RTR-02_1", "vlanName": "v1", "vlanId": 1, "dscr": ""}]
+                if table == "tables/vlan/site-summary"
+                else ""
+            )
+        )
+        logger = unittest.mock.MagicMock()
+        adapter = build_adapter(client=client, logger=logger, sync_interface_vlans=True)
+        model = {(m.device_name, m.interface_name): m for m in adapter.get_all("interface_vlan")}
+        return model[("jcy-rtr-02", "GigabitEthernet4")], str(logger.warning.call_args_list)
+
+    def test_a_tagged_vlan_that_is_not_there_is_left_out_rather_than_asked_for(self):
+        model, warnings = self.loaded("1,10,20")
+
+        self.assertEqual(model.tagged_vids, [1], "Only the VLAN this run loaded can be asked for.")
+        self.assertIn("switchports allow", warnings)
+
+    def test_a_native_vlan_that_is_not_there_leaves_the_port_untagged_by_none(self):
+        model, _ = self.loaded("1", native=99)
+
+        self.assertIsNone(model.untagged_vid)
+
+
 class TestInterfaceVlanScope(TestCase):
     """The job option that governs all of this."""
 
@@ -224,21 +316,42 @@ class TestInterfaceVlanScope(TestCase):
         self.assertEqual(set(entry.requires), {"interfaces", "vlans"})
 
 
+def switchport_client(switchports=(), vlan_id=None, vlans_at=("JCY-RTR-02_1",)):
+    """Return a mock client serving the given switchport rows, and an addressed Gi4.
+
+    The VLAN table is served with a row for every VLAN ID the switchports and the address name, at
+    the Locations given: the sync only puts an Interface in a VLAN this run loaded, so a test that
+    names one has to supply it.
+    """
+    client = mock_ipfabric_client()
+    client.technology.interfaces.switchport.all.return_value = list(switchports)
+    client.technology.addressing.managed_ip_ipv4.all.return_value = [
+        {**NETWORKS_FIXTURE[0], **({"vlanId": vlan_id} if vlan_id is not None else {})}
+    ]
+    named = set()
+    for row in switchports:
+        named.update(parse_vlan_ranges(str(row.get("trunkVlan") or "")))
+        for key in ("nativeVlan", "accVlan"):
+            if isinstance(row.get(key), int):
+                named.add(row[key])
+    if vlan_id is not None:
+        named.add(vlan_id)
+    extra = [
+        {"siteName": site, "vlanName": f"v{vid}", "vlanId": vid, "dscr": ""}
+        for site in vlans_at
+        for vid in sorted(named)
+    ]
+    client.fetch_all = unittest.mock.MagicMock(
+        side_effect=lambda table: (VLAN_FIXTURE + extra) if table == "tables/vlan/site-summary" else ""
+    )
+    return client
+
+
 class InterfaceVlanLoadTestCase(TestCase):
     """What the switchport table and the managed address table each contribute."""
 
-    @staticmethod
-    def _client(switchports=(), vlan_id=None):
-        """Return a mock client serving the given switchport rows, and an addressed Gi4."""
-        client = mock_ipfabric_client()
-        client.technology.interfaces.switchport.all.return_value = list(switchports)
-        client.technology.addressing.managed_ip_ipv4.all.return_value = [
-            {**NETWORKS_FIXTURE[0], **({"vlanId": vlan_id} if vlan_id is not None else {})}
-        ]
-        return client
-
     def _loaded(self, **kwargs):
-        adapter = build_adapter(client=self._client(**kwargs), sync_interface_vlans=True)
+        adapter = build_adapter(client=switchport_client(**kwargs), sync_interface_vlans=True)
         return {(model.device_name, model.interface_name): model for model in adapter.get_all("interface_vlan")}
 
     @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
@@ -284,7 +397,7 @@ class InterfaceVlanLoadTestCase(TestCase):
 
     @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
     def test_a_mode_with_no_nautobot_equivalent_is_reported_once_per_mode(self):
-        client = self._client(
+        client = switchport_client(
             switchports=[
                 {"hostname": "jcy-rtr-02", "sn": "a000a02", "intName": "Gi4", "mode": "dot1q-tunnel"},
                 {"hostname": "nyc-leaf-01", "sn": "5254.0029.fbf2", "intName": "Et15", "mode": "dot1q-tunnel"},
@@ -301,7 +414,7 @@ class InterfaceVlanLoadTestCase(TestCase):
 
     def test_out_of_scope_loads_none(self):
         adapter = build_adapter(
-            client=self._client(
+            client=switchport_client(
                 switchports=[
                     {"hostname": "jcy-rtr-02", "sn": "a000a02", "intName": "Gi4", "mode": "access", "accVlan": 10},
                 ]
@@ -376,6 +489,89 @@ class TestInterfaceVlansUnderBulkWriteMode(_InterfaceVlanTestCase):
         interface = Interface.objects.get(device=self.device, name="eth9")
         self.assertEqual(interface.mode, InterfaceModeChoices.MODE_TAGGED)
         self.assertEqual(list(interface.tagged_vlans.all()), [self.vlans[20]])
+
+    def queue_vlan(self, pending, vid, name):
+        """Queue a VLAN new to Nautobot, as a first bulk sync of a site does."""
+        vlan = create_vlan(
+            vlan_name=name,
+            vlan_id=vid,
+            vlan_status="Active",
+            location_obj=self.location,
+            description="",
+            pending=pending,
+        )
+        self.assertFalse(VLAN.objects.filter(vid=vid).exists(), "The VLAN is meant to be queued, not written.")
+        return vlan
+
+    def test_a_vlan_queued_this_run_is_found_rather_than_dropped(self):
+        """A first bulk sync of a site creates the VLANs and the switchports in the same run.
+
+        The VLAN is only in the queue at that point, so looking for it in the database alone writes
+        the mode and silently drops every VLAN, with a warning that reads as a configuration fault.
+        """
+        adapter = self.bulk_adapter()
+        pending = adapter.pending
+        self.queue_vlan(pending, 30, "queued-untagged")
+        self.queue_vlan(pending, 40, "queued-tagged")
+        self.queue_interface(pending, "eth7")
+
+        InterfaceVlanModel.create(
+            adapter=adapter,
+            ids={"device_name": self.device.name, "interface_name": "eth7"},
+            attrs={"mode": InterfaceModeChoices.MODE_TAGGED, "untagged_vid": 30, "tagged_vids": [40]},
+        )
+        pending.flush()
+
+        interface = Interface.objects.get(device=self.device, name="eth7")
+        self.assertIsNotNone(interface.untagged_vlan, "The untagged VLAN was dropped.")
+        self.assertEqual(interface.untagged_vlan.vid, 30)
+        self.assertEqual([vlan.vid for vlan in interface.tagged_vlans.all()], [40])
+
+    def test_a_tagged_vlan_the_run_stops_reporting_is_removed_in_bulk_mode(self):
+        """`update` carries the whole set, so bulk mode has to replace it rather than add to it."""
+        adapter = self.bulk_adapter()
+        self.interface.mode = InterfaceModeChoices.MODE_TAGGED
+        self.interface.validated_save()
+        self.interface.tagged_vlans.set([self.vlans[10], self.vlans[20]])
+
+        set_interface_vlans(
+            device_name=self.device.name,
+            interface_name=self.interface.name,
+            mode=InterfaceModeChoices.MODE_TAGGED,
+            untagged_vid=None,
+            tagged_vids=[10],
+            tagged_only=False,
+            pending=adapter.pending,
+        )
+        adapter.pending.flush()
+
+        self.interface.refresh_from_db()
+        self.assertEqual(
+            [vlan.vid for vlan in self.interface.tagged_vlans.all()],
+            [10],
+            "VLAN 20 is no longer reported, so it has to come off the Interface.",
+        )
+
+    def test_a_tagged_vlan_the_run_still_reports_is_not_queued_twice(self):
+        """The join table makes (interface, vlan) unique, so a second row would refuse the batch."""
+        adapter = self.bulk_adapter()
+        self.interface.mode = InterfaceModeChoices.MODE_TAGGED
+        self.interface.validated_save()
+        self.interface.tagged_vlans.set([self.vlans[10]])
+
+        set_interface_vlans(
+            device_name=self.device.name,
+            interface_name=self.interface.name,
+            mode=InterfaceModeChoices.MODE_TAGGED,
+            untagged_vid=None,
+            tagged_vids=[10, 20],
+            tagged_only=False,
+            pending=adapter.pending,
+        )
+        adapter.pending.flush()
+
+        self.interface.refresh_from_db()
+        self.assertEqual(sorted(vlan.vid for vlan in self.interface.tagged_vlans.all()), [10, 20])
 
     def test_the_helper_reports_failure_when_the_queue_is_withheld(self):
         """What the defect looked like: the Interface exists only in the queue, so nothing is written."""

@@ -264,6 +264,18 @@ once per interface, and those interfaces are left alone.
 
 Voice VLANs are not synced. IP Fabric reports one, but Nautobot has no distinct field for it.
 
+**A VLAN the run has no row for is left off.** A trunk names the VLANs the port allows, and that can
+include one configured at another site or one IP Fabric reports no VLAN for. An interface cannot be
+put in a VLAN that is not there, so those IDs are left out of what the sync asks for and reported as
+a count once per run. The interface is still synced with the VLANs that are there. This is ordinary
+under a Location filter, where the run covers one site's VLANs while a trunk may name another's.
+
+**The VLAN an addressed interface sits in is read whether or not IP Addresses are in scope.** The
+managed address table carries both, and a routed interface such as an SVI has no switchport row, so
+selecting **Sync Interface VLANs** reads that table even with **Sync IP Addresses** off. No address
+is synced by it. Without that the sync would report nothing for an SVI while Nautobot still held
+one, and the difference would clear what an earlier run wrote.
+
 An Interface that IP Fabric stops reporting as a switchport has its mode and VLANs cleared. Nothing
 is deleted, the Interface and the VLANs both remain, so **Safe Delete Mode** does not apply.
 
