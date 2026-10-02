@@ -4,7 +4,6 @@ import threading
 
 from django.test import SimpleTestCase
 
-from nautobot_ssot.integrations.ipfabric.constants import DEFAULT_INTERFACE_TYPE
 from nautobot_ssot.integrations.ipfabric.utilities import utils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
@@ -103,8 +102,18 @@ class TestUtils(SimpleTestCase):  # pylint: disable=too-many-public-methods
     def test_eight_hundred_gig_default_uses_osfp_interface(self):
         self.assertEqual("800gbase-x-osfp", utils.convert_media_type("800G", "EiHunGi1"))
 
-    def test_unknown_interface_uses_default_interface(self):
-        self.assertEqual(DEFAULT_INTERFACE_TYPE, utils.convert_media_type("ThisShouldGiveTheDefault", ""))
+    def test_a_media_type_nothing_maps_and_a_name_nothing_matches_resolve_to_nothing(self):
+        """None rather than a default, which would be indistinguishable from a real resolution."""
+        self.assertIsNone(utils.convert_media_type("ThisMapsToNothing", "ThisMatchesNothing"))
+
+    def test_a_media_type_nothing_maps_falls_back_to_the_interface_name(self):
+        """The name is the only other thing that says what the port is, so it is worth asking."""
+        self.assertEqual("virtual", utils.convert_media_type("ThisMapsToNothing", "Vlan100"))
+        self.assertEqual("lag", utils.convert_media_type("unknown", "Port-channel1"))
+
+    def test_a_media_type_that_maps_wins_over_the_name(self):
+        """What the platform reports about the port beats what its name implies."""
+        self.assertEqual("10gbase-x-sfpp", utils.convert_media_type("10GBase SFP", "GigabitEthernet1"))
 
     def test_interface_name_lag(self):
         self.assertEqual("lag", utils.convert_media_type("", "Po1"))

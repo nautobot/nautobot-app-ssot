@@ -5,8 +5,8 @@ import re
 import threading
 from collections import defaultdict
 from functools import wraps
-
-from nautobot_ssot.integrations.ipfabric.constants import DEFAULT_INTERFACE_TYPE
+from itertools import takewhile
+from typing import Optional
 
 VIRTUAL = "virtual"
 BRIDGE = "bridge"
@@ -41,19 +41,64 @@ FOUR_HUNDRED_GIG = "400g"
 EIGHT_HUNDRED_GIG = "800g"
 
 
-def convert_media_type(  # pylint: disable=too-many-return-statements,too-many-branches,too-many-statements
-    media_type: str,
-    interface_name: str,
-) -> str:
-    """Convert provided `media_type` to value used by Nautobot.
+INTERFACE_NAME_TYPES = (
+    (r"po(rt-?channel)?\d", "lag"),
+    (r"vl(an)?\d", "virtual"),
+    (r"lo(opback)?\d", "virtual"),
+    (r"tu(nnel)?\d", "virtual"),
+    (r"vx(lan)?\d", "virtual"),
+    (r"fa(stethernet)?\d", "100base-tx"),
+    (r"gi(gabitethernet)?\d", "1000base-t"),
+    (r"te(ngigabitethernet)?\d", "10gbase-x-sfpp"),
+    (r"twentyfivegigabitethernet\d", "25gbase-x-sfp28"),
+    (r"fo(rtygigabitethernet)?\d", "40gbase-x-qsfpp"),
+    (r"fi(ftygigabitethernet)?\d", "50gbase-x-sfp56"),
+    (r"hu(ndredgigabitethernet)?\d", "100gbase-x-qsfp28"),
+    (r"twohundredgigabitethernet\d", "200gbase-x-qsfp56"),
+)
+
+
+def convert_media_type(media_type: str, interface_name: str) -> Optional[str]:
+    """Return the Nautobot Interface type for a reported media type, or None if nothing resolves.
+
+    Read from the media type IP Fabric reports, and failing that from the Interface's name, which is
+    the only other thing that names what a port is. None where neither answers: a type standing for
+    "not resolved" would be indistinguishable from one genuinely resolved to that value, and would
+    overwrite whatever Nautobot holds with a guess on every run.
 
     Args:
-        media_type: The media type of an inteface (i.e. SFP-10GBase)
+        media_type: The media type of an interface (i.e. SFP-10GBase).
         interface_name: The name of the interface with `media_type`.
 
     Returns:
-        str: The corresponding represention of `media_type` in Nautobot.
+        The corresponding representation of `media_type` in Nautobot, or None.
     """
+    return type_of_media(media_type) or type_of_interface_name(interface_name)
+
+
+def interface_name_kind(interface_name: str) -> str:
+    """Return the leading letters of an Interface's name, which is what names the kind of port.
+
+    `Ethernet1/1` and `Ethernet49` are one kind reported twice, so counting Interfaces by this rather
+    than by name says which pattern is missing from `INTERFACE_NAME_TYPES` instead of listing every
+    port that matched none of them.
+    """
+    return "".join(takewhile(str.isalpha, interface_name))
+
+
+def type_of_interface_name(interface_name: str) -> Optional[str]:
+    """Return the Nautobot Interface type an Interface's name implies, or None if none does."""
+    interface_name = interface_name.lower()
+    for regex, iface_type in INTERFACE_NAME_TYPES:
+        if re.match(regex, interface_name):
+            return iface_type
+    return None
+
+
+def type_of_media(  # pylint: disable=too-many-return-statements,too-many-branches,too-many-statements
+    media_type: str,
+) -> Optional[str]:
+    """Return the Nautobot Interface type the reported media type names, or None if none does."""
     if media_type:
         media_type = media_type.lower().replace("-", "")
         if VIRTUAL in media_type:
@@ -140,28 +185,7 @@ def convert_media_type(  # pylint: disable=too-many-return-statements,too-many-b
             else:
                 nautobot_media_type += "osfp"
             return nautobot_media_type
-    else:
-        interface_name = interface_name.lower()
-        regex_to_type = (
-            (r"po(rt-?channel)?\d", "lag"),
-            (r"vl(an)?\d", "virtual"),
-            (r"lo(opback)?\d", "virtual"),
-            (r"tu(nnel)?\d", "virtual"),
-            (r"vx(lan)?\d", "virtual"),
-            (r"fa(stethernet)?\d", "100base-tx"),
-            (r"gi(gabitethernet)?\d", "1000base-t"),
-            (r"te(ngigabitethernet)?\d", "10gbase-x-sfpp"),
-            (r"twentyfivegigabitethernet\d", "25gbase-x-sfp28"),
-            (r"fo(rtygigabitethernet)?\d", "40gbase-x-qsfpp"),
-            (r"fi(ftygigabitethernet)?\d", "50gbase-x-sfp56"),
-            (r"hu(ndredgigabitethernet)?\d", "100gbase-x-qsfp28"),
-            (r"twohundredgigabitethernet\d", "200gbase-x-qsfp56"),
-        )
-        for regex, iface_type in regex_to_type:
-            if re.match(regex, interface_name):
-                return iface_type
-
-    return DEFAULT_INTERFACE_TYPE
+    return None
 
 
 class job_scoped_cache:  # pylint: disable=invalid-name

@@ -42,7 +42,11 @@ from nautobot.ipam.models import (
 )
 from netutils.lib_mapper import NAPALM_LIB_MAPPER
 
-from nautobot_ssot.integrations.ipfabric.constants import INTERFACE_STATE_FIELDS, LAST_SYNCHRONIZED_CF_NAME
+from nautobot_ssot.integrations.ipfabric.constants import (
+    DEFAULT_INTERFACE_TYPE,
+    INTERFACE_STATE_FIELDS,
+    LAST_SYNCHRONIZED_CF_NAME,
+)
 from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length, job_scoped_cache
 
 # pylint: disable=too-many-branches
@@ -1127,6 +1131,11 @@ def create_interface(  # pylint: disable=too-many-arguments
         # Kept out of the filter above, which drops a falsy value as an absence. `False` is a value
         # here: an Interface IP Fabric reports as shut is meant to be disabled.
         defaults["enabled"] = interface_details["enabled"]
+    if not defaults.get("type"):
+        # Nautobot requires a type, so a new Interface whose media type nothing resolved takes the
+        # configured default. The only place that default is still applied: an Interface already in
+        # Nautobot has a type worth keeping, and this one has nothing to keep.
+        defaults["type"] = DEFAULT_INTERFACE_TYPE
     reported_state = {
         custom_field: interface_details.get(attribute) for attribute, custom_field in INTERFACE_STATE_FIELDS.items()
     }

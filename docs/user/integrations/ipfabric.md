@@ -253,6 +253,33 @@ An interface IP Fabric reports no state for at all is left alone the same way, b
 there being no reading to report. That covers the pseudo management interface the sync fabricates to
 carry a NAT address.
 
+## Interface type
+
+The Nautobot Interface type is resolved from the media type IP Fabric reports for the port, and
+failing that from the interface's name: `Vlan100` is virtual and `Port-channel1` is a LAG whether or
+not a media type came with them. The media type wins where it resolves, since what the platform
+reports about a port is better evidence than what somebody called it.
+
+**Where neither resolves, no type is reported and the one Nautobot holds is left alone.** A
+configured default written in that position would be indistinguishable from a type genuinely
+resolved to that value, and would overwrite a type set by hand or by another source on every run. As
+with [`enabled`](#interface-state), the interface is reported as absent by *both* adapters, so the
+type is not diffed against a guess.
+
+The job log says what went unresolved, once per distinct cause rather than once per interface:
+
+- a media type that maps to no Nautobot interface type, named as IP Fabric reported it;
+- a naming scheme that matches no pattern, named by the letters its interfaces start with, so
+  `Ethernet1/1` and `Ethernet49` are one line rather than two.
+
+Both are there so the resolution can be improved: the first says which media string to map, the
+second which naming pattern to add. Plain `Ethernet` names, as used by Arista EOS and by Linux hosts,
+match no pattern today, so an estate using them and reporting no media type will see that line.
+
+`ipfabric_default_interface_type` still applies to an interface the sync *creates*, because Nautobot
+requires a type and a new interface has no earlier value to keep. It is no longer applied to an
+interface Nautobot already holds.
+
 ## Interface Addresses
 
 An Interface carries every address IP Fabric reports for it, each synced as its own IP Address in Nautobot. Three tables are read: `technology.addressing.managed_ip_ipv4` and `managed_ip_ipv6` for the addresses configured on the interface, and `technology.fhrp.group_members` for FHRP virtual addresses. So a secondary address, an HSRP or VRRP virtual address, and IPv6 alongside IPv4 all reach Nautobot, which is what lets a template render them from Nautobot data.
