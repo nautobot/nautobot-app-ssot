@@ -4,7 +4,6 @@
 """DiffSync adapter class for Ip Fabric."""
 
 import ipaddress
-import logging
 from collections import Counter, defaultdict
 from itertools import chain
 
@@ -36,8 +35,6 @@ try:
 except ImportError:
     IPFClient = None
 
-
-logger = logging.getLogger("nautobot.jobs")
 
 device_serial_max_length = Device._meta.get_field("serial").max_length
 name_max_length = VLAN._meta.get_field("name").max_length
@@ -115,12 +112,17 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         self.addresses_by_interface = defaultdict(list)
         # Physical states that name no admin state, counted so each is reported once for the run.
         self.unreadable_admin_states = Counter()
+        # Counted rather than named, each being one per Device or per reported link: a job log entry
+        # is a database write, so an estate reports these by the thousand or not at all.
+        self.pseudo_management_interfaces = 0
+        self.devices_without_a_serial = 0
+        self.self_linking_endpoints = Counter()
         # Held because a VRF is network wide while this filter is not, so a filtered run must not
         # delete the VRFs of the sites it cannot see; see `DiffSyncModelAdapters.network_wide`.
         self.location_filter = location_filter
         if location_filter:
             self.client.attribute_filters = {"siteName": ["ieq", location_filter]}
-            logging.info("Applied IP Fabric Attribute Filter: %s", self.client.attribute_filters)
+            self.job.logger.info("Applied IP Fabric Attribute Filter: %s", self.client.attribute_filters)
 
     def load_sites(self):
         """Add IP Fabric Location objects as DiffSync Location models.
@@ -133,7 +135,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             try:
                 self.add(self.location_model(site["siteName"], site_id=site["id"], status="Active"))
             except ObjectAlreadyExists:
-                logger.warning(f"Duplicate Location discovered, {site}")
+                self.job.logger.warning(f"Duplicate Location discovered, {site}")
 
     def load_device_interfaces(self, device_model, device_interfaces, device_primary_ips):
         """Create and load DiffSync Interface model objects for a specific device."""
@@ -149,7 +151,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
 
         if pseudo_interface:
             device_interfaces.append(pseudo_interface)
-            logger.info("Pseudo MGMT Interface: %s", pseudo_interface)
+            self.pseudo_management_interfaces += 1
 
         for iface in device_interfaces:
             iface_name = iface["intName"]
@@ -188,7 +190,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 self.add(interface)
                 device_model.add_child(interface)
             except ObjectAlreadyExists:
-                logger.warning(f"Duplicate Interface discovered, {iface}")
+                self.job.logger.warning(f"Duplicate Interface discovered, {iface}")
                 continue
             # Addresses are their own models under the Interface. Out of scope none is reported, so
             # the Nautobot adapter reports none either and what it holds is left alone.
@@ -294,7 +296,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             except ObjectAlreadyExists:
                 # One address reported twice for an Interface, which the two tables can do for a
                 # virtual address that is also configured on it.
-                logger.warning("Duplicate address %s discovered on Interface %s", host, iface_name)
+                self.job.logger.warning("Duplicate address %s discovered on Interface %s", host, iface_name)
 
     @staticmethod
     def link_endpoint(link, side):
@@ -320,13 +322,13 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 interface = self.get(self.interface, {"name": interface_name, "device_name": device_name})
             except ObjectNotFound:
                 if self.job.debug:
-                    logger.debug(
+                    self.job.logger.debug(
                         "Not syncing a Cable for %s:%s as no such Interface was loaded", device_name, interface_name
                     )
                 return False
             if interface.type in NONCONNECTABLE_IFACE_TYPES:
                 if self.job.debug:
-                    logger.debug(
+                    self.job.logger.debug(
                         "Not syncing a Cable for %s:%s as Nautobot will not cable a %s Interface",
                         device_name,
                         interface_name,
@@ -347,10 +349,10 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             remote = self.link_endpoint(link, "remote")
             if not local or not remote:
                 if self.job.debug:
-                    logger.debug("Skipping connectivity matrix entry with an incomplete endpoint, %s", link)
+                    self.job.logger.debug("Skipping connectivity matrix entry with an incomplete endpoint, %s", link)
                 continue
             if local == remote:
-                logger.warning(f"Skipping connectivity matrix entry that links an Interface to itself, {link}")
+                self.self_linking_endpoints[local] += 1
                 continue
             links.add(canonical_endpoints(local, remote))
         return links
@@ -381,7 +383,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             recordable.append(endpoints)
 
         for (device_name, interface_name), count in sorted(unrecordable.items()):
-            logger.warning(
+            self.job.logger.warning(
                 "%s:%s is reported on %d further link(s), which Nautobot cannot record because an "
                 "Interface terminates at most one Cable",
                 device_name,
@@ -464,10 +466,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         reconciled = reconcile_vrfs(detail_rows, target_rows)
         self.load_route_targets(reconciled)
         for name, attrs in reconciled.items():
-            try:
-                self.add(self.network_wide(self.vrf, name=name, status="Active", **attrs))
-            except ObjectAlreadyExists:
-                logger.warning("Duplicate VRF discovered, %s", name)
+            if attrs["conflict"]:
+                self.job.logger.warning("%s, so none is recorded for the VRF named %s", attrs["conflict"], name)
+            self.add(self.network_wide(self.vrf, name=name, status="Active", **attrs))
         if self.scope.device_vrfs:
             self.load_vrf_device_assignments(detail_rows)
         if self.scope.interface_vrfs:
@@ -493,7 +494,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 self.get(self.interface, {"name": interface_name, "device_name": device_name})
             except ObjectNotFound:
                 if self.job.debug:
-                    logger.debug(
+                    self.job.logger.debug(
                         "Not syncing the VRF of %s:%s, as no such Interface was loaded",
                         device_name,
                         interface_name,
@@ -509,7 +510,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     )
                 )
             except ObjectAlreadyExists:
-                logger.warning("Duplicate Interface VRF discovered, %s:%s", device_name, interface_name)
+                self.job.logger.warning("Duplicate Interface VRF discovered, %s:%s", device_name, interface_name)
 
     def load_vrf_device_assignments(self, detail_rows):
         """Add the Devices each VRF is configured on as DiffSync VrfDeviceAssignment models.
@@ -529,11 +530,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             except ObjectNotFound:
                 unknown_devices.add(device_name)
                 continue
-            try:
-                self.add(self.vrf_device_assignment(adapter=self, vrf_name=vrf_name, device_name=device_name))
-                assigned += 1
-            except ObjectAlreadyExists:
-                logger.warning("Duplicate VRF assignment discovered, %s on %s", vrf_name, device_name)
+            self.add(self.vrf_device_assignment(adapter=self, vrf_name=vrf_name, device_name=device_name))
+            assigned += 1
 
         if not unknown_devices:
             return
@@ -541,7 +539,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             # Some matched, so the rest are the Devices this run does not cover, which a Location
             # filter or Sync Tagged Only is expected to leave out.
             if self.job.debug:
-                logger.debug(
+                self.job.logger.debug(
                     "Not syncing the VRFs IP Fabric reports on %s, as no such Devices were loaded",
                     ", ".join(sorted(unknown_devices)),
                 )
@@ -549,8 +547,6 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         # Nothing matched at all, which is not a narrowed run but a disagreement about names: the
         # VRF table reports a hostname the Device inventory does not. Reported rather than left to
         # look like a network with no VRFs on any device.
-        # Through the job rather than the module logger, since this is the only thing that explains
-        # an otherwise silent result and it has to reach the Job Result log.
         self.job.logger.warning(
             "IP Fabric reports VRFs on %d device(s), none of which match a Device this run loaded, so "
             "no VRF will be assigned to any Device. The first few are %s",
@@ -602,7 +598,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     self.index_by_interface(ip_address)
             for virtual in self.fhrp_addresses():
                 self.index_by_interface(virtual)
-            self.prefix_length_by_address = prefix_lengths_by_address(reported_addresses)
+            self.prefix_length_by_address = prefix_lengths_by_address(reported_addresses, logger=self.job.logger)
 
         # Get all interfaces for devices
         if self.scope.interfaces:
@@ -631,12 +627,12 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 vlan_id = vlan_record["vlanId"]
                 vlan_desc = vlan_record.get("dscr")
                 if not vlan_id or not 1 <= vlan_id <= 4094:
-                    logger.warning(f"Not syncing VLAN, NAME: {vlan_name} due to invalid VLAN ID: {vlan_id}.")
+                    self.job.logger.warning(f"Not syncing VLAN, NAME: {vlan_name} due to invalid VLAN ID: {vlan_id}.")
                     continue
                 description = vlan_desc if vlan_desc else f"VLAN ID: {vlan_id}"
                 vlan_label = vlan_name if vlan_name else f"{vlan_record['siteName']}:{vlan_id}"
                 if len(vlan_label) > name_max_length:
-                    logger.warning(
+                    self.job.logger.warning(
                         f"Not syncing VLAN, {vlan_label} due to character limit exceeding {name_max_length}."
                     )
                     continue
@@ -651,7 +647,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     self.add(vlan)
                     location.add_child(vlan)
                 except ObjectAlreadyExists:
-                    logger.warning(f"Duplicate VLAN discovered, {vlan}")
+                    self.job.logger.warning(f"Duplicate VLAN discovered, {vlan}")
             for device in self.client.devices.by_site.get(location.name, []):
                 base_args = {
                     "diffsync": self,
@@ -703,9 +699,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
 
                 for index, dev in enumerate(member_devices):
                     if not dev["serial_number"]:
-                        logger.warning(
-                            f"Serial Number will not be recorded for {dev['name']} due to character limit exceeds {device_serial_max_length}"
-                        )
+                        self.devices_without_a_serial += 1
                     try:
                         device_model = self.device(**dev)
                         self.add(device_model)
@@ -717,7 +711,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                                 primary_addresses_of(device),
                             )
                     except ObjectAlreadyExists:
-                        logger.warning(f"Duplicate Device discovered, {device.model_dump()}")
+                        self.job.logger.warning(f"Duplicate Device discovered, {device.model_dump()}")
 
         if self.scope.cables:
             self.load_cables()
@@ -728,6 +722,29 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         # Read only while loading, and it holds a record per address, so it is not carried into the
         # diff and sync phases where both adapters' models are already resident.
         self.addresses_by_interface.clear()
+
+        if self.pseudo_management_interfaces:
+            self.job.logger.info(
+                "Fabricated a pseudo management Interface for %d Devices, each reached on an address "
+                "no Interface IP Fabric reports carries.",
+                self.pseudo_management_interfaces,
+            )
+
+        if self.devices_without_a_serial:
+            self.job.logger.warning(
+                "No serial number recorded for %d Devices, IP Fabric reporting none or one longer "
+                "than the %d characters Nautobot holds.",
+                self.devices_without_a_serial,
+                device_serial_max_length,
+            )
+
+        for (device_name, interface_name), count in sorted(self.self_linking_endpoints.items()):
+            self.job.logger.warning(
+                "Skipped %d connectivity matrix entries that link %s:%s to itself.",
+                count,
+                device_name,
+                interface_name,
+            )
 
         for reported_state, count in sorted(self.unreadable_admin_states.items(), key=lambda item: str(item[0])):
             self.job.logger.warning(
@@ -832,7 +849,7 @@ def reported_prefix_length(net):
         return None
 
 
-def prefix_lengths_by_address(reported_addresses):
+def prefix_lengths_by_address(reported_addresses, logger):
     """Return one prefix length per address, the narrowest of those reported for it.
 
     IP Fabric indexes addressing by serial number and so describes a subnet per device. An address
@@ -950,8 +967,6 @@ def reconcile_vrfs(detail_rows, target_rows):
             conflicts.append("route targets")
 
         conflict = f"IP Fabric's devices disagree about this VRF's {' and '.join(conflicts)}" if conflicts else ""
-        if conflict:
-            logger.warning("%s, so none is recorded for the VRF named %s", conflict, name)
         reconciled[name] = {
             "rd": route_distinguisher,
             "import_targets": import_targets,

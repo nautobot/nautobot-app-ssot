@@ -10,9 +10,10 @@ test suites.
 import ast
 import contextlib
 import pathlib
+from collections import Counter
 from types import SimpleNamespace
 from unittest import mock
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from django.test import SimpleTestCase
 
@@ -64,12 +65,14 @@ def _make_adapter(scope=None, strict=None, bulk_write_mode=False):
     adapter.may_create = lambda key: DiffSyncModelAdapters.may_create(adapter, key)
     # Set explicitly because, left as a mock, it is truthy and every model here would queue its
     # writes instead of making them.
-    adapter.pending = PendingWrites() if bulk_write_mode else None
+    adapter.pending = PendingWrites(mock.MagicMock()) if bulk_write_mode else None
     adapter.job = mock.MagicMock()
     adapter.job.debug = False
     adapter.ssot_tag = mock.MagicMock(name="ssot_tag")
     adapter.safe_delete_tag = mock.MagicMock(name="safe_delete_tag")
     adapter.safe_delete_tag.id = "tag-uuid"
+    # Real, because a mock absorbs the increments and then reports nothing was counted.
+    adapter.safe_delete_tally = Counter()
     return adapter
 
 
@@ -151,6 +154,23 @@ class TestSafeDelete(_ModelTestBase):
         # Vlan is the smallest model; safe_delete is defined on the shared base.
         self.diff_model = Vlan(name="v", vid=10, status="Active", location="loc")
         self.diff_model.adapter = self.adapter
+
+    @_nb_patch("get_tagged_pks", return_value=frozenset())
+    @_nb_patch("tag_object")
+    @_nb_patch("get_or_create_status_object")
+    def test_safe_delete_counts_an_object_that_has_no_status(self, mock_status, _mock_tag, _mock_pks):
+        """Not every Nautobot model carries one, and the object is still worth tagging."""
+        mock_status.return_value = mock.MagicMock()
+        no_status = mock.MagicMock(spec=["pk", "tags", "__class__"])
+        no_status.pk = uuid4()
+
+        self.diff_model.safe_delete(no_status, safe_delete_status="Deprecated", safe_delete_tag=None)
+
+        self.assertIn(
+            (type(no_status).__name__, "left unmarked, having no Status"),
+            self.adapter.safe_delete_tally,
+            dict(self.adapter.safe_delete_tally),
+        )
 
     @_nb_patch("get_tagged_pks", return_value=frozenset())
     @_nb_patch("tag_object")

@@ -4,7 +4,6 @@
 # One module holds every synced model #  pylint:disable=too-many-lines
 """DiffSyncModel subclasses for Nautobot-to-IPFabric data sync."""
 
-import logging
 from typing import Any, ClassVar, List, Optional
 from uuid import UUID
 
@@ -48,8 +47,6 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SAFE_DELETE_VRF_STATUS,
     SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def resolve_location(adapter, location_name: str, location_id: Optional[str] = None):
@@ -173,8 +170,9 @@ class DiffSyncExtras(DiffSyncModel):
             safe_delete_status (Optional[str], optional): Status name, optional as some objects don't have status field. Defaults to None.
         """
         update = False
+        model_name = type(nautobot_object).__name__
         if not self.safe_delete_mode:  # This could just check self, refactor.
-            logger.warning(f"{nautobot_object} will be deleted as safe delete mode is not enabled.")
+            self.adapter.safe_delete_tally[(model_name, "deleted, Safe Delete Mode being off")] += 1
             # This allows private class naming of nautobot objects to be ordered for delete()
             # Example definition in adapter class var: _site = Location
             # The model and primary key rather than the instance: deletion needs no more than that,
@@ -196,21 +194,23 @@ class DiffSyncExtras(DiffSyncModel):
                 if hasattr(nautobot_object, "status"):
                     if not nautobot_object.status == safe_delete_status:
                         nautobot_object.status = safe_delete_status
-                        logger.warning(f"{nautobot_object} has changed status to {safe_delete_status}.")
+                        self.adapter.safe_delete_tally[(model_name, f"marked {safe_delete_status}")] += 1
                         update = True
                 else:
                     # Not everything has a status. This may come in handy once more models are synced.
-                    logger.warning(f"{nautobot_object} has no Status attribute.")
+                    self.adapter.safe_delete_tally[(model_name, "left unmarked, having no Status")] += 1
             tags_to_add = ()
             if hasattr(nautobot_object, "tags") and safe_delete_tag:
                 already_tagged = tonb_nbutils.get_tagged_pks(type(nautobot_object), safe_delete_tag.id)
                 if nautobot_object.pk not in already_tagged:
                     # Applied below alongside the synced from tag, as one call to `tags.add`.
                     tags_to_add = (safe_delete_tag,)
-                    logger.warning(f"Tagging {nautobot_object} with `SSoT Safe Delete`.")
+                    self.adapter.safe_delete_tally[(model_name, "tagged `SSoT Safe Delete`")] += 1
                     update = True
                 else:
-                    logger.warning(f"{nautobot_object} has previously been tagged with `SSoT Safe Delete`. Skipping...")
+                    # Already tagged by an earlier run, so this one changes nothing. Counted rather
+                    # than reported: in steady state that is every tagged object, every run.
+                    self.adapter.safe_delete_tally[(model_name, "already tagged, so left alone")] += 1
             if update:
                 tonb_nbutils.tag_object(
                     nautobot_object=nautobot_object,
@@ -457,8 +457,8 @@ class Device(DiffSyncExtras):
                         )
                         message = f"Unable to create device: {device_name}. A validation error occured. Enable debug for more information."
                         if adapter.job.debug:
-                            logger.debug(error)
-                        logger.error(message)
+                            adapter.job.logger.debug(error)
+                        adapter.job.logger.error(message)
 
                 vc_name = attrs.get("vc_name")
                 if vc_name:
@@ -698,7 +698,6 @@ class Interface(DiffSyncExtras):
                 f"Unable to retrieve Device named {self.device_name}, so Interface named {self.name} "
                 "will not be deleted."
             )
-            logger.warning(f"Unable to match device by name, {self.name}")
 
         return None
 
@@ -753,7 +752,6 @@ class Interface(DiffSyncExtras):
                 return super().update(attrs)
 
         else:
-            logger.warning(f"Unable to match device by name, {self.name}")
             self.adapter.job.logger.warning(
                 f"Unable to retrieve a Device named {self.device_name}, so unable to update "
                 f"its interface named {self.name}"

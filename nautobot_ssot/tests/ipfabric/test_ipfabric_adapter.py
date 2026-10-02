@@ -24,6 +24,7 @@ from nautobot_ssot.integrations.ipfabric.sync_scope import (
     UNSYNCED_LOCATION_FLAGS,
     SyncScope,
 )
+from nautobot_ssot.tests.ipfabric.job_log import job_log_text, job_logger
 from nautobot_ssot.tests.ipfabric.supporting_objects import addresses_of
 
 
@@ -306,7 +307,8 @@ class IPFabricDiffSyncCableTestCase(TestCase):
     def setUp(self):
         client = mock_ipfabric_client()
         client.inventory.interfaces.all.return_value = INTERFACE_FIXTURE + self.EXTRA_INTERFACES
-        self.ipfabric = build_adapter(client=client, sync_cables=True)
+        self.job_logger = job_logger()
+        self.ipfabric = build_adapter(client=client, sync_cables=True, logger=self.job_logger)
 
     def test_only_cableable_links_in_scope_are_synced(self):
         """Links are skipped unless both endpoints were loaded and are of a cableable Interface type."""
@@ -425,7 +427,8 @@ class IPFabricDiffSyncSharedEndpointTestCase(TestCase):
         client = mock_ipfabric_client()
         client.inventory.interfaces.all.return_value = INTERFACE_FIXTURE + self.EXTRA_INTERFACES
         client.technology.interfaces.connectivity_matrix.all.return_value = self.FAN_OUT
-        self.ipfabric = build_adapter(client=client, sync_cables=True)
+        self.job_logger = job_logger()
+        self.ipfabric = build_adapter(client=client, sync_cables=True, logger=self.job_logger)
 
     def test_a_shared_interface_yields_one_cable(self):
         self.assertEqual(len(self.ipfabric.get_all("cable")), 1)
@@ -446,10 +449,9 @@ class IPFabricDiffSyncSharedEndpointTestCase(TestCase):
 
     def test_the_links_that_cannot_be_recorded_are_reported(self):
         """An operator seeing fewer Cables than IP Fabric reports needs to be told why."""
-        with self.assertLogs("nautobot.jobs", level="WARNING") as logs:
-            self.ipfabric.recordable_links()
+        self.ipfabric.recordable_links()
 
-        logged = " ".join(logs.output)
+        logged = job_log_text(self.job_logger, "warning")
         self.assertIn("nyc-leaf-01:Ethernet20", logged)
         self.assertIn("2 further link", logged)
 
@@ -466,21 +468,22 @@ class PrefixLengthChoiceTestCase(TestCase):
 
     def test_the_narrowest_reported_subnet_is_chosen(self):
         """Nautobot parents an address to the most specific Prefix containing it, so this agrees."""
-        self.assertEqual(prefix_lengths_by_address(self.CONTESTED)["10.0.0.1"], 25)
+        self.assertEqual(prefix_lengths_by_address(self.CONTESTED, job_logger())["10.0.0.1"], 25)
 
     def test_the_choice_does_not_follow_the_order_reported(self):
         """IP Fabric's order is not guaranteed, and a choice that followed it would flip each run."""
         self.assertEqual(
-            prefix_lengths_by_address(self.CONTESTED),
-            prefix_lengths_by_address(list(reversed(self.CONTESTED))),
+            prefix_lengths_by_address(self.CONTESTED, job_logger()),
+            prefix_lengths_by_address(list(reversed(self.CONTESTED)), job_logger()),
         )
 
     def test_an_address_reported_in_two_subnets_is_named(self):
         """One Interface will carry a mask it was not reported with, so the operator is told which."""
-        with self.assertLogs("nautobot.jobs", level="WARNING") as logs:
-            prefix_lengths_by_address(self.CONTESTED)
+        logger = job_logger()
 
-        self.assertIn("10.0.0.1", " ".join(logs.output))
+        prefix_lengths_by_address(self.CONTESTED, logger=logger)
+
+        self.assertIn("10.0.0.1", job_log_text(logger, "warning"))
 
     def test_one_device_reporting_two_subnets_is_named_too(self):
         """Folded per record rather than per device, so a device disagreeing with itself is seen."""
@@ -489,21 +492,22 @@ class PrefixLengthChoiceTestCase(TestCase):
             {"sn": "sn-a", "ip": "10.0.0.1", "net": "10.0.0.0/25"},
         ]
 
-        with self.assertLogs("nautobot.jobs", level="WARNING") as logs:
-            chosen = prefix_lengths_by_address(reported)
+        logger = job_logger()
+
+        chosen = prefix_lengths_by_address(reported, logger=logger)
 
         self.assertEqual(chosen["10.0.0.1"], 25)
-        self.assertIn("10.0.0.1", " ".join(logs.output))
+        self.assertIn("10.0.0.1", job_log_text(logger, "warning"))
 
     def test_an_address_reported_once_is_left_as_reported(self):
-        self.assertEqual(prefix_lengths_by_address(self.CONTESTED[:1])["10.0.0.1"], 24)
+        self.assertEqual(prefix_lengths_by_address(self.CONTESTED[:1], job_logger())["10.0.0.1"], 24)
 
     def test_a_record_without_a_subnet_is_skipped(self):
-        self.assertEqual(prefix_lengths_by_address([{"ip": "10.0.0.9", "net": None}]), {})
+        self.assertEqual(prefix_lengths_by_address([{"ip": "10.0.0.9", "net": None}], job_logger()), {})
 
     def test_a_record_without_an_address_is_skipped(self):
         """The column can come back empty for a row IP Fabric still returns."""
-        self.assertEqual(prefix_lengths_by_address([{"ip": None, "net": "10.0.0.0/24"}]), {})
+        self.assertEqual(prefix_lengths_by_address([{"ip": None, "net": "10.0.0.0/24"}], job_logger()), {})
 
     def test_a_subnet_that_does_not_parse_is_skipped(self):
         """One unusable row must not end the load, which would lose every address that was fine."""
@@ -512,16 +516,17 @@ class PrefixLengthChoiceTestCase(TestCase):
             {"ip": "10.0.0.10", "net": "10.0.0.0/24"},
         ]
 
-        with self.assertLogs("nautobot.jobs", level="WARNING") as logs:
-            chosen = prefix_lengths_by_address(reported)
+        logger = job_logger()
+
+        chosen = prefix_lengths_by_address(reported, logger=logger)
 
         self.assertEqual(chosen, {"10.0.0.10": 24})
-        self.assertIn("not-a-subnet", " ".join(logs.output))
+        self.assertIn("not-a-subnet", job_log_text(logger, "warning"))
 
     def test_an_ipv6_subnet_is_usable(self):
         """A length serves either version, which is what lets a v6 address be synced at all."""
         self.assertEqual(
-            prefix_lengths_by_address([{"ip": "2001:db8::1", "net": "2001:db8::/64"}]),
+            prefix_lengths_by_address([{"ip": "2001:db8::1", "net": "2001:db8::/64"}], job_logger()),
             {"2001:db8::1": 64},
         )
 
@@ -532,7 +537,7 @@ class PrefixLengthChoiceTestCase(TestCase):
             {"ip": "10.0.0.1", "net": "garbage"},
         ]
 
-        self.assertEqual(prefix_lengths_by_address(reported), {"10.0.0.1": 24})
+        self.assertEqual(prefix_lengths_by_address(reported, job_logger()), {"10.0.0.1": 24})
 
 
 # Pinned rather than left to the deployed setting, so the Interface names asserted below do not
@@ -612,10 +617,8 @@ class UnresolvableSubnetMaskTestCase(TestCase):
     def test_the_count_is_reported_as_a_warning(self):
         adapter = build_adapter(logger=MagicMock())
 
-        self.assertTrue(
-            any("Not syncing" in str(call) for call in adapter.job.logger.warning.call_args_list),
-            adapter.job.logger.warning.call_args_list,
-        )
+        warnings = job_log_text(adapter.job.logger, "warning")
+        self.assertIn("Interface addresses because IP Fabric reports no usable subnet", warnings, warnings)
 
     def test_an_unusable_subnet_is_treated_as_no_subnet(self):
         """The check is that a usable subnet was reported, not merely that a value was present."""
@@ -651,10 +654,10 @@ class UnresolvableSubnetMaskTestCase(TestCase):
         adapter = build_adapter(client=client, logger=MagicMock())
 
         self.assertEqual(adapter.addresses_without_a_subnet, set())
-        self.assertFalse(
-            any("Not syncing" in str(call) for call in adapter.job.logger.warning.call_args_list),
-            adapter.job.logger.warning.call_args_list,
-        )
+        # Named precisely: everything the run reports now reaches one logger, and the fixtures carry
+        # VLANs this run also declines, so a bare "Not syncing" would match one of those instead.
+        warnings = job_log_text(adapter.job.logger, "warning")
+        self.assertNotIn("Interface addresses because IP Fabric reports no usable subnet", warnings, warnings)
 
 
 # `Gi4` on `jcy-rtr-02` is the Interface the address fixtures attach to; it loads under its canonical
@@ -792,10 +795,11 @@ class SeveralAddressesPerInterfaceTestCase(TestCase):
         duplicated = [record for record in INTERFACE_FIXTURE if record["intName"] == "Gi4"]
         self.client.inventory.interfaces.all.return_value = INTERFACE_FIXTURE + duplicated
 
-        with self.assertLogs("nautobot.jobs", level="WARNING") as logs:
-            adapter = build_adapter(client=self.client)
+        logger = job_logger()
 
-        self.assertIn("Duplicate Interface discovered", " ".join(logs.output))
+        adapter = build_adapter(client=self.client, logger=logger)
+
+        self.assertIn("Duplicate Interface discovered", job_log_text(logger, "warning"))
         self.assertEqual(addresses_of(adapter, self.DEVICE, self.INTERFACE), {"10.10.0.10": 24})
 
     def test_a_row_with_no_address_is_passed_over(self):

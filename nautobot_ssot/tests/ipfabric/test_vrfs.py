@@ -31,6 +31,7 @@ from nautobot_ssot.integrations.ipfabric.signals import nautobot_database_ready_
 from nautobot_ssot.integrations.ipfabric.sync_scope import SYNCABLE_OBJECTS, SyncScope
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import VRF_CONFLICT_CF_NAME
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
+from nautobot_ssot.tests.ipfabric.job_log import job_log_text
 
 RD_CONFLICT = "IP Fabric's devices disagree about this VRF's route distinguisher"
 RT_CONFLICT = "IP Fabric's devices disagree about this VRF's route targets"
@@ -1319,6 +1320,15 @@ class IPFabricInterfaceVrfLoadTestCase(SimpleTestCase):
             {each.get_unique_id(): each.vrf_name for each in adapter.get_all("interface_vrf")},
             {"rtr1__Ethernet1": "BLUE", "rtr1__Ethernet2": "RED"},
         )
+
+    def test_an_interface_reported_twice_is_loaded_once_and_reported(self):
+        """The table reports a row per address family, so one Interface can repeat."""
+        adapter = self.build_adapter([self.row(), self.row()], [("rtr1", "Ethernet1")])
+
+        adapter.load_interface_vrfs()
+
+        self.assertEqual(len(adapter.get_all("interface_vrf")), 1)
+        self.assertIn("Duplicate Interface VRF discovered", job_log_text(adapter.job.logger, "warning"))
 
     def test_an_interface_the_run_did_not_load_is_skipped(self):
         """An Interface in a VRF that this run never saw would be reported absent on every run."""
