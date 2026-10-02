@@ -1,0 +1,1 @@
+Added an opt-in "Sync Interface VLANs" option to the IP Fabric integration that records each switchport's 802.1Q mode and the VLANs it carries, and puts an addressed Interface such as an SVI in the VLAN its address reports. The modes, the precedence between the two tables and the cases where a VLAN is left off are documented in the IP Fabric integration.
