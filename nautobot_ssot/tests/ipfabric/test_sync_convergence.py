@@ -17,11 +17,11 @@ from diffsync.enum import DiffSyncFlags
 from django.apps import apps as global_apps
 from ipfabric.models.device import Device as IPFDevice
 from nautobot.apps.testing import TestCase
-from nautobot.dcim.models import Device, Interface
+from nautobot.dcim.models import Device, Interface, Location, LocationType
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import JobResult, Status, Tag
 from nautobot.ipam.choices import PrefixTypeChoices
-from nautobot.ipam.models import IPAddress, Prefix, get_default_namespace
+from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
@@ -39,7 +39,7 @@ def load_json(path):
         return json.loads(file.read())
 
 
-class SyncConvergenceTestCase(TestCase):
+class SyncConvergenceTestCase(TestCase):  # pylint: disable=too-many-public-methods
     """Sync the fixtures in twice and require the second run to find nothing to change."""
 
     databases = ("default", "job_logs")
@@ -155,6 +155,84 @@ class SyncConvergenceTestCase(TestCase):
             for address in interface.ip_addresses.all():
                 state[f"{interface.device.name}:{interface.name}"].append(str(address.address))
         return {key: sorted(value) for key, value in state.items()}
+
+    def test_a_vlan_that_predates_the_group_is_adopted_by_a_real_sync(self):
+        """The adoption through the adapters rather than by calling `update` directly.
+
+        A VLAN Nautobot already holds ungrouped is what an estate upgrades into, and the Nautobot
+        side has to report it as ungrouped for the diff to carry the adoption at all.
+        """
+        reported = self.vlans[0]
+        location_type = LocationType.objects.get(name="Site")
+        location = Location.objects.create(
+            name=reported["siteName"], location_type=location_type, status=Status.objects.get(name="Active")
+        )
+        predating = VLAN.objects.create(
+            name=reported["vlanName"], vid=reported["vlanId"], status=Status.objects.get(name="Active")
+        )
+        predating.locations.add(location)
+        self.assertIsNone(predating.vlan_group, "It starts outside any group, as an upgrade finds it.")
+
+        # What the Nautobot side reports before anything is written: ungrouped, so the diff says so.
+        loaded = self.destination(self.job(), SyncScope.from_job_kwargs({})).get(
+            "vlan", {"vid": reported["vlanId"], "location": reported["siteName"]}
+        )
+        self.assertFalse(loaded.in_vlan_group)
+
+        self.sync_once()
+
+        predating.refresh_from_db()
+        self.assertIsNotNone(predating.vlan_group, "A real sync has to adopt it, not just `update`.")
+        self.assertEqual(predating.vlan_group.name, reported["siteName"])
+
+    def test_adopting_a_vlan_settles_rather_than_diffing_every_run(self):
+        """The adoption is only correct if the next run finds nothing left to do."""
+        reported = self.vlans[0]
+        location_type = LocationType.objects.get(name="Site")
+        location = Location.objects.create(
+            name=reported["siteName"], location_type=location_type, status=Status.objects.get(name="Active")
+        )
+        predating = VLAN.objects.create(
+            name=reported["vlanName"], vid=reported["vlanId"], status=Status.objects.get(name="Active")
+        )
+        predating.locations.add(location)
+
+        self.sync_once()
+        diff = self.remaining_diff()
+
+        self.assertNotIn(
+            "in_vlan_group",
+            self.changed_attributes(diff).get("vlan", []),
+            f"The adoption is reported again on the next run: {diff.str()}",
+        )
+
+    def test_two_vlans_of_one_name_at_a_location_settle_rather_than_diffing_every_run(self):
+        """A group holds one VLAN of a name, so the second stays outside it, and that has to settle.
+
+        Both sides have to agree the second cannot be filed, or it is diffed and re-reported on
+        every run for as long as the duplicate name exists.
+        """
+        site = self.vlans[0]["siteName"]
+        self.vlans = [
+            {"siteName": site, "vlanName": "shared", "vlanId": 101, "dscr": ""},
+            {"siteName": site, "vlanName": "shared", "vlanId": 102, "dscr": ""},
+        ]
+
+        self.sync_once()
+        diff = self.remaining_diff()
+
+        filed = {vlan.vid: vlan.vlan_group for vlan in VLAN.objects.filter(vid__in=(101, 102))}
+        self.assertEqual(len(filed), 2, "Both VLANs are synced; the name clash is not a reason to drop one.")
+        self.assertEqual(
+            sorted(group is None for group in filed.values()),
+            [False, True],
+            f"Exactly one of the pair can be filed under the group: {filed}",
+        )
+        self.assertNotIn(
+            "in_vlan_group",
+            self.changed_attributes(diff).get("vlan", []),
+            f"The pair is re-diffed on every run: {diff.str()}",
+        )
 
     def test_a_second_sync_of_unchanged_data_reports_nothing(self):
         """Anything reported here is the two adapters describing one object differently."""

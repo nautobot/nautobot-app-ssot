@@ -1112,10 +1112,10 @@ class Vlan(DiffSyncExtras):
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete."""
         try:
-            vlan = VLAN.objects.get(name=self.name, pk=self.vlan_pk)
+            vlan = VLAN.objects.get(pk=self.vlan_pk)
         except VLAN.DoesNotExist:
             self.adapter.job.logger.error(
-                f"Unable to find a VLAN found with the name {self.name} and an ID of {self.vlan_pk}"
+                f"Unable to find a VLAN with VLAN ID {self.vid} at {self.location} and an ID of {self.vlan_pk}"
             )
         else:
             self.safe_delete(

@@ -7,6 +7,7 @@ no group, so the group is what makes one VLAN ID mean one VLAN at a Location.
 import unittest.mock
 
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device, Location, LocationType
 from nautobot.extras.management import populate_status_choices
@@ -17,7 +18,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Vlan as
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
     create_vlan,
     get_vlan_group_for_location,
-    vlan_group_is_attainable,
+    vlan_group_can_hold,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
@@ -113,18 +114,22 @@ class TestVlanGroupPerLocation(_VlanGroupTestCase):
         group = get_vlan_group_for_location(self.location, create=True)
         self.create(10, self.vlans[10].name, group=group)
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             duplicate = VLAN(vid=10, name="another", status=self.active, vlan_group=group)
             duplicate.validated_save()
 
-    def test_a_second_vlan_of_one_name_is_reported_and_skipped(self):
-        """A group makes the name unique too, which it is not without one."""
+    def test_a_second_vlan_of_one_name_is_written_outside_the_group(self):
+        """A group makes the name unique too, so the second is filed outside it rather than lost.
+
+        The VLAN is real whatever its name collides with, and refusing it entirely would leave it
+        unsynced on every run rather than settling.
+        """
         group = get_vlan_group_for_location(self.location, create=True)
         # A VLAN new to Nautobot, so the name given here is the one it is written under.
         self.create(30, "shared-name", group=group)
         logger = unittest.mock.MagicMock()
 
-        refused = create_vlan(
+        written = create_vlan(
             vlan_name="shared-name",
             vlan_id=40,
             vlan_status="Active",
@@ -134,9 +139,11 @@ class TestVlanGroupPerLocation(_VlanGroupTestCase):
             vlan_group=group,
         )
 
-        self.assertIsNone(refused)
-        reported = str(logger.error.call_args_list)
-        self.assertIn("already holds a different VLAN named", reported)
+        self.assertIsNotNone(written, "The VLAN itself is still worth syncing.")
+        written.refresh_from_db()
+        self.assertIsNone(written.vlan_group, "It cannot carry the group that refused its name.")
+        reported = str(logger.warning.call_args_list)
+        self.assertIn("already holds a", reported)
         self.assertIn("shared-name", reported)
 
 
@@ -180,7 +187,7 @@ class TestAdoptingVlansThatPredateTheGroup(_VlanGroupTestCase):
         group = VLANGroup.objects.get(name=self.location.name)
 
         self.assertEqual(VLAN.objects.filter(vlan_group=group, vid=10).count(), 1)
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValidationError):
             VLAN(name="another", vid=10, status=self.active, vlan_group=group).validated_save()
 
     def test_a_vlan_already_in_a_group_is_left_where_it_is(self):
@@ -213,7 +220,7 @@ class TestWhetherAGroupCanBeHadAtAll(_VlanGroupTestCase):
     """Both sides have to agree a group is out of reach, or the difference is diffed every run."""
 
     def test_a_location_whose_group_can_be_created(self):
-        self.assertTrue(vlan_group_is_attainable(self.location.name, create=True))
+        self.assertTrue(vlan_group_can_hold(self.location.name, "vlan10", 10, create=True))
 
     def test_a_group_of_that_name_owned_by_another_location_is_not_attainable(self):
         other_location = Location.objects.create(
@@ -221,16 +228,30 @@ class TestWhetherAGroupCanBeHadAtAll(_VlanGroupTestCase):
         )
         VLANGroup.objects.create(name=self.location.name, location=other_location)
 
-        self.assertFalse(vlan_group_is_attainable(self.location.name, create=False))
+        self.assertFalse(vlan_group_can_hold(self.location.name, "vlan10", 10, create=False))
         self.assertFalse(
-            vlan_group_is_attainable(self.location.name, create=True),
+            vlan_group_can_hold(self.location.name, "vlan10", 10, create=True),
             "Creating is no help when the name is taken.",
         )
 
     def test_strictness_makes_a_missing_group_unattainable(self):
-        self.assertFalse(vlan_group_is_attainable(self.location.name, create=False))
+        self.assertFalse(vlan_group_can_hold(self.location.name, "vlan10", 10, create=False))
 
     def test_an_existing_group_at_this_location_is_attainable_under_strictness(self):
         get_vlan_group_for_location(self.location, create=True)
 
-        self.assertTrue(vlan_group_is_attainable(self.location.name, create=False))
+        self.assertTrue(vlan_group_can_hold(self.location.name, "vlan10", 10, create=False))
+
+    def test_a_name_the_group_has_already_taken_is_not_attainable(self):
+        """What makes the clash settle: once it exists, both sides report the VLAN as ungrouped."""
+        group = get_vlan_group_for_location(self.location, create=True)
+        VLAN.objects.create(name="shared", vid=999, status=self.active, vlan_group=group)
+
+        self.assertFalse(
+            vlan_group_can_hold(self.location.name, "shared", 10, create=True),
+            "A second VLAN of that name cannot be filed, so the source must not ask for it.",
+        )
+        self.assertTrue(
+            vlan_group_can_hold(self.location.name, "shared", 999, create=True),
+            "The VLAN already filed under that name is itself, not a clash.",
+        )

@@ -31,7 +31,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
 from nautobot_ssot.integrations.ipfabric.utilities.cables import canonical_endpoints
-from nautobot_ssot.integrations.ipfabric.utilities.nbutils import vlan_group_is_attainable
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import vlan_group_can_hold
 from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length
 
 try:
@@ -811,10 +811,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             if location.name is None:
                 continue
             location_vlans = vlans_by_location.get(location.name, [])
-            # Resolved once per Location: whether its VLANs can be filed under a VLAN Group of its
-            # own. Reported as an attribute so a VLAN Nautobot already holds ungrouped is adopted,
-            # rather than the group reaching only the VLANs this run creates.
-            in_vlan_group = vlan_group_is_attainable(location.name, create=self.may_create("vlan_groups"))
+            may_group = self.may_create("vlan_groups")
             for vlan_record in location_vlans:
                 vlan_name = vlan_record.get("vlanName")
                 vlan_id = vlan_record["vlanId"]
@@ -830,6 +827,11 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         f"{name_max_length} characters Nautobot holds: {vlan_label}"
                     )
                     vlan_label = vlan_label[:name_max_length]
+                # Asked per VLAN rather than per Location: a group holds one VLAN of a name, so
+                # whether this one can be filed depends on the name it carries. Reported as an
+                # attribute so a VLAN Nautobot already holds ungrouped is adopted, rather than the
+                # group reaching only the VLANs this run creates.
+                in_vlan_group = vlan_group_can_hold(vlan_record["siteName"], vlan_label, vlan_id, create=may_group)
                 try:
                     vlan = self.vlan(
                         name=vlan_label,

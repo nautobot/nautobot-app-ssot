@@ -1302,17 +1302,24 @@ def get_vlan_group_for_location(location_obj: Location, create: bool, logger: Op
     return group
 
 
-def vlan_group_is_attainable(location_name: str, create: bool) -> bool:
-    """Whether a Location's VLANs can be filed under a VLAN Group of its own.
+def vlan_group_can_hold(location_name: str, vlan_name: str, vlan_id: int, create: bool) -> bool:
+    """Whether this VLAN can be filed under its Location's VLAN Group.
 
-    Read only, and asked by the IP Fabric side before it reports a VLAN as grouped. A Location whose
-    group cannot be had is then reported as ungrouped by both sides, rather than diffed every run
-    against a group that will never exist.
+    Read only, and asked by the IP Fabric side before it reports a VLAN as grouped, so that a VLAN
+    the group cannot hold is reported as ungrouped by both sides rather than diffed every run
+    against a group that will never take it.
+
+    Three ways it cannot: no group of that name exists and this run may not create one; a group of
+    that name belongs to another Location; or the group already holds a different VLAN under this
+    name, a group making the name unique within it as well as the VLAN ID.
     """
     existing = VLANGroup.objects.filter(name=location_name).first()
-    if existing is not None:
-        return existing.location is not None and existing.location.name == location_name
-    return create
+    if existing is None:
+        # Nothing is filed yet, so there is nothing for this VLAN to collide with.
+        return create
+    if existing.location is None or existing.location.name != location_name:
+        return False
+    return not vlan_group_refuses_name(existing, vlan_name, vlan_id)
 
 
 def vlan_group_refuses_name(group, vlan_name: str, vlan_id: int) -> bool:
@@ -1360,14 +1367,15 @@ def create_vlan(  # pylint: disable=too-many-arguments,too-many-return-statement
 
     if vlan_group_refuses_name(vlan_group, vlan_name, vlan_id):
         if logger:
-            logger.error(
-                "VLAN %s at %s is not synced: its Location's VLAN Group already holds a different "
-                "VLAN named %s, and a group makes that name unique within it.",
+            logger.warning(
+                "VLAN %s at %s is synced without a VLAN Group: the group there already holds a "
+                "different VLAN named %s, and a group makes that name unique within it. Its VLAN ID "
+                "is not constrained until the duplicate name is resolved.",
                 vlan_id,
                 location_obj.name if location_obj else "no Location",
                 vlan_name,
             )
-        return None
+        vlan_group = None
 
     try:
         try:

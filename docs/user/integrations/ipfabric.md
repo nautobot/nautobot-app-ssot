@@ -369,10 +369,15 @@ its own, named after the Location, which is what makes one VLAN ID mean one VLAN
 VLANs that predate the group are moved into it, since the constraint only covers what is actually in
 it. Expect that on the first sync after upgrading. Being in a group is synced as a property of the
 VLAN rather than applied only when one is created, so a VLAN nothing else about has changed is
-adopted too. Two VLANs are left where they are: one already filed under some other group keeps it,
-because the constraint is what this needs and re-filing would fight whatever put it there; and one
-whose VLAN ID or name is already taken inside the group stays ungrouped and is reported, since a
-group makes both unique within it.
+adopted too. A VLAN already filed under some other group keeps it, because the constraint is what
+this needs and re-filing would fight whatever put it there.
+
+**Two VLANs of one name at a Location.** A group makes the name unique within it as well as the VLAN
+ID, so only one of the pair can be filed under it. The other is synced without a group, which leaves
+its VLAN ID unconstrained there, and is reported once. It is not reported again on later runs: both
+sides of the sync read the name as already taken, so the VLAN settles as ungrouped rather than being
+offered to the group and refused on every run. It is adopted as soon as the duplicate name is
+resolved in Nautobot or on the network.
 
 A VLAN Group name is unique across Nautobot. Where a group of that name already belongs to another
 Location it is left alone and reported, and that Location's VLANs are synced without a group, which
