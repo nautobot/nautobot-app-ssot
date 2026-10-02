@@ -2,7 +2,9 @@
 
 In [`DiffSync`](https://github.com/networktocode/diffsync), an *adapter* loads data from one system into defined `DiffSyncModel` instances and saves them to its internal datastore. Each adapter is specific to a data source, such as Nautobot, ServiceNow API, and more. A *diff* requires two adapters to be loaded to determine the differences between the two.
 
-The `nautobot_ssot.contrib.adapter` module provides reusable boilerplate code for loading Nautobot ORM objects into a [`NautobotModel` class](./models.md). This eliminates the development effort required for creating custom DiffSync adapters for any custom SSoT integration importing data into Nautobot. As long as your `DiffSync` models use `nautobot_ssot.contrib.model.NautobotModel`, you do not have to write a `load` method. The adapter infers how to read each model, its relationships from the Nautobot ORM, and how to perform required CRUD operations.
+The `nautobot_ssot.contrib.adapter` module provides reusable boilerplate code for loading Nautobot ORM objects into a [`NautobotModel` class](./models.md). This eliminates most to all development effort required for creating custom DiffSync adapters for any custom SSoT integration importing data into Nautobot. 
+
+As long as your `DiffSync` models use `nautobot_ssot.contrib.model.NautobotModel`, you do not have to write a `load` method. The adapter infers how to read each model, its relationships from the Nautobot ORM, and how to perform required CRUD operations.
 
 ## Creating a Nautobot adapter
 
@@ -27,10 +29,10 @@ class YourNautobotAdapter(NautobotAdapter):
 Two things are required:
 
 - **Model attributes** — assign each DiffSync model class to a class attribute. The attribute name must match the model's `_modelname`, because the adapter looks the class up by that name when it needs to load it.
-- **`top_level`** — a tuple of the model names that should be loaded directly. Child models (those reachable through a parent's `_children`) are *not* listed here; the adapter discovers and loads them recursively while processing their parent.
+- **`top_level`** — a tuple of the model names that should be loaded directly. Child models (those reachable through a parent's `_children`) are *not* listed here; the adapter discovers and loads them recursively while processing their parent. 
 
 !!! note
-    `top_level` must be set, or instantiating the adapter raises a `ValueError`. This is the only structural requirement the adapter validates on creation.
+    The order of `top_level` matters. It iterate through the list in the order provided when creating and updating objects so, for example, location types must come before locations. It also iterates in reverse order when deleting objects to remove child objects before the parents where applicable.
 
 ## How loading works
 
