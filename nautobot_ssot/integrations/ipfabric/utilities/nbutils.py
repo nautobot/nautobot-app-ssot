@@ -1412,7 +1412,10 @@ def create_vlan(  # pylint: disable=too-many-arguments,too-many-return-statement
         assignments = (
             (VLANLocationAssignment(vlan=vlan_obj, location_id=location_obj.pk),) if location_obj is not None else ()
         )
-        return queue_new_object(pending, vlan_obj, through_rows=assignments)
+        # Keyed the way `resolve_interface_vlans` looks it up, so an Interface written later in
+        # the same run can point at a VLAN this run has only queued.
+        key = (vlan_id, location_obj.pk) if location_obj is not None else None
+        return queue_new_object(pending, vlan_obj, key=key, through_rows=assignments)
 
     try:
         if is_new or adopted:
@@ -1574,7 +1577,7 @@ def resolve_interface_vlans(  # pylint: disable=too-many-arguments
     return untagged, tagged
 
 
-def set_interface_vlans(  # pylint: disable=too-many-arguments
+def set_interface_vlans(  # pylint: disable=too-many-arguments,too-many-locals
     device_name: str,
     interface_name: str,
     mode: str,
@@ -1622,14 +1625,30 @@ def set_interface_vlans(  # pylint: disable=too-many-arguments
     if pending is not None:
         rows = [Interface.tagged_vlans.through(interface_id=interface_obj.pk, vlan_id=vlan.pk) for vlan in tagged]
         if interface_obj._state.adding:  # pylint: disable=protected-access
-            # A queued Interface is inserted carrying the mode and the untagged VLAN; the tagged
-            # ones are join rows, written once both ends are there.
+            # Interfaces are written before VLANs, so an Interface inserted now cannot carry a VLAN
+            # this run has only queued: the insert would name a row that does not exist yet. The
+            # mode goes on the insert, and the untagged VLAN follows as an update once both are
+            # written. The tagged ones are join rows, written once both ends are there.
+            if untagged is not None and untagged._state.adding:  # pylint: disable=protected-access
+                interface_obj.untagged_vlan = None
+                pending.defer_update(interface_obj, {"untagged_vlan": untagged})
             for row in rows:
                 pending.add_through(row)
             return True
         pending.defer_update(interface_obj, {"mode": mode, "untagged_vlan": untagged})
+        # An Interface Nautobot already holds carries a set of tagged VLANs to be replaced, not
+        # added to. The collector only inserts, so the rows this run no longer reports are removed
+        # here, and the ones it still reports are left alone rather than queued a second time
+        # against the join table's uniqueness.
+        held = set(interface_obj.tagged_vlans.values_list("pk", flat=True))
+        wanted = {vlan.pk for vlan in tagged}
+        if held - wanted:
+            Interface.tagged_vlans.through.objects.filter(
+                interface_id=interface_obj.pk, vlan_id__in=held - wanted
+            ).delete()
         for row in rows:
-            pending.add_through(row)
+            if row.vlan_id not in held:
+                pending.add_through(row)
         return True
     try:
         interface_obj.validated_save()

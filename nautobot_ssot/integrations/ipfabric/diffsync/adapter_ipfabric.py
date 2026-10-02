@@ -148,7 +148,7 @@ def switchport_vlans(row) -> Optional[tuple]:
     return None
 
 
-class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-instance-attributes
+class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-instance-attributes,too-many-public-methods
     """IPFabric adapter for DiffSync: it carries an index per table it reads ahead."""
 
     def __init__(self, job, sync, client: IPFClient, location_filter, *args, **kwargs):
@@ -191,6 +191,10 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
         self.links_moved_to_their_ports = set()
         # Keyed as the Interface models are, so a switchport row can be matched against it.
         self.access_vlan_by_interface = {}
+        # VLAN IDs a switchport allows that this run has no VLAN for at that Location. Dropped from
+        # what the source reports so the two sides agree, and reported once rather than diffed every
+        # run, which is the treatment an address with no reported subnet mask already gets.
+        self.unreachable_interface_vlans = defaultdict(set)
         # Held because a VRF is network wide while this filter is not, so a filtered run must not
         # delete the VRFs of the sites it cannot see; see `DiffSyncModelAdapters.network_wide`.
         self.location_filter = location_filter
@@ -748,6 +752,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
                 unreadable_modes[row.get("mode")] += 1
                 continue
             mode, untagged_vid, tagged_vids = switchport
+            untagged_vid, tagged_vids = self.vlans_this_run_can_reach(
+                device_name, interface_name, untagged_vid, tagged_vids
+            )
             try:
                 self.add(
                     self.interface_vlan(
@@ -761,6 +768,15 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
                 )
             except ObjectAlreadyExists:
                 self.job.logger.warning("Duplicate Interface VLAN discovered, %s:%s", device_name, interface_name)
+        if self.unreachable_interface_vlans:
+            dropped = sorted({vid for vids in self.unreachable_interface_vlans.values() for vid in vids})
+            self.job.logger.warning(
+                "Not putting %d Interfaces in the VLANs %s that their switchports allow: this run "
+                "loaded no VLAN with those IDs at their Locations, which is ordinary under a "
+                "Location filter. The Interfaces are synced with the VLANs that are there.",
+                len(self.unreachable_interface_vlans),
+                ", ".join(str(vid) for vid in dropped),
+            )
         for reported_mode, count in sorted(unreadable_modes.items(), key=lambda item: str(item[0])):
             self.job.logger.warning(
                 "Not syncing the VLANs of %d Interfaces, as IP Fabric reports a switchport mode of "
@@ -769,6 +785,33 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
                 reported_mode or "nothing",
             )
         self.load_addressed_interface_vlans()
+
+    def vlans_this_run_can_reach(self, device_name, interface_name, untagged_vid, tagged_vids):
+        """Drop the VLAN IDs this run has no VLAN for at the Interface's Location.
+
+        A trunk names the VLANs the port allows, which can include one configured at another site,
+        or one IP Fabric reports no VLAN row for. Nothing can point an Interface at a VLAN that is
+        not there, so reporting it would leave the difference diffed on every run and never applied.
+        Dropped here instead, so that both sides describe the same set and the sync settles.
+        """
+        try:
+            device = self.get(self.device, {"name": device_name})
+        except ObjectNotFound:
+            return untagged_vid, tagged_vids
+        location = device.location_name
+
+        def reachable(vid):
+            try:
+                self.get(self.vlan, {"vid": vid, "location": location})
+            except ObjectNotFound:
+                self.unreachable_interface_vlans[(device_name, interface_name)].add(vid)
+                return False
+            return True
+
+        kept = [vid for vid in tagged_vids if reachable(vid)]
+        if untagged_vid is not None and not reachable(untagged_vid):
+            untagged_vid = None
+        return untagged_vid, kept
 
     def load_addressed_interface_vlans(self):
         """Add the VLAN an addressed Interface sits in, where no switchport row covers it.
@@ -908,7 +951,11 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
             for vlan in self.client.fetch_all("tables/vlan/site-summary"):
                 vlans_by_location[vlan["siteName"]].append(vlan)
 
-        if self.scope.ip_addresses:
+        # The managed address table carries the VLAN an addressed Interface sits in as well as the
+        # address itself, and the switchport table does not cover a routed Interface such as an SVI.
+        # So it is read for either, or an SVI's VLAN would be absent from the source while the
+        # Nautobot side still reported it, and the difference would clear what an earlier run wrote.
+        if self.scope.ip_addresses or self.scope.interface_vlans:
             # No filter on `type`: a secondary address is configured on the device and renders into
             # its configuration, so it belongs in Nautobot alongside the primary one.
             # Only the columns the sync reads: these are the largest requests the job makes, and
@@ -919,11 +966,13 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
                 self.client.technology.addressing.managed_ip_ipv6,
             ):
                 for ip_address in table.all(columns=ip_columns):
-                    reported_addresses.append(ip_address)
+                    if self.scope.ip_addresses:
+                        reported_addresses.append(ip_address)
                     self.index_by_interface(ip_address)
-            for virtual in self.fhrp_addresses():
-                self.index_by_interface(virtual)
-            self.prefix_length_by_address = prefix_lengths_by_address(reported_addresses, logger=self.job.logger)
+            if self.scope.ip_addresses:
+                for virtual in self.fhrp_addresses():
+                    self.index_by_interface(virtual)
+                self.prefix_length_by_address = prefix_lengths_by_address(reported_addresses, logger=self.job.logger)
 
         # Get all interfaces for devices
         if self.scope.interfaces:
