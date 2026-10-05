@@ -1,5 +1,6 @@
 """Diff sync shared adapter class attritbutes to synchronize applications."""
 
+from collections import Counter
 from typing import ClassVar, Optional, Set, Tuple
 
 from diffsync import Adapter
@@ -90,6 +91,10 @@ class DiffSyncModelAdapters(Adapter):
         second address that is fine still reports that one.
         """
         super().__init__(*args, **kwargs)
+        # What Safe Delete Mode did, counted by object type and outcome and reported once the sync
+        # is over. A job log entry is a database write, so naming every object would turn a teardown
+        # of a large estate into one write per object, for a list nobody reads.
+        self.safe_delete_tally = Counter()
         self.scope = scope if scope is not None else SyncScope.from_job_kwargs({})
         self.strict = strict if strict is not None else StrictObjects.from_job_kwargs({})
         self.addresses_without_a_subnet = set() if addresses_without_a_subnet is None else addresses_without_a_subnet

@@ -34,6 +34,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
 )
 from nautobot_ssot.integrations.ipfabric.utilities import cables, nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
+from nautobot_ssot.tests.ipfabric.job_log import job_log_text, job_logger
 
 
 # The trailing boundary keeps these off tables whose names merely start with the one asked for,
@@ -247,7 +248,7 @@ class DeleteCostTestCase(_CostTestCase):
     def delete_query_count(self, nautobot_objects):
         """Return how many queries deleting the given objects takes."""
         with CaptureQueriesContext(connection) as queries:
-            delete_objects(self.queued(*nautobot_objects))
+            delete_objects(self.queued(*nautobot_objects), job_logger())
         return len(queries.captured_queries)
 
     def test_query_count_does_not_grow_with_the_number_of_objects(self):
@@ -264,7 +265,7 @@ class DeleteCostTestCase(_CostTestCase):
 
     def test_every_object_in_a_batch_is_deleted(self):
         deleted = self.interfaces(5, "gone")
-        delete_objects(self.queued(*deleted))
+        delete_objects(self.queued(*deleted), job_logger())
         self.assertFalse(Interface.objects.filter(pk__in=[interface.pk for interface in deleted]).exists())
 
     def test_objects_of_different_models_are_each_batched(self):
@@ -273,7 +274,7 @@ class DeleteCostTestCase(_CostTestCase):
         spare_location = Location.objects.create(
             name="delete-cost-spare", location_type=self.location_type, status=self.active_status
         )
-        delete_objects(self.queued(*interfaces, spare_location))
+        delete_objects(self.queued(*interfaces, spare_location), job_logger())
         self.assertFalse(Interface.objects.filter(pk__in=[interface.pk for interface in interfaces]).exists())
         self.assertFalse(Location.objects.filter(pk=spare_location.pk).exists())
 
@@ -284,15 +285,14 @@ class DeleteCostTestCase(_CostTestCase):
         )
         protected_location = self.device.location
 
-        with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
-            delete_objects(self.queued(protected_location, free_location))
+        logger = job_logger()
+
+        delete_objects(self.queued(protected_location, free_location), logger=logger)
 
         self.assertFalse(Location.objects.filter(pk=free_location.pk).exists())
         self.assertTrue(Location.objects.filter(pk=protected_location.pk).exists())
-        self.assertTrue(
-            any("protected" in message for message in logs.output),
-            f"Expected the protected Location to be reported: {logs.output}",
-        )
+        messages = job_log_text(logger, "warning")
+        self.assertIn("protected", messages, f"Expected the protected Location to be reported: {messages}")
 
     def test_safe_delete_mode_deletes_nothing(self):
         """Nothing is queued in safe delete mode, and `sync_complete` must not delete regardless."""
@@ -362,13 +362,14 @@ class DeleteCostTestCase(_CostTestCase):
                 raise IntegrityError("refused")
             return real_delete(queryset)
 
+        logger = job_logger()
+
         with unittest.mock.patch.object(QuerySet, "delete", refuse_the_doomed):
-            with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
-                delete_objects_one_at_a_time(self.queued(doomed, keeper))
+            delete_objects_one_at_a_time(self.queued(doomed, keeper), logger=logger)
 
         self.assertTrue(Interface.objects.filter(pk=doomed.pk).exists())
         self.assertFalse(Interface.objects.filter(pk=keeper.pk).exists())
-        self.assertIn("IntegrityError", " ".join(logs.output))
+        self.assertIn("IntegrityError", job_log_text(logger, "warning"))
 
     def test_the_queue_holds_no_orm_instances(self):
         """A teardown of a whole estate would otherwise hold every object it passed through.

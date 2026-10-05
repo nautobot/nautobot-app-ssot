@@ -1392,7 +1392,7 @@ class TestNautobotUtils(TestCase):
     def test_queue_ip_reports_an_address_it_could_not_resolve(self, mock_logger, _mock_resolve_ip):
         """Nothing is queued, so the batch cannot carry a row the address was never built for."""
         logger = mock_logger("nb_job")
-        pending = PendingWrites()
+        pending = PendingWrites(unittest.mock.MagicMock())
 
         result = queue_ip(
             address="192.168.9.9/24",

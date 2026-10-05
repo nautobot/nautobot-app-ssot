@@ -24,7 +24,6 @@ thousands of Interfaces, and a VRF's join rows need theirs to exist already. The
 they are resolved, as Prefixes are.
 """
 
-import logging
 from collections import defaultdict
 from typing import Any, Dict, List, Mapping, Optional, Set, Tuple
 
@@ -43,8 +42,6 @@ from nautobot.ipam.models import (
 )
 
 from nautobot_ssot.integrations.ipfabric.constants import BULK_WRITE_BATCH_SIZE
-
-logger = logging.getLogger("nautobot.ssot.ipfabric")
 
 # Insertion order. A model may only reference one before it: an Interface needs its Device, a VLAN
 # its Location. IP Addresses reference no queued model, only Prefixes, which are written as they are
@@ -79,13 +76,17 @@ def _check_deferred_constraints(model: Any) -> None:
 class PendingWrites:
     """Objects built but not yet written, plus the join rows and field updates that follow them."""
 
-    def __init__(self, batch_size: Optional[int] = None):
+    def __init__(self, logger, batch_size: Optional[int] = None):
         """Start empty, writing `batch_size` rows per statement.
 
         Defaults to the configured `ipfabric_bulk_write_batch_size`. Read here rather than bound as
         the default argument, so that the value a test patches onto this module is the one used.
+
+        `logger` is the job's, so that a row this collector declines to write is reported where the
+        operator reads the run.
         """
         self.batch_size = BULK_WRITE_BATCH_SIZE if batch_size is None else max(1, batch_size)
+        self.logger = logger
         self._queued: Dict[Any, List[Any]] = {model: [] for model in LEVELS}
         self._keys: Dict[Any, Dict[Any, Any]] = {model: {} for model in LEVELS}
         self._through: Dict[Any, List[Any]] = defaultdict(list)
@@ -164,15 +165,14 @@ class PendingWrites:
         written += self._apply_updates(missing)
         return written
 
-    @staticmethod
-    def _without_missing_references(model: Any, rows: List[Any], missing: Set[Any]) -> List[Any]:
+    def _without_missing_references(self, model: Any, rows: List[Any], missing: Set[Any]) -> List[Any]:
         """Return the rows that reference only objects which were written, reporting the rest."""
         if not missing:
             return rows
         foreign_keys = [field for field in model._meta.concrete_fields if field.many_to_one]  # pylint: disable=protected-access
         kept = [row for row in rows if not any(getattr(row, field.attname) in missing for field in foreign_keys)]
         if len(kept) != len(rows):
-            logger.warning(
+            self.logger.warning(
                 "Skipped %d %s rows in bulk mode because an object they reference could not be written",
                 len(rows) - len(kept),
                 model.__name__,
@@ -216,8 +216,7 @@ class PendingWrites:
             )
         return len(batch)
 
-    @staticmethod
-    def _insert_one(model: Any, instance: Any, missing: Set[Any]) -> int:
+    def _insert_one(self, model: Any, instance: Any, missing: Set[Any]) -> int:
         """Insert a single object the narrowing above isolated, reporting it if it is refused again.
 
         Validated on the way in, since an object only reaches this path because a batch holding it
@@ -234,7 +233,7 @@ class PendingWrites:
                 instance.validated_save()
                 _check_deferred_constraints(model)
         except (DjangoBaseDBError, ValidationError, ObjectDoesNotExist) as error:
-            logger.warning("Unable to write %s %s in bulk mode: %s", model.__name__, instance, error)
+            self.logger.warning("Unable to write %s %s in bulk mode: %s", model.__name__, instance, error)
             missing.add(instance.pk)
             return 0
         return 1
@@ -248,7 +247,7 @@ class PendingWrites:
         by_model_and_fields = defaultdict(list)
         for instance, values in self._updates:
             if instance.pk in missing or any(getattr(value, "pk", None) in missing for value in values.values()):
-                logger.warning(
+                self.logger.warning(
                     "Unable to set %s on %s %s in bulk mode, as an object it references could not be written",
                     ", ".join(values),
                     type(instance).__name__,
@@ -265,7 +264,7 @@ class PendingWrites:
                 with transaction.atomic():
                     model.objects.bulk_update(instances, fields, batch_size=self.batch_size)
             except DjangoBaseDBError as error:
-                logger.warning(
+                self.logger.warning(
                     "Unable to update %s on %d %s objects in bulk mode: %s",
                     ", ".join(fields),
                     len(instances),
