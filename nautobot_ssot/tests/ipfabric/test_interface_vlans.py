@@ -4,10 +4,10 @@ The mapping from IP Fabric's switchport table to Nautobot's `mode`, `untagged_vl
 `tagged_vlans` is the subject, along with what happens to a VLAN ID the Location has no VLAN for.
 """
 
-import unittest.mock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from nautobot.apps.testing import TestCase
 from nautobot.dcim.choices import InterfaceModeChoices
 from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
@@ -156,7 +156,7 @@ class TestWritingInterfaceVlans(_InterfaceVlanTestCase):
 
     def test_a_vlan_the_location_does_not_have_is_reported_and_left_out(self):
         """Nautobot has nothing to point the Interface at, which a Site Filter makes ordinary."""
-        logger = unittest.mock.MagicMock()
+        logger = MagicMock()
 
         self.assertTrue(self.write(InterfaceModeChoices.MODE_TAGGED, untagged_vid=999, tagged_vids=[20, 998]))
 
@@ -164,7 +164,7 @@ class TestWritingInterfaceVlans(_InterfaceVlanTestCase):
         self.assertIsNone(self.interface.untagged_vlan)
         self.assertEqual(list(self.interface.tagged_vlans.all()), [self.vlans[20]])
 
-        logger = unittest.mock.MagicMock()
+        logger = MagicMock()
         self.write(InterfaceModeChoices.MODE_TAGGED, untagged_vid=999, tagged_vids=[998], logger=logger)
         reported = str(logger.warning.call_args_list)
         self.assertIn("999", reported)
@@ -187,11 +187,11 @@ class TestLoadingInterfaceVlans(_InterfaceVlanTestCase):
 
     def adapter(self):
         """Return a Nautobot adapter that has loaded this test's Device."""
-        job = unittest.mock.MagicMock()
+        job = MagicMock()
         job.debug = False
         adapter = NautobotDiffSync(
             job=job,
-            sync=unittest.mock.MagicMock(),
+            sync=MagicMock(),
             sync_ipfabric_tagged_only=False,
             location_filter=None,
             scope=SyncScope(syncable.key for syncable in SYNCABLE_OBJECTS),
@@ -283,14 +283,14 @@ class TestAVlanThisRunCannotReach(TestCase):
             vlans_at=(),
         )
         # Only VLAN 1, so anything else the trunk allows is out of this run's reach.
-        client.fetch_all = unittest.mock.MagicMock(
+        client.fetch_all = MagicMock(
             side_effect=lambda table: (
                 [{"siteName": "JCY-RTR-02_1", "vlanName": "v1", "vlanId": 1, "dscr": ""}]
                 if table == "tables/vlan/site-summary"
                 else ""
             )
         )
-        logger = unittest.mock.MagicMock()
+        logger = MagicMock()
         adapter = build_adapter(client=client, logger=logger, sync_interface_vlans=True)
         model = {(m.device_name, m.interface_name): m for m in adapter.get_all("interface_vlan")}
         return model[("jcy-rtr-02", "GigabitEthernet4")], str(logger.warning.call_args_list)
@@ -342,7 +342,7 @@ def switchport_client(switchports=(), vlan_id=None, vlans_at=("JCY-RTR-02_1",)):
         for site in vlans_at
         for vid in sorted(named)
     ]
-    client.fetch_all = unittest.mock.MagicMock(
+    client.fetch_all = MagicMock(
         side_effect=lambda table: (VLAN_FIXTURE + extra) if table == "tables/vlan/site-summary" else ""
     )
     return client
@@ -436,11 +436,11 @@ class TestInterfaceVlansUnderBulkWriteMode(_InterfaceVlanTestCase):
 
     def bulk_adapter(self):
         """A real adapter in Bulk Write Mode, since the model validates the one it is handed."""
-        job = unittest.mock.MagicMock()
+        job = MagicMock()
         job.debug = False
         return NautobotDiffSync(
             job=job,
-            sync=unittest.mock.MagicMock(),
+            sync=MagicMock(),
             sync_ipfabric_tagged_only=False,
             location_filter=None,
             bulk_write_mode=True,
@@ -591,3 +591,208 @@ class TestInterfaceVlansUnderBulkWriteMode(_InterfaceVlanTestCase):
         )
 
         self.assertFalse(written, "Without the queue there is no Interface to find, which is the bug.")
+
+
+class TestTheInterfaceVlanModel(_InterfaceVlanTestCase):
+    """The model's own create, update and delete, which are what a re-sync drives."""
+
+    def model(self, **attrs):
+        """Return an InterfaceVlan bound to a stub adapter, as the Nautobot side loads it."""
+        adapter = MagicMock()
+        adapter.sync_ipfabric_tagged_only = False
+        adapter.pending = None
+        model = InterfaceVlanModel(
+            device_name=attrs.pop("device_name", self.device.name),
+            interface_name=self.interface.name,
+            **attrs,
+        )
+        model.adapter = adapter
+        return model
+
+    def test_an_update_applies_the_mode_and_vlans_the_run_now_reports(self):
+        """A port whose configuration changed is an update rather than a delete and a create."""
+        model = self.model(mode=InterfaceModeChoices.MODE_ACCESS, untagged_vid=10, tagged_vids=[])
+
+        model.update({"mode": InterfaceModeChoices.MODE_TAGGED, "tagged_vids": [20]})
+
+        self.interface.refresh_from_db()
+        self.assertEqual(self.interface.mode, InterfaceModeChoices.MODE_TAGGED)
+        self.assertEqual(self.interface.untagged_vlan, self.vlans[10], "An attribute not in the diff is kept.")
+        self.assertEqual(list(self.interface.tagged_vlans.all()), [self.vlans[20]])
+
+    def test_an_update_that_clears_the_untagged_vlan_is_told_apart_from_one_that_omits_it(self):
+        """`None` in the diff means remove it; absent from the diff means leave it alone."""
+        self.model(mode=InterfaceModeChoices.MODE_ACCESS, untagged_vid=10, tagged_vids=[]).update(
+            {"untagged_vid": None}
+        )
+
+        self.interface.refresh_from_db()
+        self.assertIsNone(self.interface.untagged_vlan)
+
+    def test_a_delete_takes_the_port_out_of_802_1q_without_removing_anything(self):
+        """IP Fabric no longer calls it a switchport, so the mode goes and the objects stay."""
+        set_interface_vlans(
+            device_name=self.device.name,
+            interface_name=self.interface.name,
+            mode=InterfaceModeChoices.MODE_TAGGED,
+            untagged_vid=10,
+            tagged_vids=[20],
+            tagged_only=False,
+        )
+
+        self.model(mode=InterfaceModeChoices.MODE_TAGGED, untagged_vid=10, tagged_vids=[20]).delete()
+
+        self.interface.refresh_from_db()
+        self.assertEqual(self.interface.mode, "")
+        self.assertIsNone(self.interface.untagged_vlan)
+        self.assertEqual(list(self.interface.tagged_vlans.all()), [])
+        self.assertTrue(Interface.objects.filter(pk=self.interface.pk).exists(), "The Interface remains.")
+        self.assertEqual(VLAN.objects.filter(vid__in=(10, 20)).count(), 2, "The VLANs remain.")
+
+    def test_an_operation_on_an_interface_that_is_not_there_reports_failure(self):
+        """Each of the three returns None rather than recording a write that did not happen."""
+        for operation in ("create", "update", "delete"):
+            with self.subTest(operation=operation):
+                model = self.model(
+                    device_name="no-such-device",
+                    mode=InterfaceModeChoices.MODE_ACCESS,
+                    untagged_vid=10,
+                    tagged_vids=[],
+                )
+                if operation == "create":
+                    adapter = model.adapter
+                    result = InterfaceVlanModel.create(
+                        adapter,
+                        ids={"device_name": "no-such-device", "interface_name": self.interface.name},
+                        attrs={"mode": InterfaceModeChoices.MODE_ACCESS, "untagged_vid": 10, "tagged_vids": []},
+                    )
+                elif operation == "update":
+                    result = model.update({"mode": InterfaceModeChoices.MODE_TAGGED})
+                else:
+                    result = model.delete()
+                self.assertIsNone(result)
+
+
+class TestSwitchportRowsTheRunCannotUse(TestCase):
+    """Rows the switchport table carries that name nothing this run loaded."""
+
+    def loaded(self, switchports, debug=False, **kwargs):
+        """Return the adapter and its job logger after loading the given switchport rows."""
+        logger = job_logger()
+        adapter = build_adapter(
+            client=switchport_client(switchports=switchports, **kwargs),
+            logger=logger,
+            sync_interface_vlans=True,
+            debug=debug,
+        )
+        return adapter, logger
+
+    def test_a_row_naming_no_device_or_interface_is_passed_over(self):
+        """IP Fabric returns the columns the appliance has, so a row may carry neither."""
+        adapter, _ = self.loaded(
+            [
+                {"hostname": "", "sn": "a000a02", "intName": "Gi4", "mode": "access", "accVlan": 10},
+                {"hostname": "jcy-rtr-02", "sn": "a000a02", "intName": "", "mode": "access", "accVlan": 10},
+            ]
+        )
+
+        self.assertEqual(adapter.get_all("interface_vlan"), [])
+
+    @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
+    def test_a_row_for_an_interface_this_run_did_not_load_is_named_under_debug(self):
+        """Ordinary under a Location filter, so it is a debug line rather than a warning."""
+        adapter, logger = self.loaded(
+            [{"hostname": "jcy-rtr-02", "sn": "a000a02", "intName": "Gi99", "mode": "access", "accVlan": 10}],
+            debug=True,
+        )
+
+        self.assertEqual(adapter.get_all("interface_vlan"), [])
+        self.assertIn("GigabitEthernet99", job_log_text(logger, "debug"), "Named as the sync canonicalised it.")
+
+    @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
+    def test_two_rows_for_one_interface_are_reported_and_loaded_once(self):
+        """The table is keyed on the port, so a second row for one port is a duplicate."""
+        row = {"hostname": "jcy-rtr-02", "sn": "a000a02", "intName": "Gi4", "mode": "access", "accVlan": 10}
+        adapter, logger = self.loaded([row, dict(row)])
+
+        self.assertEqual(len(adapter.get_all("interface_vlan")), 1)
+        self.assertIn("Duplicate Interface VLAN discovered", job_log_text(logger, "warning"))
+
+    @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
+    def test_a_vlan_is_kept_where_the_device_itself_was_not_loaded(self):
+        """Reachability is asked per Location, and a Device this run has none for has no Location."""
+        adapter, _ = self.loaded([])
+
+        self.assertEqual(
+            adapter.vlans_this_run_can_reach("no-such-device", "Gi4", 10, [20]),
+            (10, [20]),
+            "With no Device there is no Location to judge against, so nothing is dropped.",
+        )
+
+    def test_an_addressed_interface_this_run_did_not_load_contributes_nothing(self):
+        """The address table names ports the Interface table may not have covered."""
+        adapter, _ = self.loaded([], vlan_id=10)
+        adapter.access_vlan_by_interface = {("jcy-rtr-02", "Gi99"): 10}
+
+        adapter.load_addressed_interface_vlans()
+
+        self.assertEqual([model for model in adapter.get_all("interface_vlan") if model.interface_name == "Gi99"], [])
+
+
+class TestLoadingInterfaceVlansThroughLoadData(_InterfaceVlanTestCase):
+    """The scope gate on the Nautobot side, which is what a whole run goes through."""
+
+    def nautobot_adapter(self, **scope_kwargs):
+        """Return a Nautobot adapter after a full `load_data()` under the given scope."""
+        job = MagicMock()
+        job.debug = False
+        adapter = NautobotDiffSync(
+            job=job,
+            sync=MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+            scope=SyncScope.from_job_kwargs(scope_kwargs),
+        )
+        adapter.load_data()
+        return adapter
+
+    def test_a_switchport_is_loaded_when_interface_vlans_are_in_scope(self):
+        set_interface_vlans(
+            device_name=self.device.name,
+            interface_name=self.interface.name,
+            mode=InterfaceModeChoices.MODE_ACCESS,
+            untagged_vid=10,
+            tagged_vids=[],
+            tagged_only=False,
+        )
+
+        adapter = self.nautobot_adapter(sync_interface_vlans=True)
+
+        loaded = {model.interface_name: model for model in adapter.get_all("interface_vlan")}
+        self.assertIn(self.interface.name, loaded)
+        self.assertEqual(loaded[self.interface.name].untagged_vid, 10)
+
+    def test_nothing_is_loaded_when_they_are_not(self):
+        """Out of scope the Nautobot side must say nothing, or the source looks to have dropped it."""
+        self.assertEqual(self.nautobot_adapter().get_all("interface_vlan"), [])
+
+
+class TestWritingInterfaceVlansThatNautobotRefuses(_InterfaceVlanTestCase):
+    """A write the database rejects is reported rather than raised through the run."""
+
+    def test_a_refused_write_is_reported_and_reports_failure(self):
+        logger = MagicMock()
+
+        with patch.object(Interface, "validated_save", side_effect=ValidationError("refused")):
+            written = set_interface_vlans(
+                device_name=self.device.name,
+                interface_name=self.interface.name,
+                mode=InterfaceModeChoices.MODE_ACCESS,
+                untagged_vid=10,
+                tagged_vids=[],
+                tagged_only=False,
+                logger=logger,
+            )
+
+        self.assertFalse(written, "The caller has to know the Interface does not hold what was asked.")
+        self.assertIn("Unable to set the VLANs", str(logger.error.call_args_list))
