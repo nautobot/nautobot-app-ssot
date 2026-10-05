@@ -4,7 +4,8 @@ Nautobot enforces `(vlan_group, vid)` and `(vlan_group, name)` and enforces neit
 no group, so the group is what makes one VLAN ID mean one VLAN at a Location.
 """
 
-import unittest.mock
+from collections import Counter, defaultdict
+from unittest.mock import MagicMock, patch
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -80,13 +81,13 @@ class TestVlanGroupPerLocation(_VlanGroupTestCase):
             name="other-site", location_type=self.location.location_type, status=self.active
         )
         VLANGroup.objects.create(name=self.location.name, location=other)
-        logger = unittest.mock.MagicMock()
+        logger = MagicMock()
 
         self.assertIsNone(get_vlan_group_for_location(self.location, create=True, logger=logger))
         self.assertIn("already belongs to another Location", str(logger.warning.call_args_list))
 
     def test_strictness_reports_a_missing_group_rather_than_creating_one(self):
-        logger = unittest.mock.MagicMock()
+        logger = MagicMock()
 
         self.assertIsNone(get_vlan_group_for_location(self.location, create=False, logger=logger))
         self.assertFalse(VLANGroup.objects.filter(name=self.location.name).exists())
@@ -127,7 +128,7 @@ class TestVlanGroupPerLocation(_VlanGroupTestCase):
         group = get_vlan_group_for_location(self.location, create=True)
         # A VLAN new to Nautobot, so the name given here is the one it is written under.
         self.create(30, "shared-name", group=group)
-        logger = unittest.mock.MagicMock()
+        logger = MagicMock()
 
         written = create_vlan(
             vlan_name="shared-name",
@@ -157,7 +158,7 @@ class TestAdoptingVlansThatPredateTheGroup(_VlanGroupTestCase):
 
     def diff_model(self, vlan, may_create=True):
         """Return a Vlan model bound to a stub adapter, as the Nautobot side loads an existing VLAN."""
-        adapter = unittest.mock.MagicMock()
+        adapter = MagicMock()
         adapter.may_create.return_value = may_create
         model = VlanModel(
             vid=vlan.vid,
@@ -255,3 +256,109 @@ class TestWhetherAGroupCanBeHadAtAll(_VlanGroupTestCase):
             vlan_group_can_hold(self.location.name, "shared", 999, create=True),
             "The VLAN already filed under that name is itself, not a clash.",
         )
+
+
+class TestAdoptionWhereThereIsNoGroupToAdoptInto(_VlanGroupTestCase):
+    """Filing is attempted per VLAN, so each thing it needs can be absent by the time it runs."""
+
+    def diff_model(self, vlan, location_name=None, may_create=True):
+        """Return a Vlan model bound to a stub adapter, naming a Location that may not exist."""
+        adapter = MagicMock()
+        adapter.may_create.return_value = may_create
+        model = VlanModel(
+            vid=vlan.vid,
+            location=location_name if location_name is not None else self.location.name,
+            name=vlan.name,
+            status="Active",
+            in_vlan_group=False,
+            vlan_pk=vlan.pk,
+        )
+        model.adapter = adapter
+        return model
+
+    def test_a_location_nautobot_does_not_hold_leaves_the_vlan_where_it_is(self):
+        """A Location out of scope is not written, so the VLAN has no group to be filed under."""
+        vlan = self.vlans[10]
+
+        self.diff_model(vlan, location_name="no-such-location").update({"in_vlan_group": True})
+
+        vlan.refresh_from_db()
+        self.assertIsNone(vlan.vlan_group, "Nothing to file it under, and nothing raised.")
+
+    def test_a_group_that_cannot_be_had_leaves_the_vlan_where_it_is(self):
+        """Strict about VLAN Groups, so the one this Location needs is not created."""
+        vlan = self.vlans[10]
+
+        self.diff_model(vlan, may_create=False).update({"in_vlan_group": True})
+
+        vlan.refresh_from_db()
+        self.assertIsNone(vlan.vlan_group)
+        self.assertFalse(VLANGroup.objects.filter(name=self.location.name).exists())
+
+
+class TestCreatingAGroupNautobotRefuses(_VlanGroupTestCase):
+    """A refused write is reported and returns nothing, rather than raising through the run."""
+
+    def test_a_refused_group_is_reported_and_none_is_returned(self):
+        logger = MagicMock()
+
+        with patch.object(VLANGroup, "validated_save", side_effect=ValidationError("refused")):
+            group = get_vlan_group_for_location(self.location, create=True, logger=logger)
+
+        self.assertIsNone(group)
+        self.assertIn("Unable to create a VLAN Group", str(logger.error.call_args_list))
+
+
+class TestDeletingAVlan(_VlanGroupTestCase):
+    """Removal is keyed on the primary key, since the name is what a rename changes."""
+
+    def diff_model(self, vid, location_name, vlan_pk, safe_delete_mode=True):
+        """Return a Vlan model bound to a stub adapter, as the Nautobot side loads one.
+
+        Safe Delete Mode is held per run on the adapter, so it is set there rather than on the model.
+        """
+        adapter = MagicMock()
+        adapter.safe_delete_mode = safe_delete_mode
+        adapter.objects_to_delete = defaultdict(list)
+        adapter.safe_delete_tally = Counter()
+        adapter.safe_delete_tag = None
+        model = VlanModel(
+            vid=vid,
+            location=location_name,
+            name=f"vlan{vid}",
+            status="Active",
+            in_vlan_group=False,
+            vlan_pk=vlan_pk,
+        )
+        model.adapter = adapter
+        return model
+
+    def test_a_vlan_the_run_stops_reporting_is_queued_for_deletion(self):
+        """With Safe Delete Mode off the VLAN is queued by model and primary key, not loaded."""
+        vlan = self.vlans[10]
+        model = self.diff_model(10, self.location.name, vlan.pk, safe_delete_mode=False)
+
+        model.delete()
+
+        queued = [pk for _, pk in model.adapter.objects_to_delete["_vlan"]]
+        self.assertIn(vlan.pk, queued)
+
+    def test_a_vlan_the_run_stops_reporting_is_marked_rather_than_removed_by_default(self):
+        """Safe Delete Mode is the default, and it marks the VLAN instead of deleting it."""
+        vlan = self.vlans[10]
+        model = self.diff_model(10, self.location.name, vlan.pk, safe_delete_mode=True)
+
+        model.delete()
+
+        vlan.refresh_from_db()
+        self.assertEqual(vlan.status.name, "Deprecated")
+        self.assertEqual(model.adapter.objects_to_delete["_vlan"], [], "Nothing is queued for removal.")
+
+    def test_a_vlan_already_gone_from_nautobot_is_reported_rather_than_raised(self):
+        """Something removed it between the load and the delete, which must not end the run."""
+        missing_pk = self.vlans[10].pk
+        self.vlans[10].delete()
+
+        model = self.diff_model(10, self.location.name, missing_pk)
+        self.assertIsNone(model.delete())
+        self.assertIn("Unable to find a VLAN", str(model.adapter.job.logger.error.call_args_list))
