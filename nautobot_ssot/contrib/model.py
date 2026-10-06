@@ -3,7 +3,6 @@
 # pylint: disable=protected-access
 # Diffsync relies on underscore-prefixed attributes quite heavily, which is why we disable this here.
 
-import sys
 from collections import defaultdict
 from datetime import datetime
 from typing import Optional, Self
@@ -30,7 +29,7 @@ from nautobot_ssot.utils.diffsync import DiffSyncModelUtilityMixin
 class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel):
     """
     Base model for describing Nautobot/Django ORM objects using DiffSync.
-    
+
     This provides the `create`, `update` and `delete` operations in a generic fashion, meaning you don't have to
     implement them yourself.
 
