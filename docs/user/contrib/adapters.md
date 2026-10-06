@@ -1,10 +1,10 @@
 # Adapters
 
-In [`DiffSync`](https://github.com/networktocode/diffsync), an *adapter* loads data from one system into defined `DiffSyncModel` instances and saves them to its internal datastore. Each adapter is specific to a data source, such as Nautobot, ServiceNow API, and more. A *diff* requires two adapters to be loaded to determine the differences between the two.
+In [`DiffSync`](https://github.com/networktocode/diffsync), an *adapter* loads data from one system into defined `DiffSyncModel` instances and saves them to its internal datastore. Each adapter is specific to one system, such as Nautobot or ServiceNow. A *diff* requires two adapters to be loaded to determine the differences between the two.
 
-The `nautobot_ssot.contrib.adapter` module provides reusable boilerplate code for loading Nautobot ORM objects into a [`NautobotModel` class](./models.md). This eliminates most to all development effort required for creating custom DiffSync adapters for any custom SSoT integration importing data into Nautobot. 
+The `nautobot_ssot.contrib.adapter` module provides reusable boilerplate code for loading Nautobot ORM objects into a [`NautobotModel` class](./models.md). This eliminates most of the effort of writing a DiffSync adapter for the Nautobot side of a custom SSoT integration.
 
-As long as your `DiffSync` models use `nautobot_ssot.contrib.model.NautobotModel`, you do not have to write a `load` method. The adapter infers how to read each model, its relationships from the Nautobot ORM, and how to perform required CRUD operations.
+As long as your `DiffSync` models use `nautobot_ssot.contrib.model.NautobotModel`, you do not have to write a `load` method. The adapter infers how to read each model and its relationships from the Nautobot ORM. Writing changes back to Nautobot is handled by the models themselves; see [Models](./models.md#create-update-and-delete).
 
 ## Creating a Nautobot adapter
 
@@ -19,7 +19,7 @@ from your_ssot_app.models import DiffSyncDevice, DiffSyncInterface, DiffSyncPref
 class YourNautobotAdapter(NautobotAdapter):
     """DiffSync adapter for loading data from Nautobot."""
 
-    top_level = ["device", "prefix"]
+    top_level = ("device", "prefix")
 
     device = DiffSyncDevice
     prefix = DiffSyncPrefix
@@ -29,10 +29,16 @@ class YourNautobotAdapter(NautobotAdapter):
 Two things are required:
 
 - **Model attributes** — assign each DiffSync model class to a class attribute. The attribute name must match the model's `_modelname`, because the adapter looks the class up by that name when it needs to load it.
-- **`top_level`** — a tuple of the model names that should be loaded directly. Child models (those reachable through a parent's `_children`) are *not* listed here; the adapter discovers and loads them recursively while processing their parent. 
+- **`top_level`** — a tuple of the model names that should be loaded directly. Child models (those reachable through a parent's `_children`) are *not* listed here; the adapter discovers and loads them recursively while processing their parent.
 
 !!! note
-    The order of `top_level` matters. It iterate through the list in the order provided when creating and updating objects so, for example, location types must come before locations. It also iterates in reverse order when deleting objects to remove child objects before the parents where applicable.
+    The order of `top_level` matters.
+
+    DiffSync applies changes in the order of the *destination* adapter's `top_level`, which is this adapter when syncing into Nautobot. List each model after any model it depends on. For example, location types must come before locations, or creating a location will fail because its location type does not exist yet.
+
+    DiffSync only compares models that appear in the `top_level` of **both** adapters. A model listed in only one of them is silently skipped.
+
+    Deletions follow the same order; they are **not** reversed. If deleting parents before their dependents is a problem for your data (for example, a `ProtectedError` from a referenced object), override `delete` on the affected models to handle it.
 
 ## How loading works
 
@@ -41,6 +47,7 @@ When `load()` is called, the adapter walks each model in `top_level` and, for ev
 - **Normal fields** are read directly off the ORM object.
 - **Foreign keys** (fields using Django's `__` lookup syntax) are traversed to pull the related value.
 - **Custom fields** and **custom relationships** (declared with `CustomFieldAnnotation` / `CustomRelationshipAnnotation`) are resolved from the appropriate Nautobot machinery.
+- **Object metadata** fields (declared with `ObjectMetadataAnnotation`) are read from the object's associated metadata. See [ObjectMetadata-Backed Fields](../../dev/contrib_object_metadata.md).
 - **To-many relationships** are loaded as lists of typed dictionaries.
 
 After loading an object, the adapter recurses into its children, so a single `load()` call populates the entire tree described by your models. How each field type is declared on the model is covered in detail in the [modeling guide](../modeling.md).
@@ -65,16 +72,18 @@ class YourNautobotAdapter(NautobotAdapter):
 ```
 
 !!! warning
-    This override only applies to *basic* parameters. It does not affect foreign keys, custom fields, custom relationships, or to-many relationships — those are always handled by the adapter's built-in logic.
+    This override only applies to *basic* parameters. It does not affect foreign keys, custom fields, custom relationships, object metadata fields, or to-many relationships — those are always handled by the adapter's built-in logic.
 
 ## Using the adapter in a Job
 
-The Nautobot adapter is instantiated with the running Job and then loaded, typically inside `load_target_adapter` (when syncing *into* Nautobot):
+The Nautobot adapter is instantiated with the running Job and then loaded. When syncing *into* Nautobot (a `DataSource` Job), this happens in `load_target_adapter`:
 
 ```python
 def load_target_adapter(self):
     self.target_adapter = YourNautobotAdapter(job=self)
     self.target_adapter.load()
 ```
+
+When syncing *from* Nautobot (a `DataTarget` Job), do the same in `load_source_adapter` and assign the result to `self.source_adapter`.
 
 For the full picture — including the remote adapter and the `DataSource`/`DataTarget` Job that drives the sync — see [Developing Data Source and Data Target Jobs](../../dev/jobs.md).
