@@ -140,6 +140,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         # and what makes the mapping improvable is the set of values, not the volume.
         self.unmappable_media_types = Counter()
         self.unnamed_interface_kinds = Counter()
+        # Interfaces another table attests but `tables/inventory/interfaces` did not return,
+        # counted by the letters their names start with so the kinds it omits are legible.
+        self.interfaces_the_inventory_left_out = Counter()
         # Held because a VRF is network wide while this filter is not, so a filtered run must not
         # delete the VRFs of the sites it cannot see; see `DiffSyncModelAdapters.network_wide`.
         self.location_filter = location_filter
@@ -175,6 +178,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         if pseudo_interface:
             device_interfaces.append(pseudo_interface)
             self.pseudo_management_interfaces += 1
+
+        device_interfaces.extend(self.interfaces_only_the_address_table_names(device_interfaces))
 
         for iface in device_interfaces:
             iface_name = iface["intName"]
@@ -233,6 +238,38 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             # the Nautobot adapter reports none either and what it holds is left alone.
             if self.scope.ip_addresses:
                 self.load_interface_addresses(interface, iface, iface_name, device_primary_ips)
+
+    def interfaces_only_the_address_table_names(self, device_interfaces):
+        """Return records for the Interfaces an address sits on that the inventory did not return.
+
+        `tables/inventory/interfaces` is the only table this sync reads Interfaces from, and it does
+        not always carry the virtual ones: an SVI, a loopback or a tunnel may be absent from it
+        while the managed address table reports an address configured on it. Nothing could then
+        attach that address, and the Interface was missing from Nautobot with nothing said.
+
+        An Interface named here is not invented, which is what separates this from the pseudo
+        management Interface: IP Fabric states that an address is configured on it, so the port
+        exists and only the inventory is silent. The record carries no media type, no MAC and no
+        state, because the only table that reports those is the one that left it out; the name is
+        what the type is read from.
+        """
+        reported = {iface["intName"] for iface in device_interfaces}
+        serials = {iface.get("sn") for iface in device_interfaces if iface.get("sn")}
+        hostname = next((iface.get("hostname") for iface in device_interfaces if iface.get("hostname")), None)
+        invented = []
+        for (serial, interface_name), records in self.addresses_by_interface.items():
+            if serial not in serials or interface_name in reported:
+                continue
+            self.interfaces_the_inventory_left_out[ipfabric_utils.interface_name_kind(interface_name)] += 1
+            invented.append(
+                {
+                    "intName": interface_name,
+                    "hostname": records[0].get("hostname") or hostname,
+                    "sn": serial,
+                    "dscr": "",
+                }
+            )
+        return invented
 
     def prefix_length_of(self, record, iface_name, resolved):
         """Return the prefix length IP Fabric reports for a record's address, or None if it has none.
@@ -816,6 +853,16 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 "IP Fabric reports no media type for %d Interfaces named %s, and that name implies "
                 "no Nautobot Interface type either, so the type Nautobot holds for them is left "
                 "alone.",
+                count,
+                f"{kind}..." if kind else "with no leading letters",
+            )
+
+        for kind, count in sorted(self.interfaces_the_inventory_left_out.items(), key=lambda item: str(item[0])):
+            self.job.logger.warning(
+                "Syncing %d Interfaces named %s that IP Fabric's interface inventory did not "
+                "return, having reported an address configured on each. The inventory is the only "
+                "table this sync reads Interfaces from, and it does not always carry the virtual "
+                "ones.",
                 count,
                 f"{kind}..." if kind else "with no leading letters",
             )
