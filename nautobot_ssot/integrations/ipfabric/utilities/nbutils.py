@@ -1086,6 +1086,22 @@ def queue_ip(
 
 
 # Not cached, as it is unhashable, but not useful to cache anyway
+def resolve_parent_interface(device_obj, parent_name: str, pending: Optional[Any] = None) -> Optional[Interface]:
+    """Return the Interface a subinterface hangs off, from this run's queue or from Nautobot.
+
+    The queue first, because a port this run has only queued has no row to be read back yet. It
+    already carries its primary key, so a subinterface written in the same batch may point at it.
+    """
+    if pending is not None:
+        queued = pending.find(Interface, (device_obj.pk, parent_name))
+        if queued is not None:
+            return queued
+    if pending is not None and device_obj._state.adding:  # pylint: disable=protected-access
+        # The Device is queued and holds no rows, so nothing of its can be read back.
+        return None
+    return device_obj.interfaces.filter(name=parent_name).first()
+
+
 def create_interface(  # pylint: disable=too-many-arguments
     device_obj: Device,
     interface_details: dict,
@@ -1136,6 +1152,19 @@ def create_interface(  # pylint: disable=too-many-arguments
         # configured default. The only place that default is still applied: an Interface already in
         # Nautobot has a type worth keeping, and this one has nothing to keep.
         defaults["type"] = DEFAULT_INTERFACE_TYPE
+    parent_name = interface_details.get("parent_interface")
+    if parent_name:
+        parent = resolve_parent_interface(device_obj, parent_name, pending=pending)
+        if parent is None:
+            if logger:
+                logger.warning(
+                    "Not putting Interface %s on Device %s under %s, as no such Interface is there.",
+                    interface_name,
+                    device_obj.name,
+                    parent_name,
+                )
+        else:
+            defaults["parent_interface"] = parent
     reported_state = {
         custom_field: interface_details.get(attribute) for attribute, custom_field in INTERFACE_STATE_FIELDS.items()
     }

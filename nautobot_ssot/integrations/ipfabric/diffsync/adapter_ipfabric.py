@@ -11,6 +11,7 @@ from itertools import chain
 
 from diffsync import ObjectAlreadyExists
 from diffsync.exceptions import ObjectNotFound
+from nautobot.dcim.choices import InterfaceTypeChoices
 from nautobot.dcim.constants import NONCONNECTABLE_IFACE_TYPES
 from nautobot.dcim.models import Device
 from nautobot.ipam.models import VLAN
@@ -143,6 +144,10 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         # Interfaces another table attests but `tables/inventory/interfaces` did not return,
         # counted by the letters their names start with so the kinds it omits are legible.
         self.interfaces_the_inventory_left_out = Counter()
+        # Subinterfaces put in their port, and those whose port this run did not see, the second
+        # counted by kind so an estate reporting units without ports is legible.
+        self.subinterfaces = 0
+        self.subinterfaces_without_their_port = Counter()
         # Held because a VRF is network wide while this filter is not, so a filtered run must not
         # delete the VRFs of the sites it cannot see; see `DiffSyncModelAdapters.network_wide`.
         self.location_filter = location_filter
@@ -181,10 +186,28 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
 
         device_interfaces.extend(self.interfaces_only_the_address_table_names(device_interfaces))
 
+        # A port before anything configured on it, so the parent exists by the time DiffSync
+        # reaches the subinterface. `ge-0/0/0` sorts before `ge-0/0/0.0` on depth alone.
+        device_interfaces.sort(key=lambda iface: iface["intName"].count("."))
+
+        ports = {
+            canonical_interface_name(iface["intName"]) if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME else iface["intName"]
+            for iface in device_interfaces
+        }
+
         for iface in device_interfaces:
             iface_name = iface["intName"]
             if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
                 iface_name = canonical_interface_name(iface_name)
+
+            # Only where the port is one this Device reported: the parent has to be a real Interface
+            # for Nautobot to point at, and a name with a dot in it is not proof of one.
+            parent = ipfabric_utils.parent_interface_name(iface_name)
+            if parent is not None and parent not in ports:
+                self.subinterfaces_without_their_port[ipfabric_utils.interface_name_kind(iface_name)] += 1
+                parent = None
+            if parent is not None:
+                self.subinterfaces += 1
 
             enabled = admin_state_of(iface.get("l1"), iface.get("reason"))
             if enabled is None:
@@ -197,7 +220,10 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     self.unreadable_admin_states[iface.get("l1")] += 1
 
             interface_type = ipfabric_utils.convert_media_type(iface.get("media"), iface_name)
-            if interface_type is None:
+            # Not for a subinterface under its port, which is virtual whatever its media type says.
+            # Registered, it would have its type withheld on the Nautobot side while this side
+            # reports it as virtual, and the difference would be diffed on every run.
+            if interface_type is None and parent is None:
                 # Registered so the Nautobot side reports no type either and the one it holds is
                 # kept rather than overwritten with a default that reads as a real resolution.
                 self.interfaces_without_a_type.add((iface.get("hostname"), iface_name))
@@ -222,7 +248,10 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         else DEFAULT_INTERFACE_MAC
                     ),
                     mtu=iface.get("mtu") if iface.get("mtu") else DEFAULT_INTERFACE_MTU,
-                    type=interface_type,
+                    # Nautobot accepts a parent only on a virtual Interface, which is what a
+                    # subinterface is: it has no media of its own, only the port's.
+                    type=(InterfaceTypeChoices.TYPE_VIRTUAL if parent is not None else interface_type),
+                    parent_interface=parent,
                     mgmt_only=iface.get("mgmt_only", False),
                     status="Active",
                     state_l1=iface.get("l1"),

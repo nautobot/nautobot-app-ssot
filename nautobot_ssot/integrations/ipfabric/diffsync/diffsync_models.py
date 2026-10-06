@@ -620,6 +620,7 @@ class Interface(DiffSyncExtras):
         "mac_address",
         "mtu",
         "type",
+        "parent_interface",
         "mgmt_only",
         "status",
         "state_l1",
@@ -635,6 +636,9 @@ class Interface(DiffSyncExtras):
     mac_address: Optional[str] = None
     mtu: Optional[int] = None
     type: Optional[str] = None
+    # The port a subinterface hangs off. Nautobot accepts one only on a virtual Interface, so this
+    # is set with the type together or not at all.
+    parent_interface: Optional[str] = None
     mgmt_only: Optional[bool] = None
     status: str
     # What the last discovery found, as opposed to what the Interface is meant to be.
@@ -746,6 +750,14 @@ class Interface(DiffSyncExtras):
                     interface.lag = attrs["lag"]
                 if attrs.get("type"):
                     interface.type = attrs["type"]
+                if "parent_interface" in attrs:
+                    # Set even where this run reports none, so a subinterface whose port stops
+                    # being reported is taken out from under it rather than left pointing at it.
+                    interface.parent_interface = (
+                        tonb_nbutils.resolve_parent_interface(device, attrs["parent_interface"])
+                        if attrs["parent_interface"]
+                        else None
+                    )
                 if attrs.get("mgmt_only"):
                     interface.mgmt_only = attrs["mgmt_only"]
                 # Set even where IP Fabric now reports nothing, so a state that stops being

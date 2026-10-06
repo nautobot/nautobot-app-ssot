@@ -253,6 +253,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     if (device_record.name, interface_record.name) in self.interfaces_without_a_type
                     else interface_record.type
                 ),
+                parent_interface=(
+                    interface_record.parent_interface.name if interface_record.parent_interface else None
+                ),
                 mgmt_only=interface_record.mgmt_only if interface_record.mgmt_only else False,
                 state_l1=interface_record.cf.get(INTERFACE_L1_CF_NAME),
                 state_l2=interface_record.cf.get(INTERFACE_L2_CF_NAME),
@@ -363,17 +366,21 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         ]
         # Only fetch the relations something in scope reads: the primary IP decides whether an
         # Interface holds it, and the Interfaces themselves are only walked when they are in scope.
-        prefetch = None
+        prefetch = []
         if self.scope.ip_addresses:
             related += ["primary_ip4", "primary_ip6"]
             # `__status` because each address reports its own; without it the walk below costs a
             # query per address, which is a hundred thousand of them on a real estate.
-            prefetch = "interfaces__ip_addresses__status"
+            prefetch.append("interfaces__ip_addresses__status")
         elif self.scope.interfaces:
-            prefetch = "interfaces"
+            prefetch.append("interfaces")
+        if self.scope.interfaces:
+            # Each Interface reports the port it hangs off by name, which is one query per
+            # Interface without this.
+            prefetch.append("interfaces__parent_interface")
         devices = filtered_devices.select_related(*related)
         if prefetch:
-            devices = devices.prefetch_related(prefetch)
+            devices = devices.prefetch_related(*prefetch)
         optimized_query = devices.iterator(1000)
         for device_record in optimized_query:
             location = locations_by_name.get(device_record.location.name)
