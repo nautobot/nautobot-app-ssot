@@ -5,7 +5,7 @@
 
 from collections import defaultdict
 from datetime import datetime
-from typing import Optional, Self
+from typing import Optional
 
 from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException, ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
@@ -38,7 +38,7 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
     """
 
     @classmethod
-    def create(cls, adapter: BaseNautobotAdapter, ids: dict, attrs: dict) -> Optional[Self]:
+    def create(cls, adapter: BaseNautobotAdapter, ids: dict, attrs: dict) -> Optional["NautobotModel"]:
         """Create a new ORM object from the DiffSync model.
 
         Identifiers and attributes are merged into a single parameter dictionary, used to populate and save a new
