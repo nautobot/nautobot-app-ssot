@@ -101,6 +101,13 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     create_custom_field("last_synced_from_sor", "Last sync from System of Record", synced_from_models, apps=apps)
     create_custom_field("ipfabric_site_id", "IPFabric Location ID", [Location], apps=apps, cf_type="type_text")
     create_custom_field("ipfabric_type", "IPFabric Type", [Role], apps=apps, cf_type="type_text")
+    create_custom_field(
+        "ipfabric_unique_serial",
+        "IPFabric Unique Serial Number",
+        [Device],
+        apps=apps,
+        cf_type="type_text",
+    )
     create_custom_field(INTERFACE_L1_CF_NAME, "IPFabric L1 State", [Interface], apps=apps, cf_type="type_text")
     create_custom_field(INTERFACE_L2_CF_NAME, "IPFabric L2 State", [Interface], apps=apps, cf_type="type_text")
     create_custom_field(INTERFACE_REASON_CF_NAME, "IPFabric State Reason", [Interface], apps=apps, cf_type="type_text")

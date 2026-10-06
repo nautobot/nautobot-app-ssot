@@ -189,6 +189,33 @@ Cables are built from IP Fabric's connectivity matrix (`tables/interfaces/connec
 | localInt/remoteInt   | Cable.termination_b_name     | Cable.termination_b.name    |
 | N/A                  | Cable.status                 | Cable.status                |
 
+## Device serial numbers
+
+IP Fabric records two serials for a device, and they mean different things:
+
+| IP Fabric column | What it is |
+| ---------------- | ---------- |
+| `sn` | The serial IP Fabric identifies the device by, and keys its own tables on |
+| `snHw` | The serial on the chassis |
+
+Nautobot's **Serial** field on a Device is documented as the chassis serial, so that is what it gets:
+`snHw`. The serial IP Fabric keys on is recorded beside it in the **IPFabric Unique Serial Number**
+custom field, so neither is lost and each is where it belongs. Earlier releases wrote `sn` into the
+Serial field, so on the first sync after upgrading, a device reporting both will have its Serial
+corrected.
+
+**Where IP Fabric reports no chassis serial, no serial is reported and the one Nautobot holds is left
+alone.** A device with no chassis, a virtual one for instance, has none to report, and an empty value
+would drive Nautobot's Serial to empty on every run. The job logs how many devices this applied to.
+The unique serial is still recorded for them, so the value an earlier release put in the Serial field
+stays visible, and the custom field says what IP Fabric actually keys on.
+
+A serial longer than the 255 characters Nautobot holds is treated the same way, and refused rather
+than truncated: a serial is an identity, and a prefix of one names no chassis.
+
+Each member of a stack keeps its own serial, since each member is its own chassis. The stack's
+`snHw` describes the master alone.
+
 ## Interface state
 
 IP Fabric records what it found at the last discovery: the physical (L1) and data link (L2) state of

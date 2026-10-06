@@ -23,6 +23,7 @@ from nautobot_ssot.integrations.ipfabric.bulk_writes import PendingWrites
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_MAC,
     DEFAULT_INTERFACE_MTU,
+    DEVICE_UNIQUE_SERIAL_CF_NAME,
     INTERFACE_L1_CF_NAME,
     INTERFACE_L2_CF_NAME,
     INTERFACE_REASON_CF_NAME,
@@ -385,7 +386,14 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 location_name=device_record.location.name,
                 vendor=str(device_record.device_type.manufacturer),
                 status=device_record.status.name,
-                serial_number=device_record.serial if device_record.serial else "",
+                # No serial where IP Fabric reported no chassis serial for it: see
+                # `devices_without_a_hardware_serial`.
+                serial_number=(
+                    None
+                    if device_record.name in self.devices_without_a_hardware_serial
+                    else (device_record.serial or "")
+                ),
+                unique_serial=device_record.cf.get(DEVICE_UNIQUE_SERIAL_CF_NAME),
             )
             if device_record.platform:
                 device.platform = device_record.platform.name

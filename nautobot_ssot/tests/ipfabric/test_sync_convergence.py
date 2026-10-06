@@ -110,6 +110,7 @@ class SyncConvergenceTestCase(TestCase):
             scope=scope,
             addresses_without_a_subnet=source.addresses_without_a_subnet if source else None,
             interfaces_without_admin_state=source.interfaces_without_admin_state if source else None,
+            devices_without_a_hardware_serial=(source.devices_without_a_hardware_serial if source else None),
         )
         adapter.load()
         return adapter
