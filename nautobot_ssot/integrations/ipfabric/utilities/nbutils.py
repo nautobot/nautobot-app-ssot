@@ -1102,6 +1102,38 @@ def resolve_parent_interface(device_obj, parent_name: str, pending: Optional[Any
     return device_obj.interfaces.filter(name=parent_name).first()
 
 
+def related_interfaces_of(  # pylint: disable=too-many-arguments
+    device_obj: Device,
+    interface_details: dict,
+    interface_name: str,
+    logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
+) -> dict:
+    """Return the Interface fields naming another Interface on the same Device, resolved.
+
+    `parent_interface` is the port a subinterface is configured on and `lag` is the port channel an
+    Interface is a member of. Both name an Interface of the same Device, so both are looked for the
+    same way, and one this run cannot find is reported rather than guessed at.
+    """
+    resolved = {}
+    for field in ("parent_interface", "lag"):
+        named = interface_details.get(field)
+        if not named:
+            continue
+        related = resolve_parent_interface(device_obj, named, pending=pending)
+        if related is None:
+            if logger:
+                logger.warning(
+                    "Not relating Interface %s on Device %s to %s, as no such Interface is there.",
+                    interface_name,
+                    device_obj.name,
+                    named,
+                )
+        else:
+            resolved[field] = related
+    return resolved
+
+
 def create_interface(  # pylint: disable=too-many-arguments
     device_obj: Device,
     interface_details: dict,
@@ -1152,19 +1184,9 @@ def create_interface(  # pylint: disable=too-many-arguments
         # configured default. The only place that default is still applied: an Interface already in
         # Nautobot has a type worth keeping, and this one has nothing to keep.
         defaults["type"] = DEFAULT_INTERFACE_TYPE
-    parent_name = interface_details.get("parent_interface")
-    if parent_name:
-        parent = resolve_parent_interface(device_obj, parent_name, pending=pending)
-        if parent is None:
-            if logger:
-                logger.warning(
-                    "Not putting Interface %s on Device %s under %s, as no such Interface is there.",
-                    interface_name,
-                    device_obj.name,
-                    parent_name,
-                )
-        else:
-            defaults["parent_interface"] = parent
+    defaults.update(
+        related_interfaces_of(device_obj, interface_details, interface_name, logger=logger, pending=pending)
+    )
     reported_state = {
         custom_field: interface_details.get(attribute) for attribute, custom_field in INTERFACE_STATE_FIELDS.items()
     }

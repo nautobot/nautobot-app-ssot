@@ -621,6 +621,7 @@ class Interface(DiffSyncExtras):
         "mtu",
         "type",
         "parent_interface",
+        "lag",
         "mgmt_only",
         "status",
         "state_l1",
@@ -639,6 +640,8 @@ class Interface(DiffSyncExtras):
     # The port a subinterface hangs off. Nautobot accepts one only on a virtual Interface, so this
     # is set with the type together or not at all.
     parent_interface: Optional[str] = None
+    # The port channel this Interface is a member of. Nautobot refuses one on a virtual Interface.
+    lag: Optional[str] = None
     mgmt_only: Optional[bool] = None
     status: str
     # What the last discovery found, as opposed to what the Interface is meant to be.
@@ -750,6 +753,12 @@ class Interface(DiffSyncExtras):
                     interface.lag = attrs["lag"]
                 if attrs.get("type"):
                     interface.type = attrs["type"]
+                if "lag" in attrs:
+                    # Set even where this run reports none, so an Interface taken out of a port
+                    # channel stops claiming membership of it.
+                    interface.lag = (
+                        tonb_nbutils.resolve_parent_interface(device, attrs["lag"]) if attrs["lag"] else None
+                    )
                 if "parent_interface" in attrs:
                     # Set even where this run reports none, so a subinterface whose port stops
                     # being reported is taken out from under it rather than left pointing at it.

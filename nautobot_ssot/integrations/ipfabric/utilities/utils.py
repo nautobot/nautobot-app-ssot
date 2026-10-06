@@ -76,6 +76,21 @@ def convert_media_type(media_type: str, interface_name: str) -> Optional[str]:
     return type_of_media(media_type) or type_of_interface_name(interface_name)
 
 
+def lag_member_names(reported: str) -> list:
+    """Return the Interface names a port channel's member column lists.
+
+    IP Fabric reports members as one string, each name followed by its state in brackets:
+    `Et35(DOWN), Et36(DOWN)`. The state is taken off the end rather than the name read from the
+    front, because a name may carry brackets of its own, and only the last pair is the state.
+    """
+    members = []
+    for part in (reported or "").split(","):
+        name = part.strip().rsplit("(", 1)[0].strip()
+        if name:
+            members.append(name)
+    return members
+
+
 def parent_interface_name(interface_name: str) -> Optional[str]:
     """Return the Interface a subinterface hangs off, or None where the name names no parent.
 

@@ -256,6 +256,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 parent_interface=(
                     interface_record.parent_interface.name if interface_record.parent_interface else None
                 ),
+                lag=interface_record.lag.name if interface_record.lag else None,
                 mgmt_only=interface_record.mgmt_only if interface_record.mgmt_only else False,
                 state_l1=interface_record.cf.get(INTERFACE_L1_CF_NAME),
                 state_l2=interface_record.cf.get(INTERFACE_L2_CF_NAME),
@@ -378,6 +379,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             # Each Interface reports the port it hangs off by name, which is one query per
             # Interface without this.
             prefetch.append("interfaces__parent_interface")
+            prefetch.append("interfaces__lag")
         devices = filtered_devices.select_related(*related)
         if prefetch:
             devices = devices.prefetch_related(*prefetch)

@@ -148,6 +148,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         # counted by kind so an estate reporting units without ports is legible.
         self.subinterfaces = 0
         self.subinterfaces_without_their_port = Counter()
+        # The port channel each Interface belongs to, keyed as the inventory names them.
+        self.lag_by_member = {}
+        self.lag_members = 0
         # Held because a VRF is network wide while this filter is not, so a filtered run must not
         # delete the VRFs of the sites it cannot see; see `DiffSyncModelAdapters.network_wide`.
         self.location_filter = location_filter
@@ -186,9 +189,14 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
 
         device_interfaces.extend(self.interfaces_only_the_address_table_names(device_interfaces))
 
-        # A port before anything configured on it, so the parent exists by the time DiffSync
-        # reaches the subinterface. `ge-0/0/0` sorts before `ge-0/0/0.0` on depth alone.
-        device_interfaces.sort(key=lambda iface: iface["intName"].count("."))
+        # A port channel before its members, and a port before anything configured on it, so
+        # whatever an Interface points at exists by the time DiffSync reaches it.
+        device_interfaces.sort(
+            key=lambda iface: (
+                (iface.get("sn"), iface["intName"]) in self.lag_by_member,
+                iface["intName"].count("."),
+            )
+        )
 
         ports = {
             canonical_interface_name(iface["intName"]) if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME else iface["intName"]
@@ -208,6 +216,24 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 parent = None
             if parent is not None:
                 self.subinterfaces += 1
+
+            lag = self.lag_by_member.get((iface.get("sn"), iface["intName"]))
+            if lag is not None and IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
+                lag = canonical_interface_name(lag)
+            if lag is not None and parent is not None:
+                # Nautobot refuses a port channel on a virtual Interface, and a subinterface is
+                # one. Reported rather than silently dropped, being a shape nothing expects.
+                self.job.logger.warning(
+                    "Not putting %s on Device %s in port channel %s, as it is configured on %s and "
+                    "so is virtual, which Nautobot does not allow in a port channel.",
+                    iface_name,
+                    iface.get("hostname"),
+                    lag,
+                    parent,
+                )
+                lag = None
+            if lag is not None:
+                self.lag_members += 1
 
             enabled = admin_state_of(iface.get("l1"), iface.get("reason"))
             if enabled is None:
@@ -252,6 +278,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     # subinterface is: it has no media of its own, only the port's.
                     type=(InterfaceTypeChoices.TYPE_VIRTUAL if parent is not None else interface_type),
                     parent_interface=parent,
+                    lag=lag,
                     mgmt_only=iface.get("mgmt_only", False),
                     status="Active",
                     state_l1=iface.get("l1"),
@@ -267,6 +294,22 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             # the Nautobot adapter reports none either and what it holds is left alone.
             if self.scope.ip_addresses:
                 self.load_interface_addresses(interface, iface, iface_name, device_primary_ips)
+
+    def load_lag_membership(self):
+        """Index the port channel each Interface belongs to, from IP Fabric's member status table.
+
+        The table reports one row per port channel, naming its members in a single column with each
+        member's state in brackets after it. Rows carrying no members describe a port channel with
+        nothing in it, which has no membership to record.
+        """
+        for row in self.client.technology.port_channels.member_status_table.all(
+            columns=["sn", "hostname", "intName", "members"]
+        ):
+            serial, lag_name = row.get("sn"), row.get("intName")
+            if not serial or not lag_name:
+                continue
+            for member in ipfabric_utils.lag_member_names(row.get("members")):
+                self.lag_by_member[(serial, member)] = lag_name
 
     def interfaces_only_the_address_table_names(self, device_interfaces):
         """Return records for the Interfaces an address sits on that the inventory did not return.
@@ -707,6 +750,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         if self.scope.interfaces:
             for interface in self.client.inventory.interfaces.all():
                 interfaces[interface["sn"]].append(interface)
+            self.load_lag_membership()
 
         # Get all stacks for devices. Stack membership is Device data, so it is read whatever else is
         # in scope.
