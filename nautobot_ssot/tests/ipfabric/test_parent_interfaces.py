@@ -7,12 +7,18 @@ type and the parent are decided together.
 """
 
 import copy
+from collections import Counter
 from unittest.mock import MagicMock, patch
 
+from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.testing import TestCase
 from nautobot.dcim.choices import InterfaceTypeChoices
+from nautobot.dcim.models import Cable, Device, DeviceType, Interface, Location, LocationType, Manufacturer
+from nautobot.extras.management import populate_status_choices
+from nautobot.extras.models import Role, Status
 
-from nautobot_ssot.integrations.ipfabric.utilities.utils import parent_interface_name
+from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
+from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache, parent_interface_name
 from nautobot_ssot.tests.ipfabric.job_log import job_log_text, job_logger
 from nautobot_ssot.tests.ipfabric.test_ipfabric_adapter import (
     INTERFACE_FIXTURE,
@@ -138,3 +144,94 @@ class TestTheFixtureHasNoSubinterfaces(TestCase):
 
         self.assertEqual(0, adapter.subinterfaces)
         self.assertEqual({}, dict(adapter.subinterfaces_without_their_port))
+
+
+class TestATunnelUnitThatWasCabledUnderTheDefaultType(TestCase):
+    """A unit synced as `1000base-t` in an earlier release, cabled, and now typed as virtual.
+
+    Nautobot refuses a Cable on a virtual Interface, so a manual run re-typing Junos `st0.0` units
+    failed every one of them with "Virtual and wireless interfaces cannot be connected".
+    """
+
+    def setUp(self):
+        super().setUp()
+        populate_status_choices()
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
+        active = Status.objects.get(name="Active")
+        device_ct = ContentType.objects.get_for_model(Device)
+        role = Role.objects.create(name="tunnel-role")
+        role.content_types.add(device_ct)
+        location_type, _ = LocationType.objects.get_or_create(name="tunnel-site")
+        location_type.content_types.add(device_ct)
+        location = Location.objects.create(name="tunnel-site1", location_type=location_type, status=active)
+        manufacturer = Manufacturer.objects.create(name="tunnel-vendor")
+        self.device = Device.objects.create(
+            name="d1xfw01",
+            status=active,
+            role=role,
+            location=location,
+            device_type=DeviceType.objects.create(model="tunnel-model", manufacturer=manufacturer),
+        )
+        self.port = Interface.objects.create(device=self.device, name="st0", status=active, type="1000base-t")
+        self.unit = Interface.objects.create(device=self.device, name="st0.0", status=active, type="1000base-t")
+        self.far = Interface.objects.create(device=self.device, name="ge-0/0/1", status=active, type="1000base-t")
+        Cable.objects.create(
+            termination_a=self.unit, termination_b=self.far, status=Status.objects.get_for_model(Cable).first()
+        )
+
+    def update(self, safe_delete_mode):
+        """Drive the update a re-sync makes to the unit, and return the adapter it reported to."""
+        adapter = MagicMock()
+        adapter.sync_ipfabric_tagged_only = False
+        adapter.safe_delete_tally = Counter()
+        # Held per run on the adapter, so two syncs in one worker cannot share it.
+        adapter.safe_delete_mode = safe_delete_mode
+        model = InterfaceModel(name=self.unit.name, device_name=self.device.name, status="Active")
+        model.adapter = adapter
+        model.update({"type": InterfaceTypeChoices.TYPE_VIRTUAL, "parent_interface": "st0"})
+        self.unit.refresh_from_db()
+        self.far.refresh_from_db()
+        return adapter
+
+    def test_the_cable_is_removed_so_the_unit_can_be_virtual(self):
+        adapter = self.update(safe_delete_mode=False)
+
+        self.assertIsNone(self.unit.cable)
+        self.assertEqual(InterfaceTypeChoices.TYPE_VIRTUAL, self.unit.type)
+        self.assertEqual(self.port, self.unit.parent_interface)
+        self.assertFalse(adapter.job.logger.error.called, "Nothing should be refused once the Cable is gone.")
+
+    def test_the_far_end_is_freed_with_it(self):
+        """A Cable has two ends, and the other one must not be left claiming it."""
+        self.update(safe_delete_mode=False)
+
+        self.assertIsNone(self.far.cable)
+        self.assertEqual(0, Cable.objects.count())
+
+    def test_the_removal_is_counted_rather_than_named(self):
+        adapter = self.update(safe_delete_mode=False)
+
+        self.assertEqual(
+            {("Cable", "deleted, the Interface they ended on being virtual"): 1}, dict(adapter.safe_delete_tally)
+        )
+
+    def test_safe_delete_mode_keeps_the_cable_and_holds_the_change_back(self):
+        """Safe Delete Mode never removes anything, so the unit is left exactly as it was."""
+        adapter = self.update(safe_delete_mode=True)
+
+        self.assertIsNotNone(self.unit.cable)
+        self.assertEqual("1000base-t", self.unit.type)
+        self.assertIsNone(self.unit.parent_interface)
+        self.assertFalse(adapter.job.logger.error.called, "Held back, not refused.")
+        self.assertEqual(1, sum(adapter.safe_delete_tally.values()))
+
+    def test_a_unit_holding_no_cable_is_made_virtual_as_before(self):
+        self.unit.cable.delete()
+        self.unit.refresh_from_db()
+
+        adapter = self.update(safe_delete_mode=True)
+
+        self.assertEqual(InterfaceTypeChoices.TYPE_VIRTUAL, self.unit.type)
+        self.assertEqual(self.port, self.unit.parent_interface)
+        self.assertEqual({}, dict(adapter.safe_delete_tally), "Nothing to remove, so nothing to count.")

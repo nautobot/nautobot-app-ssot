@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
 from django.db.models import ProtectedError
 from nautobot.core.choices import ColorChoices
+from nautobot.dcim.constants import NONCONNECTABLE_IFACE_TYPES
 from nautobot.dcim.models import (
     Cable as NautobotCable,
 )
@@ -738,6 +739,7 @@ class Interface(DiffSyncExtras):
                 )
                 return_super = False
             else:
+                attrs = self.clear_the_way_to_virtual(interface, attrs)
                 if attrs.get("description"):
                     interface.description = attrs["description"]
                 if attrs.get("enabled") is not None:
@@ -795,6 +797,43 @@ class Interface(DiffSyncExtras):
                 f"its interface named {self.name}"
             )
         return None
+
+    def clear_the_way_to_virtual(self, interface, attrs):
+        """Remove a Cable that would stop an Interface becoming virtual, or hold the change back.
+
+        Nautobot refuses a Cable on a virtual Interface. A Junos tunnel unit such as `st0.0` was
+        synced with the default type in earlier releases, since nothing in its name resolves one, and
+        so was cabled from IP Fabric's connectivity matrix, which reports tunnel adjacencies as links.
+        Typed as what it is, the Cable is one Nautobot does not allow and this sync would not create.
+
+        It is removed rather than left to the Cable's own diff, which runs after every Interface and
+        so too late for this one. Under Safe Delete Mode nothing is removed, so the type and the
+        parent that depends on it are held back instead, and the Interface is left as it was. Both
+        outcomes are counted rather than named, reported with the rest of Safe Delete's tally.
+        """
+        if attrs.get("type") not in NONCONNECTABLE_IFACE_TYPES or interface.cable is None:
+            return attrs
+        if self.adapter.safe_delete_mode:
+            self.adapter.safe_delete_tally[
+                (
+                    "Interface",
+                    "left with their type and parent unchanged, a Cable they hold being kept by Safe Delete Mode",
+                )
+            ] += 1
+            return {field: value for field, value in attrs.items() if field not in ("type", "parent_interface")}
+        try:
+            interface.cable.delete()
+        except (ProtectedError, DjangoBaseDBError) as error:
+            self.adapter.job.logger.error(
+                "Unable to remove the Cable on Interface %s on Device %s, so it cannot be made virtual: %s",
+                self.name,
+                self.device_name,
+                error,
+            )
+            return {field: value for field, value in attrs.items() if field not in ("type", "parent_interface")}
+        interface.refresh_from_db()
+        self.adapter.safe_delete_tally[("Cable", "deleted, the Interface they ended on being virtual")] += 1
+        return attrs
 
 
 class InterfaceAddress(DiffSyncExtras):

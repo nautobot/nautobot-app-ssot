@@ -310,6 +310,19 @@ Only where the port is one the same device reported. A dot in a name is not proo
 subinterface whose port this run did not see keeps the type it had and gets no parent. The job counts
 those by naming scheme.
 
+### A subinterface that holds a Cable
+
+Nautobot refuses a Cable on a virtual interface. Earlier releases gave an interface whose name resolved
+no type the configured default, `1000base-t`, which a Junos tunnel unit such as `st0.0` always fell
+to, and IP Fabric's connectivity matrix reports tunnel adjacencies as links, so such a unit may hold a
+Cable from an earlier sync. A tunnel is virtual and is not cabled, so that Cable is one Nautobot does
+not allow.
+
+With **Safe Delete Mode** off, the Cable is removed when the unit is made virtual, freeing the
+interface at its other end as well. With it on, which is the default, nothing is removed: the unit
+keeps its type and gets no parent, and the job counts how many were held back this way. Run once
+with Safe Delete Mode off to clear them.
+
 ## Port channels
 
 The members of a port channel come from `Technology > Port Channels > Member Status`, which reports
