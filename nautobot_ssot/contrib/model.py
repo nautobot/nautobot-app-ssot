@@ -38,7 +38,7 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
     """
 
     @classmethod
-    def create(cls, adapter: BaseNautobotAdapter, ids: dict, attrs: dict) -> Optional["NautobotModel"]:
+    def create(cls, adapter: BaseNautobotAdapter, ids: dict, attrs: dict):
         """Create a new ORM object from the DiffSync model.
 
         Identifiers and attributes are merged into a single parameter dictionary, used to populate and save a new
@@ -73,7 +73,7 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
                 raise ObjectNotCreated(f"Failed to save object metadata: {cls.__name__} -> {ids}") from error
         return super().create(adapter, ids, attrs)
 
-    def update(self, attrs: dict) -> Optional[Self]:
+    def update(self, attrs: dict):
         """Update an existing ORM object from the  DiffSync model.
 
         The existing ORM object is loaded from the database by primary key and updated with the given attributes. If
@@ -98,7 +98,7 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
             raise ObjectNotUpdated(error) from error
         return super().update(attrs)
 
-    def delete(self) -> Optional[Self]:
+    def delete(self):
         """Delete the ORM object corresponding to this DiffSync model.
 
         The existing ORM object is loaded from the database by primary key and deleted.
