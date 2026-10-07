@@ -54,7 +54,7 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
                 `ObjectCrudException` with additional information).
 
         Returns:
-            Optional[Self]: The newly created DiffSync model instance.
+            NautobotModel: The newly created DiffSync model instance.
         """
         # NOTE: Converting to the ORM format requires identifers and attributes to be in a single dictionary.
         parameters = ids.copy()
@@ -86,7 +86,7 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
                 `ObjectCrudException`).
 
         Returns:
-            Optional[Self]: The updated DiffSync model instance.
+            NautobotModel: The updated DiffSync model instance.
         """
         try:
             obj = self.get_from_db()
@@ -107,7 +107,7 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
                 referenced by another object (wraps the underlying `ObjectCrudException` or `ProtectedError`).
 
         Returns:
-            Optional[Self]: The deleted DiffSync model instance.
+            NautobotModel: The deleted DiffSync model instance.
         """
         try:
             obj = self.get_from_db()
