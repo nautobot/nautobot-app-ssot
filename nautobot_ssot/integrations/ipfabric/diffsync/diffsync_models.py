@@ -774,10 +774,16 @@ class Interface(DiffSyncExtras):
                         interface.cf[custom_field] = attrs[attribute]
                 try:
                     tonb_nbutils.tag_object(nautobot_object=interface, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-                except (DjangoBaseDBError, ValidationError):
+                except (DjangoBaseDBError, ValidationError) as error:
+                    # Naming what was refused, and what was being written: without them an
+                    # operator reading the Job Result has no way to tell a rejected type from a
+                    # rejected relation, and the attributes are what say which.
                     self.adapter.job.logger.error(
-                        f"Unable to perform validated_save() on Interface named {self.name} "
-                        f"on Device named {device.name} with an ID of {device.id}"
+                        "Unable to write Interface %s on Device %s: %s. The sync was setting %s.",
+                        self.name,
+                        device.name,
+                        error,
+                        ", ".join(f"{field}={value!r}" for field, value in sorted(attrs.items())) or "nothing",
                     )
                     return_super = False
             if return_super:
