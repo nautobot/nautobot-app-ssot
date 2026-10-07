@@ -21,11 +21,6 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import (
 )
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import DELETE_ORDER, NautobotDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
-from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import RouteTarget as DiffSyncRouteTarget
-from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Vrf
-from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
-    VrfDeviceAssignment as DiffSyncVrfDeviceAssignment,
-)
 from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
 from nautobot_ssot.integrations.ipfabric.signals import nautobot_database_ready_callback
 from nautobot_ssot.integrations.ipfabric.sync_scope import SYNCABLE_OBJECTS, SyncScope
@@ -391,12 +386,7 @@ class VrfWriteTestCase(VrfTestCase):
     def setUp(self):
         super().setUp()
         self.adapter = nautobot_adapter()
-        # `safe_delete_mode` is read from the model rather than from the adapter, so both are set:
-        # the model decides whether a delete removes or marks, the adapter whether the queue drains.
         self.adapter.safe_delete_mode = False
-        patched = mock.patch.object(Vrf, "safe_delete_mode", False)
-        patched.start()
-        self.addCleanup(patched.stop)
 
     def test_create_makes_the_vrf_in_the_global_namespace(self):
         self.create_vrf(rd="65000:1")
@@ -514,7 +504,7 @@ class VrfWriteTestCase(VrfTestCase):
     def test_safe_delete_marks_the_vrf_rather_than_removing_it(self):
         VRF.objects.create(name="BLUE", rd="65000:1", namespace=self.namespace, status=self.active)
         model = self.loaded_model()
-        with mock.patch.object(Vrf, "safe_delete_mode", True):
+        with mock.patch.object(self.adapter, "safe_delete_mode", True):
             model.delete()
         vrf = VRF.objects.get(name="BLUE")
         self.assertEqual(vrf.status.name, "Deprecated")
@@ -524,7 +514,7 @@ class VrfWriteTestCase(VrfTestCase):
         """A VRF IP Fabric reports again is brought back, rather than left marked for deletion."""
         VRF.objects.create(name="BLUE", rd="65000:1", namespace=self.namespace, status=self.active)
         model = self.loaded_model()
-        with mock.patch.object(Vrf, "safe_delete_mode", True):
+        with mock.patch.object(self.adapter, "safe_delete_mode", True):
             model.delete()
 
         model.update({"status": "Active"})
@@ -625,12 +615,7 @@ class VrfConvergenceTestCase(VrfTestCase):
 
         self.detail_rows = [row for row in self.detail_rows if row["vrf"] != "PLAIN"]
         source, destination = self.adapters()
-        # Set on the model and on the adapter, as the Job does: the model decides whether a delete
-        # removes or marks, and the adapter whether the queue it builds is drained.
-        with (
-            mock.patch.object(Vrf, "safe_delete_mode", False),
-            mock.patch.object(destination, "safe_delete_mode", False),
-        ):
+        with mock.patch.object(destination, "safe_delete_mode", False):
             destination.sync_from(source, flags=DiffSyncFlags.CONTINUE_ON_FAILURE)
 
         self.assertFalse(VRF.objects.filter(name="PLAIN").exists())
@@ -759,9 +744,7 @@ class RouteTargetTestCase(VrfTestCase):
     def setUp(self):
         super().setUp()
         self.adapter = nautobot_adapter()
-        patched = mock.patch.object(DiffSyncRouteTarget, "safe_delete_mode", False)
-        patched.start()
-        self.addCleanup(patched.stop)
+        self.adapter.safe_delete_mode = False
 
     def create(self, name="65000:1"):
         """Create a Route Target through the DiffSync model, as a sync would."""
@@ -818,7 +801,7 @@ class RouteTargetTestCase(VrfTestCase):
         """A Route Target has no Status, so the Tag is all a safe delete can leave."""
         self.create()
         self.adapter.load_route_targets()
-        with mock.patch.object(DiffSyncRouteTarget, "safe_delete_mode", True):
+        with mock.patch.object(self.adapter, "safe_delete_mode", True):
             self.adapter.get("route_target", "65000:1").delete()
         route_target = RouteTarget.objects.get(name="65000:1")
         self.assertTrue(route_target.tags.filter(name="SSoT Safe Delete").exists())
@@ -876,9 +859,7 @@ class VrfDeviceAssignmentTestCase(VrfTestCase):
         self.vrf = VRF.objects.create(name="BLUE", rd="65000:1", namespace=self.namespace, status=self.active)
 
         self.adapter = nautobot_adapter()
-        patched = mock.patch.object(DiffSyncVrfDeviceAssignment, "safe_delete_mode", False)
-        patched.start()
-        self.addCleanup(patched.stop)
+        self.adapter.safe_delete_mode = False
 
     def create(self, vrf_name="BLUE", device_name="rtr1"):
         """Assign a VRF to a Device through the DiffSync model, as a sync would."""
@@ -941,7 +922,7 @@ class VrfDeviceAssignmentTestCase(VrfTestCase):
         self.create()
         self.adapter.load_vrfs()
         self.adapter.load_vrf_device_assignments(Device.objects.all())
-        with mock.patch.object(DiffSyncVrfDeviceAssignment, "safe_delete_mode", True):
+        with mock.patch.object(self.adapter, "safe_delete_mode", True):
             self.adapter.get("vrf_device_assignment", "BLUE__rtr1").delete()
         self.assertEqual(VRFDeviceAssignment.objects.count(), 1)
 

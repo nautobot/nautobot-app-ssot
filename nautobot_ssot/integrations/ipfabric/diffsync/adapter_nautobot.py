@@ -123,7 +123,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         self.location_filter = location_filter
         # Present only in bulk write mode, so that whether writes are batched is one fact rather
         # than two. Passed in rather than set on the class, so two runs in one worker cannot see
-        # each other's choice; `safe_delete_mode` is still set on the class, so two runs share it.
+        # each other's choice.
         self.pending = PendingWrites(job.logger) if bulk_write_mode else None
         # Per adapter rather than per class, so that a run which fails before `sync_complete` cannot
         # leave objects queued for a later run in the same worker to delete.

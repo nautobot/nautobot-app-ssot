@@ -1263,7 +1263,7 @@ class TestCableModel(_ModelTestBase):
         occupied = mock.MagicMock()
 
         with (
-            mock.patch.object(Cable, "safe_delete_mode", True),
+            mock.patch.object(self.adapter, "safe_delete_mode", True),
             _nb_patch("get_tagged_interface", side_effect=[occupied, self._uncabled_interface()]),
             _cable_patch("cable_connects", return_value=False),
             _cable_patch("create_cable") as mock_create_cable,
@@ -1283,7 +1283,7 @@ class TestCableModel(_ModelTestBase):
         stale_cable = occupied.cable
 
         with (
-            mock.patch.object(Cable, "safe_delete_mode", False),
+            mock.patch.object(self.adapter, "safe_delete_mode", False),
             _nb_patch("get_tagged_interface", side_effect=[occupied, self._uncabled_interface()]),
             _cable_patch("cable_connects", return_value=False),
             _cable_patch("create_cable", return_value=mock.MagicMock()) as mock_create_cable,
@@ -1301,7 +1301,7 @@ class TestCableModel(_ModelTestBase):
         occupied.cable.delete.side_effect = diffsync_models.ProtectedError("protected", set())
 
         with (
-            mock.patch.object(Cable, "safe_delete_mode", False),
+            mock.patch.object(self.adapter, "safe_delete_mode", False),
             _nb_patch("get_tagged_interface", side_effect=[occupied, self._uncabled_interface()]),
             _cable_patch("cable_connects", return_value=False),
             _cable_patch("create_cable") as mock_create_cable,
@@ -1319,7 +1319,7 @@ class TestCableModel(_ModelTestBase):
         nb_cable = mock.MagicMock()
 
         with (
-            mock.patch.object(Cable, "safe_delete_mode", True),
+            mock.patch.object(self.adapter, "safe_delete_mode", True),
             mock.patch.object(Cable, "retrieve_cable", return_value=nb_cable),
             mock.patch.object(Cable, "safe_delete") as mock_safe_delete,
             mock.patch.object(diffsync_models.DiffSyncModel, "delete", return_value="ok"),
@@ -1338,7 +1338,7 @@ class TestCableModel(_ModelTestBase):
         nb_cable = mock.MagicMock()
 
         with (
-            mock.patch.object(Cable, "safe_delete_mode", False),
+            mock.patch.object(self.adapter, "safe_delete_mode", False),
             mock.patch.object(Cable, "retrieve_cable", return_value=nb_cable),
             mock.patch.object(Cable, "safe_delete") as mock_safe_delete,
             mock.patch.object(diffsync_models.DiffSyncModel, "delete", return_value="ok"),
@@ -1502,7 +1502,7 @@ class TestCableModel(_ModelTestBase):
         nb_cable.delete.side_effect = diffsync_models.ProtectedError("protected", set())
 
         with (
-            mock.patch.object(Cable, "safe_delete_mode", False),
+            mock.patch.object(self.adapter, "safe_delete_mode", False),
             mock.patch.object(Cable, "retrieve_cable", return_value=nb_cable),
             mock.patch.object(diffsync_models.DiffSyncModel, "delete") as mock_super,
         ):
