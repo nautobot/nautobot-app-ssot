@@ -749,8 +749,6 @@ class Interface(DiffSyncExtras):
                     interface.mtu = attrs["mtu"]
                 if attrs.get("mode"):
                     interface.mode = attrs["mode"]
-                if attrs.get("lag"):
-                    interface.lag = attrs["lag"]
                 if attrs.get("type"):
                     interface.type = attrs["type"]
                 if "lag" in attrs:

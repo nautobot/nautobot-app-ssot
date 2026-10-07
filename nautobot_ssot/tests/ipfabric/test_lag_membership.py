@@ -8,9 +8,15 @@ refuses one on a virtual Interface.
 import copy
 from unittest.mock import MagicMock, patch
 
+from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.testing import TestCase
+from nautobot.dcim.choices import InterfaceTypeChoices
+from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
+from nautobot.extras.management import populate_status_choices
+from nautobot.extras.models import Role, Status
 
-from nautobot_ssot.integrations.ipfabric.utilities.utils import lag_member_names
+from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
+from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache, lag_member_names
 from nautobot_ssot.tests.ipfabric.job_log import job_log_text, job_logger
 from nautobot_ssot.tests.ipfabric.test_ipfabric_adapter import (
     INTERFACE_FIXTURE,
@@ -131,3 +137,88 @@ class TestTheFixtureHasNoPortChannels(TestCase):
 
         self.assertEqual({}, adapter.lag_by_member)
         self.assertEqual(0, adapter.lag_members)
+
+
+class TestUpdatingTheRelationsOnAnInterfaceNautobotHolds(TestCase):
+    """A re-sync drives `update`, which resolves a name into the Interface it points at.
+
+    `create` and `update` take different routes to the same field, and only `create` was covered
+    until a manual run raised `Cannot assign "'Port-channel3'": "Interface.lag" must be a
+    "Interface" instance.` from this path.
+    """
+
+    def setUp(self):
+        super().setUp()
+        populate_status_choices()
+        job_scoped_cache.clear_all()
+        self.addCleanup(job_scoped_cache.clear_all)
+        active = Status.objects.get(name="Active")
+        device_ct = ContentType.objects.get_for_model(Device)
+        role = Role.objects.create(name="lag-role")
+        role.content_types.add(device_ct)
+        location_type, _ = LocationType.objects.get_or_create(name="lag-site")
+        location_type.content_types.add(device_ct)
+        location = Location.objects.create(name="lag-site1", location_type=location_type, status=active)
+        manufacturer = Manufacturer.objects.create(name="lag-vendor")
+        self.device = Device.objects.create(
+            name="lag-dev1",
+            status=active,
+            role=role,
+            location=location,
+            device_type=DeviceType.objects.create(model="lag-model", manufacturer=manufacturer),
+        )
+        self.channel = Interface.objects.create(
+            device=self.device, name="Port-channel3", status=active, type=InterfaceTypeChoices.TYPE_LAG
+        )
+        self.member = Interface.objects.create(device=self.device, name="Ethernet1", status=active, type="1000base-t")
+        self.port = Interface.objects.create(device=self.device, name="Ethernet2", status=active, type="1000base-t")
+        self.unit = Interface.objects.create(
+            device=self.device, name="Ethernet2.100", status=active, type=InterfaceTypeChoices.TYPE_VIRTUAL
+        )
+
+    def diff_model(self, interface):
+        """Return an Interface model bound to a stub adapter, as the Nautobot side loads one."""
+        adapter = MagicMock()
+        adapter.sync_ipfabric_tagged_only = False
+        model = InterfaceModel(name=interface.name, device_name=self.device.name, status="Active")
+        model.adapter = adapter
+        return model
+
+    def test_a_port_channel_named_in_an_update_is_resolved_to_the_interface(self):
+        """The name has to become an Interface; assigning the string raises from Django."""
+        self.diff_model(self.member).update({"lag": "Port-channel3"})
+
+        self.member.refresh_from_db()
+        self.assertEqual(self.channel, self.member.lag)
+
+    def test_an_interface_taken_out_of_its_channel_stops_claiming_membership(self):
+        self.member.lag = self.channel
+        self.member.validated_save()
+
+        self.diff_model(self.member).update({"lag": None})
+
+        self.member.refresh_from_db()
+        self.assertIsNone(self.member.lag)
+
+    def test_a_port_named_in_an_update_is_resolved_to_the_interface(self):
+        self.diff_model(self.unit).update({"parent_interface": "Ethernet2"})
+
+        self.unit.refresh_from_db()
+        self.assertEqual(self.port, self.unit.parent_interface)
+
+    def test_a_subinterface_taken_out_from_under_its_port_stops_pointing_at_it(self):
+        self.unit.parent_interface = self.port
+        self.unit.validated_save()
+
+        self.diff_model(self.unit).update({"parent_interface": None})
+
+        self.unit.refresh_from_db()
+        self.assertIsNone(self.unit.parent_interface)
+
+    def test_a_channel_that_is_not_there_is_reported_rather_than_assigned(self):
+        model = self.diff_model(self.member)
+
+        model.update({"lag": "Port-channel99"})
+
+        self.member.refresh_from_db()
+        self.assertIsNone(self.member.lag, "Nothing to point at, and nothing raised.")
