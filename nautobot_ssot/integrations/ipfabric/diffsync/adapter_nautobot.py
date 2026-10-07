@@ -78,9 +78,10 @@ def delete_objects(queued_deletions: List, logger):
         for start in range(0, len(pks), DELETE_BATCH_SIZE):
             batch = pks[start : start + DELETE_BATCH_SIZE]
             try:
-                # Its own savepoint, so a refused batch leaves the transaction usable. Deferring the
-                # change log within it turns one entry per deleted object into one bulk insert.
-                with transaction.atomic(), tonb_utils.deferred_change_logging():
+                # Its own savepoint, so a refused batch leaves the transaction usable. Not under
+                # deferred change logging, which on Nautobot 3.2 cannot record a delete of anything
+                # taggable; see `change_logging_not_deferred`.
+                with transaction.atomic():
                     model.objects.filter(pk__in=batch).delete()
             except IntegrityError:
                 delete_objects_one_at_a_time([(model, pk) for pk in batch], logger=logger)

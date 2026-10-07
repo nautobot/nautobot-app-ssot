@@ -86,6 +86,35 @@ def deferred_change_logging():
         yield
 
 
+@contextmanager
+def change_logging_not_deferred():
+    """Log the changes made in this scope as they happen, even inside a scope that defers them.
+
+    For deletes. Nautobot records a delete from `pre_delete` but, while deferring, only serializes
+    it when the deferring scope ends, by which point Django has cleared the deleted object's primary
+    key. Serializing it then reads the object's tags, which taggit refuses on an object with no
+    primary key, so on Nautobot 3.2 a delete of anything taggable under deferral ends the job with
+    "... objects need to have a primary key value before you can access their tags".
+
+    Logged immediately, the delete is serialized in `pre_delete` while the object still exists,
+    which is what Nautobot does outside a deferring scope. The enclosing scope's pending changes
+    are set aside meanwhile and restored after, so what it collected is neither flushed early nor
+    lost.
+    """
+    change_context = change_context_state.get()
+    if change_context is None or not change_context.defer_object_changes:
+        yield
+        return
+    pending = change_context.deferred_object_changes
+    change_context.defer_object_changes = False
+    change_context.deferred_object_changes = {}
+    try:
+        yield
+    finally:
+        change_context.deferred_object_changes = pending
+        change_context.defer_object_changes = True
+
+
 @job_scoped_cache
 def get_or_create_location_object(
     location_name: str,

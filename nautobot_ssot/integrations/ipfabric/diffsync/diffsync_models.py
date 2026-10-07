@@ -822,7 +822,8 @@ class Interface(DiffSyncExtras):
             ] += 1
             return {field: value for field, value in attrs.items() if field not in ("type", "parent_interface")}
         try:
-            interface.cable.delete()
+            with tonb_nbutils.change_logging_not_deferred():
+                interface.cable.delete()
         except (ProtectedError, DjangoBaseDBError) as error:
             self.adapter.job.logger.error(
                 "Unable to remove the Cable on Interface %s on Device %s, so it cannot be made virtual: %s",
@@ -1517,7 +1518,8 @@ class Cable(DiffSyncExtras):
                 f"so that {link} can be recorded"
             )
             try:
-                cable.delete()
+                with tonb_nbutils.change_logging_not_deferred():
+                    cable.delete()
             except (ProtectedError, DjangoBaseDBError) as err:
                 adapter.job.logger.error(
                     f"Unable to remove the Cable with an ID of {cable.id} from "
@@ -1575,7 +1577,8 @@ class Cable(DiffSyncExtras):
             # models: nothing depends on a Cable, and a queued one would still be holding an
             # Interface that a relocated link needs earlier in the same sync.
             try:
-                cable.delete()
+                with tonb_nbutils.change_logging_not_deferred():
+                    cable.delete()
             except (ProtectedError, DjangoBaseDBError) as err:
                 self.adapter.job.logger.error(f"Unable to delete the Cable for {link}. Error: {err}")
                 return None
