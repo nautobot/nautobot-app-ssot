@@ -323,6 +323,19 @@ interface at its other end as well. With it on, which is the default, nothing is
 keeps its type and gets no parent, and the job counts how many were held back this way. Run once
 with Safe Delete Mode off to clear them.
 
+### A link seen on subinterfaces
+
+IP Fabric reports a link between the interfaces the adjacency was seen on, which for a subinterface is
+the logical unit: `ge-0/0/0.0` at one end, `ge-0/0/0.0` at the other. No Cable lands on a unit, so the
+link is recorded as a Cable between the ports the units are configured on, `ge-0/0/0` to `ge-0/0/0`.
+Several units between one pair of ports, one per VLAN on a trunk, share that one Cable. A unit linked to
+an ordinary port moves only its own end.
+
+A tunnel is the exception. `st0.0` to `st0.0` is a peering reached over IP rather than along a Cable,
+so it is not moved onto the ports beneath it and is not cabled at all. Tunnels are recognised by name:
+Junos secure, GRE, IP-IP, logical and virtual tunnels (`st`, `gr`, `ip`, `lt`, `vt`), flexible tunnels
+(`fti`), and IOS `Tunnel`.
+
 ## Port channels
 
 The members of a port channel come from `Technology > Port Channels > Member Status`, which reports

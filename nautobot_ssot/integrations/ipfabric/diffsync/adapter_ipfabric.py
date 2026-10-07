@@ -42,6 +42,11 @@ except ImportError:
 device_serial_max_length = Device._meta.get_field("serial").max_length
 name_max_length = VLAN._meta.get_field("name").max_length
 
+# The kinds of interface a tunnel is configured on, by the letters their names start with. A link
+# IP Fabric reports over one is a peering reached over IP, so it is not moved onto a Cable between
+# the ports beneath: Junos secure, GRE, IP-IP, logical and virtual tunnels, and flexible tunnels.
+TUNNEL_NAME_KINDS = frozenset({"st", "gr", "gre", "ip", "lt", "vt", "fti", "tu", "tunnel"})
+
 # Keys the FHRP tables may carry the virtual address under. IP Fabric discovers a table's columns
 # from the appliance rather than declaring them in the SDK, so the name is confirmed at run time and
 # a table that carries none of these is reported rather than passed over in silence.
@@ -151,6 +156,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         # The port channel each Interface belongs to, keyed as the inventory names them.
         self.lag_by_member = {}
         self.lag_members = 0
+        # Links IP Fabric reported between subinterfaces, recorded between the ports instead. A set,
+        # because the matrix reports each link once from each of its two ends.
+        self.links_moved_to_their_ports = set()
         # Held because a VRF is network wide while this filter is not, so a filtered run must not
         # delete the VRFs of the sites it cannot see; see `DiffSyncModelAdapters.network_wide`.
         self.location_filter = location_filter
@@ -500,8 +508,41 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             if local == remote:
                 self.self_linking_endpoints[local] += 1
                 continue
-            links.add(canonical_endpoints(local, remote))
+            port_a, port_b = self.cabled_port_of(local), self.cabled_port_of(remote)
+            if port_a == port_b:
+                # Two units of one port linked to each other, which is a hairpin inside the device
+                # rather than anything a Cable could run between.
+                continue
+            if (port_a, port_b) != (local, remote):
+                self.links_moved_to_their_ports.add(canonical_endpoints(local, remote))
+            links.add(canonical_endpoints(port_a, port_b))
         return links
+
+    def cabled_port_of(self, endpoint):
+        """Return the Interface a link reported on this endpoint is cabled to.
+
+        IP Fabric reports a link between the interfaces the adjacency was seen on, which for a
+        subinterface is the logical unit. No Cable lands on a unit: it runs between the ports the
+        units are configured on, so a link seen on `ge-0/0/0.0` at each end is a Cable between the
+        two `ge-0/0/0`. Reported on the units, the link could not be recorded at all, a unit being
+        virtual and Nautobot refusing a Cable on a virtual Interface.
+
+        Not for a tunnel. Its peer is reached over IP rather than along a Cable, so `st0.0` to
+        `st0.0` is a peering, and moving it to `st0` would record a Cable that does not exist. The
+        endpoint is kept, and the link goes uncabled as a virtual Interface's does.
+
+        Only where the unit was put under a port this run loaded, which is what `parent_interface`
+        already guarantees, so a link is never moved onto a port nothing reported.
+        """
+        device_name, interface_name = endpoint
+        try:
+            interface = self.get(self.interface, {"name": interface_name, "device_name": device_name})
+        except ObjectNotFound:
+            return endpoint
+        port = interface.parent_interface
+        if not port or ipfabric_utils.interface_name_kind(port).lower() in TUNNEL_NAME_KINDS:
+            return endpoint
+        return device_name, port
 
     def recordable_links(self):
         """Return the reported links Nautobot can record, which is at most one per Interface.
@@ -871,6 +912,12 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
 
         if self.scope.cables:
             self.load_cables()
+            if self.links_moved_to_their_ports:
+                self.job.logger.info(
+                    "Recording %d links IP Fabric reports between subinterfaces as Cables between the "
+                    "ports they are configured on, a Cable landing on a port rather than on a unit.",
+                    len(self.links_moved_to_their_ports),
+                )
 
         if self.scope.vrfs:
             self.load_vrfs()

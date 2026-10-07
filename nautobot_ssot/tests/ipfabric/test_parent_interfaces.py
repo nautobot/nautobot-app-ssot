@@ -235,3 +235,89 @@ class TestATunnelUnitThatWasCabledUnderTheDefaultType(TestCase):
         self.assertEqual(InterfaceTypeChoices.TYPE_VIRTUAL, self.unit.type)
         self.assertEqual(self.port, self.unit.parent_interface)
         self.assertEqual({}, dict(adapter.safe_delete_tally), "Nothing to remove, so nothing to count.")
+
+
+DEVICE_A = ("jcy-rtr-02", "a000a02")
+DEVICE_B = ("nyc-rtr-01", "VM60D5EE2211")
+
+
+def client_with_links(links, interfaces_a=(), interfaces_b=()):
+    """Return a client whose two Devices report the given Interfaces and connectivity matrix rows."""
+    client = mock_ipfabric_client()
+    template = next(row for row in INTERFACE_FIXTURE if row.get("sn") == DEVICE_A[1])
+    client.inventory.interfaces.all.return_value = [
+        dict(copy.deepcopy(template), intName=name, hostname=host, sn=serial, media="1000BaseT")
+        for (host, serial), names in ((DEVICE_A, interfaces_a), (DEVICE_B, interfaces_b))
+        for name in names
+    ]
+    client.technology.interfaces.connectivity_matrix.all.return_value = [
+        {"localHost": DEVICE_A[0], "localInt": local, "remoteHost": DEVICE_B[0], "remoteInt": remote}
+        for local, remote in links
+    ]
+    return client
+
+
+class TestALinkSeenOnSubinterfaces(TestCase):
+    """IP Fabric reports a link where the adjacency was seen, which for a subinterface is its unit."""
+
+    def cables(self, links, interfaces_a, interfaces_b):
+        """Return the Cables loaded, as `{(device, interface), (device, interface)}` pairs, and the adapter."""
+        logger = job_logger()
+        adapter = build_adapter(
+            client=client_with_links(links, interfaces_a, interfaces_b), logger=logger, sync_cables=True
+        )
+        cables = {
+            frozenset(
+                {
+                    (model.termination_a_device, model.termination_a_name),
+                    (model.termination_b_device, model.termination_b_name),
+                }
+            )
+            for model in adapter.get_all("cable")
+        }
+        return cables, adapter, logger
+
+    def test_a_link_between_units_is_cabled_between_their_ports(self):
+        """`c0xr01:ge-0/0/0.0 <-> c0xr02:ge-0/0/0.0` from the manual run, as the Cable it rides on."""
+        cables, _, _ = self.cables(
+            [("ge-0/0/0.0", "ge-0/0/0.0")], ("ge-0/0/0", "ge-0/0/0.0"), ("ge-0/0/0", "ge-0/0/0.0")
+        )
+
+        self.assertEqual({frozenset({(DEVICE_A[0], "ge-0/0/0"), (DEVICE_B[0], "ge-0/0/0")})}, cables)
+
+    def test_a_tunnel_peering_is_not_turned_into_a_cable(self):
+        """`st0.0 <-> st0.0` is reached over IP, so there is no Cable between the two `st0`."""
+        cables, _, _ = self.cables([("st0.0", "st0.0")], ("st0", "st0.0"), ("st0", "st0.0"))
+
+        self.assertEqual(set(), cables)
+
+    def test_several_units_on_one_pair_of_ports_make_one_cable(self):
+        """Each VLAN on a trunk is reported as its own link, and they share the one Cable."""
+        cables, adapter, _ = self.cables(
+            [("ge-0/0/0.100", "ge-0/0/0.100"), ("ge-0/0/0.200", "ge-0/0/0.200")],
+            ("ge-0/0/0", "ge-0/0/0.100", "ge-0/0/0.200"),
+            ("ge-0/0/0", "ge-0/0/0.100", "ge-0/0/0.200"),
+        )
+
+        self.assertEqual({frozenset({(DEVICE_A[0], "ge-0/0/0"), (DEVICE_B[0], "ge-0/0/0")})}, cables)
+        self.assertEqual(2, len(adapter.links_moved_to_their_ports), "Each reported link is counted once.")
+
+    def test_a_unit_linked_to_a_port_moves_only_the_unit(self):
+        """A router on a stick: the unit's end moves to its port, the switch end stays put."""
+        cables, _, _ = self.cables([("ge-0/0/0.100", "Ethernet1")], ("ge-0/0/0", "ge-0/0/0.100"), ("Ethernet1",))
+
+        self.assertEqual({frozenset({(DEVICE_A[0], "ge-0/0/0"), (DEVICE_B[0], "Ethernet1")})}, cables)
+
+    def test_a_unit_whose_port_was_not_reported_is_not_moved(self):
+        """Moving it would cable a port nothing reported, so the link goes uncabled instead."""
+        cables, adapter, _ = self.cables([("ge-0/0/0.0", "ge-0/0/0.0")], ("ge-0/0/0.0",), ("ge-0/0/0.0",))
+
+        self.assertNotIn(frozenset({(DEVICE_A[0], "ge-0/0/0"), (DEVICE_B[0], "ge-0/0/0")}), cables)
+        self.assertEqual(set(), adapter.links_moved_to_their_ports)
+
+    def test_moving_links_is_reported_once_for_the_run(self):
+        _, _, logger = self.cables(
+            [("ge-0/0/0.0", "ge-0/0/0.0")], ("ge-0/0/0", "ge-0/0/0.0"), ("ge-0/0/0", "ge-0/0/0.0")
+        )
+
+        self.assertIn("Recording 1 links IP Fabric reports between subinterfaces", job_log_text(logger, "info"))
