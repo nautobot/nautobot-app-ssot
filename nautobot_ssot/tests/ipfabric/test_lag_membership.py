@@ -222,3 +222,18 @@ class TestUpdatingTheRelationsOnAnInterfaceNautobotHolds(TestCase):
 
         self.member.refresh_from_db()
         self.assertIsNone(self.member.lag, "Nothing to point at, and nothing raised.")
+
+
+class TestARowNamingNoPortChannel(TestCase):
+    """A member status row with no serial or no name has nothing to attach its members to."""
+
+    def test_a_row_without_a_serial_or_a_name_is_passed_over(self):
+        client = client_with_lag()
+        client.technology.port_channels.member_status_table.all.return_value = [
+            {"sn": LAG_SERIAL, "hostname": LAG_HOST, "intName": "", "members": "Ethernet1(UP)"},
+            {"sn": "", "hostname": LAG_HOST, "intName": "Port-channel12", "members": "Ethernet2(UP)"},
+        ]
+
+        adapter = build_adapter(client=client, logger=job_logger())
+
+        self.assertEqual({}, adapter.lag_by_member)

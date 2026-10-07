@@ -11,13 +11,18 @@ from collections import Counter
 from unittest.mock import MagicMock, patch
 
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from nautobot.apps.testing import TestCase
 from nautobot.dcim.choices import InterfaceTypeChoices
 from nautobot.dcim.models import Cable, Device, DeviceType, Interface, Location, LocationType, Manufacturer
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Role, Status
 
+from nautobot_ssot.integrations.ipfabric.bulk_writes import PendingWrites
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
+from nautobot_ssot.integrations.ipfabric.utilities import nbutils
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import create_interface, resolve_parent_interface
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache, parent_interface_name
 from nautobot_ssot.tests.ipfabric.job_log import job_log_text, job_logger
 from nautobot_ssot.tests.ipfabric.test_ipfabric_adapter import (
@@ -321,3 +326,96 @@ class TestALinkSeenOnSubinterfaces(TestCase):
         )
 
         self.assertIn("Recording 1 links IP Fabric reports between subinterfaces", job_log_text(logger, "info"))
+
+
+class TestCreatingAnInterfaceThatPointsAtAnother(TestATunnelUnitThatWasCabledUnderTheDefaultType):
+    """`create_interface`, which is how a subinterface or a port channel member new to Nautobot arrives.
+
+    Only `update` had been driven with a parent or a port channel; every new one goes this way.
+    """
+
+    def test_a_new_subinterface_is_created_under_its_port(self):
+        created = create_interface(
+            device_obj=self.device,
+            interface_details={"name": "st0.1", "type": InterfaceTypeChoices.TYPE_VIRTUAL, "parent_interface": "st0"},
+            logger=MagicMock(),
+        )
+
+        created.refresh_from_db()
+        self.assertEqual(self.port, created.parent_interface)
+
+    def test_a_port_that_is_not_there_is_reported_and_the_interface_still_created(self):
+        logger = MagicMock()
+
+        created = create_interface(
+            device_obj=self.device,
+            interface_details={"name": "st9.0", "type": InterfaceTypeChoices.TYPE_VIRTUAL, "parent_interface": "st9"},
+            logger=logger,
+        )
+
+        self.assertIsNotNone(created, "A port nothing reported must not stop the Interface being written.")
+        self.assertIsNone(created.parent_interface)
+        self.assertIn("as no such Interface is there", str(logger.warning.call_args_list))
+
+    def test_a_port_queued_this_run_is_found_in_the_queue(self):
+        """Bulk Write Mode: the port has no row yet, but already has the primary key to point at."""
+        pending = PendingWrites(job_logger())
+        port = create_interface(
+            device_obj=self.device, interface_details={"name": "ge-0/0/5", "type": "1000base-t"}, pending=pending
+        )
+
+        self.assertIs(port, resolve_parent_interface(self.device, "ge-0/0/5", pending=pending))
+
+    def test_nothing_is_read_back_for_a_device_that_is_itself_queued(self):
+        """A Device only queued holds no rows, so asking the database about it would be wrong."""
+        queued_device = Device(
+            name="not-yet-written",
+            status=self.device.status,
+            role=self.device.role,
+            location=self.device.location,
+            device_type=self.device.device_type,
+        )
+
+        self.assertIsNone(resolve_parent_interface(queued_device, "ge-0/0/0", pending=PendingWrites(job_logger())))
+
+
+class TestWhenNautobotRefusesTheWrite(TestATunnelUnitThatWasCabledUnderTheDefaultType):
+    """The failure paths, which say what was refused rather than raising through the run."""
+
+    def test_a_cable_nautobot_will_not_delete_holds_the_change_back(self):
+        with patch.object(Cable, "delete", side_effect=IntegrityError("still referenced")):
+            adapter = self.update(safe_delete_mode=False)
+
+        self.assertIsNotNone(self.unit.cable, "The Cable is still there.")
+        self.assertEqual("1000base-t", self.unit.type, "So the unit cannot have been made virtual.")
+        self.assertIn("still referenced", str(adapter.job.logger.error.call_args_list))
+
+    def test_a_refused_interface_write_names_the_error_and_what_was_being_written(self):
+        """What a manual run needed to tell a refused type from a refused relation."""
+        adapter = MagicMock()
+        adapter.sync_ipfabric_tagged_only = False
+        model = InterfaceModel(name=self.port.name, device_name=self.device.name, status="Active")
+        model.adapter = adapter
+
+        with patch.object(nbutils, "tag_object", side_effect=ValidationError("refused for a reason")):
+            model.update({"description": "changed"})
+
+        reported = str(adapter.job.logger.error.call_args_list)
+        self.assertIn("refused for a reason", reported)
+        self.assertIn("description='changed'", reported)
+
+
+class TestAHairpinBetweenUnitsOfOnePort(TestALinkSeenOnSubinterfaces):
+    """Two units of one port linked to each other, which is no Cable at all."""
+
+    def test_a_link_that_collapses_onto_one_port_is_not_cabled(self):
+        logger = job_logger()
+        client = client_with_links([], ("ge-0/0/0", "ge-0/0/0.1", "ge-0/0/0.2"))
+        client.technology.interfaces.connectivity_matrix.all.return_value = [
+            {"localHost": DEVICE_A[0], "localInt": "ge-0/0/0.1", "remoteHost": DEVICE_A[0], "remoteInt": "ge-0/0/0.2"}
+        ]
+
+        adapter = build_adapter(client=client, logger=logger, sync_cables=True)
+
+        self.assertEqual([], adapter.get_all("cable"))
+        self.assertEqual({}, dict(adapter.self_linking_endpoints), "Not reported as a link to itself either.")
