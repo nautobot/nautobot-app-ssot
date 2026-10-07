@@ -5,7 +5,6 @@
 
 from collections import defaultdict
 from datetime import datetime
-from typing import Optional
 
 from diffsync import DiffSyncModel
 from diffsync.exceptions import ObjectCrudException, ObjectNotCreated, ObjectNotDeleted, ObjectNotUpdated
