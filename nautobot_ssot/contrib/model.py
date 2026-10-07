@@ -52,9 +52,6 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
         Raises:
             ObjectNotCreated: If populating/saving the ORM object or its metadata fails (wraps the underlying
                 `ObjectCrudException` with additional information).
-
-        Returns:
-            NautobotModel: The newly created DiffSync model instance.
         """
         # NOTE: Converting to the ORM format requires identifers and attributes to be in a single dictionary.
         parameters = ids.copy()
@@ -84,9 +81,6 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
         Raises:
             ObjectNotUpdated: If loading, populating/saving the ORM object or its metadata fails (wraps the underlying
                 `ObjectCrudException`).
-
-        Returns:
-            NautobotModel: The updated DiffSync model instance.
         """
         try:
             obj = self.get_from_db()
@@ -105,9 +99,6 @@ class NautobotModel(DiffSyncModel, DiffSyncModelUtilityMixin, BaseNautobotModel)
         Raises:
             ObjectNotDeleted: If the ORM object cannot be loaded, or if it cannot be deleted because it is still
                 referenced by another object (wraps the underlying `ObjectCrudException` or `ProtectedError`).
-
-        Returns:
-            NautobotModel: The deleted DiffSync model instance.
         """
         try:
             obj = self.get_from_db()
