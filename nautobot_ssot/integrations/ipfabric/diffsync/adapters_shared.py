@@ -66,6 +66,7 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         interfaces_without_admin_state: Optional[Set[Tuple[str, str]]] = None,
         safe_delete_mode: bool = True,
         devices_without_a_hardware_serial: Optional[Set[str]] = None,
+        interfaces_without_a_type: Optional[Set[Tuple[str, str]]] = None,
         **kwargs,
     ):
         """Initialize the adapter with the object types this run covers.
@@ -96,6 +97,11 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         with no chassis, such as a virtual one, genuinely has none, which is why this is an absence
         rather than a failure.
 
+        `interfaces_without_a_type` holds the `(device name, interface name)` of every Interface
+        whose media type neither IP Fabric's value nor the Interface's name resolves. Both adapters
+        report no `type` for those, so the type Nautobot holds is kept rather than overwritten with
+        a configured default that would be indistinguishable from a real one.
+
         `addresses_without_a_subnet` holds the `(device name, interface name, host)` of every address
         IP Fabric reports no usable subnet for. The IP Fabric adapter fills it while loading and
         reports none of those addresses; the Nautobot adapter is handed it afterwards so that it
@@ -119,6 +125,7 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         self.devices_without_a_hardware_serial = (
             set() if devices_without_a_hardware_serial is None else devices_without_a_hardware_serial
         )
+        self.interfaces_without_a_type = set() if interfaces_without_a_type is None else interfaces_without_a_type
         # VRF names the Global Namespace holds more than one of, which the Nautobot adapter declines
         # to load. Recorded so that `Vrf.create` can decline them because the name is ambiguous,
         # rather than inferring it from the loader having skipped them. Per adapter rather than per

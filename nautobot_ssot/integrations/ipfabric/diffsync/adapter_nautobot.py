@@ -246,7 +246,13 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     else DEFAULT_INTERFACE_MAC
                 ),
                 mtu=interface_record.mtu if interface_record.mtu else DEFAULT_INTERFACE_MTU,
-                type=interface_record.type,
+                # No type where neither IP Fabric's media type nor the name resolved to one: see
+                # `interfaces_without_a_type`.
+                type=(
+                    None
+                    if (device_record.name, interface_record.name) in self.interfaces_without_a_type
+                    else interface_record.type
+                ),
                 mgmt_only=interface_record.mgmt_only if interface_record.mgmt_only else False,
                 state_l1=interface_record.cf.get(INTERFACE_L1_CF_NAME),
                 state_l2=interface_record.cf.get(INTERFACE_L2_CF_NAME),

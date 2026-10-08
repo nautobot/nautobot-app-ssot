@@ -135,6 +135,11 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         self.pseudo_management_interfaces = 0
 
         self.self_linking_endpoints = Counter()
+        # Why each unresolved Interface type went unresolved, counted per distinct cause rather than
+        # per Interface: a site reporting one unknown media string reports it on hundreds of ports,
+        # and what makes the mapping improvable is the set of values, not the volume.
+        self.unmappable_media_types = Counter()
+        self.unnamed_interface_kinds = Counter()
         # Held because a VRF is network wide while this filter is not, so a filtered run must not
         # delete the VRFs of the sites it cannot see; see `DiffSyncModelAdapters.network_wide`.
         self.location_filter = location_filter
@@ -186,6 +191,20 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     # fabricated here, so naming IP Fabric as the source of nothing would be noise.
                     self.unreadable_admin_states[iface.get("l1")] += 1
 
+            interface_type = ipfabric_utils.convert_media_type(iface.get("media"), iface_name)
+            if interface_type is None:
+                # Registered so the Nautobot side reports no type either and the one it holds is
+                # kept rather than overwritten with a default that reads as a real resolution.
+                self.interfaces_without_a_type.add((iface.get("hostname"), iface_name))
+                if iface is not pseudo_interface:
+                    # Only an Interface IP Fabric actually reported. The pseudo management Interface
+                    # is fabricated here, so counting it would report this adapter's own invention
+                    # as a gap in the source's media types.
+                    if iface.get("media"):
+                        self.unmappable_media_types[iface.get("media")] += 1
+                    else:
+                        self.unnamed_interface_kinds[ipfabric_utils.interface_name_kind(iface_name)] += 1
+
             try:
                 interface = self.interface(
                     name=iface_name,
@@ -198,7 +217,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         else DEFAULT_INTERFACE_MAC
                     ),
                     mtu=iface.get("mtu") if iface.get("mtu") else DEFAULT_INTERFACE_MTU,
-                    type=ipfabric_utils.convert_media_type(iface.get("media"), iface_name),
+                    type=interface_type,
                     mgmt_only=iface.get("mgmt_only", False),
                     status="Active",
                     state_l1=iface.get("l1"),
@@ -782,6 +801,23 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 "administrative state, so whether Nautobot has them enabled is left alone.",
                 reported_state,
                 count,
+            )
+
+        for reported_media, count in sorted(self.unmappable_media_types.items(), key=lambda item: str(item[0])):
+            self.job.logger.warning(
+                "IP Fabric reports a media type of %s for %d Interfaces, which names no Nautobot "
+                "Interface type, so the type Nautobot holds for them is left alone.",
+                reported_media,
+                count,
+            )
+
+        for kind, count in sorted(self.unnamed_interface_kinds.items(), key=lambda item: str(item[0])):
+            self.job.logger.warning(
+                "IP Fabric reports no media type for %d Interfaces named %s, and that name implies "
+                "no Nautobot Interface type either, so the type Nautobot holds for them is left "
+                "alone.",
+                count,
+                f"{kind}..." if kind else "with no leading letters",
             )
 
         if self.addresses_without_a_subnet:
