@@ -952,6 +952,11 @@ class InterfaceAddress(DiffSyncExtras):
         device, interface = cls.find_interface(adapter, ids["device_name"], ids["interface_name"])
         if interface is None:
             return None
+        address = f"{ids['host']}/{attrs['mask_length']}"
+        if adapter.strict.prefixes and not tonb_nbutils.covering_prefix_exists(address):
+            # A Prefix created here would hide the unaccounted address space strict mode is meant to surface.
+            adapter.addresses_outside_every_prefix.append(f"{address} on {ids['device_name']}:{ids['interface_name']}")
+            return None
         address_object = tonb_nbutils.create_ip(
             ip_address=ids["host"],
             mask_length=attrs["mask_length"],
@@ -1558,8 +1563,15 @@ class Prefix(DiffSyncExtras):
     @classmethod
     @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
-        """Create a Prefix in Nautobot's Global Namespace, or adopt the one already there."""
-        if tonb_nbutils.create_prefix(ids["prefix"], logger=adapter.job.logger) is None:
+        """Create a Prefix in Nautobot's Global Namespace, or adopt the one already there.
+
+        Strict about Prefixes, one already there is adopted and none is created. A network Nautobot
+        does not hold is recorded instead, and reported with the others once the sync is over.
+        """
+        create = not adapter.strict.prefixes
+        if tonb_nbutils.create_prefix(ids["prefix"], create=create, logger=adapter.job.logger) is None:
+            if not create:
+                adapter.prefixes_not_created.add(ids["prefix"])
             return None
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
@@ -1622,6 +1634,9 @@ class PrefixLocation(DiffSyncExtras):
     @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Record a Prefix at a Location in Nautobot."""
+        if ids["prefix"] in adapter.prefixes_not_created:
+            # Already reported as a network this run was not allowed to create.
+            return None
         if not tonb_nbutils.add_prefix_location(
             ids["prefix"], ids["location_name"], logger=adapter.job.logger, pending=adapter.pending
         ):

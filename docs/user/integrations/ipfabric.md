@@ -519,6 +519,21 @@ A Location is recorded on a Prefix only where this run loaded a Location of that
 
 Nested Prefixes are the ordinary shape of an address plan and are synced as such. Where a network sits inside, or contains, a network IP Fabric reports only at other sites, it is more often the same range used twice, a `10.0.0.0/24` in one cloud account and a `10.0.0.0/25` in another. The Global Namespace cannot tell those apart, so they are synced as one hierarchy, and the job reports how many networks this applies to with a few examples. Holding them separately needs a Namespace per routing domain, which this integration does not yet assign.
 
+### Addresses outside every Prefix
+
+Without Prefixes synced, an address no Prefix covers gets one created for it, since Nautobot will not hold an address without a parent. That makes a first sync into an empty Nautobot work, but where another system owns IPAM it hides address space the IPAM doesn't know about.
+
+Selecting **Prefixes** under [Strict Objects](#strict-objects) stops that, and stops the sync creating a Prefix by any route. An address no Prefix in the Global Namespace covers is left unwritten, and the job reports every such address together once the sync is over, as `address on device:interface`. Any Prefix containing the host will do, whatever its length against the address's mask, since that is all Nautobot needs to parent it. The address is reported on every run until a Prefix covers it.
+
+With **Sync Prefixes** selected as well, the networks IP Fabric reports are matched against the Prefixes Nautobot already holds rather than created. One Nautobot holds is adopted and recorded at its Locations as usual; one it does not is left out, and the job lists those networks together once the sync is over.
+
+| Sync Prefixes | Strict about Prefixes | A network IP Fabric reports | An address no Prefix covers |
+| ------------- | --------------------- | --------------------------- | --------------------------- |
+| Off | Off | Not synced. | Gets a Prefix created for it. |
+| Off | On  | Not synced. | Is reported and left unwritten. The case for an IPAM owned elsewhere. |
+| On  | Off | Created, or adopted where Nautobot holds it. | Gets a Prefix created for it, though one of IP Fabric's networks almost always covers it already. |
+| On  | On  | Adopted where Nautobot holds it, otherwise reported and not created. | Is reported and left unwritten. |
+
 ## Strict Objects
 
 **Strict Objects** is a check on the data IP Fabric reported, applied on top of what is in scope. The scope decides which object types a run covers; this decides, for the types it does cover, whether what IP Fabric said about them is taken on trust or checked first. Nothing here brings a type into scope, and selecting a type that is out of scope does nothing; the job says so rather than leaving the selection looking like the reason nothing was written.
@@ -540,6 +555,7 @@ What a failed check costs differs by type:
 | Virtual Chassis | The stack is reported and its membership is left unrecorded. |
 | Interfaces | No Interface is invented to hold a management address IP Fabric reports against none, so that address goes unsynced. |
 | IP Addresses | The address is reported and left as Nautobot holds it. See [Subnet Masks](#subnet-masks). |
+| Prefixes | No Prefix is created. An address no Prefix covers is reported and left unwritten, and a network IP Fabric reports that Nautobot does not hold is reported rather than created. See [Addresses outside every Prefix](#addresses-outside-every-prefix). |
 
 Only **IP Addresses** is selected by default. Whether a name may be trusted depends on who owns the object, which only you know, so every other type defaults to taking the report on trust and an existing sync does not change behaviour on upgrade. A mask the source never reported is not data whoever owns IPAM, which is why that one is checked by default. Each default can be set for the whole instance with an `ipfabric_strict_<type>` setting, for example `ipfabric_strict_locations`.
 

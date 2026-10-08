@@ -1,5 +1,5 @@
 # pylint: disable=too-many-lines
-"""Unit tests for syncing Prefixes from IP Fabric."""
+"""Unit tests for syncing Prefixes from IP Fabric, and for being strict about them."""
 
 from unittest.mock import MagicMock, patch
 
@@ -9,11 +9,12 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
 from nautobot.apps.testing import TestCase
-from nautobot.dcim.models import Location, LocationType
+from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
 from nautobot.extras.management import populate_status_choices
-from nautobot.extras.models import JobResult, Status
+from nautobot.extras.models import JobResult, Role, Status
 from nautobot.ipam.models import IPAddress, Namespace, Prefix, PrefixLocationAssignment, get_default_namespace
 
+from nautobot_ssot.integrations.ipfabric import strict_mode
 from nautobot_ssot.integrations.ipfabric.bulk_writes import THROUGH_LEVELS
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import (
     IPV6_MANAGED_IP_SUMMARY,
@@ -25,6 +26,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import DELETE
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.jobs import IpFabricDataSource
 from nautobot_ssot.integrations.ipfabric.signals import nautobot_database_ready_callback
+from nautobot_ssot.integrations.ipfabric.strict_mode import StrictObject, StrictObjects
 from nautobot_ssot.integrations.ipfabric.sync_scope import SYNCABLE_OBJECTS, SyncScope
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
@@ -234,6 +236,46 @@ class PrefixSyncOrderTestCase(SimpleTestCase):
         self.assertFalse(SyncScope.from_job_kwargs({}).prefixes)
 
 
+class StrictPrefixesTestCase(SimpleTestCase):
+    """Being strict about Prefixes checks addresses and Prefixes, so it acts if either is synced."""
+
+    def test_off_unless_selected(self):
+        self.assertFalse(StrictObjects.from_job_kwargs({}).prefixes)
+
+    def test_nothing_is_said_when_addresses_are_synced_and_prefixes_are_not(self):
+        """The case it exists for: another system owns IPAM and this sync reports what it misses."""
+        strict = StrictObjects(["prefixes"])
+        self.assertEqual(strict.explanations(full_scope(prefixes=False)), [])
+
+    def test_nothing_is_said_when_prefixes_are_synced_and_addresses_are_not(self):
+        """The networks IP Fabric reports are still matched rather than created."""
+        strict = StrictObjects(["prefixes"])
+        self.assertEqual(strict.explanations(full_scope(ip_addresses=False)), [])
+
+    def test_names_both_when_neither_is_in_scope(self):
+        strict = StrictObjects(["prefixes"])
+        self.assertEqual(
+            strict.explanations(full_scope(ip_addresses=False, prefixes=False)),
+            [
+                "Not checking 'prefixes', as none of 'ip_addresses', 'prefixes' is in scope for this sync "
+                "and so nothing is written for the check to apply to."
+            ],
+        )
+
+    def test_a_type_checking_itself_keeps_its_own_explanation(self):
+        strict = StrictObjects(["locations"])
+        self.assertEqual(
+            strict.explanations(full_scope(locations=False)),
+            ["Not checking 'locations', as it is out of scope for this sync and so nothing is written for it."],
+        )
+
+    def test_acting_on_an_unregistered_type_is_refused_at_import(self):
+        with self.assertRaisesRegex(ValueError, "acts on unknown object type 'nonsense'"):
+            strict_mode.validate_registry(
+                [StrictObject(key="prefixes", label="Prefixes", description="", acts_on=("ip_addresses", "nonsense"))]
+            )
+
+
 class PrefixTestCase(TestCase):
     """Base for the cases that write to the database.
 
@@ -436,6 +478,52 @@ class PrefixWriteTestCase(PrefixTestCase):
         )
 
 
+class StrictPrefixWriteTestCase(PrefixTestCase):
+    """Syncing Prefixes in a run strict about them, which matches and never creates."""
+
+    def setUp(self):
+        super().setUp()
+        self.adapter = nautobot_adapter(strict=StrictObjects(["prefixes"]))
+
+    def create(self, prefix="10.0.0.0/24"):
+        """Create a Prefix through the DiffSync model, as a sync would."""
+        return self.adapter.prefix.create(self.adapter, {"prefix": prefix}, {"status": "Active"})
+
+    def test_a_prefix_nautobot_holds_is_adopted(self):
+        existing = self.make_prefix(tagged=False)
+        self.assertIsNotNone(self.create())
+        self.assertTrue(existing.tags.filter(name="SSoT Synced from IPFabric").exists())
+        self.assertEqual(self.adapter.prefixes_not_created, set())
+
+    def test_a_network_nautobot_does_not_hold_is_recorded_rather_than_created(self):
+        self.assertIsNone(self.create())
+        self.assertFalse(Prefix.objects.exists())
+        self.assertEqual(self.adapter.prefixes_not_created, {"10.0.0.0/24"})
+        self.adapter.job.logger.error.assert_not_called()
+
+    def test_its_locations_are_skipped_without_a_further_report(self):
+        """The network is reported once, not again for every site it is seen at."""
+        self.make_location()
+        self.create()
+        self.assertIsNone(
+            self.adapter.prefix_location.create(self.adapter, {"prefix": "10.0.0.0/24", "location_name": "site1"}, {})
+        )
+        self.adapter.job.logger.error.assert_not_called()
+        self.assertEqual(self.adapter.prefix_locations_not_found, {})
+
+    def test_the_networks_not_created_are_reported_together_once(self):
+        self.create("fd00::/64")
+        self.create("10.0.1.0/24")
+        self.create("10.0.0.0/24")
+        self.adapter.sync_complete(MagicMock(), MagicMock())
+        self.assertEqual(
+            job_log_text(self.adapter.job.logger, "warning"),
+            "Not creating 3 Prefixes IP Fabric reports, as Nautobot holds none of them and this run is strict "
+            "about Prefixes: 10.0.0.0/24, 10.0.1.0/24, fd00::/64",
+        )
+        self.assertEqual(self.adapter.prefixes_not_created, set())
+
+
 class PrefixLocationWriteTestCase(PrefixTestCase):
     """Recording a Prefix at a Location, and taking it out of one."""
 
@@ -547,6 +635,72 @@ class PrefixLocationBulkWriteTestCase(PrefixTestCase):
         self.assertEqual(list(prefix_obj.locations.all()), [location])
 
 
+class StrictPrefixAddressTestCase(PrefixTestCase):
+    """An address no Prefix covers, written by a run that is or is not strict about Prefixes."""
+
+    def setUp(self):
+        super().setUp()
+        location = self.make_location()
+        manufacturer = Manufacturer.objects.create(name="vendor")
+        device = Device.objects.create(
+            name="router",
+            location=location,
+            device_type=DeviceType.objects.create(model="model", manufacturer=manufacturer),
+            role=Role.objects.get_or_create(name="role")[0],
+            status=self.active,
+        )
+        device.role.content_types.add(ContentType.objects.get_for_model(Device))
+        self.interface = Interface.objects.create(device=device, name="eth0", type="1000base-t", status=self.active)
+
+    def create_address(self, adapter, host="10.0.0.1", mask_length=24):
+        """Create an address on the Interface through the DiffSync model, as a sync would."""
+        return adapter.interface_address.create(
+            adapter,
+            {"device_name": "router", "interface_name": "eth0", "host": host},
+            {"mask_length": mask_length, "is_primary": False, "status": "Active"},
+        )
+
+    def test_strict_an_uncovered_address_is_recorded_rather_than_written(self):
+        adapter = nautobot_adapter(strict=StrictObjects(["prefixes"]))
+        self.assertIsNone(self.create_address(adapter))
+        self.assertFalse(Prefix.objects.exists())
+        self.assertFalse(IPAddress.objects.exists())
+        self.assertEqual(adapter.addresses_outside_every_prefix, ["10.0.0.1/24 on router:eth0"])
+
+    def test_strict_the_uncovered_addresses_are_reported_together_once(self):
+        adapter = nautobot_adapter(strict=StrictObjects(["prefixes"]))
+        self.create_address(adapter, "10.0.0.1")
+        self.create_address(adapter, "10.9.0.1", 16)
+        adapter.sync_complete(MagicMock(), MagicMock())
+        self.assertEqual(
+            job_log_text(adapter.job.logger, "warning"),
+            "Not syncing 2 addresses, as no Prefix Nautobot holds covers them and this run is strict "
+            "about Prefixes: 10.0.0.1/24 on router:eth0, 10.9.0.1/16 on router:eth0",
+        )
+        self.assertEqual(adapter.addresses_outside_every_prefix, [])
+
+    def test_strict_an_address_a_prefix_covers_is_written(self):
+        """Any Prefix containing the host will do, whatever its length against the address's mask."""
+        self.make_prefix("10.0.0.0/25", tagged=False)
+        adapter = nautobot_adapter(strict=StrictObjects(["prefixes"]))
+        self.assertIsNotNone(self.create_address(adapter))
+        self.assertTrue(IPAddress.objects.filter(host="10.0.0.1").exists())
+        self.assertEqual(adapter.addresses_outside_every_prefix, [])
+
+    def test_strict_an_ipv6_address_is_checked_against_its_host_route(self):
+        self.make_prefix("fd00::/64", tagged=False)
+        adapter = nautobot_adapter(strict=StrictObjects(["prefixes"]))
+        self.assertIsNotNone(self.create_address(adapter, "fd00::1", 64))
+
+    def test_not_strict_a_prefix_is_still_created_for_the_address(self):
+        """Unchanged unless selected, so no existing sync changes on upgrade."""
+        adapter = nautobot_adapter(strict=StrictObjects([]))
+        self.assertIsNotNone(self.create_address(adapter))
+        self.assertTrue(Prefix.objects.filter(network="10.0.0.0", prefix_length=24).exists())
+        adapter.sync_complete(MagicMock(), MagicMock())
+        self.assertNotIn("strict about Prefixes", job_log_text(adapter.job.logger, "warning"))
+
+
 class PrefixConvergenceTestCase(PrefixTestCase):
     """A second sync of unchanged networks must report nothing to do."""
 
@@ -638,6 +792,21 @@ class PrefixConvergenceTestCase(PrefixTestCase):
         destination.sync_from(source, flags=DiffSyncFlags.CONTINUE_ON_FAILURE)
         self.assertEqual(Prefix.objects.filter(network="10.0.0.0", prefix_length=24).count(), 1)
         self.assert_nothing_left_to_do()
+
+    def test_a_strict_sync_adopts_what_nautobot_holds_and_creates_nothing(self):
+        self.make_location("site1")
+        held = self.make_prefix(tagged=False)
+        job = self.job()
+        scope = SyncScope(["locations", "prefixes"])
+        source = IPFabricDiffSync(job=job, sync=None, client=self.ipf_client(), location_filter=None, scope=scope)
+        with patch.object(IPFabricDiffSync, "load_data", return_value=({}, {}, {})):
+            source.load()
+        destination = nautobot_adapter(job=job, scope=scope, strict=StrictObjects(["prefixes"]))
+        destination.load()
+        destination.sync_from(source, flags=DiffSyncFlags.CONTINUE_ON_FAILURE)
+        self.assertEqual(list(Prefix.objects.values_list("pk", flat=True)), [held.pk])
+        self.assertIn("site1", held.locations.values_list("name", flat=True))
+        self.assertTrue(held.tags.filter(name="SSoT Synced from IPFabric").exists())
 
     def test_a_prefix_this_sync_never_marked_is_left_alone(self):
         """However unreported, a Prefix another system owns is not the sync's to delete."""

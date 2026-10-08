@@ -67,6 +67,12 @@ DELETE_ORDER = (
 PENDING_WRITE_HIGH_WATER = 5000
 
 
+def network_order(prefix: str):
+    """Sort key putting networks in address order, IPv4 before IPv6, since the two do not compare."""
+    network = ipaddress.ip_network(prefix)
+    return network.version, network
+
+
 def delete_objects(queued_deletions: List, logger):
     """Delete the queued objects, given as `(model, pk)` pairs, in as few statements as they allow.
 
@@ -188,7 +194,23 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         return super().sync_complete(source, *args, **kwargs)
 
     def report_prefix_findings(self):
-        """Report the Locations no Prefix could be recorded at, once each."""
+        """Report what being strict about Prefixes held back, and the Locations no Prefix could be recorded at."""
+        if self.prefixes_not_created:
+            self.job.logger.warning(
+                "Not creating %d Prefixes IP Fabric reports, as Nautobot holds none of them and this run "
+                "is strict about Prefixes: %s",
+                len(self.prefixes_not_created),
+                ", ".join(sorted(self.prefixes_not_created, key=network_order)),
+            )
+            self.prefixes_not_created.clear()
+        if self.addresses_outside_every_prefix:
+            self.job.logger.warning(
+                "Not syncing %d addresses, as no Prefix Nautobot holds covers them and this run is "
+                "strict about Prefixes: %s",
+                len(self.addresses_outside_every_prefix),
+                ", ".join(sorted(self.addresses_outside_every_prefix)),
+            )
+            self.addresses_outside_every_prefix.clear()
         for location_name, count in sorted(self.prefix_locations_not_found.items()):
             self.job.logger.warning(
                 "Not recording %d Prefixes at the Location named %s, as Nautobot holds no Location of that name.",
