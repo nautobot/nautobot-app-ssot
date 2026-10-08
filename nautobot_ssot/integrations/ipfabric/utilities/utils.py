@@ -76,6 +76,38 @@ def convert_media_type(media_type: str, interface_name: str) -> Optional[str]:
     return type_of_media(media_type) or type_of_interface_name(interface_name)
 
 
+def lag_member_names(reported: str) -> list:
+    """Return the Interface names a port channel's member column lists.
+
+    IP Fabric reports members as one string, each name followed by its state in brackets:
+    `Et35(DOWN), Et36(DOWN)`. The state is taken off the end rather than the name read from the
+    front, because a name may carry brackets of its own, and only the last pair is the state.
+    """
+    members = []
+    for part in (reported or "").split(","):
+        name = part.strip().rsplit("(", 1)[0].strip()
+        if name:
+            members.append(name)
+    return members
+
+
+def parent_interface_name(interface_name: str) -> Optional[str]:
+    """Return the Interface a subinterface hangs off, or None where the name names no parent.
+
+    A dot separates a physical port from the logical interface configured on it, on every platform
+    this sync has met: `GigabitEthernet0/1.100` on IOS, `ge-0/0/0.0` on Junos. The part before the
+    last dot is the port, which is what Nautobot wants `parent_interface` pointed at.
+
+    The name is the only evidence available. IP Fabric's interface inventory reports no relation
+    between a subinterface and its port, so the caller confirms the parent is a port the same Device
+    reported before using it.
+    """
+    port, separator, unit = interface_name.rpartition(".")
+    if not separator or not port or not unit:
+        return None
+    return port
+
+
 def interface_name_kind(interface_name: str) -> str:
     """Return the leading letters of an Interface's name, which is what names the kind of port.
 

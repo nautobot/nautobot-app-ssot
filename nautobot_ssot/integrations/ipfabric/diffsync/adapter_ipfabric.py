@@ -11,6 +11,7 @@ from itertools import chain
 
 from diffsync import ObjectAlreadyExists
 from diffsync.exceptions import ObjectNotFound
+from nautobot.dcim.choices import InterfaceTypeChoices
 from nautobot.dcim.constants import NONCONNECTABLE_IFACE_TYPES
 from nautobot.dcim.models import Device
 from nautobot.ipam.models import VLAN
@@ -40,6 +41,11 @@ except ImportError:
 
 device_serial_max_length = Device._meta.get_field("serial").max_length
 name_max_length = VLAN._meta.get_field("name").max_length
+
+# The kinds of interface a tunnel is configured on, by the letters their names start with. A link
+# IP Fabric reports over one is a peering reached over IP, so it is not moved onto a Cable between
+# the ports beneath: Junos secure, GRE, IP-IP, logical and virtual tunnels, and flexible tunnels.
+TUNNEL_NAME_KINDS = frozenset({"st", "gr", "gre", "ip", "lt", "vt", "fti", "tu", "tunnel"})
 
 # Keys the FHRP tables may carry the virtual address under. IP Fabric discovers a table's columns
 # from the appliance rather than declaring them in the SDK, so the name is confirmed at run time and
@@ -140,6 +146,19 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         # and what makes the mapping improvable is the set of values, not the volume.
         self.unmappable_media_types = Counter()
         self.unnamed_interface_kinds = Counter()
+        # Interfaces another table attests but `tables/inventory/interfaces` did not return,
+        # counted by the letters their names start with so the kinds it omits are legible.
+        self.interfaces_the_inventory_left_out = Counter()
+        # Subinterfaces put in their port, and those whose port this run did not see, the second
+        # counted by kind so an estate reporting units without ports is legible.
+        self.subinterfaces = 0
+        self.subinterfaces_without_their_port = Counter()
+        # The port channel each Interface belongs to, keyed as the inventory names them.
+        self.lag_by_member = {}
+        self.lag_members = 0
+        # Links IP Fabric reported between subinterfaces, recorded between the ports instead. A set,
+        # because the matrix reports each link once from each of its two ends.
+        self.links_moved_to_their_ports = set()
         # Held because a VRF is network wide while this filter is not, so a filtered run must not
         # delete the VRFs of the sites it cannot see; see `DiffSyncModelAdapters.network_wide`.
         self.location_filter = location_filter
@@ -176,10 +195,53 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             device_interfaces.append(pseudo_interface)
             self.pseudo_management_interfaces += 1
 
+        device_interfaces.extend(self.interfaces_only_the_address_table_names(device_interfaces))
+
+        # A port channel before its members, and a port before anything configured on it, so
+        # whatever an Interface points at exists by the time DiffSync reaches it.
+        device_interfaces.sort(
+            key=lambda iface: (
+                (iface.get("sn"), iface["intName"]) in self.lag_by_member,
+                iface["intName"].count("."),
+            )
+        )
+
+        ports = {
+            canonical_interface_name(iface["intName"]) if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME else iface["intName"]
+            for iface in device_interfaces
+        }
+
         for iface in device_interfaces:
             iface_name = iface["intName"]
             if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
                 iface_name = canonical_interface_name(iface_name)
+
+            # Only where the port is one this Device reported: the parent has to be a real Interface
+            # for Nautobot to point at, and a name with a dot in it is not proof of one.
+            parent = ipfabric_utils.parent_interface_name(iface_name)
+            if parent is not None and parent not in ports:
+                self.subinterfaces_without_their_port[ipfabric_utils.interface_name_kind(iface_name)] += 1
+                parent = None
+            if parent is not None:
+                self.subinterfaces += 1
+
+            lag = self.lag_by_member.get((iface.get("sn"), iface["intName"]))
+            if lag is not None and IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
+                lag = canonical_interface_name(lag)
+            if lag is not None and parent is not None:
+                # Nautobot refuses a port channel on a virtual Interface, and a subinterface is
+                # one. Reported rather than silently dropped, being a shape nothing expects.
+                self.job.logger.warning(
+                    "Not putting %s on Device %s in port channel %s, as it is configured on %s and "
+                    "so is virtual, which Nautobot does not allow in a port channel.",
+                    iface_name,
+                    iface.get("hostname"),
+                    lag,
+                    parent,
+                )
+                lag = None
+            if lag is not None:
+                self.lag_members += 1
 
             enabled = admin_state_of(iface.get("l1"), iface.get("reason"))
             if enabled is None:
@@ -192,7 +254,10 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     self.unreadable_admin_states[iface.get("l1")] += 1
 
             interface_type = ipfabric_utils.convert_media_type(iface.get("media"), iface_name)
-            if interface_type is None:
+            # Not for a subinterface under its port, which is virtual whatever its media type says.
+            # Registered, it would have its type withheld on the Nautobot side while this side
+            # reports it as virtual, and the difference would be diffed on every run.
+            if interface_type is None and parent is None:
                 # Registered so the Nautobot side reports no type either and the one it holds is
                 # kept rather than overwritten with a default that reads as a real resolution.
                 self.interfaces_without_a_type.add((iface.get("hostname"), iface_name))
@@ -217,7 +282,11 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         else DEFAULT_INTERFACE_MAC
                     ),
                     mtu=iface.get("mtu") if iface.get("mtu") else DEFAULT_INTERFACE_MTU,
-                    type=interface_type,
+                    # Nautobot accepts a parent only on a virtual Interface, which is what a
+                    # subinterface is: it has no media of its own, only the port's.
+                    type=(InterfaceTypeChoices.TYPE_VIRTUAL if parent is not None else interface_type),
+                    parent_interface=parent,
+                    lag=lag,
                     mgmt_only=iface.get("mgmt_only", False),
                     status="Active",
                     state_l1=iface.get("l1"),
@@ -233,6 +302,54 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             # the Nautobot adapter reports none either and what it holds is left alone.
             if self.scope.ip_addresses:
                 self.load_interface_addresses(interface, iface, iface_name, device_primary_ips)
+
+    def load_lag_membership(self):
+        """Index the port channel each Interface belongs to, from IP Fabric's member status table.
+
+        The table reports one row per port channel, naming its members in a single column with each
+        member's state in brackets after it. Rows carrying no members describe a port channel with
+        nothing in it, which has no membership to record.
+        """
+        for row in self.client.technology.port_channels.member_status_table.all(
+            columns=["sn", "hostname", "intName", "members"]
+        ):
+            serial, lag_name = row.get("sn"), row.get("intName")
+            if not serial or not lag_name:
+                continue
+            for member in ipfabric_utils.lag_member_names(row.get("members")):
+                self.lag_by_member[(serial, member)] = lag_name
+
+    def interfaces_only_the_address_table_names(self, device_interfaces):
+        """Return records for the Interfaces an address sits on that the inventory did not return.
+
+        `tables/inventory/interfaces` is the only table this sync reads Interfaces from, and it does
+        not always carry the virtual ones: an SVI, a loopback or a tunnel may be absent from it
+        while the managed address table reports an address configured on it. Nothing could then
+        attach that address, and the Interface was missing from Nautobot with nothing said.
+
+        An Interface named here is not invented, which is what separates this from the pseudo
+        management Interface: IP Fabric states that an address is configured on it, so the port
+        exists and only the inventory is silent. The record carries no media type, no MAC and no
+        state, because the only table that reports those is the one that left it out; the name is
+        what the type is read from.
+        """
+        reported = {iface["intName"] for iface in device_interfaces}
+        serials = {iface.get("sn") for iface in device_interfaces if iface.get("sn")}
+        hostname = next((iface.get("hostname") for iface in device_interfaces if iface.get("hostname")), None)
+        invented = []
+        for (serial, interface_name), records in self.addresses_by_interface.items():
+            if serial not in serials or interface_name in reported:
+                continue
+            self.interfaces_the_inventory_left_out[ipfabric_utils.interface_name_kind(interface_name)] += 1
+            invented.append(
+                {
+                    "intName": interface_name,
+                    "hostname": records[0].get("hostname") or hostname,
+                    "sn": serial,
+                    "dscr": "",
+                }
+            )
+        return invented
 
     def prefix_length_of(self, record, iface_name, resolved):
         """Return the prefix length IP Fabric reports for a record's address, or None if it has none.
@@ -391,8 +508,41 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             if local == remote:
                 self.self_linking_endpoints[local] += 1
                 continue
-            links.add(canonical_endpoints(local, remote))
+            port_a, port_b = self.cabled_port_of(local), self.cabled_port_of(remote)
+            if port_a == port_b:
+                # Two units of one port linked to each other, which is a hairpin inside the device
+                # rather than anything a Cable could run between.
+                continue
+            if (port_a, port_b) != (local, remote):
+                self.links_moved_to_their_ports.add(canonical_endpoints(local, remote))
+            links.add(canonical_endpoints(port_a, port_b))
         return links
+
+    def cabled_port_of(self, endpoint):
+        """Return the Interface a link reported on this endpoint is cabled to.
+
+        IP Fabric reports a link between the interfaces the adjacency was seen on, which for a
+        subinterface is the logical unit. No Cable lands on a unit: it runs between the ports the
+        units are configured on, so a link seen on `ge-0/0/0.0` at each end is a Cable between the
+        two `ge-0/0/0`. Reported on the units, the link could not be recorded at all, a unit being
+        virtual and Nautobot refusing a Cable on a virtual Interface.
+
+        Not for a tunnel. Its peer is reached over IP rather than along a Cable, so `st0.0` to
+        `st0.0` is a peering, and moving it to `st0` would record a Cable that does not exist. The
+        endpoint is kept, and the link goes uncabled as a virtual Interface's does.
+
+        Only where the unit was put under a port this run loaded, which is what `parent_interface`
+        already guarantees, so a link is never moved onto a port nothing reported.
+        """
+        device_name, interface_name = endpoint
+        try:
+            interface = self.get(self.interface, {"name": interface_name, "device_name": device_name})
+        except ObjectNotFound:
+            return endpoint
+        port = interface.parent_interface
+        if not port or ipfabric_utils.interface_name_kind(port).lower() in TUNNEL_NAME_KINDS:
+            return endpoint
+        return device_name, port
 
     def recordable_links(self):
         """Return the reported links Nautobot can record, which is at most one per Interface.
@@ -641,6 +791,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         if self.scope.interfaces:
             for interface in self.client.inventory.interfaces.all():
                 interfaces[interface["sn"]].append(interface)
+            self.load_lag_membership()
 
         # Get all stacks for devices. Stack membership is Device data, so it is read whatever else is
         # in scope.
@@ -761,6 +912,12 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
 
         if self.scope.cables:
             self.load_cables()
+            if self.links_moved_to_their_ports:
+                self.job.logger.info(
+                    "Recording %d links IP Fabric reports between subinterfaces as Cables between the "
+                    "ports they are configured on, a Cable landing on a port rather than on a unit.",
+                    len(self.links_moved_to_their_ports),
+                )
 
         if self.scope.vrfs:
             self.load_vrfs()
@@ -816,6 +973,16 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 "IP Fabric reports no media type for %d Interfaces named %s, and that name implies "
                 "no Nautobot Interface type either, so the type Nautobot holds for them is left "
                 "alone.",
+                count,
+                f"{kind}..." if kind else "with no leading letters",
+            )
+
+        for kind, count in sorted(self.interfaces_the_inventory_left_out.items(), key=lambda item: str(item[0])):
+            self.job.logger.warning(
+                "Syncing %d Interfaces named %s that IP Fabric's interface inventory did not "
+                "return, having reported an address configured on each. The inventory is the only "
+                "table this sync reads Interfaces from, and it does not always carry the virtual "
+                "ones.",
                 count,
                 f"{kind}..." if kind else "with no leading letters",
             )

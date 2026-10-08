@@ -86,6 +86,35 @@ def deferred_change_logging():
         yield
 
 
+@contextmanager
+def change_logging_not_deferred():
+    """Log the changes made in this scope as they happen, even inside a scope that defers them.
+
+    For deletes. Nautobot records a delete from `pre_delete` but, while deferring, only serializes
+    it when the deferring scope ends, by which point Django has cleared the deleted object's primary
+    key. Serializing it then reads the object's tags, which taggit refuses on an object with no
+    primary key, so on Nautobot 3.2 a delete of anything taggable under deferral ends the job with
+    "... objects need to have a primary key value before you can access their tags".
+
+    Logged immediately, the delete is serialized in `pre_delete` while the object still exists,
+    which is what Nautobot does outside a deferring scope. The enclosing scope's pending changes
+    are set aside meanwhile and restored after, so what it collected is neither flushed early nor
+    lost.
+    """
+    change_context = change_context_state.get()
+    if change_context is None or not change_context.defer_object_changes:
+        yield
+        return
+    pending = change_context.deferred_object_changes
+    change_context.defer_object_changes = False
+    change_context.deferred_object_changes = {}
+    try:
+        yield
+    finally:
+        change_context.deferred_object_changes = pending
+        change_context.defer_object_changes = True
+
+
 @job_scoped_cache
 def get_or_create_location_object(
     location_name: str,
@@ -1086,6 +1115,54 @@ def queue_ip(
 
 
 # Not cached, as it is unhashable, but not useful to cache anyway
+def resolve_parent_interface(device_obj, parent_name: str, pending: Optional[Any] = None) -> Optional[Interface]:
+    """Return the Interface a subinterface hangs off, from this run's queue or from Nautobot.
+
+    The queue first, because a port this run has only queued has no row to be read back yet. It
+    already carries its primary key, so a subinterface written in the same batch may point at it.
+    """
+    if pending is not None:
+        queued = pending.find(Interface, (device_obj.pk, parent_name))
+        if queued is not None:
+            return queued
+    if pending is not None and device_obj._state.adding:  # pylint: disable=protected-access
+        # The Device is queued and holds no rows, so nothing of its can be read back.
+        return None
+    return device_obj.interfaces.filter(name=parent_name).first()
+
+
+def related_interfaces_of(  # pylint: disable=too-many-arguments
+    device_obj: Device,
+    interface_details: dict,
+    interface_name: str,
+    logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
+) -> dict:
+    """Return the Interface fields naming another Interface on the same Device, resolved.
+
+    `parent_interface` is the port a subinterface is configured on and `lag` is the port channel an
+    Interface is a member of. Both name an Interface of the same Device, so both are looked for the
+    same way, and one this run cannot find is reported rather than guessed at.
+    """
+    resolved = {}
+    for field in ("parent_interface", "lag"):
+        named = interface_details.get(field)
+        if not named:
+            continue
+        related = resolve_parent_interface(device_obj, named, pending=pending)
+        if related is None:
+            if logger:
+                logger.warning(
+                    "Not relating Interface %s on Device %s to %s, as no such Interface is there.",
+                    interface_name,
+                    device_obj.name,
+                    named,
+                )
+        else:
+            resolved[field] = related
+    return resolved
+
+
 def create_interface(  # pylint: disable=too-many-arguments
     device_obj: Device,
     interface_details: dict,
@@ -1136,6 +1213,9 @@ def create_interface(  # pylint: disable=too-many-arguments
         # configured default. The only place that default is still applied: an Interface already in
         # Nautobot has a type worth keeping, and this one has nothing to keep.
         defaults["type"] = DEFAULT_INTERFACE_TYPE
+    defaults.update(
+        related_interfaces_of(device_obj, interface_details, interface_name, logger=logger, pending=pending)
+    )
     reported_state = {
         custom_field: interface_details.get(attribute) for attribute, custom_field in INTERFACE_STATE_FIELDS.items()
     }

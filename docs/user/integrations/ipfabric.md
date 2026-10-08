@@ -280,6 +280,72 @@ match no pattern today, so an estate using them and reporting no media type will
 requires a type and a new interface has no earlier value to keep. It is no longer applied to an
 interface Nautobot already holds.
 
+## Interfaces the inventory leaves out
+
+`tables/inventory/interfaces` is the only table this sync reads interfaces from, and it does not
+always carry the virtual ones. An SVI, a loopback or a tunnel can be absent from it while the managed
+address table reports an address configured on that very port.
+
+Those interfaces are synced. An interface named this way is not invented: IP Fabric states that an
+address is configured on it, so the port exists and only the inventory is silent about it. That is
+what separates it from the [placeholder interface](#placeholder-interfaces), which is a name this
+sync makes up and which Strict Objects exists to stop.
+
+The record carries no media type, MAC or state, because the table reporting those is the one that
+left it out, so the type is read from the name. The job reports what was missing once per naming
+scheme rather than once per port, so you learn that your appliance omits VLAN interfaces rather than
+reading four hundred lines naming each one.
+
+## Subinterfaces
+
+IP Fabric reports no relation between a subinterface and the port it is configured on, so the name is
+the evidence: a dot separates the two, on IOS (`GigabitEthernet0/1.100`) and on Junos (`ge-0/0/0.0`)
+alike. The part before the last dot is the port, and that is what **Parent Interface** is set to.
+
+**A subinterface given a parent is synced as a virtual interface.** Nautobot accepts a parent on
+nothing else, and a subinterface has no media of its own. Expect this to be visible on Junos, where
+every logical unit is named this way.
+
+Only where the port is one the same device reported. A dot in a name is not proof a port exists, so a
+subinterface whose port this run did not see keeps the type it had and gets no parent. The job counts
+those by naming scheme.
+
+### A subinterface that holds a Cable
+
+Nautobot refuses a Cable on a virtual interface. Earlier releases gave an interface whose name resolved
+no type the configured default, `1000base-t`, which a Junos tunnel unit such as `st0.0` always fell
+to, and IP Fabric's connectivity matrix reports tunnel adjacencies as links, so such a unit may hold a
+Cable from an earlier sync. A tunnel is virtual and is not cabled, so that Cable is one Nautobot does
+not allow.
+
+With **Safe Delete Mode** off, the Cable is removed when the unit is made virtual, freeing the
+interface at its other end as well. With it on, which is the default, nothing is removed: the unit
+keeps its type and gets no parent, and the job counts how many were held back this way. Run once
+with Safe Delete Mode off to clear them.
+
+### A link seen on subinterfaces
+
+IP Fabric reports a link between the interfaces the adjacency was seen on, which for a subinterface is
+the logical unit: `ge-0/0/0.0` at one end, `ge-0/0/0.0` at the other. No Cable lands on a unit, so the
+link is recorded as a Cable between the ports the units are configured on, `ge-0/0/0` to `ge-0/0/0`.
+Several units between one pair of ports, one per VLAN on a trunk, share that one Cable. A unit linked to
+an ordinary port moves only its own end.
+
+A tunnel is the exception. `st0.0` to `st0.0` is a peering reached over IP rather than along a Cable,
+so it is not moved onto the ports beneath it and is not cabled at all. Tunnels are recognised by name:
+Junos secure, GRE, IP-IP, logical and virtual tunnels (`st`, `gr`, `ip`, `lt`, `vt`), flexible tunnels
+(`fti`), and IOS `Tunnel`.
+
+## Port channels
+
+The members of a port channel come from `Technology > Port Channels > Member Status`, which reports
+them as one string with each member's state in brackets after it. Each member's **LAG** is set to the
+channel it belongs to.
+
+A subinterface is never put in a port channel: Nautobot refuses one on a virtual interface, and a
+subinterface is virtual. Where IP Fabric reports one as a member, the membership is left off and the
+job names the interface, since it is a shape nothing expects.
+
 ## Interface Addresses
 
 An Interface carries every address IP Fabric reports for it, each synced as its own IP Address in Nautobot. Three tables are read: `technology.addressing.managed_ip_ipv4` and `managed_ip_ipv6` for the addresses configured on the interface, and `technology.fhrp.group_members` for FHRP virtual addresses. So a secondary address, an HSRP or VRRP virtual address, and IPv6 alongside IPv4 all reach Nautobot, which is what lets a template render them from Nautobot data.

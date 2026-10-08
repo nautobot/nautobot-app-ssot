@@ -12,6 +12,7 @@ from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
 from django.db.models import ProtectedError
 from nautobot.core.choices import ColorChoices
+from nautobot.dcim.constants import NONCONNECTABLE_IFACE_TYPES
 from nautobot.dcim.models import (
     Cable as NautobotCable,
 )
@@ -620,6 +621,8 @@ class Interface(DiffSyncExtras):
         "mac_address",
         "mtu",
         "type",
+        "parent_interface",
+        "lag",
         "mgmt_only",
         "status",
         "state_l1",
@@ -635,6 +638,11 @@ class Interface(DiffSyncExtras):
     mac_address: Optional[str] = None
     mtu: Optional[int] = None
     type: Optional[str] = None
+    # The port a subinterface hangs off. Nautobot accepts one only on a virtual Interface, so this
+    # is set with the type together or not at all.
+    parent_interface: Optional[str] = None
+    # The port channel this Interface is a member of. Nautobot refuses one on a virtual Interface.
+    lag: Optional[str] = None
     mgmt_only: Optional[bool] = None
     status: str
     # What the last discovery found, as opposed to what the Interface is meant to be.
@@ -731,6 +739,7 @@ class Interface(DiffSyncExtras):
                 )
                 return_super = False
             else:
+                attrs = self.clear_the_way_to_virtual(interface, attrs)
                 if attrs.get("description"):
                     interface.description = attrs["description"]
                 if attrs.get("enabled") is not None:
@@ -742,10 +751,22 @@ class Interface(DiffSyncExtras):
                     interface.mtu = attrs["mtu"]
                 if attrs.get("mode"):
                     interface.mode = attrs["mode"]
-                if attrs.get("lag"):
-                    interface.lag = attrs["lag"]
                 if attrs.get("type"):
                     interface.type = attrs["type"]
+                if "lag" in attrs:
+                    # Set even where this run reports none, so an Interface taken out of a port
+                    # channel stops claiming membership of it.
+                    interface.lag = (
+                        tonb_nbutils.resolve_parent_interface(device, attrs["lag"]) if attrs["lag"] else None
+                    )
+                if "parent_interface" in attrs:
+                    # Set even where this run reports none, so a subinterface whose port stops
+                    # being reported is taken out from under it rather than left pointing at it.
+                    interface.parent_interface = (
+                        tonb_nbutils.resolve_parent_interface(device, attrs["parent_interface"])
+                        if attrs["parent_interface"]
+                        else None
+                    )
                 if attrs.get("mgmt_only"):
                     interface.mgmt_only = attrs["mgmt_only"]
                 # Set even where IP Fabric now reports nothing, so a state that stops being
@@ -755,10 +776,16 @@ class Interface(DiffSyncExtras):
                         interface.cf[custom_field] = attrs[attribute]
                 try:
                     tonb_nbutils.tag_object(nautobot_object=interface, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-                except (DjangoBaseDBError, ValidationError):
+                except (DjangoBaseDBError, ValidationError) as error:
+                    # Naming what was refused, and what was being written: without them an
+                    # operator reading the Job Result has no way to tell a rejected type from a
+                    # rejected relation, and the attributes are what say which.
                     self.adapter.job.logger.error(
-                        f"Unable to perform validated_save() on Interface named {self.name} "
-                        f"on Device named {device.name} with an ID of {device.id}"
+                        "Unable to write Interface %s on Device %s: %s. The sync was setting %s.",
+                        self.name,
+                        device.name,
+                        error,
+                        ", ".join(f"{field}={value!r}" for field, value in sorted(attrs.items())) or "nothing",
                     )
                     return_super = False
             if return_super:
@@ -770,6 +797,44 @@ class Interface(DiffSyncExtras):
                 f"its interface named {self.name}"
             )
         return None
+
+    def clear_the_way_to_virtual(self, interface, attrs):
+        """Remove a Cable that would stop an Interface becoming virtual, or hold the change back.
+
+        Nautobot refuses a Cable on a virtual Interface. A Junos tunnel unit such as `st0.0` was
+        synced with the default type in earlier releases, since nothing in its name resolves one, and
+        so was cabled from IP Fabric's connectivity matrix, which reports tunnel adjacencies as links.
+        Typed as what it is, the Cable is one Nautobot does not allow and this sync would not create.
+
+        It is removed rather than left to the Cable's own diff, which runs after every Interface and
+        so too late for this one. Under Safe Delete Mode nothing is removed, so the type and the
+        parent that depends on it are held back instead, and the Interface is left as it was. Both
+        outcomes are counted rather than named, reported with the rest of Safe Delete's tally.
+        """
+        if attrs.get("type") not in NONCONNECTABLE_IFACE_TYPES or interface.cable is None:
+            return attrs
+        if self.adapter.safe_delete_mode:
+            self.adapter.safe_delete_tally[
+                (
+                    "Interface",
+                    "left with their type and parent unchanged, a Cable they hold being kept by Safe Delete Mode",
+                )
+            ] += 1
+            return {field: value for field, value in attrs.items() if field not in ("type", "parent_interface")}
+        try:
+            with tonb_nbutils.change_logging_not_deferred():
+                interface.cable.delete()
+        except (ProtectedError, DjangoBaseDBError) as error:
+            self.adapter.job.logger.error(
+                "Unable to remove the Cable on Interface %s on Device %s, so it cannot be made virtual: %s",
+                self.name,
+                self.device_name,
+                error,
+            )
+            return {field: value for field, value in attrs.items() if field not in ("type", "parent_interface")}
+        interface.refresh_from_db()
+        self.adapter.safe_delete_tally[("Cable", "deleted, the Interface they ended on being virtual")] += 1
+        return attrs
 
 
 class InterfaceAddress(DiffSyncExtras):
@@ -1453,7 +1518,8 @@ class Cable(DiffSyncExtras):
                 f"so that {link} can be recorded"
             )
             try:
-                cable.delete()
+                with tonb_nbutils.change_logging_not_deferred():
+                    cable.delete()
             except (ProtectedError, DjangoBaseDBError) as err:
                 adapter.job.logger.error(
                     f"Unable to remove the Cable with an ID of {cable.id} from "
@@ -1511,7 +1577,8 @@ class Cable(DiffSyncExtras):
             # models: nothing depends on a Cable, and a queued one would still be holding an
             # Interface that a relocated link needs earlier in the same sync.
             try:
-                cable.delete()
+                with tonb_nbutils.change_logging_not_deferred():
+                    cable.delete()
             except (ProtectedError, DjangoBaseDBError) as err:
                 self.adapter.job.logger.error(f"Unable to delete the Cable for {link}. Error: {err}")
                 return None
