@@ -72,24 +72,24 @@ class TestDuplicatesIPFabricReports(TestCase):
 
 
 class TestDevicesWithNoUsableSerial(TestCase):
-    """A serial IP Fabric does not report, or reports longer than Nautobot holds, is counted."""
+    """A chassis serial IP Fabric does not report, or reports too long to hold, is counted."""
 
-    def loaded_without_serials(self, serial):
-        """Load an adapter whose Devices all carry the given serial, and return its warnings."""
+    def loaded_with_chassis_serial(self, serial):
+        """Load an adapter whose Devices all report the given chassis serial, and its warnings."""
         client = mock_ipfabric_client()
         client.devices.by_site = defaultdict(list)
         for record in DEVICE_INVENTORY_FIXTURE:
-            record = dict(record, sn=serial)
+            record = dict(record, snHw=serial)
             client.devices.by_site[record["siteName"]].append(Device(**record))  # pylint: disable=no-member
         logger = job_logger()
         adapter = build_adapter(client=client, logger=logger)
         return adapter, job_log_text(logger, "warning")
 
     def test_a_serial_longer_than_nautobot_holds_is_counted_not_named(self):
-        adapter, warnings = self.loaded_without_serials("s" * 300)
+        adapter, warnings = self.loaded_with_chassis_serial("s" * 300)
 
-        self.assertTrue(adapter.devices_without_a_serial, "The Devices were expected to lose their serials.")
-        self.assertIn("No serial number recorded for", warnings)
+        self.assertTrue(adapter.devices_without_a_hardware_serial, "They were expected to report no serial.")
+        self.assertIn("reports no chassis serial for", warnings)
         self.assertIn("Devices", warnings)
 
 

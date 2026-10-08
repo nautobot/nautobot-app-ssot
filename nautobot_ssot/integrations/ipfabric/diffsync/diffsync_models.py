@@ -37,6 +37,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_DEVICE_STATUS,
     DEFAULT_DEVICE_STATUS_COLOR,
     DEFAULT_INTERFACE_MAC,
+    DEVICE_UNIQUE_SERIAL_CF_NAME,
     INTERFACE_STATE_FIELDS,
     LAST_SYNCHRONIZED_CF_NAME,
     SAFE_DELETE_CABLE_STATUS,
@@ -312,6 +313,7 @@ class Device(DiffSyncExtras):
         "model",
         "vendor",
         "serial_number",
+        "unique_serial",
         "role",
         "status",
         "platform",
@@ -327,6 +329,9 @@ class Device(DiffSyncExtras):
     model: Optional[str] = None
     vendor: Optional[str] = None
     serial_number: Optional[str] = None
+    # IP Fabric's own key for the Device, kept in a custom field rather than in `serial`, which
+    # Nautobot means as the chassis serial.
+    unique_serial: Optional[str] = None
     role: Optional[str] = None
     status: Optional[str] = None
     platform: Optional[str] = None
@@ -411,7 +416,9 @@ class Device(DiffSyncExtras):
             pending = adapter.pending
             lookup = {
                 "name": device_name,
-                "serial": attrs.get("serial_number", ""),
+                # Empty rather than absent: `Device.serial` is not nullable, and a new Device has
+                # no earlier value to keep, so reporting no serial means it starts without one.
+                "serial": attrs.get("serial_number") or "",
                 "status": device_status_object,
                 "device_type": device_type_object,
                 "role": device_role_object,
@@ -443,6 +450,10 @@ class Device(DiffSyncExtras):
                     f"Unable to create a new Device named {device_name} at Location {location_name}"
                 )
             else:
+                if attrs.get("unique_serial"):
+                    # Set before either write, so a queued Device carries it on the insert rather
+                    # than needing a second statement to add it.
+                    new_device.cf[DEVICE_UNIQUE_SERIAL_CF_NAME] = attrs["unique_serial"]
                 if queue_new:
                     tonb_nbutils.queue_new_object(pending, new_device, key=device_name)
                 else:
@@ -551,6 +562,10 @@ class Device(DiffSyncExtras):
                     return_super = False
             if attrs.get("serial_number"):
                 _device.serial = attrs.get("serial_number")
+            if "unique_serial" in attrs:
+                # Set even where this run reports none, so a value an earlier run wrote is cleared
+                # rather than left claiming a key IP Fabric no longer reports.
+                _device.cf[DEVICE_UNIQUE_SERIAL_CF_NAME] = attrs["unique_serial"]
             if SYNC_IPF_DEV_TYPE_TO_ROLE and (role_name := attrs.get("role")):
                 device_role_object = resolve_role(self.adapter, role_name)
                 if device_role_object:

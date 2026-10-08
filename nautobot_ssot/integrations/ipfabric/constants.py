@@ -38,6 +38,11 @@ SAFE_DELETE_VLAN_STATUS = CONFIG.get("ipfabric_safe_delete_vlan_status", "Deprec
 SAFE_DELETE_IPADDRESS_STATUS = CONFIG.get("ipfabric_safe_delete_ipaddress_status", "Deprecated")
 SAFE_DELETE_CABLE_STATUS = CONFIG.get("ipfabric_safe_delete_cable_status", "Decommissioning")
 SAFE_DELETE_VRF_STATUS = CONFIG.get("ipfabric_safe_delete_vrf_status", "Deprecated")
+# The serial IP Fabric keys a Device on, which is not what Nautobot's `serial` means. Nautobot
+# documents that field as the chassis serial, which IP Fabric reports separately as `snHw`. Recorded
+# beside the Device so the two are not confused, and so the key a run matched on stays visible.
+DEVICE_UNIQUE_SERIAL_CF_NAME = "ipfabric_unique_serial"
+
 LAST_SYNCHRONIZED_CF_NAME = "last_synced_from_sor"
 # Name of the Interface the IP Fabric adapter fabricates to carry a NAT management address. Both
 # adapters need it: one to invent it, the other to recognise one an earlier run left behind.

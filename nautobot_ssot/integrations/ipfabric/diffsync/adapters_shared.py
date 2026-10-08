@@ -15,7 +15,8 @@ from nautobot_ssot.integrations.ipfabric.sync_scope import (
 )
 
 
-class DiffSyncModelAdapters(Adapter):
+# One register per value a run reports absent on both sides, which is how the two adapters agree.
+class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attributes
     """Nautobot adapter for DiffSync."""
 
     # The collector to queue writes into, or None when they go one at a time. Declared here so that
@@ -56,7 +57,7 @@ class DiffSyncModelAdapters(Adapter):
         "interface_vrf",
     ]
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         *args,
         scope: Optional[SyncScope] = None,
@@ -64,6 +65,7 @@ class DiffSyncModelAdapters(Adapter):
         addresses_without_a_subnet: Optional[Set[Tuple[str, str, str]]] = None,
         interfaces_without_admin_state: Optional[Set[Tuple[str, str]]] = None,
         safe_delete_mode: bool = True,
+        devices_without_a_hardware_serial: Optional[Set[str]] = None,
         **kwargs,
     ):
         """Initialize the adapter with the object types this run covers.
@@ -88,6 +90,12 @@ class DiffSyncModelAdapters(Adapter):
         adapters are given the run's choice although only the destination writes, so that a run has
         one answer rather than two.
 
+        `devices_without_a_hardware_serial` holds the name of every Device IP Fabric reports no
+        chassis serial for, or one too long for Nautobot to hold. Both adapters report no serial for
+        those, so the one Nautobot has is left alone rather than driven to empty every run. A Device
+        with no chassis, such as a virtual one, genuinely has none, which is why this is an absence
+        rather than a failure.
+
         `addresses_without_a_subnet` holds the `(device name, interface name, host)` of every address
         IP Fabric reports no usable subnet for. The IP Fabric adapter fills it while loading and
         reports none of those addresses; the Nautobot adapter is handed it afterwards so that it
@@ -107,6 +115,9 @@ class DiffSyncModelAdapters(Adapter):
         self.addresses_without_a_subnet = set() if addresses_without_a_subnet is None else addresses_without_a_subnet
         self.interfaces_without_admin_state = (
             set() if interfaces_without_admin_state is None else interfaces_without_admin_state
+        )
+        self.devices_without_a_hardware_serial = (
+            set() if devices_without_a_hardware_serial is None else devices_without_a_hardware_serial
         )
         # VRF names the Global Namespace holds more than one of, which the Nautobot adapter declines
         # to load. Recorded so that `Vrf.create` can decline them because the name is ambiguous,

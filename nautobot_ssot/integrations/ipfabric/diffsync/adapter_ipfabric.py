@@ -1,6 +1,8 @@
 # pylint: disable=duplicate-code
 # The adapter carries an index per table it reads ahead.
 # pylint: disable=too-many-instance-attributes
+# One module reads every IP Fabric table the sync needs.
+# pylint: disable=too-many-lines
 """DiffSync adapter class for Ip Fabric."""
 
 import ipaddress
@@ -56,6 +58,22 @@ INHERITS_SUBNET = "_inherits_subnet"
 # since the same state is written `adminDown`, `admin-down` and `admin down` across platforms. Never
 # by substring: `errDisabled` is a fault the switch found, not a state anybody asked for.
 ADMINISTRATIVELY_DOWN_L1_STATES = frozenset({"admindown", "administrativelydown", "shutdown", "disabled"})
+
+
+def holdable_serial(reported):
+    """Return a chassis serial Nautobot can hold, or None where there is none to record.
+
+    None rather than an empty string, because the two mean different things to the diff. An empty
+    string is a value, and reporting it would drive Nautobot's serial to empty on every run; None is
+    an absence, which both adapters report so the value Nautobot holds is left alone.
+
+    Longer than the field holds is refused rather than truncated: a serial is an identity, and a
+    prefix of one names no chassis.
+    """
+    reported = (reported or "").strip()
+    if not reported or len(reported) > device_serial_max_length:
+        return None
+    return reported
 
 
 def bare(reported):
@@ -115,7 +133,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         # Counted rather than named, each being one per Device or per reported link: a job log entry
         # is a database write, so an estate reports these by the thousand or not at all.
         self.pseudo_management_interfaces = 0
-        self.devices_without_a_serial = 0
+
         self.self_linking_endpoints = Counter()
         # Held because a VRF is network wide while this filter is not, so a filtered run must not
         # delete the VRFs of the sites it cannot see; see `DiffSyncModelAdapters.network_wide`.
@@ -658,11 +676,14 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                     "status": DEFAULT_DEVICE_STATUS,
                     "platform": device.family,
                 }
+                base_args["unique_serial"] = device.sn
                 if device.sn not in stacks:
-                    serial_number = device.sn
+                    # `snHw` rather than `sn`: Nautobot documents `serial` as the chassis serial,
+                    # while `sn` is the key IP Fabric identifies the Device by. The latter goes to a
+                    # custom field, so neither is lost and each is where it belongs.
                     args = base_args.copy()
                     args["name"] = device.hostname
-                    args["serial_number"] = serial_number if len(serial_number) < device_serial_max_length else ""
+                    args["serial_number"] = holdable_serial(device.sn_hw)
                     member_devices = [args]
                 else:
                     # member with the lowest member number will be considered master,
@@ -680,7 +701,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                             args["model"] = pn
                         args.update(
                             {
-                                "serial_number": member_sn if len(member_sn) < device_serial_max_length else "",
+                                # Each member is its own chassis, so the member's serial is the
+                                # chassis serial for it. The stack's `snHw` describes the master.
+                                "serial_number": holdable_serial(member_sn),
                                 "name": f"{device.hostname}-member{member.get('member')}",
                                 "vc_name": device.hostname,
                                 "vc_master": False,
@@ -698,8 +721,12 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         member_devices.append(args)
 
                 for index, dev in enumerate(member_devices):
-                    if not dev["serial_number"]:
-                        self.devices_without_a_serial += 1
+                    if dev["serial_number"] is None:
+                        # Registered under the name the Device is written with, which the master of
+                        # a stack takes only after its member name has been replaced above. The
+                        # Nautobot side reports no serial for these, so the one it holds is left
+                        # alone rather than driven to empty on every run.
+                        self.devices_without_a_hardware_serial.add(dev["name"])
                     try:
                         device_model = self.device(**dev)
                         self.add(device_model)
@@ -730,11 +757,14 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 self.pseudo_management_interfaces,
             )
 
-        if self.devices_without_a_serial:
+        if self.devices_without_a_hardware_serial:
             self.job.logger.warning(
-                "No serial number recorded for %d Devices, IP Fabric reporting none or one longer "
-                "than the %d characters Nautobot holds.",
-                self.devices_without_a_serial,
+                "IP Fabric reports no chassis serial for %d Devices, or one longer than the %d "
+                "characters Nautobot holds, so the serial Nautobot has for them is left alone. A "
+                "Device with no chassis, such as a virtual one, has none to report. The serial IP "
+                "Fabric identifies each Device by is recorded as IPFabric Unique Serial Number "
+                "whether or not a chassis serial was reported.",
+                len(self.devices_without_a_hardware_serial),
                 device_serial_max_length,
             )
 
