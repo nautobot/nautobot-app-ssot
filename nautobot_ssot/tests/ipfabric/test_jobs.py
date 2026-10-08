@@ -32,6 +32,7 @@ class IPFabricJobTest(TestCase):
             ("Location", "Location", reverse("dcim:location_list")),
             ("Interfaces", "Interfaces", reverse("dcim:interface_list")),
             ("IP Addresses", "IP Addresses", reverse("ipam:ipaddress_list")),
+            ("Managed IP Summary", "Prefixes", reverse("ipam:prefix_list")),
             ("VLANs", "VLANs", reverse("ipam:vlan_list")),
             ("Stack Members", "Virtual Chassis", reverse("dcim:virtualchassis_list")),
             ("Connectivity Matrix", "Cables", reverse("dcim:cable_list")),

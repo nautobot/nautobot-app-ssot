@@ -38,6 +38,7 @@ SAFE_DELETE_VLAN_STATUS = CONFIG.get("ipfabric_safe_delete_vlan_status", "Deprec
 SAFE_DELETE_IPADDRESS_STATUS = CONFIG.get("ipfabric_safe_delete_ipaddress_status", "Deprecated")
 SAFE_DELETE_CABLE_STATUS = CONFIG.get("ipfabric_safe_delete_cable_status", "Decommissioning")
 SAFE_DELETE_VRF_STATUS = CONFIG.get("ipfabric_safe_delete_vrf_status", "Deprecated")
+SAFE_DELETE_PREFIX_STATUS = CONFIG.get("ipfabric_safe_delete_prefix_status", "Deprecated")
 # The serial IP Fabric keys a Device on, which is not what Nautobot's `serial` means. Nautobot
 # documents that field as the chassis serial, which IP Fabric reports separately as `snHw`. Recorded
 # beside the Device so the two are not confused, and so the key a run matched on stays visible.

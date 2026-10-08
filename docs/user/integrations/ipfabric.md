@@ -46,6 +46,7 @@ There are several options available.
 - **Sync Interfaces**: Sync each Device's Interfaces. Enabled by default.
 - **Sync IP Addresses**: Sync the IP Address on each Interface. Enabled by default; requires **Sync Interfaces**.
 - **Sync Primary IP**: Assign a Device's primary IP from IP Fabric. Enabled by default; requires **Sync IP Addresses**. IP Fabric reports the address it logged in with, which is not necessarily the address a CMDB considers the management one.
+- **Sync Prefixes**: Create Nautobot Prefixes in the Global Namespace from the networks IP Fabric reports, and record the Locations each is seen at. Disabled by default. See [Prefixes](#prefixes).
 - **Sync VLANs**: Sync each Location's VLANs. Enabled by default.
 - **Sync VRFs**: Create Nautobot VRFs in the Global Namespace from the routing instances IP Fabric reports. Disabled by default. See [VRFs and Route Targets](#vrfs-and-route-targets).
 - **Sync Route Targets**: Sync the Route Targets IP Fabric reports and record each synced VRF's import and export targets. Disabled by default; requires **Sync VRFs**.
@@ -80,6 +81,7 @@ Currently, this integration will provide the ability to sync the following IP Fa
 - Part Numbers ➡️ Nautobot Manufacturer/Device Type/Platform
 - Interfaces ➡️ Nautobot Device Interfaces
 - IP Addresses ➡️ Nautobot IP Addresses (primary, secondary, IPv6 and FHRP virtual)
+- Managed IP Summary ➡️ Nautobot Prefixes (opt in, see [Prefixes](#prefixes))
 - Stack Members ➡️ Nautobot Virtual Chassis
 - Connectivity Matrix ➡️ Nautobot Cables (opt in, see [Cables](#cables))
 
@@ -179,6 +181,24 @@ addressing the sync already reads, because an Interface can be in a VRF while ca
 | hostname           | InterfaceVrf.device_name       | Interface.device       |
 | intName            | InterfaceVrf.interface_name    | Interface.name         |
 | vrf                | InterfaceVrf.vrf_name          | Interface.vrf          |
+
+### IPFabric Prefix
+
+Prefixes are built from IP Fabric's managed IP summary tables (`tables/addressing/ipv4-managed-ip-summary` and `tables/addressing/ipv6-managed-ip-summary`), which list each network once per site it is configured at.
+
+| IP Fabric (Source) | DiffSync Model | Nautobot (Destination)  |
+| ------------------ | -------------- | ----------------------- |
+| net                | Prefix.prefix  | Prefix.prefix           |
+| N/A                | Prefix.status  | Prefix.status           |
+
+### IPFabric Prefix Location
+
+One record per network per site, from the same tables. A model of its own rather than a list on the Prefix, because a Prefix has to be written before the addresses under it while its Locations may only be created later in the same run.
+
+| IP Fabric (Source) | DiffSync Model                | Nautobot (Destination) |
+| ------------------ | ----------------------------- | ---------------------- |
+| net                | PrefixLocation.prefix         | Prefix                 |
+| siteName           | PrefixLocation.location_name  | Prefix.locations       |
 
 ### IPFabric Cable
 
@@ -485,6 +505,20 @@ A NAT management address is unaffected by this selection. It belongs to no inter
 
 A subnet that does not parse counts as none reported: it is logged and passed over rather than raised, since one such row would otherwise end the job while it was still reading and lose every address that was fine. Either IP version is accepted, since what the sync records is a prefix length. Whether the subnet contains the address it was reported for is not checked; that is a different kind of wrong data, and one this sync has no better answer for than the mask itself.
 
+## Prefixes
+
+Prefix synchronization is opt in via the **Sync Prefixes** job option and is disabled by default, since many installs manage Prefixes in another IPAM.
+
+Selected, each network in IP Fabric's managed IP summary becomes a Prefix in the Global Namespace, IPv4 and IPv6 alike, with the Locations IP Fabric sees it at. A network configured at several sites is one Prefix with several Locations, since a Namespace holds one of each network. Prefixes are written before anything else, so the addresses synced onto Interfaces are filed under them rather than under Prefixes created to accommodate each one.
+
+A Prefix Nautobot already holds for the same network is adopted rather than duplicated: it is tagged `SSoT Synced from IPFabric` and its type and status are left as they are. Only Prefixes carrying that Tag are read back from Nautobot, so a Prefix the sync never tagged is never removed. One it did tag, or adopted, is removed once IP Fabric stops reporting it, through Safe Delete Mode like any other object. Nautobot will not delete a Prefix that still holds addresses, so such a Prefix stays and the job log names the refusal.
+
+A Location is recorded on a Prefix only where this run loaded a Location of that name. A site Nautobot holds no Location for is reported once with the number of Prefixes it applied to. The Location's type is made to permit Prefixes where it did not, as it is for VLANs. Under a **Site Filter**, a run sees only that site's networks, so it may add Prefixes and Locations but removes neither.
+
+### Ranges reused at unrelated sites
+
+Nested Prefixes are the ordinary shape of an address plan and are synced as such. Where a network sits inside, or contains, a network IP Fabric reports only at other sites, it is more often the same range used twice, a `10.0.0.0/24` in one cloud account and a `10.0.0.0/25` in another. The Global Namespace cannot tell those apart, so they are synced as one hierarchy, and the job reports how many networks this applies to with a few examples. Holding them separately needs a Namespace per routing domain, which this integration does not yet assign.
+
 ## Strict Objects
 
 **Strict Objects** is a check on the data IP Fabric reported, applied on top of what is in scope. The scope decides which object types a run covers; this decides, for the types it does cover, whether what IP Fabric said about them is taken on trust or checked first. Nothing here brings a type into scope, and selecting a type that is out of scope does nothing; the job says so rather than leaving the selection looking like the reason nothing was written.
@@ -702,6 +736,7 @@ The default status change of an object were to be `deleted` by SSoT DiffSync ope
 - Site -> Decommissioning (Auto deletes tag upon recovery)
 - Interfaces -> Tagged with `SSoT Safe Delete` (Does not auto-delete Tag upon recovery)
 - Cable -> Decommissioning (Auto deletes tag upon recovery)
+- Prefix -> Deprecated (Auto deletes tag upon recovery)
 
 If you would like to change the default status change value, ensure you provide a valid status name available for the referenced object. Not all objects share the same `Status`.
 

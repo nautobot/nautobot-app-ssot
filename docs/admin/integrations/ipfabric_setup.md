@@ -62,6 +62,7 @@ PLUGINS_CONFIG = {
 | `ipfabric_safe_delete_vlan_status`      | The status that is set for a VLAN when the `Safe Delete Mode` flag is set in the Job.                                                                                                         | `Deprecated`        |
 | `ipfabric_safe_delete_ipaddress_status` | The status that is set for an IP Address when the `Safe Delete Mode` flag is set in the Job.                                                                                                  | `Deprecated`        |
 | `ipfabric_safe_delete_cable_status`     | The status that is set for a Cable when the `Safe Delete Mode` flag is set in the Job.                                                                                                        | `Decommissioning`   |
+| `ipfabric_safe_delete_prefix_status`    | The status that is set for a Prefix when the `Safe Delete Mode` flag is set in the Job.                                                                                                       | `Deprecated`        |
 | `ipfabric_use_canonical_interface_name` | Whether to attempt to elongate interface names as found in IP Fabric.                                                                                                                         | `False`             |
 | `ipfabric_sync_<object type>`           | Pre-selects an object type on the Job form. See [Choosing what to sync](#choosing-what-to-sync).                                                                                              | Varies by type      |
 | `ipfabric_disabled_sync_objects`        | Object types that may not be selected on the Job form at all. See [Choosing what to sync](#choosing-what-to-sync).                                                                            | `[]`                |
@@ -96,6 +97,7 @@ PLUGINS_CONFIG = {
         "ipfabric_safe_delete_vlan_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_VLAN_DELETE_STATUS"),
         "ipfabric_safe_delete_ipaddress_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_IPADDRESS_DELETE_STATUS"),
         "ipfabric_safe_delete_cable_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_CABLE_DELETE_STATUS"),
+        "ipfabric_safe_delete_prefix_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_PREFIX_DELETE_STATUS"),
         "ipfabric_use_canonical_interface_name": is_truthy(
             os.getenv("NAUTOBOT_SSOT_USE_CANONICAL_INTERFACE_NAME", "true")
         ),
@@ -174,6 +176,7 @@ of that type are left untouched rather than treated as absent from the source an
 | `interfaces`    | `Sync Interfaces`     | On      |                |
 | `ip_addresses`  | `Sync IP Addresses`   | On      | `interfaces`   |
 | `primary_ip`    | `Sync Primary IP`     | On      | `ip_addresses` |
+| `prefixes`      | `Sync Prefixes`       | Off     |                |
 | `vlans`         | `Sync VLANs`          | On      |                |
 | `cables`        | `Sync Cables`         | Off     | `interfaces`   |
 

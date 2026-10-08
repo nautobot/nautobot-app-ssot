@@ -212,6 +212,7 @@ class IpFabricDataSource(DataSource):
             DataMapping("Location", None, "Location", reverse("dcim:location_list")),
             DataMapping("Interfaces", None, "Interfaces", reverse("dcim:interface_list")),
             DataMapping("IP Addresses", None, "IP Addresses", reverse("ipam:ipaddress_list")),
+            DataMapping("Managed IP Summary", None, "Prefixes", reverse("ipam:prefix_list")),
             DataMapping("VLANs", None, "VLANs", reverse("ipam:vlan_list")),
             DataMapping("Stack Members", None, "Virtual Chassis", reverse("dcim:virtualchassis_list")),
             DataMapping("Connectivity Matrix", None, "Cables", reverse("dcim:cable_list")),
@@ -239,6 +240,7 @@ class IpFabricDataSource(DataSource):
             "Safe Delete IPAddress Status": constants.SAFE_DELETE_IPADDRESS_STATUS,
             "Safe Delete VLAN status": constants.SAFE_DELETE_VLAN_STATUS,
             "Safe Delete Cable Status": constants.SAFE_DELETE_CABLE_STATUS,
+            "Safe Delete Prefix Status": constants.SAFE_DELETE_PREFIX_STATUS,
             "Disabled Sync Objects": ", ".join(disabled_keys()) or "None",
         }
 

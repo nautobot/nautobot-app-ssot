@@ -142,6 +142,17 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
         requires=("ip_addresses",),
     ),
     SyncableObject(
+        key="prefixes",
+        label="Sync Prefixes",
+        description=(
+            "Create Nautobot Prefixes from the networks IP Fabric's managed IP summary reports, in "
+            "the Global Namespace, and record the Locations each is seen at. Off by default: select "
+            "only where nothing else owns IPAM. Deselected, an address no Prefix covers still gets "
+            "one created for it."
+        ),
+        default=False,
+    ),
+    SyncableObject(
         key="vlans",
         label="Sync VLANs",
         description="Sync each Location's VLANs.",
