@@ -109,6 +109,10 @@ nav:
       - App Overview: "user/app_overview.md"
       - Getting Started: "user/app_getting_started.md"
       - Using the App: "user/app_use_cases.md"
+      - Contrib:
+          - "user/contrib/index.md"
+          - NautobotAdapter: "user/contrib/adapters.md"
+          - NautobotModel: "user/contrib/models.md"
       - Integrations:
           - "user/integrations/index.md"
           - Cisco ACI: "user/integrations/aci.md"
