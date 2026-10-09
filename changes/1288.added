@@ -1,0 +1,1 @@
+Added Proxmox VE integration to sync clusters, nodes, QEMU VMs, LXC containers, interfaces, and IP addresses from Proxmox VE into Nautobot.
