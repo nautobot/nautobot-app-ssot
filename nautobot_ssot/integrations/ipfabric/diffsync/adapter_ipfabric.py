@@ -31,6 +31,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
 from nautobot_ssot.integrations.ipfabric.utilities.cables import canonical_endpoints
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import vlan_group_can_hold
 from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length
 
 try:
@@ -810,6 +811,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             if location.name is None:
                 continue
             location_vlans = vlans_by_location.get(location.name, [])
+            may_group = self.may_create("vlan_groups")
             for vlan_record in location_vlans:
                 vlan_name = vlan_record.get("vlanName")
                 vlan_id = vlan_record["vlanId"]
@@ -821,9 +823,15 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                 vlan_label = vlan_name if vlan_name else f"{vlan_record['siteName']}:{vlan_id}"
                 if len(vlan_label) > name_max_length:
                     self.job.logger.warning(
-                        f"Not syncing VLAN, {vlan_label} due to character limit exceeding {name_max_length}."
+                        f"Truncating the name of VLAN {vlan_id} at {vlan_record['siteName']} to the "
+                        f"{name_max_length} characters Nautobot holds: {vlan_label}"
                     )
-                    continue
+                    vlan_label = vlan_label[:name_max_length]
+                # Asked per VLAN rather than per Location: a group holds one VLAN of a name, so
+                # whether this one can be filed depends on the name it carries. Reported as an
+                # attribute so a VLAN Nautobot already holds ungrouped is adopted, rather than the
+                # group reaching only the VLANs this run creates.
+                in_vlan_group = vlan_group_can_hold(vlan_record["siteName"], vlan_label, vlan_id, create=may_group)
                 try:
                     vlan = self.vlan(
                         name=vlan_label,
@@ -831,11 +839,14 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
                         vid=vlan_id,
                         status="Active",
                         description=description,
+                        in_vlan_group=in_vlan_group,
                     )
                     self.add(vlan)
                     location.add_child(vlan)
                 except ObjectAlreadyExists:
-                    self.job.logger.warning(f"Duplicate VLAN discovered, {vlan}")
+                    self.job.logger.warning(
+                        f"Duplicate VLAN discovered at {vlan_record['siteName']}: VLAN ID {vlan_id}"
+                    )
             for device in self.client.devices.by_site.get(location.name, []):
                 base_args = {
                     "diffsync": self,

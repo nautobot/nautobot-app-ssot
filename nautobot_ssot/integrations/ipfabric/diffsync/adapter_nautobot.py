@@ -453,11 +453,20 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                     vid=vlan_record.vid,
                     vlan_pk=vlan_record.pk,
                     description=vlan_record.description,
+                    # Whether it is in a group at all, not which one. A VLAN another system already
+                    # filed keeps that group: the constraint is what this needs, and moving it would
+                    # fight whoever put it there, or thrash a VLAN shared between two Locations.
+                    in_vlan_group=vlan_record.vlan_group_id is not None,
                 )
                 try:
                     self.add(vlan)
                 except ObjectAlreadyExists:
-                    self.job.logger.warning(f"Duplicate VLAN discovered, {vlan_record.name}")
+                    # Nautobot does not constrain a VLAN ID to be unique at a Location, so two can
+                    # carry the same one.
+                    self.job.logger.warning(
+                        f"Duplicate VLAN discovered at {location_record.name}: VLAN ID "
+                        f"{vlan_record.vid}, named {vlan_record.name}"
+                    )
                     continue
                 location.add_child(vlan)
 

@@ -36,6 +36,7 @@ from nautobot.ipam.models import (
     Namespace,
     Prefix,
     RouteTarget,
+    VLANGroup,
     VLANLocationAssignment,
     VRFDeviceAssignment,
     get_default_namespace,
@@ -1255,7 +1256,84 @@ def create_interface(  # pylint: disable=too-many-arguments
 
 
 @job_scoped_cache
-def create_vlan(  # pylint: disable=too-many-arguments
+def get_vlan_group_for_location(location_obj: Location, create: bool, logger: Optional[logging.Logger] = None):
+    """Return the VLAN Group a Location's VLANs belong in, or None to leave them ungrouped.
+
+    Nautobot makes a VLAN unique by `(vlan_group, vid)` and by `(vlan_group, name)`, and enforces
+    neither where the group is null. Putting a Location's VLANs in a group of their own is what makes
+    one VLAN ID mean one VLAN there, which is what this integration identifies a VLAN by.
+
+    The group is named after the Location. A `VLANGroup` name is unique across Nautobot, so one of
+    that name already pointing at another Location belongs to somebody else: it is reported and the
+    VLANs are left ungrouped rather than filed under a group that is not theirs.
+    """
+    existing = VLANGroup.objects.filter(name=location_obj.name).first()
+    if existing is not None:
+        if existing.location_id == location_obj.pk:
+            return existing
+        if logger:
+            logger.warning(
+                "A VLAN Group named %s already belongs to another Location, so the VLANs at %s are "
+                "synced without a group and their VLAN IDs are not constrained.",
+                location_obj.name,
+                location_obj.name,
+            )
+        return None
+    if not create:
+        if logger:
+            logger.warning(
+                "No VLAN Group named %s, so the VLANs there are synced without one and their VLAN "
+                "IDs are not constrained.",
+                location_obj.name,
+            )
+        return None
+    # A Location holds a VLAN Group only where its LocationType says so, as it does for VLANs.
+    if not location_obj.location_type.content_types.filter(app_label="ipam", model="vlangroup").exists():
+        location_obj.location_type.content_types.add(ContentType.objects.get_for_model(VLANGroup))
+    group = VLANGroup(name=location_obj.name, location=location_obj)
+    stamp_synced(group, LAST_SYNCHRONIZED_CF_NAME)
+    try:
+        group.validated_save()
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error("Unable to create a VLAN Group named %s. Error: %s", location_obj.name, err)
+        return None
+    group.tags.add(synced_tag_for(group))
+    return group
+
+
+def vlan_group_can_hold(location_name: str, vlan_name: str, vlan_id: int, create: bool) -> bool:
+    """Whether this VLAN can be filed under its Location's VLAN Group.
+
+    Read only, and asked by the IP Fabric side before it reports a VLAN as grouped, so that a VLAN
+    the group cannot hold is reported as ungrouped by both sides rather than diffed every run
+    against a group that will never take it.
+
+    Three ways it cannot: no group of that name exists and this run may not create one; a group of
+    that name belongs to another Location; or the group already holds a different VLAN under this
+    name, a group making the name unique within it as well as the VLAN ID.
+    """
+    existing = VLANGroup.objects.filter(name=location_name).first()
+    if existing is None:
+        # Nothing is filed yet, so there is nothing for this VLAN to collide with.
+        return create
+    if existing.location is None or existing.location.name != location_name:
+        return False
+    return not vlan_group_refuses_name(existing, vlan_name, vlan_id)
+
+
+def vlan_group_refuses_name(group, vlan_name: str, vlan_id: int) -> bool:
+    """Whether the group already holds a different VLAN under this name.
+
+    A group makes `(vlan_group, name)` unique as well as `(vlan_group, vid)`, so two VLANs of one
+    name at a Location cannot both be filed under it. Asked before writing so the collision is
+    reported against the VLAN it belongs to, rather than surfacing as a database refusal.
+    """
+    return group is not None and VLAN.objects.filter(vlan_group=group, name=vlan_name).exclude(vid=vlan_id).exists()
+
+
+@job_scoped_cache
+def create_vlan(  # pylint: disable=too-many-arguments,too-many-return-statements
     vlan_name: str,
     vlan_id: int,
     vlan_status: str,
@@ -1263,6 +1341,7 @@ def create_vlan(  # pylint: disable=too-many-arguments
     description: str,
     logger: Optional[logging.Logger] = None,
     pending: Optional[Any] = None,
+    vlan_group: Optional[Any] = None,
 ) -> Optional[VLAN]:
     """Creates or obtains VLAN object.
 
@@ -1275,6 +1354,7 @@ def create_vlan(  # pylint: disable=too-many-arguments
         logger: Logger to use for messaging.
         pending: When given, a new VLAN and its location assignment are queued for a batched write
             rather than saved.
+        vlan_group: The VLAN Group the Location's VLANs belong in, or None to leave them ungrouped.
 
     Returns:
         VLAN: When a VLAN Object is retrieved or created.
@@ -1284,6 +1364,18 @@ def create_vlan(  # pylint: disable=too-many-arguments
         # Taken from the Location's own column rather than through the relation, which would fetch
         # the LocationType only to read its primary key back.
         allow_vlans_at_location_type(location_obj.location_type_id)
+
+    if vlan_group_refuses_name(vlan_group, vlan_name, vlan_id):
+        if logger:
+            logger.warning(
+                "VLAN %s at %s is synced without a VLAN Group: the group there already holds a "
+                "different VLAN named %s, and a group makes that name unique within it. Its VLAN ID "
+                "is not constrained until the duplicate name is resolved.",
+                vlan_id,
+                location_obj.name if location_obj else "no Location",
+                vlan_name,
+            )
+        vlan_group = None
 
     try:
         try:
@@ -1298,6 +1390,7 @@ def create_vlan(  # pylint: disable=too-many-arguments
                 status=get_status_by_name(vlan_status),
                 description=description,
                 location=location_obj,
+                vlan_group=vlan_group,
             )
             is_new = True
     except VLAN.MultipleObjectsReturned:
@@ -1309,6 +1402,12 @@ def create_vlan(  # pylint: disable=too-many-arguments
             logger.error(f"Unable to create a new VLAN named {vlan_name} with an ID {vlan_id}. Error: {err}")
         return None
 
+    adopted = not is_new and vlan_group is not None and vlan_obj.vlan_group_id != vlan_group.pk
+    if adopted:
+        # A VLAN that predates the group is filed under it, since the constraint only covers what is
+        # actually in the group.
+        vlan_obj.vlan_group = vlan_group
+
     if is_new and pending is not None:
         assignments = (
             (VLANLocationAssignment(vlan=vlan_obj, location_id=location_obj.pk),) if location_obj is not None else ()
@@ -1316,11 +1415,12 @@ def create_vlan(  # pylint: disable=too-many-arguments
         return queue_new_object(pending, vlan_obj, through_rows=assignments)
 
     try:
-        if is_new:
-            # tag_object performs validated_save(), which is the only save a new VLAN takes.
+        if is_new or adopted:
+            # tag_object performs validated_save(), which is the only save a new VLAN takes and the
+            # one that persists the group a VLAN has just been filed under.
             tag_object(nautobot_object=vlan_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
         else:
-            # Nothing above changes a field on a VLAN Nautobot already holds, so the stamp is the
+            # Nothing above changed a field on a VLAN Nautobot already holds, so the stamp is the
             # whole of the write.
             restamp_synced(vlan_obj, LAST_SYNCHRONIZED_CF_NAME)
     except (DjangoBaseDBError, ValidationError):

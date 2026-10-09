@@ -10,7 +10,7 @@ from uuid import UUID
 from diffsync import DiffSyncModel
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, Q
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.constants import NONCONNECTABLE_IFACE_TYPES
 from nautobot.dcim.models import (
@@ -1035,15 +1035,20 @@ class Vlan(DiffSyncExtras):
     """VLAN model."""
 
     _modelname = "vlan"
-    _identifiers = ("name", "location")
-    _shortname = ("name",)
-    _attributes = ("vid", "status", "description")
+    _identifiers = ("vid", "location")
+    _shortname = ("vid",)
+    _attributes = ("name", "status", "description", "in_vlan_group")
 
     name: str
     vid: int
     status: str
     location: str
     description: Optional[str] = None
+    # Whether the VLAN is filed under a VLAN Group, which is what makes Nautobot constrain one VLAN
+    # ID to one VLAN at a Location. Diffed rather than applied on create alone, or a VLAN Nautobot
+    # already held would stay ungrouped and unconstrained for as long as nothing else about it
+    # changed. False on both sides where the Location's group cannot be had.
+    in_vlan_group: bool = False
     vlan_pk: Optional[UUID] = None
 
     @classmethod
@@ -1052,13 +1057,20 @@ class Vlan(DiffSyncExtras):
         """Create VLANs in Nautobot under the site."""
         status = attrs["status"].lower().capitalize()
         location_name = ids["location"]
-        vlan_id = attrs["vid"]
-        vlan_name = ids["name"]
+        vlan_id = ids["vid"]
+        vlan_name = attrs["name"]
         # A Location queued earlier in this run is not in the database yet, so it is looked for
         # there first. Falls through to the database, which is where it is on any other run.
         location = None
         if adapter.pending is not None:
             location = adapter.pending.find(NautobotLocation, location_name)
+            if location is not None and attrs.get("in_vlan_group") and location._state.adding:  # pylint: disable=protected-access
+                # A VLAN Group points at a Location, so the Location has to exist before the group
+                # can. Under Bulk Write Mode it is still queued at this point, so the queue is
+                # written out first. That costs one batch boundary on the run's first VLAN and
+                # nothing afterwards, since the Location is in the database from then on.
+                adapter.flush_pending_writes()
+                location = None
         # Cached for the run, since every VLAN at a site asks the same question. The lookup reports
         # an ambiguous or missing Location itself, leaving only the consequence to say here.
         location = location or tonb_nbutils.get_location_object(location_name, logger=adapter.job.logger)
@@ -1071,6 +1083,13 @@ class Vlan(DiffSyncExtras):
             description = attrs.get("description")
             if adapter.job.debug:
                 adapter.job.logger.debug("Creating VLAN: %s description: %s", vlan_name, description)
+            # The Location's VLAN Group is what makes one VLAN ID mean one VLAN there, which is
+            # what this model identifies a VLAN by.
+            vlan_group = tonb_nbutils.get_vlan_group_for_location(
+                location,
+                create=adapter.may_create("vlan_groups"),
+                logger=adapter.job.logger,
+            )
             vlan = tonb_nbutils.create_vlan(
                 vlan_name=vlan_name,
                 vlan_id=vlan_id,
@@ -1079,6 +1098,7 @@ class Vlan(DiffSyncExtras):
                 description=description,
                 logger=adapter.job.logger,
                 pending=adapter.pending,
+                vlan_group=vlan_group,
             )
             if vlan:
                 return super().create(ids=ids, adapter=adapter, attrs=attrs)
@@ -1092,10 +1112,10 @@ class Vlan(DiffSyncExtras):
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete."""
         try:
-            vlan = VLAN.objects.get(name=self.name, pk=self.vlan_pk)
+            vlan = VLAN.objects.get(pk=self.vlan_pk)
         except VLAN.DoesNotExist:
             self.adapter.job.logger.error(
-                f"Unable to find a VLAN found with the name {self.name} and an ID of {self.vlan_pk}"
+                f"Unable to find a VLAN with VLAN ID {self.vid} at {self.location} and an ID of {self.vlan_pk}"
             )
         else:
             self.safe_delete(
@@ -1109,41 +1129,68 @@ class Vlan(DiffSyncExtras):
     @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update VLAN object in Nautobot."""
-        location_obj = tonb_nbutils.get_location_object(self.location, logger=self.adapter.job.logger)
-        if location_obj is None:
-            self.adapter.job.logger.error(
-                f"Could not find a Location with the name {self.location}, unable to "
-                f"Retrieve the VLAN named {self.name} to perform updates"
-            )
-            return None
         try:
-            vlan = VLAN.objects.get(name=self.name, vid=self.vid, location=location_obj)
-        except VLAN.MultipleObjectsReturned:
-            self.adapter.job.logger.error(
-                f"Multiple VLANs found with a name {self.name} and VLAN ID {self.vid} "
-                f"at a Location named {self.location}, unable to perform updates"
-            )
-            return None
+            vlan = VLAN.objects.get(pk=self.vlan_pk)
         except VLAN.DoesNotExist:
             self.adapter.job.logger.error(
-                f"Could not find a VLAN named {self.name} and VLAN ID {self.vid} "
-                f"at a Location named {self.location}, unable to perform updates"
+                f"Could not find a VLAN with VLAN ID {self.vid} at a Location named {self.location} "
+                f"and an ID of {self.vlan_pk}, unable to perform updates"
             )
             return None
+        if "name" in attrs:
+            vlan.name = attrs["name"]
         if attrs.get("status") == "Active":
             if not vlan.status == "Active":
                 vlan.status = resolve_status(self.adapter, "Active", ColorChoices.COLOR_GREEN)
             vlan.tags.remove(self.adapter.safe_delete_tag)
         if attrs.get("description"):
             vlan.description = attrs.get("description")
+        if attrs.get("in_vlan_group") and vlan.vlan_group_id is None:
+            self.file_under_location_group(vlan)
         try:
             tonb_nbutils.tag_object(nautobot_object=vlan, custom_field=LAST_SYNCHRONIZED_CF_NAME)
         except (DjangoBaseDBError, ValidationError):
             self.adapter.job.logger.warning(
-                f"Unable to perform a validated_save() on VLAN {self.name} with an ID of {vlan.id}"
+                f"Unable to perform a validated_save() on VLAN {vlan.name} with an ID of {vlan.id}"
             )
             return None
         return super().update(attrs)
+
+    def file_under_location_group(self, vlan):
+        """Put a VLAN Nautobot holds ungrouped into its Location's VLAN Group.
+
+        What adopts the VLANs that predate the group. Only ever fills an empty group: one already
+        filed keeps the group it has, since the constraint is what this needs and re-filing would
+        fight whatever put it there.
+        """
+        location = NautobotLocation.objects.filter(name=self.location).first()
+        if location is None:
+            return
+        group = tonb_nbutils.get_vlan_group_for_location(
+            location,
+            create=self.adapter.may_create("vlan_groups"),
+            logger=self.adapter.job.logger,
+        )
+        if group is None:
+            return
+        clash = (
+            VLAN.objects.filter(vlan_group=group)
+            .filter(Q(vid=vlan.vid) | Q(name=vlan.name))
+            .exclude(pk=vlan.pk)
+            .first()
+        )
+        if clash is not None:
+            self.adapter.job.logger.warning(
+                "VLAN %s (VLAN ID %s) at %s is left ungrouped: the VLAN Group there already holds "
+                "%s (VLAN ID %s), and a group makes both the VLAN ID and the name unique within it.",
+                vlan.name,
+                vlan.vid,
+                self.location,
+                clash.name,
+                clash.vid,
+            )
+            return
+        vlan.vlan_group = group
 
 
 class RouteTarget(DiffSyncExtras):
