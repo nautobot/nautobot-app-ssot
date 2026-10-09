@@ -62,6 +62,9 @@ FHRP_VIRTUAL_ADDRESS_KEYS = ("vip", "virtualIp", "virtualIP")
 # Prefix IP Fabric never reported.
 INHERITS_SUBNET = "_inherits_subnet"
 
+# Read by path: ipfabric 7.3.1, the oldest SDK release this package allows, has no attribute for it.
+IPV6_MANAGED_IP_SUMMARY = "tables/addressing/ipv6-managed-ip-summary"
+
 
 # Physical states that say somebody turned the port off, compared with case and punctuation stripped
 # since the same state is written `adminDown`, `admin-down` and `admin down` across platforms. Never
@@ -842,6 +845,39 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
                 )
             )
 
+    def load_prefixes(self):
+        """Add the networks IP Fabric reports as DiffSync Prefix models, with the Locations each is at.
+
+        Read from the managed IP summary tables, which list each network once per site it is
+        configured at. A network seen at several sites is one Prefix with several Locations, since
+        the Global Namespace holds one of each network. Network wide, as a VRF is, so a run narrowed
+        to one site cannot delete what the others see.
+
+        A Location is recorded only where this run loaded a Location of that name, so a pair is never
+        reported for a site the Location tree does not hold.
+        """
+        columns = ["net", "siteName"]
+        rows = chain(
+            self.client.technology.addressing.managed_ipv4_summary.all(columns=columns),
+            self.client.fetch_all(IPV6_MANAGED_IP_SUMMARY, columns=columns),
+        )
+        by_prefix = sites_by_prefix(rows, logger=self.job.logger)
+        loaded_sites = {location.name for location in self.get_all(self.location)}
+        for prefix, sites in by_prefix.items():
+            self.add(self.network_wide(self.prefix, prefix=prefix, status="Active"))
+            for site in sorted(sites & loaded_sites):
+                self.add(self.network_wide(self.prefix_location, prefix=prefix, location_name=site))
+        overlapping = prefixes_overlapping_other_sites(by_prefix)
+        if overlapping:
+            self.job.logger.warning(
+                "%d networks IP Fabric reports overlap a network it reports only at other sites, for "
+                "example %s. They are synced as nested Prefixes in the Global Namespace, which can "
+                "hold only one of each network, so a range reused at unrelated sites reads there as "
+                "one hierarchy.",
+                len(overlapping),
+                ", ".join(overlapping[:5]),
+            )
+
     def load_interface_vrfs(self):
         """Add the VRF each Interface is in as DiffSync InterfaceVrf models.
 
@@ -1121,6 +1157,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
 
         if self.scope.interface_vlans:
             self.load_interface_vlans()
+        if self.scope.prefixes:
+            self.load_prefixes()
 
         # Read only while loading, and it holds a record per address, so it is not carried into the
         # diff and sync phases where both adapters' models are already resident.
@@ -1331,6 +1369,45 @@ def prefix_lengths_by_address(reported_addresses, logger):
             lengths[address],
         )
     return lengths
+
+
+def sites_by_prefix(rows, logger):
+    """Return the sites IP Fabric reports each network at, keyed by the network in CIDR notation.
+
+    Normalised through `ipaddress`, so that the key is the form both adapters write and a network
+    reported with host bits set is the network it names. A row naming no network, or one that is not
+    a network at all, is skipped, and the second is reported.
+    """
+    by_prefix = defaultdict(set)
+    for row in rows:
+        net = row.get("net")
+        if not net:
+            continue
+        try:
+            prefix = ipaddress.ip_network(net, strict=False).with_prefixlen
+        except ValueError:
+            logger.warning("Not syncing a Prefix of %s, as IP Fabric reports it and it is not a network", net)
+            continue
+        by_prefix[prefix].add(row.get("siteName"))
+    return {prefix: {site for site in sites if site} for prefix, sites in by_prefix.items()}
+
+
+def prefixes_overlapping_other_sites(by_prefix):
+    """Return the networks that contain, or sit inside, a network reported at none of the same sites.
+
+    Nesting among the networks of one site is the ordinary shape of an address plan. Nesting between
+    networks that share no site is more often the same range used twice, which one Namespace cannot
+    tell apart. Each network's supernets are looked up rather than every pair compared, so this is
+    linear in the number of networks.
+    """
+    networks = {prefix: ipaddress.ip_network(prefix) for prefix in by_prefix}
+    overlapping = set()
+    for prefix, network in networks.items():
+        for length in range(network.prefixlen - 1, -1, -1):
+            supernet = network.supernet(new_prefix=length).with_prefixlen
+            if supernet in by_prefix and not by_prefix[supernet] & by_prefix[prefix]:
+                overlapping.update((prefix, supernet))
+    return sorted(overlapping, key=lambda prefix: (networks[prefix].version, networks[prefix]))
 
 
 def agreed_targets(by_device):

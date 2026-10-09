@@ -35,6 +35,7 @@ from nautobot.ipam.models import (
     IPAddressToInterface,
     Namespace,
     Prefix,
+    PrefixLocationAssignment,
     RouteTarget,
     VLANGroup,
     VLANLocationAssignment,
@@ -732,18 +733,25 @@ def get_status_by_name(status_name: str) -> Status:
 
 
 @job_scoped_cache
-def allow_vlans_at_location_type(location_type_id: Any) -> None:
-    """Ensure a LocationType permits VLANs, asked once per LocationType rather than once per VLAN.
+def allow_at_location_type(location_type_id: Any, model: Any) -> None:
+    """Ensure a LocationType permits a model, asked once per LocationType rather than once per object.
 
-    A Location cannot hold a VLAN unless its LocationType lists the content type, and a sync
-    creating VLANs at a site Nautobot has never held one at has to add it. The answer is the same
-    for every VLAN at every Location of that type, so it is worth asking once.
+    A Location cannot hold a VLAN or a Prefix unless its LocationType lists the content type, and a
+    sync writing one at a site Nautobot has never held one at has to add it. The answer is the same
+    for every object at every Location of that type, so it is worth asking once.
     """
     permitted = LocationType.objects.filter(
-        pk=location_type_id, content_types__app_label="ipam", content_types__model="vlan"
+        pk=location_type_id,
+        content_types__app_label=model._meta.app_label,  # pylint: disable=protected-access
+        content_types__model=model._meta.model_name,  # pylint: disable=protected-access
     ).exists()
     if not permitted:
-        LocationType.objects.get(pk=location_type_id).content_types.add(ContentType.objects.get_for_model(VLAN))
+        LocationType.objects.get(pk=location_type_id).content_types.add(ContentType.objects.get_for_model(model))
+
+
+def allow_vlans_at_location_type(location_type_id: Any) -> None:
+    """Ensure a LocationType permits VLANs; see `allow_at_location_type`."""
+    allow_at_location_type(location_type_id, VLAN)
 
 
 @job_scoped_cache
@@ -1003,12 +1011,7 @@ def create_parent_prefix(address: str, logger: Optional[logging.Logger] = None) 
     Returns:
         bool: Whether a Prefix now exists for the address.
     """
-    host = address.split("/")[0]
-    # The route covering only this address, which is `/128` for IPv6 rather than `/32`. Asked with a
-    # `/32` an IPv6 host names a subnet millions of addresses wide, so no Prefix holding it contains
-    # that, and the check below reports none where one exists.
-    covering = f"{host}/{host_route_length(host)}"
-    if Prefix.objects.filter(namespace=get_global_namespace()).net_contains_or_equals(covering).exists():
+    if covering_prefix_exists(address):
         # Checked rather than inferred from a failure to build the address. Nautobot 3.2 also reports
         # a duplicate address from `clean()`, and reading that as a missing Prefix created a second,
         # wider one that could never become the parent: Nautobot parents an address to the most
@@ -1029,6 +1032,157 @@ def create_parent_prefix(address: str, logger: Optional[logging.Logger] = None) 
         if logger:
             logger.error(f"Unable to create a missing Prefix for {address}. Error: {err}")
         return False
+    return True
+
+
+def covering_prefix_exists(address: str) -> bool:
+    """Return whether a Prefix in the Global Namespace contains the host of an address.
+
+    Asked about the host rather than the address's own network, since that is the question that
+    decides whether Nautobot can parent the address at all: any Prefix containing the host will do,
+    however its length compares with the address's mask.
+    """
+    host = address.split("/")[0]
+    # The route covering only this address, which is `/128` for IPv6 rather than `/32`. Asked with a
+    # `/32` an IPv6 host names a subnet millions of addresses wide, so no Prefix holding it contains
+    # that, and the check reports none where one exists.
+    covering = f"{host}/{host_route_length(host)}"
+    return Prefix.objects.filter(namespace=get_global_namespace()).net_contains_or_equals(covering).exists()
+
+
+def get_prefix(prefix: str) -> Optional[Prefix]:
+    """Return the Prefix of the given network in the Global Namespace, or None if there is none.
+
+    Matched on the network and its length together, which is what Nautobot makes a Prefix unique
+    on within a Namespace. The network alone names every Prefix that starts at that address.
+    """
+    network = ipaddress.ip_network(prefix)
+    return Prefix.objects.filter(
+        namespace=get_global_namespace(),
+        network=str(network.network_address),
+        prefix_length=network.prefixlen,
+    ).first()
+
+
+def create_prefix(prefix: str, create: bool = True, logger: Optional[logging.Logger] = None) -> Optional[Prefix]:
+    """Create a Prefix in the Global Namespace, or adopt the one Nautobot already holds.
+
+    A Prefix is unique on its network within a Namespace, so one another process or an earlier
+    address created is the same object this sync would have made. It is adopted and marked as
+    synced rather than duplicated, as a Route Target is, which is what lets a first run converge
+    against an existing estate. Its type and status are left as they are.
+
+    Written directly rather than queued, even in Bulk Write Mode: the addresses queued under it
+    have their parent worked out by `clean()` as they are queued, which reads Prefixes back from the
+    database.
+
+    Args:
+        prefix: The network in CIDR notation.
+        create: Whether a Prefix may be created when Nautobot holds none, which a run strict about
+            Prefixes does not allow. One already there is adopted either way.
+        logger: Logger to use for messaging.
+
+    Returns:
+        Prefix: When the Prefix is created or adopted.
+        None: When Nautobot holds none and none may be created, or Nautobot refuses it.
+    """
+    existing = get_prefix(prefix)
+    if existing is not None:
+        try:
+            tag_object(nautobot_object=existing, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        except (DjangoBaseDBError, ValidationError) as err:
+            if logger:
+                logger.error("Unable to mark the Prefix %s as synced. Error: %s", prefix, err)
+        return existing
+    if not create:
+        return None
+    network = ipaddress.ip_network(prefix)
+    prefix_obj = Prefix(
+        network=str(network.network_address),
+        prefix_length=network.prefixlen,
+        namespace=get_global_namespace(),
+        type=PrefixTypeChoices.TYPE_NETWORK,
+        status=get_status_for_model(Prefix, "Active"),
+    )
+    stamp_synced(prefix_obj, LAST_SYNCHRONIZED_CF_NAME)
+    try:
+        prefix_obj.validated_save()
+        prefix_obj.tags.add(synced_tag_for(prefix_obj))
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error("Unable to create a Prefix of %s. Error: %s", prefix, err)
+        return None
+    return prefix_obj
+
+
+def resolve_prefix_location(location_name: str, pending: Optional[Any] = None) -> Optional[Location]:
+    """Return the Location a Prefix is seen at, from this run's queue or from Nautobot."""
+    if pending is not None:
+        queued = pending.find(Location, location_name)
+        if queued is not None:
+            return queued
+    return get_location_object(location_name)
+
+
+def add_prefix_location(
+    prefix: str,
+    location_name: str,
+    logger: Optional[logging.Logger] = None,
+    pending: Optional[Any] = None,
+) -> bool:
+    """Record that a Prefix is seen at a Location.
+
+    The Location's type is made to permit Prefixes first, as it is for VLANs, since a Location
+    cannot hold a Prefix its type does not list and Nautobot does not check that on the way in.
+
+    Args:
+        prefix: The network in CIDR notation.
+        location_name: Name of the Location.
+        logger: Logger to use for messaging.
+        pending: When given, the assignment is queued for a batched write rather than saved, and
+            is where a Location queued earlier in the run is looked for.
+
+    Returns:
+        bool: Whether the assignment was written or queued.
+    """
+    prefix_obj = get_prefix(prefix)
+    if prefix_obj is None:
+        if logger:
+            logger.error("Unable to find a Prefix of %s to record at the Location named %s", prefix, location_name)
+        return False
+    location_obj = resolve_prefix_location(location_name, pending=pending)
+    if location_obj is None:
+        # Not reported here: one missing site would be named once for every Prefix seen at it. The
+        # caller counts these and reports them once.
+        return False
+    allow_at_location_type(location_obj.location_type_id, Prefix)
+    if pending is not None:
+        pending.add_through(PrefixLocationAssignment(prefix=prefix_obj, location=location_obj))
+        return True
+    try:
+        prefix_obj.locations.add(location_obj)
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error(
+                "Unable to record the Prefix %s at the Location named %s. Error: %s", prefix, location_name, err
+            )
+        return False
+    return True
+
+
+def remove_prefix_location(prefix: str, location_name: str, logger: Optional[logging.Logger] = None) -> bool:
+    """Stop recording a Prefix at a Location. Neither the Prefix nor the Location is removed."""
+    prefix_obj = get_prefix(prefix)
+    location_obj = get_location_object(location_name)
+    if prefix_obj is None or location_obj is None:
+        if logger:
+            logger.error(
+                "Unable to find the Prefix %s at the Location named %s to stop recording it there",
+                prefix,
+                location_name,
+            )
+        return False
+    prefix_obj.locations.remove(location_obj)
     return True
 
 

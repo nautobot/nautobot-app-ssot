@@ -4,6 +4,7 @@
 # The adapter carries the job's options  #  pylint: disable=too-many-instance-attributes
 """DiffSync adapter class for Nautobot as source-of-truth."""
 
+import ipaddress
 from collections import defaultdict
 from typing import Any, ClassVar, Dict, List, Optional
 
@@ -14,7 +15,7 @@ from django.db.models import ProtectedError
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Device, Location
 from nautobot.extras.models import Tag
-from nautobot.ipam.models import VLAN, VRF, Interface, RouteTarget, VRFDeviceAssignment
+from nautobot.ipam.models import VLAN, VRF, Interface, Prefix, RouteTarget, VRFDeviceAssignment
 from netutils.mac import mac_to_format
 
 import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
@@ -28,6 +29,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     INTERFACE_L2_CF_NAME,
     INTERFACE_REASON_CF_NAME,
     PSEUDO_MANAGEMENT_INTERFACE_NAME,
+    SAFE_DELETE_PREFIX_STATUS,
     SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
@@ -49,6 +51,8 @@ DELETE_BATCH_SIZE = 1000
 DELETE_ORDER = (
     "_cable",
     "_ipaddress",
+    # After the addresses, since Nautobot will not delete a Prefix that still holds any.
+    "_prefix",
     "_vlan",
     "_interface",
     "_vrfdeviceassignment",
@@ -61,6 +65,12 @@ DELETE_ORDER = (
 # How many rows bulk mode will hold before writing them. Without a ceiling a sync of a hundred
 # thousand Interfaces would keep every one of them, and their addresses, in memory until the end.
 PENDING_WRITE_HIGH_WATER = 5000
+
+
+def network_order(prefix: str):
+    """Sort key putting networks in address order, IPv4 before IPv6, since the two do not compare."""
+    network = ipaddress.ip_network(prefix)
+    return network.version, network
 
 
 def delete_objects(queued_deletions: List, logger):
@@ -180,7 +190,34 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             # later run objects whose rows were rolled back.
             job_scoped_cache.clear_all()
         self.report_safe_delete_tally()
+        self.report_prefix_findings()
         return super().sync_complete(source, *args, **kwargs)
+
+    def report_prefix_findings(self):
+        """Report what being strict about Prefixes held back, and the Locations no Prefix could be recorded at."""
+        if self.prefixes_not_created:
+            self.job.logger.warning(
+                "Not creating %d Prefixes IP Fabric reports, as Nautobot holds none of them and this run "
+                "is strict about Prefixes: %s",
+                len(self.prefixes_not_created),
+                ", ".join(sorted(self.prefixes_not_created, key=network_order)),
+            )
+            self.prefixes_not_created.clear()
+        if self.addresses_outside_every_prefix:
+            self.job.logger.warning(
+                "Not syncing %d addresses, as no Prefix Nautobot holds covers them and this run is "
+                "strict about Prefixes: %s",
+                len(self.addresses_outside_every_prefix),
+                ", ".join(sorted(self.addresses_outside_every_prefix)),
+            )
+            self.addresses_outside_every_prefix.clear()
+        for location_name, count in sorted(self.prefix_locations_not_found.items()):
+            self.job.logger.warning(
+                "Not recording %d Prefixes at the Location named %s, as Nautobot holds no Location of that name.",
+                count,
+                location_name,
+            )
+        self.prefix_locations_not_found.clear()
 
     def report_safe_delete_tally(self):
         """Report what Safe Delete Mode did, one line per object type and outcome."""
@@ -604,6 +641,40 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 )
             )
 
+    def load_prefixes(self):
+        """Add the Prefixes this integration created or adopted as DiffSync Prefix models.
+
+        Scoped to the ones carrying the sync's Tag, as Route Targets are, rather than every Prefix
+        in the Global Namespace. Prefixes are the shape another IPAM system governs, and loading
+        all of them would have this sync delete every Prefix IP Fabric does not report the moment
+        Prefixes were selected. One IP Fabric reports that is absent here is adopted rather than
+        duplicated when it is created.
+
+        A Prefix's status is reported as Active unless it is the one Safe Delete Mode marks it with,
+        since IP Fabric reports no status of its own: a Prefix held as Reserved is left so, while
+        one this sync marked is restored when IP Fabric reports it again.
+
+        Each Location a loaded Prefix is recorded at is loaded as well, network wide like the Prefix,
+        so that a Location filtered run does not take a Prefix out of the Locations it cannot see.
+        """
+        prefixes = (
+            Prefix.objects.filter(namespace=tonb_utils.get_global_namespace(), tags=self.ssot_tag)
+            .select_related("status")
+            .prefetch_related("locations")
+        )
+        for prefix_record in prefixes:
+            prefix = ipaddress.ip_network(str(prefix_record.prefix)).with_prefixlen
+            status = prefix_record.status.name if prefix_record.status else "Active"
+            self.add(
+                self.network_wide(
+                    self.prefix,
+                    prefix=prefix,
+                    status=status if status == SAFE_DELETE_PREFIX_STATUS else "Active",
+                )
+            )
+            for location in prefix_record.locations.all():
+                self.add(self.network_wide(self.prefix_location, prefix=prefix, location_name=location.name))
+
     def get_initial_location(self, ssot_tag: Tag):
         """Identify the location objects based on user defined job inputs.
 
@@ -635,6 +706,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             self.load_route_targets()
         if self.scope.vrfs:
             self.load_vrfs()
+        if self.scope.prefixes:
+            self.load_prefixes()
 
         location_objects = self.get_initial_location(self.ssot_tag)
         # The parent object that stores all children, is the Location.

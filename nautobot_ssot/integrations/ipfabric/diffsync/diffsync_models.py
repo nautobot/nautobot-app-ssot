@@ -27,6 +27,7 @@ from nautobot.dcim.models import (
 )
 from nautobot.extras.models import Tag
 from nautobot.ipam.models import VLAN, IPAddress
+from nautobot.ipam.models import Prefix as NautobotPrefix
 from nautobot.ipam.models import RouteTarget as NautobotRouteTarget
 
 import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
@@ -45,6 +46,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SAFE_DELETE_DEVICE_STATUS,
     SAFE_DELETE_IPADDRESS_STATUS,
     SAFE_DELETE_LOCATION_STATUS,
+    SAFE_DELETE_PREFIX_STATUS,
     SAFE_DELETE_VLAN_STATUS,
     SAFE_DELETE_VRF_STATUS,
     SYNC_IPF_DEV_TYPE_TO_ROLE,
@@ -950,6 +952,11 @@ class InterfaceAddress(DiffSyncExtras):
         device, interface = cls.find_interface(adapter, ids["device_name"], ids["interface_name"])
         if interface is None:
             return None
+        address = f"{ids['host']}/{attrs['mask_length']}"
+        if adapter.strict.prefixes and not tonb_nbutils.covering_prefix_exists(address):
+            # A Prefix created here would hide the unaccounted address space strict mode is meant to surface.
+            adapter.addresses_outside_every_prefix.append(f"{address} on {ids['device_name']}:{ids['interface_name']}")
+            return None
         address_object = tonb_nbutils.create_ip(
             ip_address=ids["host"],
             mask_length=attrs["mask_length"],
@@ -1530,6 +1537,117 @@ class InterfaceVrf(DiffSyncExtras):
             logger=self.adapter.job.logger,
             pending=self.adapter.pending,
         ):
+            return None
+        return super().delete()
+
+
+class Prefix(DiffSyncExtras):
+    """Prefix model.
+
+    Top level and first, so the addresses written under each Interface land in a synced Prefix
+    rather than one created for them. The Locations a Prefix is seen at are a separate model, written
+    after the Locations themselves.
+
+    Identified by the network in CIDR notation, which is unique within the Global Namespace. The
+    Nautobot adapter reports any status other than the Safe Delete Mode one as Active, so a Prefix's
+    own status is left alone.
+    """
+
+    _modelname = "prefix"
+    _identifiers = ("prefix",)
+    _attributes = ("status",)
+
+    prefix: str
+    status: str = "Active"
+
+    @classmethod
+    @tonb_nbutils.deferred_change_logging()
+    def create(cls, adapter, ids, attrs):
+        """Create a Prefix in Nautobot's Global Namespace, or adopt the one already there.
+
+        Strict about Prefixes, one already there is adopted and none is created. A network Nautobot
+        does not hold is recorded instead, and reported with the others once the sync is over.
+        """
+        create = not adapter.strict.prefixes
+        if tonb_nbutils.create_prefix(ids["prefix"], create=create, logger=adapter.job.logger) is None:
+            if not create:
+                adapter.prefixes_not_created.add(ids["prefix"])
+            return None
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def update(self, attrs):
+        """Restore a Prefix Safe Delete Mode marked, now that IP Fabric reports it again.
+
+        Status is the only attribute and both sides report it as Active otherwise, so this is the only
+        update a Prefix gets.
+        """
+        prefix_obj = tonb_nbutils.get_prefix(self.prefix)
+        if prefix_obj is None:
+            self.adapter.job.logger.error("Unable to find a Prefix of %s to update", self.prefix)
+            return None
+        prefix_obj.status = tonb_nbutils.get_status_for_model(NautobotPrefix, "Active")
+        prefix_obj.tags.remove(self.adapter.safe_delete_tag)
+        try:
+            # Calls validated_save() on the object.
+            tonb_nbutils.tag_object(nautobot_object=prefix_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        except (DjangoBaseDBError, ValidationError) as err:
+            self.adapter.job.logger.error("Unable to update the Prefix %s with %s. Error: %s", self.prefix, attrs, err)
+            return None
+        return super().update(attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def delete(self) -> Optional["DiffSyncModel"]:
+        """Delete a Prefix IP Fabric no longer reports.
+
+        Nautobot refuses to delete a Prefix that still holds addresses. That refusal is logged when
+        the queued deletions run, and the Prefix stays.
+        """
+        prefix_obj = tonb_nbutils.get_prefix(self.prefix)
+        if prefix_obj is None:
+            self.adapter.job.logger.error("Unable to find a Prefix of %s to delete", self.prefix)
+            return None
+        self.safe_delete(prefix_obj, SAFE_DELETE_PREFIX_STATUS, self.adapter.safe_delete_tag)
+        return super().delete()
+
+
+class PrefixLocation(DiffSyncExtras):
+    """The record that a Prefix is seen at a Location.
+
+    A model of its own rather than a list on the Prefix, for when it can be written: the Prefix has
+    to exist before the addresses under it, which are written with their Location, and the Location
+    may only be created by this same run. Top level and after the Location tree, it is written once
+    both are there. As a model of its own each pair also diffs alone, so a network newly seen at one
+    more site reports that one assignment rather than the Prefix's whole set.
+
+    Carries no attributes, and removing one deletes nothing: the Prefix and the Location both remain,
+    so Safe Delete Mode does not apply.
+    """
+
+    _modelname = "prefix_location"
+    _identifiers = ("prefix", "location_name")
+
+    prefix: str
+    location_name: str
+
+    @classmethod
+    @tonb_nbutils.deferred_change_logging()
+    def create(cls, adapter, ids, attrs):
+        """Record a Prefix at a Location in Nautobot."""
+        if ids["prefix"] in adapter.prefixes_not_created:
+            # Already reported as a network this run was not allowed to create.
+            return None
+        if not tonb_nbutils.add_prefix_location(
+            ids["prefix"], ids["location_name"], logger=adapter.job.logger, pending=adapter.pending
+        ):
+            adapter.prefix_locations_not_found[ids["location_name"]] += 1
+            return None
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def delete(self) -> Optional["DiffSyncModel"]:
+        """Stop recording a Prefix at a Location IP Fabric no longer sees it at."""
+        if not tonb_nbutils.remove_prefix_location(self.prefix, self.location_name, logger=self.adapter.job.logger):
             return None
         return super().delete()
 
