@@ -190,6 +190,17 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
         requires=("interfaces", "device_vrfs"),
     ),
     SyncableObject(
+        key="interface_vlans",
+        label="Sync Interface VLANs",
+        description=(
+            "Record each switchport's 802.1Q mode and the VLANs it carries, from the switchport "
+            "table IP Fabric reports. Needs the VLANs themselves, since Nautobot refuses an "
+            "Interface a VLAN that is not available at its Device's Location."
+        ),
+        default=False,
+        requires=("interfaces", "vlans"),
+    ),
+    SyncableObject(
         key="cables",
         label="Sync Cables",
         description=(

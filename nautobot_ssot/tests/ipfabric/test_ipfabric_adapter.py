@@ -67,13 +67,20 @@ def mock_ipfabric_client():
     return ipfabric_client
 
 
-def build_adapter(client=None, logger=None, strict=("ip_addresses",), **scope_kwargs):
+def build_adapter(client=None, logger=None, strict=("ip_addresses",), debug=True, **scope_kwargs):
     """Return a loaded IPFabricDiffSync over the JSON fixtures, scoped by `scope_kwargs`.
 
     `strict` names the object types the run may not create, defaulting to the form's own default.
+
+    `debug` mirrors the job option, for the messages the sync only writes when it is on. On by
+    default: an unset `debug` on a Job instance reads back the `BooleanVar` describing the option
+    rather than a boolean, which is truthy, so every test here has always run with it on. Set here
+    so that a test reads what it says rather than that accident, and left on so the debug messages
+    stay exercised.
     """
     job = IpFabricDataSource()
     job.job_result = JobResult.objects.create(name=job.class_path, task_name="fake task", worker="default")
+    job.debug = debug
     if logger is not None:
         job.logger = logger
     adapter = IPFabricDiffSync(

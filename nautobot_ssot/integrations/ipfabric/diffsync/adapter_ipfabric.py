@@ -1,6 +1,4 @@
 # pylint: disable=duplicate-code
-# The adapter carries an index per table it reads ahead.
-# pylint: disable=too-many-instance-attributes
 # One module reads every IP Fabric table the sync needs.
 # pylint: disable=too-many-lines
 """DiffSync adapter class for Ip Fabric."""
@@ -8,10 +6,11 @@
 import ipaddress
 from collections import Counter, defaultdict
 from itertools import chain
+from typing import Optional
 
 from diffsync import ObjectAlreadyExists
 from diffsync.exceptions import ObjectNotFound
-from nautobot.dcim.choices import InterfaceTypeChoices
+from nautobot.dcim.choices import InterfaceModeChoices, InterfaceTypeChoices
 from nautobot.dcim.constants import NONCONNECTABLE_IFACE_TYPES
 from nautobot.dcim.models import Device
 from nautobot.ipam.models import VLAN
@@ -32,13 +31,16 @@ from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
 from nautobot_ssot.integrations.ipfabric.utilities.cables import canonical_endpoints
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import vlan_group_can_hold
-from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length
+from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length, parse_vlan_ranges
 
 try:
     from ipfabric import IPFClient
 except ImportError:
     IPFClient = None
 
+
+# What a device means by trunking every VLAN, which differs by platform.
+TRUNK_ALL_VLAN_RANGES = ("1-4094", "1-4095")
 
 device_serial_max_length = Device._meta.get_field("serial").max_length
 name_max_length = VLAN._meta.get_field("name").max_length
@@ -118,9 +120,36 @@ def admin_state_of(reported_l1, reported_reason=None):
     return None
 
 
-# pylint: disable=too-many-locals,too-many-nested-blocks,too-many-branches
-class IPFabricDiffSync(DiffSyncModelAdapters):
-    """IPFabric adapter for DiffSync."""
+def vlan_id_of(value) -> Optional[int]:
+    """Return a usable VLAN ID from whatever the switchport table reports, or None."""
+    try:
+        vlan_id = int(value)
+    except (TypeError, ValueError):
+        return None
+    return vlan_id if 1 <= vlan_id <= 4094 else None
+
+
+def switchport_vlans(row) -> Optional[tuple]:
+    """Return the Nautobot 802.1Q mode and VLAN IDs a switchport row describes.
+
+    Returns None where IP Fabric reports a mode with no Nautobot equivalent, which the caller
+    reports rather than guessing at. A trunk carrying every VLAN is `tagged-all` rather than four
+    thousand tagged VLANs, which is both what Nautobot means by it and what the device means.
+    """
+    mode = (row.get("mode") or "").strip().lower()
+    if mode == "access":
+        return InterfaceModeChoices.MODE_ACCESS, vlan_id_of(row.get("accVlan")), []
+    if mode == "trunk":
+        native = vlan_id_of(row.get("nativeVlan"))
+        trunk = (row.get("trunkVlan") or "").strip()
+        if trunk in TRUNK_ALL_VLAN_RANGES:
+            return InterfaceModeChoices.MODE_TAGGED_ALL, native, []
+        return InterfaceModeChoices.MODE_TAGGED, native, parse_vlan_ranges(trunk)
+    return None
+
+
+class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-instance-attributes,too-many-public-methods
+    """IPFabric adapter for DiffSync: it carries an index per table it reads ahead."""
 
     def __init__(self, job, sync, client: IPFClient, location_filter, *args, **kwargs):
         """Initialize the NautobotDiffSync."""
@@ -160,6 +189,12 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         # Links IP Fabric reported between subinterfaces, recorded between the ports instead. A set,
         # because the matrix reports each link once from each of its two ends.
         self.links_moved_to_their_ports = set()
+        # Keyed as the Interface models are, so a switchport row can be matched against it.
+        self.access_vlan_by_interface = {}
+        # VLAN IDs a switchport allows that this run has no VLAN for at that Location. Dropped from
+        # what the source reports so the two sides agree, and reported once rather than diffed every
+        # run, which is the treatment an address with no reported subnet mask already gets.
+        self.unreachable_interface_vlans = defaultdict(set)
         # Held because a VRF is network wide while this filter is not, so a filtered run must not
         # delete the VRFs of the sites it cannot see; see `DiffSyncModelAdapters.network_wide`.
         self.location_filter = location_filter
@@ -217,32 +252,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
                 iface_name = canonical_interface_name(iface_name)
 
-            # Only where the port is one this Device reported: the parent has to be a real Interface
-            # for Nautobot to point at, and a name with a dot in it is not proof of one.
-            parent = ipfabric_utils.parent_interface_name(iface_name)
-            if parent is not None and parent not in ports:
-                self.subinterfaces_without_their_port[ipfabric_utils.interface_name_kind(iface_name)] += 1
-                parent = None
-            if parent is not None:
-                self.subinterfaces += 1
-
-            lag = self.lag_by_member.get((iface.get("sn"), iface["intName"]))
-            if lag is not None and IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
-                lag = canonical_interface_name(lag)
-            if lag is not None and parent is not None:
-                # Nautobot refuses a port channel on a virtual Interface, and a subinterface is
-                # one. Reported rather than silently dropped, being a shape nothing expects.
-                self.job.logger.warning(
-                    "Not putting %s on Device %s in port channel %s, as it is configured on %s and "
-                    "so is virtual, which Nautobot does not allow in a port channel.",
-                    iface_name,
-                    iface.get("hostname"),
-                    lag,
-                    parent,
-                )
-                lag = None
-            if lag is not None:
-                self.lag_members += 1
+            parent, lag = self.interfaces_related_to(iface, iface_name, ports)
 
             enabled = admin_state_of(iface.get("l1"), iface.get("reason"))
             if enabled is None:
@@ -303,6 +313,55 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             # the Nautobot adapter reports none either and what it holds is left alone.
             if self.scope.ip_addresses:
                 self.load_interface_addresses(interface, iface, iface_name, device_primary_ips)
+            if self.scope.interface_vlans:
+                self.note_addressed_vlan(iface, interface.device_name, iface_name)
+
+    def interfaces_related_to(self, iface, iface_name, ports):
+        """Return the names of the port an Interface is configured on and the port channel it is in.
+
+        Either is None where there is none to set, and the counts behind the job's summary are kept
+        as they are resolved.
+        """
+        # Only where the port is one this Device reported: the parent has to be a real Interface
+        # for Nautobot to point at, and a name with a dot in it is not proof of one.
+        parent = ipfabric_utils.parent_interface_name(iface_name)
+        if parent is not None and parent not in ports:
+            self.subinterfaces_without_their_port[ipfabric_utils.interface_name_kind(iface_name)] += 1
+            parent = None
+        if parent is not None:
+            self.subinterfaces += 1
+
+        lag = self.lag_by_member.get((iface.get("sn"), iface["intName"]))
+        if lag is not None and IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
+            lag = canonical_interface_name(lag)
+        if lag is not None and parent is not None:
+            # Nautobot refuses a port channel on a virtual Interface, and a subinterface is
+            # one. Reported rather than silently dropped, being a shape nothing expects.
+            self.job.logger.warning(
+                "Not putting %s on Device %s in port channel %s, as it is configured on %s and "
+                "so is virtual, which Nautobot does not allow in a port channel.",
+                iface_name,
+                iface.get("hostname"),
+                lag,
+                parent,
+            )
+            lag = None
+        if lag is not None:
+            self.lag_members += 1
+        return parent, lag
+
+    def note_addressed_vlan(self, iface, device_name, iface_name) -> None:
+        """Record the VLAN the managed address table reports for an addressed Interface.
+
+        An Interface with an address in a VLAN is in that VLAN, and the switchport table does not
+        cover a routed interface such as an SVI. Read here because this is where the Interface's
+        serial and its canonical name are both known.
+        """
+        for record in self.addresses_by_interface.get((iface.get("sn"), iface["intName"]), ()):
+            vlan_id = vlan_id_of(record.get("vlanId"))
+            if vlan_id is not None:
+                self.access_vlan_by_interface[(device_name, iface_name)] = vlan_id
+                return
 
     def load_lag_membership(self):
         """Index the port channel each Interface belongs to, from IP Fabric's member status table.
@@ -662,6 +721,127 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         if self.scope.interface_vrfs:
             self.load_interface_vrfs()
 
+    def load_interface_vlans(self):
+        """Add each switchport's 802.1Q mode and VLANs as DiffSync InterfaceVlan models.
+
+        Only Interfaces this run loaded are covered, for the reason the VRFs are: an Interface the
+        sync never saw would be reported as absent from Nautobot on every run.
+        """
+        rows = self.client.technology.interfaces.switchport.all(
+            columns=["sn", "hostname", "intName", "mode", "accVlan", "nativeVlan", "trunkVlan"]
+        )
+        unreadable_modes = Counter()
+        for row in rows:
+            device_name, interface_name = row.get("hostname"), row.get("intName")
+            if not device_name or not interface_name:
+                continue
+            if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
+                interface_name = canonical_interface_name(interface_name)
+            try:
+                self.get(self.interface, {"name": interface_name, "device_name": device_name})
+            except ObjectNotFound:
+                if self.job.debug:
+                    self.job.logger.debug(
+                        "Not syncing the VLANs of %s:%s, as no such Interface was loaded",
+                        device_name,
+                        interface_name,
+                    )
+                continue
+            switchport = switchport_vlans(row)
+            if switchport is None:
+                unreadable_modes[row.get("mode")] += 1
+                continue
+            mode, untagged_vid, tagged_vids = switchport
+            untagged_vid, tagged_vids = self.vlans_this_run_can_reach(
+                device_name, interface_name, untagged_vid, tagged_vids
+            )
+            try:
+                self.add(
+                    self.interface_vlan(
+                        adapter=self,
+                        device_name=device_name,
+                        interface_name=interface_name,
+                        mode=mode,
+                        untagged_vid=untagged_vid,
+                        tagged_vids=tagged_vids,
+                    )
+                )
+            except ObjectAlreadyExists:
+                self.job.logger.warning("Duplicate Interface VLAN discovered, %s:%s", device_name, interface_name)
+        if self.unreachable_interface_vlans:
+            dropped = sorted({vid for vids in self.unreachable_interface_vlans.values() for vid in vids})
+            self.job.logger.warning(
+                "Not putting %d Interfaces in the VLANs %s that their switchports allow: this run "
+                "loaded no VLAN with those IDs at their Locations, which is ordinary under a "
+                "Location filter. The Interfaces are synced with the VLANs that are there.",
+                len(self.unreachable_interface_vlans),
+                ", ".join(str(vid) for vid in dropped),
+            )
+        for reported_mode, count in sorted(unreadable_modes.items(), key=lambda item: str(item[0])):
+            self.job.logger.warning(
+                "Not syncing the VLANs of %d Interfaces, as IP Fabric reports a switchport mode of "
+                "%s, which has no Nautobot equivalent.",
+                count,
+                reported_mode or "nothing",
+            )
+        self.load_addressed_interface_vlans()
+
+    def vlans_this_run_can_reach(self, device_name, interface_name, untagged_vid, tagged_vids):
+        """Drop the VLAN IDs this run has no VLAN for at the Interface's Location.
+
+        A trunk names the VLANs the port allows, which can include one configured at another site,
+        or one IP Fabric reports no VLAN row for. Nothing can point an Interface at a VLAN that is
+        not there, so reporting it would leave the difference diffed on every run and never applied.
+        Dropped here instead, so that both sides describe the same set and the sync settles.
+        """
+        try:
+            device = self.get(self.device, {"name": device_name})
+        except ObjectNotFound:
+            return untagged_vid, tagged_vids
+        location = device.location_name
+
+        def reachable(vid):
+            try:
+                self.get(self.vlan, {"vid": vid, "location": location})
+            except ObjectNotFound:
+                self.unreachable_interface_vlans[(device_name, interface_name)].add(vid)
+                return False
+            return True
+
+        kept = [vid for vid in tagged_vids if reachable(vid)]
+        if untagged_vid is not None and not reachable(untagged_vid):
+            untagged_vid = None
+        return untagged_vid, kept
+
+    def load_addressed_interface_vlans(self):
+        """Add the VLAN an addressed Interface sits in, where no switchport row covers it.
+
+        The switchport table describes switchports; a routed interface such as an SVI is not one,
+        and the managed address table is where IP Fabric says which VLAN it is in. The switchport
+        table wins where both speak, since it is the direct statement of the port's configuration.
+        """
+        for (device_name, interface_name), vlan_id in self.access_vlan_by_interface.items():
+            try:
+                self.get(self.interface_vlan, {"device_name": device_name, "interface_name": interface_name})
+            except ObjectNotFound:
+                pass
+            else:
+                continue
+            try:
+                self.get(self.interface, {"name": interface_name, "device_name": device_name})
+            except ObjectNotFound:
+                continue
+            self.add(
+                self.interface_vlan(
+                    adapter=self,
+                    device_name=device_name,
+                    interface_name=interface_name,
+                    mode=InterfaceModeChoices.MODE_ACCESS,
+                    untagged_vid=vlan_id,
+                    tagged_vids=[],
+                )
+            )
+
     def load_interface_vrfs(self):
         """Add the VRF each Interface is in as DiffSync InterfaceVrf models.
 
@@ -771,22 +951,28 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             for vlan in self.client.fetch_all("tables/vlan/site-summary"):
                 vlans_by_location[vlan["siteName"]].append(vlan)
 
-        if self.scope.ip_addresses:
+        # The managed address table carries the VLAN an addressed Interface sits in as well as the
+        # address itself, and the switchport table does not cover a routed Interface such as an SVI.
+        # So it is read for either, or an SVI's VLAN would be absent from the source while the
+        # Nautobot side still reported it, and the difference would clear what an earlier run wrote.
+        if self.scope.ip_addresses or self.scope.interface_vlans:
             # No filter on `type`: a secondary address is configured on the device and renders into
             # its configuration, so it belongs in Nautobot alongside the primary one.
             # Only the columns the sync reads: these are the largest requests the job makes, and
             # every row of two unfiltered tables carries each one asked for.
-            ip_columns = ["sn", "intName", "net", "ip"]
+            ip_columns = ["sn", "intName", "net", "ip", "vlanId"]
             for table in (
                 self.client.technology.addressing.managed_ip_ipv4,
                 self.client.technology.addressing.managed_ip_ipv6,
             ):
                 for ip_address in table.all(columns=ip_columns):
-                    reported_addresses.append(ip_address)
+                    if self.scope.ip_addresses:
+                        reported_addresses.append(ip_address)
                     self.index_by_interface(ip_address)
-            for virtual in self.fhrp_addresses():
-                self.index_by_interface(virtual)
-            self.prefix_length_by_address = prefix_lengths_by_address(reported_addresses, logger=self.job.logger)
+            if self.scope.ip_addresses:
+                for virtual in self.fhrp_addresses():
+                    self.index_by_interface(virtual)
+                self.prefix_length_by_address = prefix_lengths_by_address(reported_addresses, logger=self.job.logger)
 
         # Get all interfaces for devices
         if self.scope.interfaces:
@@ -802,7 +988,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
             stacks[stack["sn"]].append(stack)
         return vlans_by_location, stacks, interfaces
 
-    def load(self):  # pylint: disable=too-many-locals,too-many-statements
+    def load(self):  # pylint: disable=too-many-locals,too-many-statements,too-many-branches
         """Load data from IP Fabric."""
         self.load_sites()
         vlans_by_location, stacks, interfaces = self.load_data()
@@ -933,9 +1119,13 @@ class IPFabricDiffSync(DiffSyncModelAdapters):
         if self.scope.vrfs:
             self.load_vrfs()
 
+        if self.scope.interface_vlans:
+            self.load_interface_vlans()
+
         # Read only while loading, and it holds a record per address, so it is not carried into the
         # diff and sync phases where both adapters' models are already resident.
         self.addresses_by_interface.clear()
+        self.access_vlan_by_interface.clear()
 
         if self.pseudo_management_interfaces:
             self.job.logger.info(
@@ -1155,7 +1345,7 @@ def agreed_targets(by_device):
     return sorted(next(iter(reported), frozenset())), False
 
 
-def reconcile_vrfs(detail_rows, target_rows):
+def reconcile_vrfs(detail_rows, target_rows):  # pylint: disable=too-many-locals
     """Return the network wide value of each VRF's attributes, keyed by VRF name.
 
     IP Fabric reports a route distinguisher per device and route targets per device and address

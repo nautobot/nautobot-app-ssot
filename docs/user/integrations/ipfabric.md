@@ -349,6 +349,56 @@ A subinterface is never put in a port channel: Nautobot refuses one on a virtual
 subinterface is virtual. Where IP Fabric reports one as a member, the membership is left off and the
 job names the interface, since it is a shape nothing expects.
 
+## Interface VLANs
+
+**Sync Interface VLANs** records each switchport's 802.1Q mode and the VLANs it carries. It is off by
+default and needs **Sync VLANs** and **Sync Interfaces**, since Nautobot refuses an Interface a VLAN
+that is not available at its Device's Location.
+
+Two IP Fabric tables feed it. `Technology > Interfaces > Switchport` describes the switchports:
+
+| IP Fabric reports | Nautobot 802.1Q mode | Untagged VLAN | Tagged VLANs |
+| ----------------- | -------------------- | ------------- | ------------ |
+| `access`          | Access               | the access VLAN | N/A |
+| `trunk`, allowing every VLAN | Tagged (All) | the native VLAN | N/A |
+| `trunk`           | Tagged               | the native VLAN | the VLANs it allows |
+
+A trunk allowing every VLAN reports `1-4094` or `1-4095` depending on the platform, and is recorded
+as **Tagged (All)** rather than as four thousand tagged VLANs, which is both what Nautobot means by
+the mode and what the device means. Any other trunk list is parsed the way the configuration writes
+it, so `110-119,999` becomes the eleven VLANs it names.
+
+`Technology > Addressing > Managed IP` covers what the switchport table does not: a routed interface
+such as an SVI is not a switchport, and the address table is where IP Fabric names the VLAN it sits
+in. Such an interface is recorded as **Access** on that VLAN. Where both tables describe the same
+interface the switchport table wins, being the direct statement of the port's configuration.
+
+### What it will not do
+
+A VLAN ID with no VLAN at the Interface's Location is reported in the job log and left off the
+Interface, because Nautobot has nothing to point it at. Under a **Site Filter** that is ordinary
+rather than a fault: the run covers one site's VLANs, and a trunk may allow another site's.
+
+A switchport mode with no Nautobot equivalent is counted and reported, once per mode rather than
+once per interface, and those interfaces are left alone.
+
+Voice VLANs are not synced. IP Fabric reports one, but Nautobot has no distinct field for it.
+
+**A VLAN the run has no row for is left off.** A trunk names the VLANs the port allows, and that can
+include one configured at another site or one IP Fabric reports no VLAN for. An interface cannot be
+put in a VLAN that is not there, so those IDs are left out of what the sync asks for and reported as
+a count once per run. The interface is still synced with the VLANs that are there. This is ordinary
+under a Location filter, where the run covers one site's VLANs while a trunk may name another's.
+
+**The VLAN an addressed interface sits in is read whether or not IP Addresses are in scope.** The
+managed address table carries both, and a routed interface such as an SVI has no switchport row, so
+selecting **Sync Interface VLANs** reads that table even with **Sync IP Addresses** off. No address
+is synced by it. Without that the sync would report nothing for an SVI while Nautobot still held
+one, and the difference would clear what an earlier run wrote.
+
+An Interface that IP Fabric stops reporting as a switchport has its mode and VLANs cleared. Nothing
+is deleted, the Interface and the VLANs both remain, so **Safe Delete Mode** does not apply.
+
 ## How a VLAN is identified
 
 A VLAN is identified by its **VLAN ID at a Location**. The name is an attribute, not part of the
