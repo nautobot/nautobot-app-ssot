@@ -47,6 +47,12 @@ INTERFACE_NAME_TYPES = (
     (r"lo(opback)?\d", "virtual"),
     (r"tu(nnel)?\d", "virtual"),
     (r"vx(lan)?\d", "virtual"),
+    # Logical interfaces in forms the patterns above miss: Junos tunnel and service interfaces
+    # (`gr-0/0/0`), Junos pseudo-interfaces (`st0`, `irb`), `Null0` and Linux `tun0`. Bare names are
+    # matched whole so a port that merely starts with those letters isn't caught.
+    (r"(gr|ip|lt|mt|sp|lsq|vt)-\d", "virtual"),
+    (r"(st|fti|ppd?|ppe|null|tun)\d", "virtual"),
+    (r"(gre|ipip|irb|lsi|dsc|mtun|pim[de]|tap|vlan|lo|loopback|tunnel)(\.\d+)?$", "virtual"),
     (r"fa(stethernet)?\d", "100base-tx"),
     (r"gi(gabitethernet)?\d", "1000base-t"),
     (r"te(ngigabitethernet)?\d", "10gbase-x-sfpp"),
