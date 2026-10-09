@@ -135,6 +135,53 @@ class TestUtils(SimpleTestCase):  # pylint: disable=too-many-public-methods
         self.assertEqual("virtual", utils.convert_media_type("", "Vxlan1"))
         self.assertEqual("virtual", utils.convert_media_type("", "Vx1"))
 
+    def test_logical_interfaces_with_no_port_are_virtual(self):
+        """Names IP Fabric reports with no media type, which name no port on any platform."""
+        names = (
+            # Junos tunnel and service interfaces, numbered by the slot hosting them.
+            "gr-0/0/0",
+            "ip-0/0/0",
+            "lt-0/0/0",
+            "mt-0/0/0",
+            "sp-0/0/0",
+            "lsq-0/0/0",
+            "vt-0/0/0",
+            "gr-0/0/0.0",
+            # Junos pseudo-interfaces, numbered or named alone, with or without a unit.
+            "st0",
+            "st0.0",
+            "fti0",
+            "pp0",
+            "ppd0",
+            "ppe0",
+            "gre",
+            "ipip",
+            "irb",
+            "irb.100",
+            "lsi",
+            "dsc",
+            "mtun",
+            "pimd",
+            "pime",
+            "tap",
+            "VLAN",
+            "lo",
+            "Loopback",
+            "Tunnel",
+            # The discard interface and a Linux tunnel device.
+            "Null0",
+            "tun0",
+        )
+        for name in names:
+            with self.subTest(name=name):
+                self.assertEqual("virtual", utils.convert_media_type(None, name))
+
+    def test_ports_sharing_those_letters_are_not_taken_for_virtual(self):
+        """A physical port the name table does not know stays unresolved rather than turning virtual."""
+        for name in ("fxp0", "em0", "ge-0/0/0", "eth0", "port1", "Management0", "MgmtEth0/RP0/CPU0/0", "lan-10.4.0.50"):
+            with self.subTest(name=name):
+                self.assertIsNone(utils.convert_media_type(None, name))
+
     def test_interface_name_fastethernet(self):
         self.assertEqual("100base-tx", utils.convert_media_type("", "FastEthernet1"))
         self.assertEqual("100base-tx", utils.convert_media_type("", "Fa1"))

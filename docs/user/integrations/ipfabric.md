@@ -263,6 +263,13 @@ failing that from the interface's name: `Vlan100` is virtual and `Port-channel1`
 not a media type came with them. The media type wins where it resolves, since what the platform
 reports about a port is better evidence than what somebody called it.
 
+A logical interface with no port behind it is virtual by name, since IP Fabric reports no media type
+for one: Junos tunnel and service interfaces numbered by slot, such as `gr-0/0/0`, `lt-0/0/0` and
+`sp-0/0/0`; Junos pseudo-interfaces such as `st0`, `fti0`, `irb`, `vlan`, `gre`, `ipip` and `lsi`;
+`Null0`; and Linux `tun` devices. One Nautobot already holds as `1000base-t` or any other type is
+updated to virtual, and a Cable on it is handled as for
+[a subinterface that holds a Cable](#a-subinterface-that-holds-a-cable).
+
 **Where neither resolves, no type is reported and the one Nautobot holds is left alone.** A
 configured default written in that position would be indistinguishable from a type genuinely
 resolved to that value, and would overwrite a type set by hand or by another source on every run. As
