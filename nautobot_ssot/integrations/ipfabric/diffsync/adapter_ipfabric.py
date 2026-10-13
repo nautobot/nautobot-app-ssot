@@ -1044,6 +1044,10 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
                     "platform": device.family,
                 }
                 base_args["unique_serial"] = device.sn
+                if self.scope.software_versions:
+                    # A Software Version needs a Platform, which comes from the family, so a Device
+                    # with no family has no version to report.
+                    base_args["software_version"] = (device.version or None) if device.family else None
                 if device.sn not in stacks:
                     # `snHw` rather than `sn`: Nautobot documents `serial` as the chassis serial,
                     # while `sn` is the key IP Fabric identifies the Device by. The latter goes to a
@@ -1088,6 +1092,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
                         member_devices.append(args)
 
                 for index, dev in enumerate(member_devices):
+                    if self.scope.software_versions and dev["software_version"] is None:
+                        self.devices_without_a_software_version.add(dev["name"])
                     if dev["serial_number"] is None:
                         # Registered under the name the Device is written with, which the master of
                         # a stack takes only after its member name has been replaced above. The
