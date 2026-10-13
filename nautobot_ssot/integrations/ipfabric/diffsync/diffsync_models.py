@@ -139,6 +139,11 @@ def resolve_virtual_chassis(adapter, name: str):
     return tonb_nbutils.get_virtual_chassis_object(name, logger=adapter.job.logger)
 
 
+def resolve_software_version(adapter, platform_object, version: str):
+    """Return the Nautobot SoftwareVersion of a Platform, creating it if Nautobot holds none."""
+    return tonb_nbutils.get_or_create_software_version(platform_object, version, logger=adapter.job.logger)
+
+
 def resolve_platform(adapter, platform_name: str, manufacturer_object):
     """Return the Nautobot Platform for a family IP Fabric reports.
 
@@ -334,6 +339,7 @@ class Device(DiffSyncExtras):
         "role",
         "status",
         "platform",
+        "software_version",
         "vc_name",
         "vc_priority",
         "vc_position",
@@ -352,6 +358,7 @@ class Device(DiffSyncExtras):
     role: Optional[str] = None
     status: Optional[str] = None
     platform: Optional[str] = None
+    software_version: Optional[str] = None
     vc_name: Optional[str] = None
     vc_priority: Optional[int] = None
     vc_position: Optional[int] = None
@@ -471,6 +478,12 @@ class Device(DiffSyncExtras):
                     f"Unable to create a new Device named {device_name} at Location {location_name}"
                 )
             else:
+                if attrs.get("software_version") and platform_object:
+                    software_version_object = resolve_software_version(
+                        adapter, platform_object, attrs["software_version"]
+                    )
+                    if software_version_object:
+                        new_device.software_version = software_version_object
                 if attrs.get("unique_serial"):
                     # Set before either write, so a queued Device carries it on the insert rather
                     # than needing a second statement to add it.
@@ -569,6 +582,14 @@ class Device(DiffSyncExtras):
                     self.adapter.job.logger.warning(
                         f"Unable to update Device {self.name} with a Platform of {platform_name}"
                     )
+                    return_super = False
+            # Resolved again when the Platform changes too, since a Software Version belongs to one.
+            software_version = attrs.get("software_version", self.software_version)
+            if software_version and ("software_version" in attrs or platform_name) and _device.platform:
+                software_version_object = resolve_software_version(self.adapter, _device.platform, software_version)
+                if software_version_object:
+                    _device.software_version = software_version_object
+                else:
                     return_super = False
 
             location_name = attrs.get("location_name")

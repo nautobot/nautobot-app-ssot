@@ -83,6 +83,7 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         devices_without_a_hardware_serial: Optional[Set[str]] = None,
         interfaces_without_a_type: Optional[Set[Tuple[str, str]]] = None,
         tenant: Optional[Tenant] = None,
+        devices_without_a_software_version: Optional[Set[str]] = None,
         **kwargs,
     ):
         """Initialize the adapter with the object types this run covers.
@@ -123,6 +124,11 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         to existing ones it adopts that have none. Both adapters are given it, as with the other
         controls, so that a run has one answer.
 
+        `devices_without_a_software_version` holds the name of every Device IP Fabric reports no
+        OS version for, or no family to file one under. A Software Version belongs to a Platform,
+        so without one there is nothing to point the Device at. Both adapters report no version
+        for those, leaving the one Nautobot holds alone.
+
         `addresses_without_a_subnet` holds the `(device name, interface name, host)` of every address
         IP Fabric reports no usable subnet for. The IP Fabric adapter fills it while loading and
         reports none of those addresses; the Nautobot adapter is handed it afterwards so that it
@@ -151,6 +157,9 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         # Objects IP Fabric reported that already belong to another Tenant and so were not touched,
         # by model, reported once the sync is over.
         self.objects_of_another_tenant = defaultdict(list)
+        self.devices_without_a_software_version = (
+            set() if devices_without_a_software_version is None else devices_without_a_software_version
+        )
         # VRF names the run's Namespace holds more than one of, which the Nautobot adapter declines
         # to load. Recorded so that `Vrf.create` can decline them because the name is ambiguous,
         # rather than inferring it from the loader having skipped them. Per adapter rather than per

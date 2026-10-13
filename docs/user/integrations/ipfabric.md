@@ -45,6 +45,7 @@ There are several options available.
 - **Sync Device Types**: Create Nautobot Device Types for the models IP Fabric reports. Enabled by default.
 - **Sync Roles**: Create Nautobot Roles from the device types IP Fabric reports. Enabled by default.
 - **Sync Platforms**: Create Nautobot Platforms from the families IP Fabric reports. Enabled by default.
+- **Sync Software Versions**: Record the OS version IP Fabric reports for each Device. Disabled by default. See [Software versions](#software-versions).
 - **Sync Interfaces**: Sync each Device's Interfaces. Enabled by default.
 - **Sync IP Addresses**: Sync the IP Address on each Interface. Enabled by default; requires **Sync Interfaces**.
 - **Sync Primary IP**: Assign a Device's primary IP from IP Fabric. Enabled by default; requires **Sync IP Addresses**. IP Fabric reports the address it logged in with, which is not necessarily the address a CMDB considers the management one.
@@ -104,6 +105,7 @@ Currently, this integration will provide the ability to sync the following IP Fa
 | model              | Device.model         | Device.device_type     |
 | sn                 | Device.serial_number | Device.serial          |
 | devType*           | Device.role          | Device.role            |
+| version            | Device.software_version | Device.software_version (opt in) |
 
 > Note: `devType` is an IP Fabric field that can be used to set the Device role. This can be disabled by setting `ipfabric_sync_ipf_dev_type_to_role` to `False` in the configuration. If this is disabled, the default role will be used for adding new devices and roles will be ignored during diffsync update preventing a custom Nautobot role from being overridden.
 
@@ -241,6 +243,14 @@ than truncated: a serial is an identity, and a prefix of one names no chassis.
 
 Each member of a stack keeps its own serial, since each member is its own chassis. The stack's
 `snHw` describes the master alone.
+
+## Software versions
+
+With **Sync Software Versions** selected, each Device gets the OS version IP Fabric reports for it. Nautobot files a Software Version under a Platform, so the version is looked up, or created, under the Platform the sync gives the Device from IP Fabric's `family`. A version Nautobot already holds for that Platform is used as it is; one the sync creates is marked `Active` and tagged `SSoT Synced from IPFabric`. Software Versions are never deleted by the sync.
+
+A Device IP Fabric reports no version for, or no family, is left with whatever version Nautobot holds. Cloud devices are the usual case: AWS and GCP report no version, and Azure reports one but no family. If a Device's Platform changes, its version is moved to the Software Version of the same name under the new Platform.
+
+The option is off by default, for deployments where software versions are maintained elsewhere.
 
 ## Interface state
 

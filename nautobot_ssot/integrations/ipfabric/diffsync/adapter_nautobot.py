@@ -437,6 +437,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             "virtual_chassis",
             "virtual_chassis__master",
         ]
+        if self.scope.software_versions:
+            related.append("software_version")
         # Only fetch the relations something in scope reads: the primary IP decides whether an
         # Interface holds it, and the Interfaces themselves are only walked when they are in scope.
         prefetch = []
@@ -487,6 +489,14 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             )
             if device_record.platform:
                 device.platform = device_record.platform.name
+            # None where out of scope, or where IP Fabric reported no version to compare with:
+            # see `devices_without_a_software_version`.
+            if (
+                self.scope.software_versions
+                and device_record.software_version
+                and device_record.name not in self.devices_without_a_software_version
+            ):
+                device.software_version = device_record.software_version.version
             if device_record.virtual_chassis:
                 device.vc_name = device_record.virtual_chassis.name
                 device.vc_position = device_record.vc_position

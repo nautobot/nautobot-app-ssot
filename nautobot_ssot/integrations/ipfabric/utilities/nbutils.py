@@ -21,6 +21,7 @@ from nautobot.dcim.models import (
     LocationType,
     Manufacturer,
     Platform,
+    SoftwareVersion,
     VirtualChassis,
 )
 from nautobot.extras.choices import CustomFieldTypeChoices
@@ -422,6 +423,41 @@ def get_or_create_device_type_object(
             f"Unable to get or create a Manufacturer named {vendor_name}, and therefore cannot create a DeviceType {device_type}"
         )
     return None
+
+
+@job_scoped_cache
+def get_or_create_software_version(
+    platform_obj: Platform, version: str, logger: Optional[logging.Logger] = None
+) -> Optional[SoftwareVersion]:
+    """Return the Software Version of a Platform, creating and marking it as synced if there is none.
+
+    An existing version is reused unchanged, whoever created it. Cached because every Device running
+    a release asks the same question. Written directly rather than queued, since a queued Device
+    needs the version's row to point at.
+
+    Returns:
+        SoftwareVersion: When the version is found or created.
+        None: When Nautobot refuses it.
+    """
+    existing = SoftwareVersion.objects.filter(platform=platform_obj, version=version).first()
+    if existing is not None:
+        return existing
+    software_version = SoftwareVersion(
+        platform=platform_obj,
+        version=version,
+        status=get_status_for_model(SoftwareVersion, "Active"),
+    )
+    stamp_synced(software_version, LAST_SYNCHRONIZED_CF_NAME)
+    try:
+        software_version.validated_save()
+        software_version.tags.add(synced_tag_for(software_version))
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error(
+                "Unable to create a Software Version %s for the Platform %s. Error: %s", version, platform_obj, err
+            )
+        return None
+    return software_version
 
 
 @job_scoped_cache
