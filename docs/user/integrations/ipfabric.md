@@ -44,6 +44,7 @@ There are several options available.
 - **Sync Roles**: Create Nautobot Roles from the device types IP Fabric reports. Enabled by default.
 - **Sync Platforms**: Create Nautobot Platforms from the families IP Fabric reports. Enabled by default.
 - **Sync Software Versions**: Record the OS version IP Fabric reports for each Device. Disabled by default. See [Software versions](#software-versions).
+- **Sync Software Images**: Record the image file each Device booted from. Disabled by default; requires **Sync Software Versions**. See [Software images](#software-images).
 - **Sync Interfaces**: Sync each Device's Interfaces. Enabled by default.
 - **Sync IP Addresses**: Sync the IP Address on each Interface. Enabled by default; requires **Sync Interfaces**.
 - **Sync Primary IP**: Assign a Device's primary IP from IP Fabric. Enabled by default; requires **Sync IP Addresses**. IP Fabric reports the address it logged in with, which is not necessarily the address a CMDB considers the management one.
@@ -101,6 +102,7 @@ Currently, this integration will provide the ability to sync the following IP Fa
 | sn                 | Device.serial_number | Device.serial          |
 | devType*           | Device.role          | Device.role            |
 | version            | Device.software_version | Device.software_version (opt in) |
+| image              | Device.software_image   | Device.software_image_files (opt in) |
 
 > Note: `devType` is an IP Fabric field that can be used to set the Device role. This can be disabled by setting `ipfabric_sync_ipf_dev_type_to_role` to `False` in the configuration. If this is disabled, the default role will be used for adding new devices and roles will be ignored during diffsync update preventing a custom Nautobot role from being overridden.
 
@@ -228,6 +230,14 @@ With **Sync Software Versions** selected, each Device gets the OS version IP Fab
 A Device IP Fabric reports no version for, or no family, is left with whatever version Nautobot holds. Cloud devices are the usual case: AWS and GCP report no version, and Azure reports one but no family. If a Device's Platform changes, its version is moved to the Software Version of the same name under the new Platform.
 
 The option is off by default, for deployments where software versions are maintained elsewhere.
+
+### Software images
+
+With **Sync Software Images** selected as well, each Device also gets the image file IP Fabric reports it booted from. IP Fabric reports the image with its location, such as `flash:/c3750e-universalk9-mz.150-2.SE10a.bin`; the sync keeps the file name after the last `/` or `:`, lowercased.
+
+The image is looked up, or created, under the Device's Software Version, and set on the Device. Nautobot only allows an image on a Device when the image is mapped to the Device's Device Type, so the sync adds that mapping for each Device Type it finds running the image. An image the sync creates is marked `Active` and tagged `SSoT Synced from IPFabric`. Images are never deleted by the sync.
+
+The image set on a Device replaces any others it names, so a Device carries the one image IP Fabric reports. A Device with no image reported, or no Software Version, is left as Nautobot holds it, except that when its version changes, any image belonging to another version is removed. Many platforms report no image at all.
 
 ## Interface state
 

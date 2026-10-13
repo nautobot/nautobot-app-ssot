@@ -64,6 +64,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     VRF = apps.get_model("ipam", "VRF")
     RouteTarget = apps.get_model("ipam", "RouteTarget")
     SoftwareVersion = apps.get_model("dcim", "SoftwareVersion")
+    SoftwareImageFile = apps.get_model("dcim", "SoftwareImageFile")
     Tag = apps.get_model("extras", "Tag")
     ContentType = apps.get_model("contenttypes", "ContentType")
     location_type = apps.get_model("dcim", "LocationType")
@@ -100,6 +101,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         VRF,
         RouteTarget,
         SoftwareVersion,
+        SoftwareImageFile,
     ]
     create_custom_field("system_of_record", "System of Record", synced_from_models, apps=apps, cf_type="type_text")
     create_custom_field("last_synced_from_sor", "Last sync from System of Record", synced_from_models, apps=apps)

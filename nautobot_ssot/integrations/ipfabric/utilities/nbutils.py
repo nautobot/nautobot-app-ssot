@@ -15,11 +15,13 @@ from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import (
     Device,
     DeviceType,
+    DeviceTypeToSoftwareImageFile,
     Interface,
     Location,
     LocationType,
     Manufacturer,
     Platform,
+    SoftwareImageFile,
     SoftwareVersion,
     VirtualChassis,
 )
@@ -422,6 +424,61 @@ def get_or_create_software_version(
             )
         return None
     return software_version
+
+
+@job_scoped_cache
+def get_or_create_software_image(
+    software_version: SoftwareVersion,
+    image_file_name: str,
+    device_type: DeviceType,
+    logger: Optional[logging.Logger] = None,
+) -> Optional[SoftwareImageFile]:
+    """Return a Software Version's image file, creating it if there is none, mapped to a Device Type.
+
+    Nautobot refuses an image on a Device unless the image is mapped to the Device's type, so the
+    mapping is made here for every Device Type found running it. An existing image is matched
+    ignoring case, since the name this sync reports is lowercased.
+
+    Returns:
+        SoftwareImageFile: When the image is found or created and mapped.
+        None: When Nautobot refuses either.
+    """
+    image = SoftwareImageFile.objects.filter(
+        software_version=software_version, image_file_name__iexact=image_file_name
+    ).first()
+    try:
+        if image is None:
+            image = SoftwareImageFile(
+                software_version=software_version,
+                image_file_name=image_file_name,
+                status=get_status_for_model(SoftwareImageFile, "Active"),
+            )
+            stamp_synced(image, LAST_SYNCHRONIZED_CF_NAME)
+            image.validated_save()
+            image.tags.add(synced_tag_for(image))
+        DeviceTypeToSoftwareImageFile.objects.get_or_create(device_type=device_type, software_image_file=image)
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error(
+                "Unable to record the Software Image File %s of %s for the Device Type %s. Error: %s",
+                image_file_name,
+                software_version,
+                device_type,
+                err,
+            )
+        return None
+    return image
+
+
+def assign_software_image(device: Device, image: SoftwareImageFile, pending: Optional[Any] = None) -> None:
+    """Make an image the one a Device runs, replacing any other the Device names.
+
+    A queued Device has no row to attach the image to yet, so the join row is queued after it.
+    """
+    if pending is not None and device._state.adding:  # pylint: disable=protected-access
+        pending.add_through(Device.software_image_files.through(device=device, softwareimagefile=image))
+        return
+    device.software_image_files.set([image])
 
 
 @job_scoped_cache
