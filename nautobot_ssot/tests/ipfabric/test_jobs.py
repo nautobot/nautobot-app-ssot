@@ -33,6 +33,7 @@ class IPFabricJobTest(TestCase):
         expected = [
             ("Device", "Device", reverse("dcim:device_list")),
             ("Device OS Version", "Software Version", reverse("dcim:softwareversion_list")),
+            ("Device Image", "Software Image File", reverse("dcim:softwareimagefile_list")),
             ("Location", "Location", reverse("dcim:location_list")),
             ("Interfaces", "Interfaces", reverse("dcim:interface_list")),
             ("IP Addresses", "IP Addresses", reverse("ipam:ipaddress_list")),

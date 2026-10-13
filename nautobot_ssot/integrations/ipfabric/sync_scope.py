@@ -129,6 +129,17 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
         default=False,
     ),
     SyncableObject(
+        key="software_images",
+        label="Sync Software Images",
+        description=(
+            "Record the image file IP Fabric reports each Device booted from, creating the Software "
+            "Image File under the Device's Software Version and mapping it to the Device Type. Off "
+            "by default. A Device with no image reported is left alone."
+        ),
+        default=False,
+        requires=("software_versions",),
+    ),
+    SyncableObject(
         key="interfaces",
         label="Sync Interfaces",
         description="Sync each Device's Interfaces.",

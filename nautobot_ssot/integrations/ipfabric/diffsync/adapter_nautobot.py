@@ -452,6 +452,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
                 prefetch.append("interfaces__ip_addresses__parent")
         elif self.scope.interfaces:
             prefetch.append("interfaces")
+        if self.scope.software_images:
+            prefetch.append("software_image_files")
         if self.scope.interfaces:
             # Each Interface reports the port it hangs off by name, which is one query per
             # Interface without this.
@@ -497,6 +499,14 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
                 and device_record.name not in self.devices_without_a_software_version
             ):
                 device.software_version = device_record.software_version.version
+            if self.scope.software_images and device_record.name not in self.devices_without_a_software_image:
+                device.software_image = (
+                    # Lowercased as the IP Fabric side reports it, since an existing image is matched ignoring case.
+                    ", ".join(
+                        sorted(image.image_file_name.lower() for image in device_record.software_image_files.all())
+                    )
+                    or None
+                )
             if device_record.virtual_chassis:
                 device.vc_name = device_record.virtual_chassis.name
                 device.vc_position = device_record.vc_position
