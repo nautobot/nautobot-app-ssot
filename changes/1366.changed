@@ -1,0 +1,1 @@
+Changed the IP Fabric integration to allow version 8 of the `ipfabric` SDK, so it can connect to IP Fabric 8 servers. A new install now gets SDK 8, which won't connect to an IP Fabric 7 server; installs against IP Fabric 7 need to pin `ipfabric<8`, as described in the IP Fabric setup guide.

@@ -9,7 +9,6 @@ from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectNotCreated
 from django.templatetags.static import static
 from django.urls import reverse
-from httpx import ConnectError
 from ipfabric import IPFClient
 from nautobot.core.forms import DynamicModelChoiceField
 from nautobot.dcim.models import Location
@@ -156,17 +155,23 @@ class IpFabricDataSource(DataSource):
 
     @staticmethod
     def _init_ipf_client():
+        """Return `(client, None)`, or `(None, reason)` when no client can be built.
+
+        The reason is returned rather than logged because the Job form builds a client too, before
+        there is a run to log to. The SDK raises `RuntimeError` when its major version does not
+        match the server's, and an `OSError` subclass for connection and HTTP failures.
+        """
         try:
-            return IPFClient(
+            client = IPFClient(
                 base_url=constants.IPFABRIC_HOST,
                 auth=constants.IPFABRIC_API_TOKEN,
                 verify=constants.IPFABRIC_SSL_VERIFY,
                 timeout=constants.IPFABRIC_TIMEOUT,
                 unloaded=False,
             )
-        except (RuntimeError, ConnectError) as error:
-            print(f"Got an error {error}")
-            return None
+        except (RuntimeError, OSError) as error:
+            return None, str(error)
+        return client, None
 
     @classmethod
     def _get_vars(cls):
@@ -177,7 +182,7 @@ class IpFabricDataSource(DataSource):
         got_vars = super()._get_vars()
 
         if cls.client is None:
-            cls.client = cls._init_ipf_client()
+            cls.client, _ = cls._init_ipf_client()
         else:
             cls.client.update()
 
@@ -276,10 +281,11 @@ class IpFabricDataSource(DataSource):
 
     def sync_data(self, *_args, **_kwargs):
         """Sync a device data from IP Fabric into Nautobot."""
+        error = None
         if self.client is None:
-            self.client = self._init_ipf_client()
+            self.client, error = self._init_ipf_client()
         if self.client is None:
-            self.logger.error("IPFabric client is not ready. Check your config.")
+            self.logger.error("IPFabric client is not ready: %s", error)
             return
 
         # Thread local and shared by every run in this worker. A run that failed part way through

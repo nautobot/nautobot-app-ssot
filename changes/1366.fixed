@@ -1,0 +1,1 @@
+Fixed the IP Fabric job hiding why its IP Fabric client could not be created; the Job log now includes the reason, such as an SDK and server major version mismatch or a connection failure.

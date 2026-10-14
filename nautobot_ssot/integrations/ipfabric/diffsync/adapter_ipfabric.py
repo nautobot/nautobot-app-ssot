@@ -1202,7 +1202,8 @@ def primary_addresses_of(device):
     These are the addresses Nautobot records as the Device's primary ones. `loginIpv4` and
     `loginIpv6` are reported separately, so a dual stack Device names one of each and Nautobot can
     carry a `primary_ip4` and a `primary_ip6` rather than only whichever came first. `loginIp` is the
-    older single column, read where the newer two are absent.
+    older single column, read where the newer two are absent. SDK 8 dropped it from the Device model,
+    so it is read only where the SDK still has it.
 
     Each is expected to be among the addresses the Interfaces already reported, which is where its
     prefix length comes from; marking one primary does not resolve an address of its own. The
@@ -1212,7 +1213,8 @@ def primary_addresses_of(device):
     hosts = {str(address) for address in (device.login_ipv4, device.login_ipv6) if address}
     if hosts:
         return hosts
-    return {str(device.login_ip.ip)} if device.login_ip else set()
+    login_ip = getattr(device, "login_ip", None)
+    return {str(login_ip.ip)} if login_ip else set()
 
 
 def pseudo_management_interface(hostname, device_interfaces, device_primary_ips):

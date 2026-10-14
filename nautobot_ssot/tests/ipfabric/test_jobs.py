@@ -69,7 +69,7 @@ class IPFabricJobFormTestCase(TestCase):
 
     def test_get_vars_includes_a_field_per_selectable_object_type(self):
         """The checkboxes are generated, so a missing one means the registry never reached the form."""
-        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=None):
+        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=(None, None)):
             got_vars = jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
 
         for syncable in SYNCABLE_OBJECTS:
@@ -77,7 +77,7 @@ class IPFabricJobFormTestCase(TestCase):
 
     def test_bulk_write_mode_is_offered_and_defaults_off(self):
         """Trading validation and change logging for speed has to be a deliberate act."""
-        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=None):
+        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=(None, None)):
             got_vars = jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
 
         self.assertIn("bulk_write_mode", got_vars)
@@ -93,7 +93,7 @@ class IPFabricJobFormTestCase(TestCase):
     def test_get_vars_omits_an_administratively_disabled_object_type(self):
         """A disabled object type must be absent from the form, not merely unticked."""
         with (
-            mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=None),
+            mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=(None, None)),
             mock.patch.dict(sync_scope.CONFIG, {"ipfabric_disabled_sync_objects": ["vlans"]}, clear=False),
         ):
             got_vars = jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
@@ -248,7 +248,32 @@ class IPFabricSyncDataTest(TestCase):
         job = self._job()
         job.client = None
 
-        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=None):
+        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=(None, None)):
             job.sync_data()
 
         job.logger.error.assert_called_once()
+
+    def test_the_reason_a_client_could_not_be_built_is_logged(self):
+        """A major version mismatch and an unreachable server need different fixes."""
+        job = self._job()
+        job.client = None
+        reason = "OS Major Version `8` does not match SDK Major Version `7`."
+        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=(None, reason)):
+            job.sync_data()
+        self.assertIn(reason, str(job.logger.error.call_args))
+
+    def test_a_client_failure_is_returned_as_its_reason(self):
+        for error in (
+            RuntimeError("OS Major Version `8` does not match SDK Major Version `7`."),
+            ConnectionError("refused"),
+        ):
+            with self.subTest(error=type(error).__name__):
+                with mock.patch.object(jobs, "IPFClient", side_effect=error):
+                    self.assertEqual(jobs.IpFabricDataSource._init_ipf_client(), (None, str(error)))  # pylint: disable=protected-access
+
+    def test_a_client_that_builds_is_returned_with_no_reason(self):
+        with mock.patch.object(jobs, "IPFClient") as client_class:
+            self.assertEqual(
+                jobs.IpFabricDataSource._init_ipf_client(),  # pylint: disable=protected-access
+                (client_class.return_value, None),
+            )
