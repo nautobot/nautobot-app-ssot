@@ -180,6 +180,7 @@ class TestUpdatingTheRelationsOnAnInterfaceNautobotHolds(TestCase):
         """Return an Interface model bound to a stub adapter, as the Nautobot side loads one."""
         adapter = MagicMock()
         adapter.sync_ipfabric_tagged_only = False
+        adapter.tenant = None
         model = InterfaceModel(name=interface.name, device_name=self.device.name, status="Active")
         model.adapter = adapter
         return model
