@@ -24,6 +24,7 @@ from nautobot_ssot.integrations.ipfabric.sync_scope import (
     form_fields,
     scope_field_order,
 )
+from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
@@ -118,7 +119,7 @@ class IpFabricDataSource(DataSource):
     sync_ipfabric_tagged_only = BooleanVar(
         default=True,
         label="Sync Tagged Only",
-        description="Only sync objects that have the 'SSoT Synced from IPFabric' Tag.",
+        description=f"Only sync objects that have the '{constants.SYNCED_TAG_NAME}' Tag.",
     )
     bulk_write_mode = BooleanVar(
         default=False,
@@ -294,6 +295,21 @@ class IpFabricDataSource(DataSource):
     def load_target_adapter(self):
         """Not used."""
 
+    def warn_if_the_synced_tag_was_renamed(self):
+        """Warn when the configured synced Tag is unused while the default one still marks objects."""
+        left_behind = nbutils.objects_left_on_the_default_synced_tag()
+        if left_behind:
+            self.logger.warning(
+                "No object carries the '%s' Tag yet, while %d carry '%s'. If this replaces a sync that "
+                "used '%s', rename that Tag to '%s' in Nautobot so its objects stay in scope. A second "
+                "IP Fabric instance with a Tag of its own can ignore this.",
+                constants.SYNCED_TAG_NAME,
+                left_behind,
+                constants.DEFAULT_SYNCED_TAG_NAME,
+                constants.DEFAULT_SYNCED_TAG_NAME,
+                constants.SYNCED_TAG_NAME,
+            )
+
     def sync_data(self, *_args, **_kwargs):
         """Sync a device data from IP Fabric into Nautobot."""
         error = None
@@ -328,6 +344,7 @@ class IpFabricDataSource(DataSource):
         self.logger.info("Object types matched rather than created: %s", strict.describe())
         for explanation in (*scope.explanations(), *strict.explanations(scope)):
             self.logger.warning(explanation)
+        self.warn_if_the_synced_tag_was_renamed()
 
         ipfabric_source = IPFabricDiffSync(
             job=self,

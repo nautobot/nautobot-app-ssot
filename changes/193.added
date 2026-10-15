@@ -1,0 +1,1 @@
+Added the `ipfabric_synced_tag` and `ipfabric_safe_delete_tag` settings to the IP Fabric integration, so the Tags it marks synced and safe-deleted objects with can be renamed, for example to run two IP Fabric instances against one Nautobot.

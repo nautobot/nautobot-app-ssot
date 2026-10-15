@@ -11,6 +11,8 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     INTERFACE_L1_CF_NAME,
     INTERFACE_L2_CF_NAME,
     INTERFACE_REASON_CF_NAME,
+    SAFE_DELETE_TAG_NAME,
+    SYNCED_TAG_NAME,
 )
 
 
@@ -69,14 +71,14 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     location_type = apps.get_model("dcim", "LocationType")
 
     Tag.objects.get_or_create(
-        name="SSoT Synced from IPFabric",
+        name=SYNCED_TAG_NAME,
         defaults={
             "description": "Object synced at some point from IPFabric to Nautobot",
             "color": ColorChoices.COLOR_LIGHT_GREEN,
         },
     )
     Tag.objects.get_or_create(
-        name="SSoT Safe Delete",
+        name=SAFE_DELETE_TAG_NAME,
         defaults={
             "description": "Safe Delete Mode tag to flag an object, but not delete from Nautobot.",
             "color": ColorChoices.COLOR_RED,
