@@ -30,7 +30,11 @@ from nautobot_ssot.integrations.ipfabric.constants import (
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
 from nautobot_ssot.integrations.ipfabric.utilities.cables import canonical_endpoints
-from nautobot_ssot.integrations.ipfabric.utilities.nbutils import get_run_namespace, vlan_group_can_hold
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
+    PREFIX_VLAN_CONFLICT_CF_NAME,
+    get_run_namespace,
+    vlan_group_can_hold,
+)
 from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length, parse_vlan_ranges
 
 try:
@@ -867,6 +871,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
             self.add(self.network_wide(self.prefix, prefix=prefix, status="Active"))
             for site in sorted(sites & loaded_sites):
                 self.add(self.network_wide(self.prefix_location, prefix=prefix, location_name=site))
+        self.load_prefix_vlans(by_prefix)
         overlapping = prefixes_overlapping_other_sites(by_prefix)
         if overlapping:
             self.job.logger.warning(
@@ -877,6 +882,36 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
                 len(overlapping),
                 ", ".join(overlapping[:5]),
                 get_run_namespace(),
+            )
+
+    def load_prefix_vlans(self, by_prefix):
+        """Add the VLAN each loaded network is in as DiffSync PrefixVlan models.
+
+        Read from the managed IP tables, which name the VLAN an address sits in, filtered to the rows
+        that name one. A network whose addresses disagree is recorded with none and the pairs they
+        named, and the job reports how many with a few examples.
+        """
+        columns = ["net", "siteName", "vlanId"]
+        names_a_vlan = {"vlanId": ["empty", False]}
+        rows = chain(
+            self.client.technology.addressing.managed_ip_ipv4.all(columns=columns, filters=names_a_vlan),
+            self.client.technology.addressing.managed_ip_ipv6.all(columns=columns, filters=names_a_vlan),
+        )
+        disagreeing = []
+        for prefix, pairs in vlans_by_prefix(rows).items():
+            if prefix not in by_prefix:
+                continue
+            attrs = agreed_prefix_vlan(pairs)
+            if attrs["conflict"]:
+                disagreeing.append(prefix)
+            self.add(self.network_wide(self.prefix_vlan, prefix=prefix, **attrs))
+        if disagreeing:
+            self.job.logger.warning(
+                "Not recording a VLAN for %d Prefixes, as their addresses are in different VLANs, for "
+                "example %s. Each Prefix's %s custom field names the VLANs.",
+                len(disagreeing),
+                ", ".join(sorted(disagreeing)[:5]),
+                PREFIX_VLAN_CONFLICT_CF_NAME,
             )
 
     def load_interface_vrfs(self):
@@ -1391,6 +1426,39 @@ def sites_by_prefix(rows, logger):
             continue
         by_prefix[prefix].add(row.get("siteName"))
     return {prefix: {site for site in sites if site} for prefix, sites in by_prefix.items()}
+
+
+def vlans_by_prefix(rows):
+    """Return the site and VLAN ID pairs IP Fabric reports each network's addresses in.
+
+    Keyed as `sites_by_prefix` keys a network. A row with no network, no site or no usable VLAN ID
+    is skipped; `sites_by_prefix` already reported anything that is not a network.
+    """
+    by_prefix = defaultdict(set)
+    for row in rows:
+        vlan_id = vlan_id_of(row.get("vlanId"))
+        site = row.get("siteName")
+        if vlan_id is None or not site or not row.get("net"):
+            continue
+        try:
+            prefix = ipaddress.ip_network(row["net"], strict=False).with_prefixlen
+        except ValueError:
+            continue
+        by_prefix[prefix].add((site, vlan_id))
+    return dict(by_prefix)
+
+
+def agreed_prefix_vlan(pairs):
+    """Return the PrefixVlan attributes for the site and VLAN ID pairs a network's addresses name.
+
+    One pair is the Prefix's VLAN. More than one leaves it without a VLAN and names them all as the
+    conflict, since Nautobot holds one VLAN per Prefix and choosing one would be a guess.
+    """
+    if len(pairs) == 1:
+        site, vlan_id = next(iter(pairs))
+        return {"vid": vlan_id, "location_name": site, "conflict": ""}
+    named = ", ".join(f"VLAN {vlan_id} at {site}" for site, vlan_id in sorted(pairs))
+    return {"vid": None, "location_name": None, "conflict": f"IP Fabric reports this network in {named}"}
 
 
 def prefixes_overlapping_other_sites(by_prefix):

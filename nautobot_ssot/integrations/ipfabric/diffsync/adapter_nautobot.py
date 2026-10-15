@@ -197,7 +197,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         return super().sync_complete(source, *args, **kwargs)
 
     def report_prefix_findings(self):
-        """Report what being strict about Prefixes held back, and the Locations no Prefix could be recorded at."""
+        """Report what being strict about Prefixes held back, and the Locations and VLANs no Prefix could be recorded at."""
         if self.prefixes_not_created:
             self.job.logger.warning(
                 "Not creating %d Prefixes IP Fabric reports, as Nautobot holds none of them and this run "
@@ -221,6 +221,14 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
                 location_name,
             )
         self.prefix_locations_not_found.clear()
+        for (location_name, vid), count in sorted(self.prefix_vlans_not_found.items()):
+            self.job.logger.warning(
+                "Not recording VLAN %d at %s on %d Prefixes, as Nautobot holds no such VLAN.",
+                vid,
+                location_name,
+                count,
+            )
+        self.prefix_vlans_not_found.clear()
 
     def report_objects_of_another_tenant(self):
         """Report the objects not touched because they belong to another Tenant, once per model."""
@@ -688,12 +696,13 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         one this sync marked is restored when IP Fabric reports it again.
 
         Each Location a loaded Prefix is recorded at is loaded as well, network wide like the Prefix,
-        so that a Location filtered run does not take a Prefix out of the Locations it cannot see.
+        so that a Location filtered run does not take a Prefix out of the Locations it cannot see. So is
+        its VLAN, or the VLANs IP Fabric disagreed between; see `load_prefix_vlan`.
         """
         prefixes = (
             Prefix.objects.filter(namespace=tonb_utils.get_run_namespace(), tags=self.ssot_tag)
-            .select_related("status")
-            .prefetch_related("locations")
+            .select_related("status", "vlan")
+            .prefetch_related("locations", "vlan__locations")
         )
         if self.tenant is not None:
             prefixes = prefixes.filter(tenant=self.tenant)
@@ -709,6 +718,29 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             )
             for location in prefix_record.locations.all():
                 self.add(self.network_wide(self.prefix_location, prefix=prefix, location_name=location.name))
+            self.load_prefix_vlan(prefix, prefix_record)
+
+    def load_prefix_vlan(self, prefix: str, prefix_record: Prefix):
+        """Add a Prefix's VLAN, or the conflict recorded in its place, as a DiffSync PrefixVlan model.
+
+        A VLAN is identified by its ID at a Location, as IP Fabric reports it. A VLAN may be at several
+        Locations, so the one it shares with the Prefix is taken, which is the site IP Fabric reported
+        the pair at; failing that, the first by name.
+        """
+        conflict = prefix_record.custom_field_data.get(tonb_utils.PREFIX_VLAN_CONFLICT_CF_NAME) or ""
+        vlan_record = prefix_record.vlan
+        if vlan_record is None and not conflict:
+            return
+        vid = location_name = None
+        if vlan_record is not None:
+            vid = vlan_record.vid
+            vlan_locations = sorted(location.name for location in vlan_record.locations.all())
+            prefix_locations = {location.name for location in prefix_record.locations.all()}
+            shared = [name for name in vlan_locations if name in prefix_locations]
+            location_name = next(iter(shared or vlan_locations), None)
+        self.add(
+            self.network_wide(self.prefix_vlan, prefix=prefix, vid=vid, location_name=location_name, conflict=conflict)
+        )
 
     def get_initial_location(self, ssot_tag: Tag):
         """Identify the location objects based on user defined job inputs.
