@@ -46,8 +46,10 @@ from netutils.lib_mapper import NAPALM_LIB_MAPPER
 
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_TYPE,
+    DEFAULT_SYNCED_TAG_NAME,
     INTERFACE_STATE_FIELDS,
     LAST_SYNCHRONIZED_CF_NAME,
+    SYNCED_TAG_NAME,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length, job_scoped_cache
 
@@ -779,7 +781,7 @@ def get_syncable_device(device_name: str, *, tagged_only: bool) -> Optional[Devi
     """
     devices = Device.objects.filter(name=device_name)
     if tagged_only:
-        devices = devices.filter(tags=get_or_create_tag_object(tag_name="SSoT Synced from IPFabric"))
+        devices = devices.filter(tags=get_or_create_tag_object(tag_name=SYNCED_TAG_NAME))
     return devices.first()
 
 
@@ -2042,7 +2044,21 @@ def get_tagged_pks(model: Any, tag_id: Any) -> frozenset:
     return frozenset(model.objects.filter(tags__id=tag_id).values_list("pk", flat=True))
 
 
-def synced_tag_for(nautobot_object: Any, tag_name: str = "SSoT Synced from IPFabric") -> Tag:
+def objects_left_on_the_default_synced_tag() -> int:
+    """Return how many objects carry the default synced Tag while none carries the configured one.
+
+    That is the state after `ipfabric_synced_tag` is changed without renaming the Tag in Nautobot,
+    and also the first run of a second IP Fabric instance given a Tag of its own. Only the operator
+    knows which, so the caller warns rather than refusing to run.
+    """
+    if SYNCED_TAG_NAME == DEFAULT_SYNCED_TAG_NAME:
+        return 0
+    if TaggedItem.objects.filter(tag__name=SYNCED_TAG_NAME).exists():
+        return 0
+    return TaggedItem.objects.filter(tag__name=DEFAULT_SYNCED_TAG_NAME).count()
+
+
+def synced_tag_for(nautobot_object: Any, tag_name: str = SYNCED_TAG_NAME) -> Tag:
     """Return the Tag marking an object as synced from IP Fabric, for that object's content type."""
     content_type = ContentType.objects.get_for_model(nautobot_object)
     return get_or_create_tag_object(
@@ -2054,7 +2070,7 @@ def synced_tag_for(nautobot_object: Any, tag_name: str = "SSoT Synced from IPFab
     )
 
 
-def queue_synced_tag(pending: Any, nautobot_object: Any, tag_name: str = "SSoT Synced from IPFabric"):
+def queue_synced_tag(pending: Any, nautobot_object: Any, tag_name: str = SYNCED_TAG_NAME):
     """Queue the row tagging an object as synced, for an object being written in bulk.
 
     `tags.add` needs a saved object and issues its own statements, so a queued object gets the join
@@ -2098,7 +2114,7 @@ def stamp_synced(nautobot_object: Any, custom_field: str):
         nautobot_object.cf[custom_field] = datetime.date.today().isoformat()
 
 
-def restamp_synced(nautobot_object: Any, custom_field: str, tag_name: str = "SSoT Synced from IPFabric"):
+def restamp_synced(nautobot_object: Any, custom_field: str, tag_name: str = SYNCED_TAG_NAME):
     """Record this run against an object the sync found unchanged, in as few statements as it takes.
 
     A re-sync that changes nothing still has to say it saw each object, and for most of them the
@@ -2128,7 +2144,7 @@ def restamp_synced(nautobot_object: Any, custom_field: str, tag_name: str = "SSo
 def tag_object(
     nautobot_object: Any,
     custom_field: str,
-    tag_name: Optional[str] = "SSoT Synced from IPFabric",
+    tag_name: Optional[str] = SYNCED_TAG_NAME,
     extra_tags: Optional[tuple] = None,
 ):
     """Apply the given tag and custom field to the identified object.

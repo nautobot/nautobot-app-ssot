@@ -39,6 +39,11 @@ SAFE_DELETE_IPADDRESS_STATUS = CONFIG.get("ipfabric_safe_delete_ipaddress_status
 SAFE_DELETE_CABLE_STATUS = CONFIG.get("ipfabric_safe_delete_cable_status", "Decommissioning")
 SAFE_DELETE_VRF_STATUS = CONFIG.get("ipfabric_safe_delete_vrf_status", "Deprecated")
 SAFE_DELETE_PREFIX_STATUS = CONFIG.get("ipfabric_safe_delete_prefix_status", "Deprecated")
+# The Tags marking what this sync wrote and what Safe Delete Mode set aside. Configurable so that two
+# IP Fabric instances, or another system, can each mark their own objects in one Nautobot.
+DEFAULT_SYNCED_TAG_NAME = "SSoT Synced from IPFabric"
+SYNCED_TAG_NAME = CONFIG.get("ipfabric_synced_tag", DEFAULT_SYNCED_TAG_NAME)
+SAFE_DELETE_TAG_NAME = CONFIG.get("ipfabric_safe_delete_tag", "SSoT Safe Delete")
 # The serial IP Fabric keys a Device on, which is not what Nautobot's `serial` means. Nautobot
 # documents that field as the chassis serial, which IP Fabric reports separately as `snHw`. Recorded
 # beside the Device so the two are not confused, and so the key a run matched on stays visible.

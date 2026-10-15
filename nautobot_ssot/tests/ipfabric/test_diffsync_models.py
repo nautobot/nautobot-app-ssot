@@ -1197,7 +1197,7 @@ class TestVlanModel(_ModelTestBase):
 # ============================================================
 
 
-class TestCableModel(_ModelTestBase):
+class TestCableModel(_ModelTestBase):  # pylint: disable=too-many-public-methods
     """Test `Cable.create/update/delete` branching logic."""
 
     IDS = {
@@ -1273,6 +1273,44 @@ class TestCableModel(_ModelTestBase):
         mock_create_cable.assert_not_called()
         mock_super.assert_not_called()
         self._assert_log_contains(self.adapter.job.logger.warning, "Safe Delete Mode")
+
+    def test_create_under_tagged_only_leaves_a_cable_this_sync_did_not_tag(self):
+        """Sync Tagged Only protects a Cable another process made, so the link is reported instead."""
+        occupied = mock.MagicMock()
+        occupied.cable.tags.filter.return_value.exists.return_value = False
+        self.adapter.sync_ipfabric_tagged_only = True
+
+        with (
+            mock.patch.object(self.adapter, "safe_delete_mode", False),
+            _nb_patch("get_tagged_interface", side_effect=[occupied, self._uncabled_interface()]),
+            _cable_patch("cable_connects", return_value=False),
+            _cable_patch("create_cable") as mock_create_cable,
+            mock.patch.object(diffsync_models.DiffSyncModel, "create") as mock_super,
+        ):
+            result = Cable.create(adapter=self.adapter, ids=self.IDS, attrs=self.ATTRS)
+
+        self.assertIsNone(result)
+        occupied.cable.delete.assert_not_called()
+        mock_create_cable.assert_not_called()
+        mock_super.assert_not_called()
+        self._assert_log_contains(self.adapter.job.logger.warning, "Sync Tagged Only will not remove it")
+
+    def test_create_under_tagged_only_displaces_a_cable_this_sync_tagged(self):
+        occupied = mock.MagicMock()
+        occupied.cable.tags.filter.return_value.exists.return_value = True
+        self.adapter.sync_ipfabric_tagged_only = True
+
+        with (
+            mock.patch.object(self.adapter, "safe_delete_mode", False),
+            _nb_patch("get_tagged_interface", side_effect=[occupied, self._uncabled_interface()]),
+            _cable_patch("cable_connects", return_value=False),
+            _cable_patch("create_cable", return_value=mock.MagicMock()),
+            mock.patch.object(diffsync_models.DiffSyncModel, "create", return_value="ok"),
+        ):
+            result = Cable.create(adapter=self.adapter, ids=self.IDS, attrs=self.ATTRS)
+
+        self.assertEqual(result, "ok")
+        occupied.cable.delete.assert_called_once()
 
     def test_create_displaces_a_stale_cable_when_safe_delete_is_off(self):
         """With safe delete off, the Cable holding the Interface is removed so the link can move."""
