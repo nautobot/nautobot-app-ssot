@@ -136,6 +136,7 @@ class TestWritingInterfaceVlans(_InterfaceVlanTestCase):
             untagged_vid=untagged_vid,
             tagged_vids=tagged_vids,
             tagged_only=False,
+            tenant=None,
             logger=logger,
         )
 
@@ -543,6 +544,7 @@ class TestInterfaceVlansUnderBulkWriteMode(_InterfaceVlanTestCase):
             untagged_vid=None,
             tagged_vids=[10],
             tagged_only=False,
+            tenant=None,
             pending=adapter.pending,
         )
         adapter.pending.flush()
@@ -568,6 +570,7 @@ class TestInterfaceVlansUnderBulkWriteMode(_InterfaceVlanTestCase):
             untagged_vid=None,
             tagged_vids=[10, 20],
             tagged_only=False,
+            tenant=None,
             pending=adapter.pending,
         )
         adapter.pending.flush()
@@ -587,6 +590,7 @@ class TestInterfaceVlansUnderBulkWriteMode(_InterfaceVlanTestCase):
             untagged_vid=10,
             tagged_vids=[],
             tagged_only=False,
+            tenant=None,
             pending=None,
         )
 
@@ -600,6 +604,7 @@ class TestTheInterfaceVlanModel(_InterfaceVlanTestCase):
         """Return an InterfaceVlan bound to a stub adapter, as the Nautobot side loads it."""
         adapter = MagicMock()
         adapter.sync_ipfabric_tagged_only = False
+        adapter.tenant = None
         adapter.pending = None
         model = InterfaceVlanModel(
             device_name=attrs.pop("device_name", self.device.name),
@@ -638,6 +643,7 @@ class TestTheInterfaceVlanModel(_InterfaceVlanTestCase):
             untagged_vid=10,
             tagged_vids=[20],
             tagged_only=False,
+            tenant=None,
         )
 
         self.model(mode=InterfaceModeChoices.MODE_TAGGED, untagged_vid=10, tagged_vids=[20]).delete()
@@ -764,6 +770,7 @@ class TestLoadingInterfaceVlansThroughLoadData(_InterfaceVlanTestCase):
             untagged_vid=10,
             tagged_vids=[],
             tagged_only=False,
+            tenant=None,
         )
 
         adapter = self.nautobot_adapter(sync_interface_vlans=True)
@@ -791,6 +798,7 @@ class TestWritingInterfaceVlansThatNautobotRefuses(_InterfaceVlanTestCase):
                 untagged_vid=10,
                 tagged_vids=[],
                 tagged_only=False,
+                tenant=None,
                 logger=logger,
             )
 

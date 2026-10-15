@@ -189,6 +189,7 @@ class TestATunnelUnitThatWasCabledUnderTheDefaultType(TestCase):
         """Drive the update a re-sync makes to the unit, and return the adapter it reported to."""
         adapter = MagicMock()
         adapter.sync_ipfabric_tagged_only = False
+        adapter.tenant = None
         adapter.safe_delete_tally = Counter()
         # Held per run on the adapter, so two syncs in one worker cannot share it.
         adapter.safe_delete_mode = safe_delete_mode
@@ -394,6 +395,7 @@ class TestWhenNautobotRefusesTheWrite(TestATunnelUnitThatWasCabledUnderTheDefaul
         """What a manual run needed to tell a refused type from a refused relation."""
         adapter = MagicMock()
         adapter.sync_ipfabric_tagged_only = False
+        adapter.tenant = None
         model = InterfaceModel(name=self.port.name, device_name=self.device.name, status="Active")
         model.adapter = adapter
 

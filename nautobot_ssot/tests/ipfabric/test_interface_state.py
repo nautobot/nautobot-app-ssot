@@ -208,6 +208,7 @@ class TestUpdatingInterfaceState(InterfaceFixture):
         """Return an Interface DiffSync model bound to a stub adapter, as the Nautobot side loads it."""
         adapter = unittest.mock.MagicMock()
         adapter.sync_ipfabric_tagged_only = False
+        adapter.tenant = None
         model = InterfaceModel(
             name=interface.name, device_name=self.device.name, status="Active", enabled=True, **attrs
         )
