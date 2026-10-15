@@ -84,7 +84,7 @@ class IPFabricJobFormTestCase(TestCase):
             jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
         self.assertIn("lists no snapshots: major version", logged.output[0])
 
-    def test_the_form_logs_nothing_when_the_client_builds(self):
+    def test_the_form_logs_nothing_when_the_client_builds_and_keeps_it(self):
         client = mock.MagicMock(loaded_snapshots={})
         with (
             mock.patch.object(jobs.IpFabricDataSource, "client", None),
@@ -92,6 +92,31 @@ class IPFabricJobFormTestCase(TestCase):
             self.assertNoLogs("nautobot.ssot.ipfabric", "ERROR"),
         ):
             jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
+            self.assertIs(jobs.IpFabricDataSource.client, client)
+
+    def test_a_kept_client_is_refreshed_rather_than_rebuilt(self):
+        client = mock.MagicMock(loaded_snapshots={})
+        with (
+            mock.patch.object(jobs.IpFabricDataSource, "client", client),
+            mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client") as init,
+            self.assertNoLogs("nautobot.ssot.ipfabric", "ERROR"),
+        ):
+            jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
+            self.assertIs(jobs.IpFabricDataSource.client, client)
+        client.update.assert_called_once_with()
+        init.assert_not_called()
+
+    def test_a_kept_client_that_fails_to_refresh_is_dropped_and_its_reason_logged(self):
+        client = mock.MagicMock()
+        client.update.side_effect = OSError("connection refused")
+        with (
+            mock.patch.object(jobs.IpFabricDataSource, "client", client),
+            self.assertLogs("nautobot.ssot.ipfabric", "ERROR") as logged,
+        ):
+            got_vars = jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
+            self.assertIsNone(jobs.IpFabricDataSource.client)
+        self.assertIn("lists no snapshots: connection refused", logged.output[0])
+        self.assertEqual(got_vars["snapshot"].field_attrs["choices"], [])
 
     def test_bulk_write_mode_is_offered_and_defaults_off(self):
         """Trading validation and change logging for speed has to be a deliberate act."""
