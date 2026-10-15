@@ -121,3 +121,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     # with no route distinguisher is otherwise indistinguishable from one whose devices disagreed
     # about what it should be.
     create_custom_field("ipfabric_vrf_conflict", "IPFabric VRF Conflict", [VRF], apps=apps, cf_type="type_text")
+    # Likewise for a Prefix IP Fabric reports in more than one VLAN.
+    create_custom_field(
+        "ipfabric_prefix_vlan_conflict", "IPFabric Prefix VLAN Conflict", [Prefix], apps=apps, cf_type="type_text"
+    )
