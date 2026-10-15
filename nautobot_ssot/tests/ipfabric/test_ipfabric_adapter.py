@@ -909,6 +909,12 @@ class PrimaryAddressTestCase(TestCase):
     def test_a_device_with_no_login_address_reports_none(self):
         self.assertEqual(primary_addresses_of(self.device()), set())
 
+    def test_a_device_from_sdk_8_without_the_older_column_reports_none(self):
+        """SDK 8 removed `login_ip` from the Device model, so it may be missing rather than None."""
+        device = SimpleNamespace(login_ipv4=None, login_ipv6=None)
+
+        self.assertEqual(primary_addresses_of(device), set())
+
 
 @patch("nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME", True)
 class DualStackPrimaryTestCase(TestCase):

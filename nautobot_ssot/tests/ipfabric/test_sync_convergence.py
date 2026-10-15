@@ -295,7 +295,7 @@ class SyncConvergenceTestCase(TestCase):  # pylint: disable=too-many-public-meth
         """Point a Device's login address at `address`, as IP Fabric would report it."""
         for device in self.devices:
             if device["hostname"] == hostname:
-                device["loginIp"] = address
+                device["loginIpv4"] = address
 
     def test_a_primary_that_moves_to_another_address_settles(self):
         """The demotion and the promotion are separate models, and DiffSync orders neither.

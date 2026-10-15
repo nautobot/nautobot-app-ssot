@@ -3,13 +3,13 @@
 #  pylint: disable=too-many-locals
 """IP Fabric Data Target Job."""
 
+import logging
 import uuid
 
 from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectNotCreated
 from django.templatetags.static import static
 from django.urls import reverse
-from httpx import ConnectError
 from ipfabric import IPFClient
 from nautobot.core.forms import DynamicModelChoiceField
 from nautobot.dcim.models import Location
@@ -156,17 +156,23 @@ class IpFabricDataSource(DataSource):
 
     @staticmethod
     def _init_ipf_client():
+        """Return `(client, None)`, or `(None, reason)` when no client can be built.
+
+        The reason is returned rather than logged because the Job form builds a client too, before
+        there is a run to log to. The SDK raises `RuntimeError` when its major version does not
+        match the server's, and an `OSError` subclass for connection and HTTP failures.
+        """
         try:
-            return IPFClient(
+            client = IPFClient(
                 base_url=constants.IPFABRIC_HOST,
                 auth=constants.IPFABRIC_API_TOKEN,
                 verify=constants.IPFABRIC_SSL_VERIFY,
                 timeout=constants.IPFABRIC_TIMEOUT,
                 unloaded=False,
             )
-        except (RuntimeError, ConnectError) as error:
-            print(f"Got an error {error}")
-            return None
+        except (RuntimeError, OSError) as error:
+            return None, str(error)
+        return client, None
 
     @classmethod
     def _get_vars(cls):
@@ -177,7 +183,14 @@ class IpFabricDataSource(DataSource):
         got_vars = super()._get_vars()
 
         if cls.client is None:
-            cls.client = cls._init_ipf_client()
+            cls.client, error = cls._init_ipf_client()
+            if cls.client is None:
+                # Building the form is not a run, so there is no Job Result log to report to and the
+                # server log is the only place this can go. Fetched here rather than held by the
+                # module, so that no code a run executes can report through it by mistake.
+                logging.getLogger("nautobot.ssot.ipfabric").error(
+                    "IP Fabric client is not ready, so the Job form lists no snapshots: %s", error
+                )
         else:
             cls.client.update()
 
@@ -276,10 +289,11 @@ class IpFabricDataSource(DataSource):
 
     def sync_data(self, *_args, **_kwargs):
         """Sync a device data from IP Fabric into Nautobot."""
+        error = None
         if self.client is None:
-            self.client = self._init_ipf_client()
+            self.client, error = self._init_ipf_client()
         if self.client is None:
-            self.logger.error("IPFabric client is not ready. Check your config.")
+            self.logger.error("IPFabric client is not ready: %s", error)
             return
 
         # Thread local and shared by every run in this worker. A run that failed part way through
