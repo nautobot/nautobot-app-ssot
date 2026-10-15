@@ -30,7 +30,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_utils
 from nautobot_ssot.integrations.ipfabric.utilities.cables import canonical_endpoints
-from nautobot_ssot.integrations.ipfabric.utilities.nbutils import vlan_group_can_hold
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import get_run_namespace, vlan_group_can_hold
 from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length, parse_vlan_ranges
 
 try:
@@ -850,7 +850,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
 
         Read from the managed IP summary tables, which list each network once per site it is
         configured at. A network seen at several sites is one Prefix with several Locations, since
-        the Global Namespace holds one of each network. Network wide, as a VRF is, so a run narrowed
+        the run's Namespace holds one of each network. Network wide, as a VRF is, so a run narrowed
         to one site cannot delete what the others see.
 
         A Location is recorded only where this run loaded a Location of that name, so a pair is never
@@ -871,11 +871,12 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
         if overlapping:
             self.job.logger.warning(
                 "%d networks IP Fabric reports overlap a network it reports only at other sites, for "
-                "example %s. They are synced as nested Prefixes in the Global Namespace, which can "
+                "example %s. They are synced as nested Prefixes in Namespace %s, which can "
                 "hold only one of each network, so a range reused at unrelated sites reads there as "
                 "one hierarchy.",
                 len(overlapping),
                 ", ".join(overlapping[:5]),
+                get_run_namespace(),
             )
 
     def load_interface_vrfs(self):
