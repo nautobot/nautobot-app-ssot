@@ -61,6 +61,11 @@ def record_other_tenant(adapter, error: tonb_nbutils.BelongsToAnotherTenant) -> 
     adapter.objects_of_another_tenant[model_name].append(str(nautobot_object))
 
 
+def prefix_was_skipped(adapter, prefix: str) -> bool:
+    """Return whether a Prefix was already reported as one this run may not create, or another Tenant's."""
+    return prefix in adapter.prefixes_not_created or prefix in adapter.objects_of_another_tenant.get("prefixes", ())
+
+
 def resolve_location(adapter, location_name: str, location_id: Optional[str] = None):
     """Return the Nautobot Location a synced object belongs to, creating one only if this run may."""
     if adapter.may_create("locations"):
@@ -1689,10 +1694,7 @@ class PrefixLocation(DiffSyncExtras):
     @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Record a Prefix at a Location in Nautobot."""
-        if ids["prefix"] in adapter.prefixes_not_created or ids["prefix"] in adapter.objects_of_another_tenant.get(
-            "prefixes", ()
-        ):
-            # Already reported, as a network this run was not allowed to create or another Tenant's.
+        if prefix_was_skipped(adapter, ids["prefix"]):
             return None
         if not tonb_nbutils.add_prefix_location(
             ids["prefix"], ids["location_name"], logger=adapter.job.logger, pending=adapter.pending
@@ -1705,6 +1707,72 @@ class PrefixLocation(DiffSyncExtras):
     def delete(self) -> Optional["DiffSyncModel"]:
         """Stop recording a Prefix at a Location IP Fabric no longer sees it at."""
         if not tonb_nbutils.remove_prefix_location(self.prefix, self.location_name, logger=self.adapter.job.logger):
+            return None
+        return super().delete()
+
+
+class PrefixVlan(DiffSyncExtras):
+    """The VLAN a Prefix is in.
+
+    A model of its own for the same reason the Locations of a Prefix are: VLANs are written as
+    children of their Location, after the Prefix, so the VLAN is set once both exist. Only a network
+    IP Fabric reports a VLAN for carries one of these, on either side, so a network IP Fabric stops
+    reporting a VLAN for is a delete, which takes the Prefix out of its VLAN and deletes nothing.
+
+    Nautobot holds one VLAN per Prefix, while IP Fabric reports one per address. Where the addresses
+    of a network name more than one site and VLAN ID, none is recorded and `conflict` names them, as a
+    VRF's route distinguisher is handled.
+    """
+
+    _modelname = "prefix_vlan"
+    _identifiers = ("prefix",)
+    _attributes = ("vid", "location_name", "conflict")
+
+    prefix: str
+    vid: Optional[int] = None
+    location_name: Optional[str] = None
+    conflict: str = ""
+
+    @staticmethod
+    def write(adapter, prefix: str, attrs) -> bool:
+        """Set the Prefix's VLAN and conflict to `attrs`, returning whether it was written.
+
+        A VLAN Nautobot does not hold is counted and reported once at the end of the sync, and the
+        Prefix is left as it is, so that a later run sets it once the VLAN exists.
+        """
+        vlan_obj = None
+        if attrs["vid"] is not None:
+            if adapter.pending is not None:
+                # A VLAN created earlier in this run may only be queued.
+                adapter.flush_pending_writes()
+            vlan_obj = tonb_nbutils.get_vlan_at_location_name(attrs["vid"], attrs["location_name"])
+            if vlan_obj is None:
+                adapter.prefix_vlans_not_found[(attrs["location_name"], attrs["vid"])] += 1
+                return False
+        return tonb_nbutils.set_prefix_vlan(prefix, vlan_obj, attrs["conflict"], logger=adapter.job.logger)
+
+    @classmethod
+    @tonb_nbutils.deferred_change_logging()
+    def create(cls, adapter, ids, attrs):
+        """Record the VLAN IP Fabric reports a Prefix in."""
+        if prefix_was_skipped(adapter, ids["prefix"]):
+            return None
+        if not cls.write(adapter, ids["prefix"], {"vid": None, "location_name": None, "conflict": "", **attrs}):
+            return None
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def update(self, attrs):
+        """Move a Prefix to the VLAN IP Fabric now reports, or record that it reports more than one."""
+        merged = {"vid": self.vid, "location_name": self.location_name, "conflict": self.conflict, **attrs}
+        if not self.write(self.adapter, self.prefix, merged):
+            return None
+        return super().update(attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def delete(self) -> Optional["DiffSyncModel"]:
+        """Take a Prefix out of the VLAN IP Fabric no longer reports it in."""
+        if not tonb_nbutils.set_prefix_vlan(self.prefix, None, "", logger=self.adapter.job.logger):
             return None
         return super().delete()
 

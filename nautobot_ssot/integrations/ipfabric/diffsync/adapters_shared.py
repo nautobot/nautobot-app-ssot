@@ -41,6 +41,7 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
     interface_vlan = diffsync_models.InterfaceVlan
     prefix = diffsync_models.Prefix
     prefix_location = diffsync_models.PrefixLocation
+    prefix_vlan = diffsync_models.PrefixVlan
 
     # Cables are top level because a link may span two Locations, and come after "location" so the
     # Devices and Interfaces they terminate on exist by the time they are created.
@@ -52,12 +53,13 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
     # Devices are written as children of their Location.
     #
     # Prefixes come first, since the addresses written under each Interface below a Location need
-    # one to sit in. The Locations a Prefix is seen at follow the Location tree, which is what
-    # creates them.
+    # one to sit in. The Locations a Prefix is seen at, and its VLAN, follow the Location tree, which
+    # is what creates the Locations and the VLANs under them.
     top_level = [
         "prefix",
         "location",
         "prefix_location",
+        "prefix_vlan",
         "cable",
         "route_target",
         "vrf",
@@ -162,6 +164,9 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         # Locations a Prefix is seen at that Nautobot does not hold, counted by name and reported
         # once, rather than once for every Prefix seen at each.
         self.prefix_locations_not_found = Counter()
+        # VLANs a Prefix is reported in that Nautobot does not hold, as (Location name, VLAN ID),
+        # counted and reported once.
+        self.prefix_vlans_not_found = Counter()
 
     def carries_pseudo_management_interface(self) -> bool:
         """Return whether this run reports the Interface fabricated for a NAT management address.
