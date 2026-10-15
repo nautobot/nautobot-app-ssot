@@ -335,8 +335,12 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         # the source says it is, which is a difference no sync could ever apply away. Both are
         # `select_related` while addresses are in scope, so neither costs a query here.
         device_primary_ips = {addr for addr in (device_record.primary_ip4, device_record.primary_ip6) if addr}
+        namespace = tonb_utils.get_run_namespace() if tonb_utils.namespace_chosen() else None
         for address_record in interface_record.ip_addresses.all():
             if (device_record.name, interface_record.name, address_record.host) in self.addresses_without_a_subnet:
+                continue
+            if namespace is not None and address_record.parent.namespace_id != namespace.pk:
+                # Another Namespace's address, which a run for this one neither reads nor removes.
                 continue
             address = self.interface_address(
                 device_name=device_record.name,
@@ -433,6 +437,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             # `__status` because each address reports its own; without it the walk below costs a
             # query per address, which is a hundred thousand of them on a real estate.
             prefetch.append("interfaces__ip_addresses__status")
+            if tonb_utils.namespace_chosen():
+                # Each address's Namespace is read through its parent to keep only the chosen one's.
+                prefetch.append("interfaces__ip_addresses__parent")
         elif self.scope.interfaces:
             prefetch.append("interfaces")
         if self.scope.interfaces:
@@ -563,7 +570,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         interfaces = Interface.objects.filter(
             device__in=filtered_devices,
             vrf__isnull=False,
-            vrf__namespace=tonb_utils.get_global_namespace(),
+            vrf__namespace=tonb_utils.get_run_namespace(),
         ).values_list("device__name", "name", "vrf__name")
         for device_name, interface_name, vrf_name in interfaces:
             try:
@@ -589,7 +596,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         and Devices are already narrowed by the filter, so both sides narrow together.
         """
         assignments = VRFDeviceAssignment.objects.filter(
-            vrf__namespace=tonb_utils.get_global_namespace(),
+            vrf__namespace=tonb_utils.get_run_namespace(),
             device__in=filtered_devices,
         ).values_list("vrf__name", "device__name")
         for vrf_name, device_name in assignments:
@@ -620,7 +627,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             self.add(self.network_wide(self.route_target, name=route_target))
 
     def load_vrfs(self):
-        """Add Nautobot VRFs in the Global Namespace as DiffSync Vrf models.
+        """Add Nautobot VRFs in the run's Namespace as DiffSync Vrf models.
 
         A name the Namespace holds twice is loaded as neither of them. Nautobot constrains a VRF to
         a unique route distinguisher within its Namespace but not to a unique name, while IP Fabric
@@ -628,7 +635,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         describes. Loading one would have the sync write IP Fabric's values over whichever came
         first; loading neither leaves both alone and reports why.
         """
-        vrfs = VRF.objects.filter(namespace=tonb_utils.get_global_namespace()).select_related("status")
+        vrfs = VRF.objects.filter(namespace=tonb_utils.get_run_namespace()).select_related("status")
         if self.tenant is not None:
             vrfs = vrfs.filter(tenant=self.tenant)
         if self.scope.route_targets:
@@ -641,9 +648,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             if len(vrf_records) > 1:
                 self.ambiguous_vrf_names.add(name)
                 self.job.logger.warning(
-                    "Not syncing the VRF named %s, as the Global Namespace holds %d VRFs of that name "
+                    "Not syncing the VRF named %s, as Namespace %s holds %d VRFs of that name "
                     "and IP Fabric reports nothing that tells them apart",
                     name,
+                    tonb_utils.get_run_namespace(),
                     len(vrf_records),
                 )
                 continue
@@ -670,7 +678,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         """Add the Prefixes this integration created or adopted as DiffSync Prefix models.
 
         Scoped to the ones carrying the sync's Tag, as Route Targets are, rather than every Prefix
-        in the Global Namespace. Prefixes are the shape another IPAM system governs, and loading
+        in the run's Namespace. Prefixes are the shape another IPAM system governs, and loading
         all of them would have this sync delete every Prefix IP Fabric does not report the moment
         Prefixes were selected. One IP Fabric reports that is absent here is adopted rather than
         duplicated when it is created.
@@ -683,7 +691,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         so that a Location filtered run does not take a Prefix out of the Locations it cannot see.
         """
         prefixes = (
-            Prefix.objects.filter(namespace=tonb_utils.get_global_namespace(), tags=self.ssot_tag)
+            Prefix.objects.filter(namespace=tonb_utils.get_run_namespace(), tags=self.ssot_tag)
             .select_related("status")
             .prefetch_related("locations")
         )
