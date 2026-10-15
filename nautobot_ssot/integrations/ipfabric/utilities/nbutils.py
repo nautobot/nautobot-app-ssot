@@ -5,6 +5,7 @@
 import datetime
 import ipaddress
 import logging
+import threading
 from contextlib import contextmanager
 from typing import Any, Iterable, Optional
 
@@ -784,14 +785,43 @@ def allow_vlans_at_location_type(location_type_id: Any) -> None:
     allow_at_location_type(location_type_id, VLAN)
 
 
+# The Namespace chosen on the job for this run, if any. Thread local, like the job scoped caches,
+# and set by the job at the start of every run so that one run's choice never reaches the next.
+_run_namespace = threading.local()
+
+
+def use_namespace(namespace: Optional[Namespace]) -> None:
+    """Set the Namespace this run's addresses, Prefixes and VRFs belong to, or None for Global."""
+    _run_namespace.chosen = namespace
+
+
+def namespace_chosen() -> bool:
+    """Return whether the job named a Namespace for this run, rather than leaving it to Global."""
+    return getattr(_run_namespace, "chosen", None) is not None
+
+
 @job_scoped_cache
 def get_global_namespace() -> Namespace:
-    """Return the Global Namespace, which every Prefix this integration creates belongs to.
+    """Return the Global Namespace.
 
     Cached rather than called directly because a first import creates a Prefix for every subnet it
     meets, and each of those would otherwise resolve the Namespace again.
     """
     return get_default_namespace()
+
+
+def get_run_namespace() -> Namespace:
+    """Return the Namespace this run reads and writes addresses, Prefixes and VRFs in."""
+    chosen = getattr(_run_namespace, "chosen", None)
+    return chosen if chosen is not None else get_global_namespace()
+
+
+def run_namespace_filter() -> dict:
+    """Return queryset filter arguments limiting IP Addresses to the chosen Namespace.
+
+    Empty when no Namespace was chosen, so that addresses are then matched from any Namespace.
+    """
+    return {"parent__namespace": get_run_namespace()} if namespace_chosen() else {}
 
 
 @job_scoped_cache(group=BULK_WRITTEN_LOOKUPS)
@@ -1007,7 +1037,7 @@ def _cleaned_ip(address: str, status_obj: Status) -> Optional[IPAddress]:
     because no parent Prefix exists yet. Built afresh each time, since a failed `clean()` may have
     left the instance half adjusted.
     """
-    ip_obj = IPAddress(address=address, status=status_obj)
+    ip_obj = IPAddress(address=address, status=status_obj, namespace=get_run_namespace())
     try:
         ip_obj.clean()
     except ValidationError:
@@ -1072,7 +1102,7 @@ def create_parent_prefix(
             prefix_length=network_obj.prefixlen,
             type=PrefixTypeChoices.TYPE_NETWORK,
             status=get_status_for_model(Prefix, "Active"),
-            namespace=get_global_namespace(),
+            namespace=get_run_namespace(),
             defaults={"tenant": tenant},
         )
     except (DjangoBaseDBError, ValidationError) as err:
@@ -1083,7 +1113,7 @@ def create_parent_prefix(
 
 
 def covering_prefix_exists(address: str) -> bool:
-    """Return whether a Prefix in the Global Namespace contains the host of an address.
+    """Return whether a Prefix in the run's Namespace contains the host of an address.
 
     Asked about the host rather than the address's own network, since that is the question that
     decides whether Nautobot can parent the address at all: any Prefix containing the host will do,
@@ -1094,18 +1124,18 @@ def covering_prefix_exists(address: str) -> bool:
     # `/32` an IPv6 host names a subnet millions of addresses wide, so no Prefix holding it contains
     # that, and the check reports none where one exists.
     covering = f"{host}/{host_route_length(host)}"
-    return Prefix.objects.filter(namespace=get_global_namespace()).net_contains_or_equals(covering).exists()
+    return Prefix.objects.filter(namespace=get_run_namespace()).net_contains_or_equals(covering).exists()
 
 
 def get_prefix(prefix: str) -> Optional[Prefix]:
-    """Return the Prefix of the given network in the Global Namespace, or None if there is none.
+    """Return the Prefix of the given network in the run's Namespace, or None if there is none.
 
     Matched on the network and its length together, which is what Nautobot makes a Prefix unique
     on within a Namespace. The network alone names every Prefix that starts at that address.
     """
     network = ipaddress.ip_network(prefix)
     return Prefix.objects.filter(
-        namespace=get_global_namespace(),
+        namespace=get_run_namespace(),
         network=str(network.network_address),
         prefix_length=network.prefixlen,
     ).first()
@@ -1114,7 +1144,7 @@ def get_prefix(prefix: str) -> Optional[Prefix]:
 def create_prefix(
     prefix: str, create: bool = True, logger: Optional[logging.Logger] = None, tenant: Optional[Tenant] = None
 ) -> Optional[Prefix]:
-    """Create a Prefix in the Global Namespace, or adopt the one Nautobot already holds.
+    """Create a Prefix in the run's Namespace, or adopt the one Nautobot already holds.
 
     A Prefix is unique on its network within a Namespace, so one another process or an earlier
     address created is the same object this sync would have made. It is adopted and marked as
@@ -1151,7 +1181,7 @@ def create_prefix(
     prefix_obj = Prefix(
         network=str(network.network_address),
         prefix_length=network.prefixlen,
-        namespace=get_global_namespace(),
+        namespace=get_run_namespace(),
         type=PrefixTypeChoices.TYPE_NETWORK,
         status=get_status_for_model(Prefix, "Active"),
         tenant=tenant,
@@ -1264,13 +1294,13 @@ def resolve_ip(
     Python. Asked as two, the pair runs in full for every address of a first import, where both miss.
     """
     host = address.split("/")[0]
-    candidates = list(IPAddress.objects.filter(host=host).select_related("parent"))
+    candidates = list(IPAddress.objects.filter(host=host, **run_namespace_filter()).select_related("parent"))
     # An exact match on the mask as well, which is what `filter(address=...)` is shorthand for. Taken
-    # ahead of the Namespace match, and from any Namespace, as the original pair of lookups did.
+    # ahead of the Namespace match, and from any Namespace unless the job named one.
     for existing in candidates:
         if existing.mask_length == mask_length_of(address):
             return existing
-    namespace = get_global_namespace()
+    namespace = get_run_namespace()
     for existing in candidates:
         if existing.parent.namespace_id == namespace.pk:
             return existing
@@ -1905,7 +1935,7 @@ def set_interface_vrf(  # pylint: disable=too-many-arguments
     Args:
         device_name: Name of the Device the Interface belongs to.
         interface_name: Name of the Interface.
-        vrf_name: Name of the VRF in the Global Namespace, or None to take the Interface out of one.
+        vrf_name: Name of the VRF in the run's Namespace, or None to take the Interface out of one.
         tagged_only: Mirrors the job option, so an Interface on a Device this run may not write to
             is left alone.
         logger: Logger to use for messaging.
@@ -1955,10 +1985,10 @@ def set_interface_vrf(  # pylint: disable=too-many-arguments
 
 
 def get_vrf_device_assignment(vrf_name: str, device_name: str) -> Optional[VRFDeviceAssignment]:
-    """Return the row assigning the named Global Namespace VRF to the named Device, if there is one."""
+    """Return the row assigning the named VRF, in the run's Namespace, to the named Device, if there is one."""
     return VRFDeviceAssignment.objects.filter(
         vrf__name=vrf_name,
-        vrf__namespace=get_global_namespace(),
+        vrf__namespace=get_run_namespace(),
         device__name=device_name,
     ).first()
 
@@ -1978,7 +2008,7 @@ def create_vrf_device_assignment(  # pylint: disable=too-many-arguments
     `clean()` never runs, is the same row as one written on its own.
 
     Args:
-        vrf_name: Name of the VRF, in the Global Namespace.
+        vrf_name: Name of the VRF, in the run's Namespace.
         device_name: Name of the Device carrying it.
         tagged_only: Mirrors the job option, so that a Device this run may not write to is not
             assigned to; see `get_syncable_device`.
@@ -2027,7 +2057,7 @@ def create_vrf_device_assignment(  # pylint: disable=too-many-arguments
 
 @job_scoped_cache(group=BULK_WRITTEN_LOOKUPS)
 def get_vrf(name: str, logger: Optional[logging.Logger] = None) -> Optional[VRF]:
-    """Return the Global Namespace VRF of the given name, or None when there is not exactly one.
+    """Return the run's Namespace VRF of the given name, or None when there is not exactly one.
 
     Nautobot constrains a VRF to a unique route distinguisher within its Namespace, but not to a
     unique name, so one Namespace may hold two VRFs called the same thing. IP Fabric reports a VRF
@@ -2039,17 +2069,18 @@ def get_vrf(name: str, logger: Optional[logging.Logger] = None) -> Optional[VRF]
         logger: Logger to use for messaging.
 
     Returns:
-        VRF: The one VRF of that name in the Global Namespace.
+        VRF: The one VRF of that name in the run's Namespace.
         None: When no VRF has that name, or more than one does.
     """
-    vrfs = list(VRF.objects.filter(name=name, namespace=get_global_namespace())[:2])
+    vrfs = list(VRF.objects.filter(name=name, namespace=get_run_namespace())[:2])
     if not vrfs:
         return None
     if len(vrfs) > 1:
         if logger:
             logger.error(
-                "The Global Namespace holds more than one VRF named %s, so which one IP Fabric is "
+                "Namespace %s holds more than one VRF named %s, so which one IP Fabric is "
                 "reporting cannot be determined; leaving them alone",
+                get_run_namespace(),
                 name,
             )
         return None
@@ -2065,7 +2096,7 @@ def create_vrf(  # pylint: disable=too-many-arguments
     pending: Optional[Any] = None,
     tenant: Optional[Tenant] = None,
 ) -> Optional[VRF]:
-    """Create a VRF in the Global Namespace.
+    """Create a VRF in the run's Namespace.
 
     With a Tenant, an existing VRF of the name is adopted rather than duplicated, since the run reads
     only its Tenant's VRFs and so did not load one that has no Tenant. A name the Namespace holds
@@ -2086,10 +2117,14 @@ def create_vrf(  # pylint: disable=too-many-arguments
     """
     status_obj = get_or_create_status_object(vrf_status, ColorChoices.COLOR_GREEN, app_label="ipam", model="vrf")
     if tenant is not None:
-        existing = list(VRF.objects.filter(name=name, namespace=get_global_namespace())[:2])
+        existing = list(VRF.objects.filter(name=name, namespace=get_run_namespace())[:2])
         if len(existing) > 1:
             if logger:
-                logger.error("Not creating a VRF named %s, as the Global Namespace already holds more than one", name)
+                logger.error(
+                    "Not creating a VRF named %s, as Namespace %s already holds more than one",
+                    name,
+                    get_run_namespace(),
+                )
             return None
         if existing:
             vrf_obj = existing[0]
@@ -2108,7 +2143,7 @@ def create_vrf(  # pylint: disable=too-many-arguments
         name=name,
         rd=rd or None,
         status=status_obj,
-        namespace=get_global_namespace(),
+        namespace=get_run_namespace(),
         tenant=tenant,
     )
     vrf_obj.cf[VRF_CONFLICT_CF_NAME] = conflict
