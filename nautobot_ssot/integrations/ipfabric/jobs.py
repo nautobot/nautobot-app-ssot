@@ -3,6 +3,7 @@
 #  pylint: disable=too-many-locals
 """IP Fabric Data Target Job."""
 
+import logging
 import uuid
 
 from diffsync.enum import DiffSyncFlags
@@ -182,7 +183,14 @@ class IpFabricDataSource(DataSource):
         got_vars = super()._get_vars()
 
         if cls.client is None:
-            cls.client, _ = cls._init_ipf_client()
+            cls.client, error = cls._init_ipf_client()
+            if cls.client is None:
+                # Building the form is not a run, so there is no Job Result log to report to and the
+                # server log is the only place this can go. Fetched here rather than held by the
+                # module, so that no code a run executes can report through it by mistake.
+                logging.getLogger("nautobot.ssot.ipfabric").error(
+                    "IP Fabric client is not ready, so the Job form lists no snapshots: %s", error
+                )
         else:
             cls.client.update()
 

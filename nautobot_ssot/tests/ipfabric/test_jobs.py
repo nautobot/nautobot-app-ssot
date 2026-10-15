@@ -75,6 +75,24 @@ class IPFabricJobFormTestCase(TestCase):
         for syncable in SYNCABLE_OBJECTS:
             self.assertIn(syncable.field_name, got_vars)
 
+    def test_the_reason_the_form_has_no_client_is_logged(self):
+        with (
+            mock.patch.object(jobs.IpFabricDataSource, "client", None),
+            mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=(None, "major version")),
+            self.assertLogs("nautobot.ssot.ipfabric", "ERROR") as logged,
+        ):
+            jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
+        self.assertIn("lists no snapshots: major version", logged.output[0])
+
+    def test_the_form_logs_nothing_when_the_client_builds(self):
+        client = mock.MagicMock(loaded_snapshots={})
+        with (
+            mock.patch.object(jobs.IpFabricDataSource, "client", None),
+            mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=(client, None)),
+            self.assertNoLogs("nautobot.ssot.ipfabric", "ERROR"),
+        ):
+            jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
+
     def test_bulk_write_mode_is_offered_and_defaults_off(self):
         """Trading validation and change logging for speed has to be a deliberate act."""
         with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=(None, None)):
