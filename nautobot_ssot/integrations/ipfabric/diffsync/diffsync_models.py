@@ -50,6 +50,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SAFE_DELETE_VLAN_STATUS,
     SAFE_DELETE_VRF_STATUS,
     SYNC_IPF_DEV_TYPE_TO_ROLE,
+    SYNCED_TAG_NAME,
 )
 
 
@@ -207,7 +208,7 @@ class DiffSyncExtras(DiffSyncModel):
                 if nautobot_object.pk not in already_tagged:
                     # Applied below alongside the synced from tag, as one call to `tags.add`.
                     tags_to_add = (safe_delete_tag,)
-                    self.adapter.safe_delete_tally[(model_name, "tagged `SSoT Safe Delete`")] += 1
+                    self.adapter.safe_delete_tally[(model_name, f"tagged `{safe_delete_tag.name}`")] += 1
                     update = True
                 else:
                     # Already tagged by an earlier run, so this one changes nothing. Counted rather
@@ -1756,6 +1757,13 @@ class Cable(DiffSyncExtras):
                 adapter.job.logger.warning(
                     f"Not creating a Cable for {link} because {interface.device.name}:{interface.name} is already "
                     f"cabled and Safe Delete Mode will not remove the existing Cable with an ID of {cable.id}"
+                )
+                return False
+            if adapter.sync_ipfabric_tagged_only and not cable.tags.filter(name=SYNCED_TAG_NAME).exists():
+                adapter.job.logger.warning(
+                    f"Not creating a Cable for {link} because {interface.device.name}:{interface.name} is already "
+                    f"cabled, and the existing Cable with an ID of {cable.id} does not carry the "
+                    f"'{SYNCED_TAG_NAME}' Tag, so Sync Tagged Only will not remove it"
                 )
                 return False
             adapter.job.logger.info(
