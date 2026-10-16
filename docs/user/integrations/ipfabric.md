@@ -35,8 +35,8 @@ Now back to running the job. Let's click on **Sync Now**.
 There are several options available.
 
 - **Debug**: Enables more verbose logging that can be useful for troubleshooting synchronization issues.
-- **Safe Delete Mode**: Delete operations changes the object status to a predefined value (configurable via settings) and tags the object with `SSoT Safe Delete` Tag.
-- **Sync Tagged Only**: Only load Nautobot data into DiffSync adapters that has the `SSoT Synced from IPFabric` Tag.
+- **Safe Delete Mode**: Delete operations changes the object status to a predefined value (configurable via settings) and tags the object with the Safe Delete Tag, `SSoT Safe Delete` unless [configured otherwise](#tags-the-sync-applies).
+- **Sync Tagged Only**: Only load Nautobot data into DiffSync adapters that has the synced Tag, `SSoT Synced from IPFabric` unless [configured otherwise](#tags-the-sync-applies).
 - **Bulk Write Mode**: Write objects in batches rather than one at a time. Much faster on a large sync, at the cost of change log entries, signals and per-object validation. Disabled by default; see [Bulk Write Mode](#bulk-write-mode) for what it does and does not give up.
 - **Sync Locations**: Create, update and delete Nautobot Locations from IP Fabric sites. Enabled by default. Deselect where another system owns the site list; see [Choosing what to sync](../../admin/integrations/ipfabric_setup.md#locations) for what that does and does not stop.
 - **Sync Manufacturers**: Create Nautobot Manufacturers for the vendors IP Fabric reports. Enabled by default.
@@ -576,6 +576,14 @@ The selection stops new placeholders rather than removing those an earlier run c
 With **Sync Tagged Only** selected, which is the default, the sync reads and writes only Devices carrying the `SSoT Synced from IPFabric` Tag. Deselecting it brings every Device in the selected Locations into scope, including Devices another process created, and the sync then updates their Interfaces as well as those of the Devices it created itself.
 
 The option governs reading and writing together. It has to: a Device loaded from Nautobot but excluded from writing would have every difference IP Fabric reports about it reported again on every run and never applied.
+
+Cables follow the same rule. With **Sync Tagged Only** selected, only Cables carrying the synced Tag are read, so a Cable another process made between two synced Devices is never removed for being absent from IP Fabric. If a link IP Fabric reports needs an Interface such a Cable occupies, the link is reported and not recorded, rather than the other Cable being removed. A Cable that already joins the same two Interfaces IP Fabric reports is adopted and tagged.
+
+### Tags the sync applies
+
+The sync marks what it writes with the synced Tag, `SSoT Synced from IPFabric` by default, and what Safe Delete Mode sets aside with the Safe Delete Tag, `SSoT Safe Delete` by default. Both names can be changed with the `ipfabric_synced_tag` and `ipfabric_safe_delete_tag` settings, for example so that two IP Fabric instances syncing into one Nautobot each mark their own objects. With **Sync Tagged Only** selected, each sync then only reads and changes the objects carrying its own Tag.
+
+To rename the Tag on an existing install, rename the Tag in Nautobot and change the setting together. Changing only the setting leaves every existing object on the old Tag, so with **Sync Tagged Only** selected none of them is in scope. The Job log warns when the configured synced Tag marks nothing while the default one still marks objects.
 
 ## VRFs and Route Targets
 
