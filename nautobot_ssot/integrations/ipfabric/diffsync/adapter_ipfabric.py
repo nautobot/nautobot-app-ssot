@@ -50,10 +50,10 @@ name_max_length = VLAN._meta.get_field("name").max_length
 # the ports beneath: Junos secure, GRE, IP-IP, logical and virtual tunnels, and flexible tunnels.
 TUNNEL_NAME_KINDS = frozenset({"st", "gr", "gre", "ip", "lt", "vt", "fti", "tu", "tunnel"})
 
-# Keys the FHRP tables may carry the virtual address under. IP Fabric discovers a table's columns
-# from the appliance rather than declaring them in the SDK, so the name is confirmed at run time and
-# a table that carries none of these is reported rather than passed over in silence.
-FHRP_VIRTUAL_ADDRESS_KEYS = ("vip", "virtualIp", "virtualIP")
+# The columns of IP Fabric's FHRP group state table that carry a group's virtual addresses: one
+# address each, and a list of any secondary ones.
+FHRP_VIRTUAL_ADDRESS_COLUMNS = ("virtualIp", "virtualIpv6")
+FHRP_SECONDARY_ADDRESSES_COLUMN = "secondaryVirtualIpAddresses"
 
 # Marks a record whose address has no subnet of its own to report, and so may take the subnet of an
 # address already resolved for its Interface. True of an FHRP virtual address, which is configured
@@ -670,31 +670,28 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
         belongs in Nautobot alongside the interface's own addresses. Shaped like a managed address
         record so that one loader handles all three sources.
 
-        The whole table is requested rather than named columns, because the column carrying the
-        virtual address differs between releases and IP Fabric does not declare it offline.
+        Read from the group state table, which has a row per device, Interface and group. The group
+        members table lists a group's devices as text and names no Interface.
         """
-        unnamed = 0
-        for row in self.client.technology.fhrp.group_members.all():
-            host = next((row[key] for key in FHRP_VIRTUAL_ADDRESS_KEYS if row.get(key)), None)
-            if not host:
-                unnamed += 1
-                continue
-            # A virtual address has no subnet of its own in this table; it sits in the subnet of the
-            # interface holding it, which the managed address table reports.
-            yield {
-                "sn": row.get("sn"),
-                "hostname": row.get("hostname"),
-                "intName": row.get("intName"),
-                "ip": host,
-                INHERITS_SUBNET: True,
-            }
-        if unnamed:
-            self.job.logger.warning(
-                "IP Fabric reports %d FHRP group members with no virtual address under any of %s, so "
-                "those addresses are not synced. The column may be named differently in this release.",
-                unnamed,
-                ", ".join(FHRP_VIRTUAL_ADDRESS_KEYS),
-            )
+        rows = self.client.technology.fhrp.group_state.all(
+            columns=["sn", "hostname", "intName", *FHRP_VIRTUAL_ADDRESS_COLUMNS, FHRP_SECONDARY_ADDRESSES_COLUMN]
+        )
+        for row in rows:
+            addresses = [row.get(column) for column in FHRP_VIRTUAL_ADDRESS_COLUMNS]
+            # The spec types this column only as an array, so anything but an address string is skipped.
+            addresses += [entry for entry in row.get(FHRP_SECONDARY_ADDRESSES_COLUMN) or () if isinstance(entry, str)]
+            for address in addresses:
+                if not address:
+                    continue
+                # A virtual address has no subnet of its own in this table; it sits in the subnet of
+                # the interface holding it, which the managed address tables report.
+                yield {
+                    "sn": row.get("sn"),
+                    "hostname": row.get("hostname"),
+                    "intName": row.get("intName"),
+                    "ip": address,
+                    INHERITS_SUBNET: True,
+                }
 
     def load_vrfs(self):
         """Add IP Fabric VRFs as DiffSync Vrf models.

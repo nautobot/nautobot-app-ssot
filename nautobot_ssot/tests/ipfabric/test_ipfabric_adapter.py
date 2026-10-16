@@ -61,7 +61,7 @@ def mock_ipfabric_client():
     ipfabric_client.technology.addressing.managed_ip_ipv4.all.return_value = NETWORKS_FIXTURE
     # Stubbed empty rather than left as mocks, so a test that means to exercise them has to say so.
     ipfabric_client.technology.addressing.managed_ip_ipv6.all.return_value = []
-    ipfabric_client.technology.fhrp.group_members.all.return_value = []
+    ipfabric_client.technology.fhrp.group_state.all.return_value = []
     ipfabric_client.technology.platforms.stacks_members.all.return_value = STACKS_FIXTURE
     ipfabric_client.technology.interfaces.connectivity_matrix.all.return_value = CONNECTIVITY_MATRIX_FIXTURE
     return ipfabric_client
@@ -716,10 +716,17 @@ class SeveralAddressesPerInterfaceTestCase(TestCase):
         """Return one managed address row for this test's Interface."""
         return {"sn": self.SERIAL, "intName": "Gi4", "ip": ip, "net": net}
 
-    def fhrp(self, **columns):
-        """Serve one FHRP group member for this test's Interface, carrying the given columns."""
-        self.client.technology.fhrp.group_members.all.return_value = [
-            {"sn": self.SERIAL, "hostname": self.DEVICE, "intName": "Gi4", **columns}
+    def fhrp(self, virtual_ip=None, virtual_ipv6=None, secondaries=()):
+        """Serve one FHRP group state row for this test's Interface, shaped as IP Fabric returns it."""
+        self.client.technology.fhrp.group_state.all.return_value = [
+            {
+                "sn": self.SERIAL,
+                "hostname": self.DEVICE,
+                "intName": "Gi4",
+                "virtualIp": virtual_ip,
+                "virtualIpv6": virtual_ipv6,
+                "secondaryVirtualIpAddresses": list(secondaries),
+            }
         ]
 
     def test_a_secondary_address_is_synced_alongside_the_primary(self):
@@ -764,7 +771,7 @@ class SeveralAddressesPerInterfaceTestCase(TestCase):
 
     def test_an_fhrp_virtual_address_is_synced(self):
         """A virtual address renders into the device's configuration, so Nautobot needs it."""
-        self.fhrp(vip="10.10.0.1")
+        self.fhrp(virtual_ip="10.10.0.1")
 
         adapter = build_adapter(client=self.client)
 
@@ -773,22 +780,59 @@ class SeveralAddressesPerInterfaceTestCase(TestCase):
             loaded.get("10.10.0.1"), 24, f"The virtual address should sit in the Interface's subnet: {loaded}"
         )
 
-    def test_an_fhrp_row_with_no_recognisable_virtual_address_is_reported(self):
-        """The column differs between releases, so a miss is named rather than passed over."""
-        self.fhrp(somethingElse="10.10.0.1")
+    def test_an_fhrp_ipv6_virtual_address_is_synced(self):
+        self.client.technology.addressing.managed_ip_ipv6.all.return_value = [
+            {"sn": self.SERIAL, "intName": "Gi4", "ip": "2001:db8::10", "net": "2001:db8::/64"}
+        ]
+        self.fhrp(virtual_ipv6="2001:db8::1")
 
-        adapter = build_adapter(client=self.client, logger=MagicMock())
+        adapter = build_adapter(client=self.client)
 
-        reported = " ".join(str(call) for call in adapter.job.logger.warning.call_args_list)
-        self.assertIn("FHRP", reported)
+        self.assertEqual(addresses_of(adapter, self.DEVICE, self.INTERFACE).get("2001:db8::1"), 64)
+
+    def test_fhrp_secondary_virtual_addresses_are_synced(self):
+        self.fhrp(virtual_ip="10.10.0.1", secondaries=["10.10.0.2", "10.10.0.3"])
+
+        adapter = build_adapter(client=self.client)
+
+        self.assertEqual(
+            addresses_of(adapter, self.DEVICE, self.INTERFACE),
+            {"10.10.0.1": 24, "10.10.0.2": 24, "10.10.0.3": 24, "10.10.0.10": 24},
+        )
+
+    def test_a_secondary_entry_that_is_not_an_address_string_is_skipped(self):
+        """The spec types the column only as an array, so an unexpected entry must not end the load."""
+        self.fhrp(virtual_ip="10.10.0.1", secondaries=[{"ip": "10.10.0.2"}, "10.10.0.3"])
+
+        adapter = build_adapter(client=self.client)
+
+        self.assertEqual(
+            addresses_of(adapter, self.DEVICE, self.INTERFACE), {"10.10.0.1": 24, "10.10.0.3": 24, "10.10.0.10": 24}
+        )
+
+    def test_an_fhrp_row_with_no_virtual_address_adds_nothing(self):
+        self.fhrp()
+
+        adapter = build_adapter(client=self.client)
+
         self.assertEqual(addresses_of(adapter, self.DEVICE, self.INTERFACE), {"10.10.0.10": 24})
+
+    def test_fhrp_addresses_are_read_from_the_group_state_table(self):
+        """The group members table names no Interface, so nothing read from it could be placed."""
+        self.fhrp(virtual_ip="10.10.0.1")
+
+        build_adapter(client=self.client)
+
+        self.client.technology.fhrp.group_members.all.assert_not_called()
+        columns = self.client.technology.fhrp.group_state.all.call_args.kwargs["columns"]
+        self.assertTrue({"sn", "intName", "virtualIp", "virtualIpv6", "secondaryVirtualIpAddresses"} <= set(columns))
 
     def test_an_address_reported_by_two_sources_is_loaded_once(self):
         """A virtual address configured on the interface appears in both tables."""
         # The second row is the Interface's own address, so the record built from the Interface
         # record adds nothing.
         self.managed(self.row("10.10.0.1", "10.10.0.0/24"), self.row("10.10.0.10", "10.10.0.0/24"))
-        self.fhrp(vip="10.10.0.1")
+        self.fhrp(virtual_ip="10.10.0.1")
 
         adapter = build_adapter(client=self.client)
 
@@ -813,7 +857,7 @@ class SeveralAddressesPerInterfaceTestCase(TestCase):
         Withheld through the same register as any other address with no usable subnet, so it is
         counted in the summary and reported at debug rather than once per Interface.
         """
-        self.fhrp(vip="192.0.2.1")
+        self.fhrp(virtual_ip="192.0.2.1")
 
         adapter = build_adapter(client=self.client, logger=MagicMock())
 
