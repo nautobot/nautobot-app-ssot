@@ -1265,6 +1265,29 @@ def get_vlan_at_location_name(vid: int, location_name: str) -> Optional[VLAN]:
     return VLAN.objects.filter(vid=vid, locations__name=location_name).first()
 
 
+def first_locations_of_vlans(pairs: Iterable) -> dict:
+    """Return the first Location, by name, of the VLAN Nautobot holds for each (Location name, VLAN ID).
+
+    The Location a Prefix's VLAN is named by on both sides of the diff. A VLAN at several Locations
+    is then the same VLAN whichever of them IP Fabric reported it at. A pair Nautobot holds no VLAN
+    for is left out.
+    """
+    pairs = set(pairs)
+    if not pairs:
+        return {}
+    vlans = (
+        VLAN.objects.filter(vid__in={vid for _, vid in pairs}, locations__name__in={site for site, _ in pairs})
+        .prefetch_related("locations")
+        .distinct()
+    )
+    first = {}
+    for vlan_record in vlans:
+        names = sorted(location.name for location in vlan_record.locations.all())
+        for name in names:
+            first.setdefault((name, vlan_record.vid), names[0])
+    return {pair: first[pair] for pair in pairs if pair in first}
+
+
 def set_prefix_vlan(
     prefix: str, vlan_obj: Optional[VLAN], conflict: str, logger: Optional[logging.Logger] = None
 ) -> bool:
