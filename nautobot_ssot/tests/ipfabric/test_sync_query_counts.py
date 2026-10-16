@@ -745,7 +745,7 @@ class VlanLookupCostTestCase(_CostTestCase):
 
     def test_the_location_type_is_checked_once_for_every_vlan(self):
         """Whether the LocationType permits VLANs does not change between one VLAN and the next."""
-        self.assert_asked_once(nbutils.allow_vlans_at_location_type, 3)
+        self.assert_asked_once(nbutils.allow_at_location_type, 3)
 
     def test_the_location_type_is_still_granted_vlans_when_it_has_none(self):
         """Caching the check must not skip the grant a site that has never held a VLAN needs."""

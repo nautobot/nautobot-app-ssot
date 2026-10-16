@@ -63,6 +63,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     VLANGroup = apps.get_model("ipam", "VLANGroup")
     VRF = apps.get_model("ipam", "VRF")
     RouteTarget = apps.get_model("ipam", "RouteTarget")
+    Prefix = apps.get_model("ipam", "Prefix")
     Tag = apps.get_model("extras", "Tag")
     ContentType = apps.get_model("contenttypes", "ContentType")
     location_type = apps.get_model("dcim", "LocationType")
@@ -83,7 +84,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     )
     loc_type, _ = location_type.objects.update_or_create(name="Site")
     loc_type.content_types.add(ContentType.objects.get_for_model(Device))
-    loc_type.content_types.add(ContentType.objects.get_for_model(apps.get_model("ipam", "Prefix")))
+    loc_type.content_types.add(ContentType.objects.get_for_model(Prefix))
     loc_type.content_types.add(ContentType.objects.get_for_model(VLAN))
     synced_from_models = [
         Device,
@@ -98,6 +99,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         Cable,
         VRF,
         RouteTarget,
+        Prefix,
     ]
     create_custom_field("system_of_record", "System of Record", synced_from_models, apps=apps, cf_type="type_text")
     create_custom_field("last_synced_from_sor", "Last sync from System of Record", synced_from_models, apps=apps)
