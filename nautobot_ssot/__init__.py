@@ -132,6 +132,12 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         "ipfabric_timeout": 15,
         "ipfabric_nautobot_host": "",
         "ipfabric_sync_ipf_dev_type_to_role": True,
+        "ipfabric_bulk_write_batch_size": 1000,
+        "librenms_allow_ip_hostnames": False,
+        "librenms_consolidated_platforms": False,
+        "librenms_network_driver_map": {},
+        "librenms_permitted_values": {},
+        "librenms_show_failures": True,
         "servicenow_instance": "",
         "servicenow_password": "",
         "servicenow_username": "",
@@ -140,7 +146,7 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
     }
     config_view_name = "plugins:nautobot_ssot:config"
     docs_view_name = "plugins:nautobot_ssot:docs"
-    searchable_models = ["sync"]
+    # `searchable_models` is intentionally not declared here; `ready()` assigns it from `enable_global_search`.
 
     def ready(self):
         """Trigger callback when database is ready."""
@@ -151,12 +157,12 @@ class NautobotSSOTAppConfig(NautobotAppConfig):
         if not is_truthy(os.getenv("NAUTOBOT_SSOT_ALLOW_CONFLICTING_APPS", "False")):
             _check_for_conflicting_apps()
 
-        # Only set searchable_models if enabled in config
-        if settings.PLUGINS_CONFIG["nautobot_ssot"].get("enable_global_search", True):
-            self.searchable_models = [
-                "Sync",
-                "SyncLogEntry",
-            ]
+        # Assign in both branches so no class-level default can leak through when global search is disabled.
+        # Nautobot expects lowercase model names and compares them as plain strings (`?model=nautobot_ssot.sync`).
+        if settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get("enable_global_search", True):
+            self.searchable_models = ["sync", "synclogentry"]
+        else:
+            self.searchable_models = []
 
 
 config = NautobotSSOTAppConfig  # pylint:disable=invalid-name

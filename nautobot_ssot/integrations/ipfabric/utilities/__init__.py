@@ -5,6 +5,10 @@ from .nbutils import (
     create_interface,
     create_ip,
     create_vlan,
+    get_device_role_object,
+    get_device_type_object,
+    get_location_object,
+    get_manufacturer_object,
     get_or_create_device_role_object,
     get_or_create_device_type_object,
     get_or_create_location_object,
@@ -13,7 +17,9 @@ from .nbutils import (
     get_or_create_status_object,
     get_or_create_tag_object,
     get_or_create_virtual_chassis_object,
-    get_tagged_device,
+    get_platform_object,
+    get_syncable_device,
+    get_virtual_chassis_object,
 )
 from .test_utils import clean_slate, json_fixture
 
@@ -25,6 +31,11 @@ __all__ = (
     "create_vlan",
     "clean_slate",
     "get_or_create_device_role_object",
+    "get_device_role_object",
+    "get_device_type_object",
+    "get_location_object",
+    "get_manufacturer_object",
+    "get_platform_object",
     "get_or_create_device_type_object",
     "get_or_create_location_object",
     "get_or_create_manufacturer_object",
@@ -32,5 +43,6 @@ __all__ = (
     "get_or_create_status_object",
     "get_or_create_tag_object",
     "get_or_create_virtual_chassis_object",
-    "get_tagged_device",
+    "get_virtual_chassis_object",
+    "get_syncable_device",
 )

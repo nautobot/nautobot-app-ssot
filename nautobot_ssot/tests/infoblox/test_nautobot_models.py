@@ -1201,16 +1201,52 @@ class TestModelNautobotVlanGroupNamespaceVlan(TestCase):
         self.assertTrue(CustomField.objects.filter(key="department").exists())
 
     def test_vlangroup_delete(self):
-        """Validate VLANGroup object is deleted when absent from source."""
+        """Validate VLANGroup object is deleted when absent from source and enabled in deletable models."""
         self._add_source_namespaces(include_dev=True)
         VLANGroup.objects.get_or_create(name="VG-To-Delete")
 
+        self.config.nautobot_deletable_models = [NautobotDeletableModelChoices.VLAN_GROUP]
         nb_adapter = NautobotAdapter(config=self.config)
         nb_adapter.job = Mock(debug=True)
         nb_adapter.load()
         self.infoblox_adapter.sync_to(nb_adapter)
 
         self.assertFalse(VLANGroup.objects.filter(name="VG-To-Delete").exists())
+
+    def test_vlangroup_delete_not_in_deletable_models(self):
+        """Validate VLANGroup object is not deleted when absent from source if not in deletable models."""
+        self._add_source_namespaces(include_dev=True)
+        VLANGroup.objects.get_or_create(name="VG-Keep")
+
+        self.config.nautobot_deletable_models = []
+        nb_adapter = NautobotAdapter(config=self.config)
+        nb_adapter.job = Mock(debug=True)
+        nb_adapter.load()
+        self.infoblox_adapter.sync_to(nb_adapter)
+
+        self.assertTrue(VLANGroup.objects.filter(name="VG-Keep").exists())
+
+    def test_vlangroup_delete_has_vlans_skips_deletion(self):
+        """Validate VLANGroup object is not deleted if it still contains VLANs."""
+        self._add_source_namespaces(include_dev=True)
+        vg, _ = VLANGroup.objects.get_or_create(name="VG-With-VLAN")
+        VLAN.objects.get_or_create(
+            vid=100,
+            name="VLAN100",
+            vlan_group=vg,
+            status=self.status_active,
+        )
+
+        self.config.nautobot_deletable_models = [NautobotDeletableModelChoices.VLAN_GROUP]
+        nb_adapter = NautobotAdapter(config=self.config)
+        nb_adapter.job = Mock(debug=True, logger=Mock())
+        nb_adapter.load()
+        self.infoblox_adapter.sync_to(nb_adapter)
+
+        self.assertTrue(VLANGroup.objects.filter(name="VG-With-VLAN").exists())
+        nb_adapter.job.logger.warning.assert_any_call(
+            "VLAN Group VG-With-VLAN cannot be deleted because it still contains VLANs."
+        )
 
     def test_namespace_update_ext_attrs(self):
         """Validate Namespace update applies ext attrs via sync."""
@@ -1275,6 +1311,46 @@ class TestModelNautobotVlanGroupNamespaceVlan(TestCase):
         self.assertEqual("Updated VLAN description", vlan.description)
         self.assertEqual("Operations", vlan.custom_field_data.get("department"))
         self.assertEqual(self.location.id, vg.location_id)
+
+    def test_vlan_delete_not_in_deletable_models(self):
+        """Validate VLAN object is not deleted when absent from source if not in deletable models."""
+        self._add_source_namespaces(include_dev=True)
+        vg, _ = VLANGroup.objects.get_or_create(name="VG-Test-Keep")
+        VLAN.objects.get_or_create(
+            vid=300,
+            name="VLAN300",
+            vlan_group=vg,
+            status=self.status_active,
+        )
+        self.infoblox_adapter.add(self.infoblox_adapter.vlangroup(name="VG-Test-Keep", description="", ext_attrs={}))
+
+        self.config.nautobot_deletable_models = []
+        nb_adapter = NautobotAdapter(config=self.config)
+        nb_adapter.job = Mock(debug=True)
+        nb_adapter.load()
+        self.infoblox_adapter.sync_to(nb_adapter)
+
+        self.assertTrue(VLAN.objects.filter(name="VLAN300", vid=300).exists())
+
+    def test_vlan_delete_success(self):
+        """Validate VLAN object is deleted when absent from source and enabled in deletable models."""
+        self._add_source_namespaces(include_dev=True)
+        vg, _ = VLANGroup.objects.get_or_create(name="VG-Test-Del")
+        VLAN.objects.get_or_create(
+            vid=301,
+            name="VLAN301",
+            vlan_group=vg,
+            status=self.status_active,
+        )
+        self.infoblox_adapter.add(self.infoblox_adapter.vlangroup(name="VG-Test-Del", description="", ext_attrs={}))
+
+        self.config.nautobot_deletable_models = [NautobotDeletableModelChoices.VLAN]
+        nb_adapter = NautobotAdapter(config=self.config)
+        nb_adapter.job = Mock(debug=True)
+        nb_adapter.load()
+        self.infoblox_adapter.sync_to(nb_adapter)
+
+        self.assertFalse(VLAN.objects.filter(name="VLAN301", vid=301).exists())
 
 
 class TestModelNautobotBranchMatrix(TestCase):

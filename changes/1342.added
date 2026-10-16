@@ -1,0 +1,1 @@
+Added a VLAN Group per Location to the IP Fabric integration, named after the Location, so that Nautobot constrains a VLAN ID to one VLAN there. VLANs that predate the group are moved into it on the first sync after upgrading, whether or not anything else about them changed. The cases where a VLAN is left outside the group are documented in the IP Fabric integration.

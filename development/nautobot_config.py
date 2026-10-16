@@ -309,6 +309,14 @@ PLUGINS_CONFIG = {
         "librenms_permitted_values": {
             "role": ["network"],
         },
+        # Name Platforms after the network driver (cisco_ios) to share them with
+        # device-onboarding, instead of the Ansible FQCN (cisco.ios.ios). Docs cover migration.
+        "librenms_consolidated_platforms": is_truthy(
+            os.getenv("NAUTOBOT_SSOT_LIBRENMS_CONSOLIDATED_PLATFORMS", "false")
+        ),
+        # Override the bundled os -> driver mappings.
+        # {"iosxe": "cisco_ios"} declines the IOS-XE split; {"fortios": ""} suppresses a mapping.
+        "librenms_network_driver_map": {},
         "meraki_allow_dhcp_mgmt_ips": is_truthy(os.getenv("NAUTOBOT_SSOT_MERAKI_ALLOW_DHCP_MGMT_IPS", "false")),
         "servicenow_instance": os.getenv("SERVICENOW_INSTANCE", ""),
         "servicenow_password": os.getenv("SERVICENOW_PASSWORD", ""),

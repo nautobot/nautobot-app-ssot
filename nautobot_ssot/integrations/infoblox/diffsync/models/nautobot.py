@@ -125,6 +125,8 @@ def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=
                 "key": slugify(attr).replace("-", "_"),
                 "type": CustomFieldTypeChoices.TYPE_TEXT,
                 "label": attr,
+                "description": f"Auto-created by the Infoblox SSoT integration to mirror Infoblox Extensibility Attribute '{attr}'.",
+                "grouping": "Infoblox",
             }
             field, _ = OrmCF.objects.get_or_create(key=_cf_dict["key"], defaults=_cf_dict)
             field.content_types.add(ContentType.objects.get_for_model(type(obj)).id)
@@ -411,8 +413,19 @@ class NautobotVlanGroup(VlanView):
 
     def delete(self):
         """Delete VLANGroup object in Nautobot."""
-        self.adapter.job.logger.warning(f"VLAN Group {self.name} will be deleted.")
+        if NautobotDeletableModelChoices.VLAN_GROUP not in self.adapter.config.nautobot_deletable_models:
+            return super().delete()
+
         _vg = OrmVlanGroup.objects.get(id=self.pk)
+        if _vg.vlans.exists():
+            self.adapter.job.logger.warning(
+                f"VLAN Group {self.name} cannot be deleted because it still contains VLANs."
+            )
+            return super().delete()
+
+        self.adapter.job.logger.warning(f"VLAN Group {self.name} will be deleted.")
+        if self.name in self.adapter.vlangroup_map:
+            del self.adapter.vlangroup_map[self.name]
         _vg.delete()
         return super().delete()
 
@@ -474,8 +487,17 @@ class NautobotVlan(Vlan):
 
     def delete(self):
         """Delete VLAN object in Nautobot."""
+        if NautobotDeletableModelChoices.VLAN not in self.adapter.config.nautobot_deletable_models:
+            return super().delete()
+
         self.adapter.job.logger.warning(f"VLAN {self.vid} will be deleted.")
         _vlan = OrmVlan.objects.get(id=self.pk)
+        if (
+            self.vlangroup
+            and self.vlangroup in self.adapter.vlan_map
+            and self.vid in self.adapter.vlan_map[self.vlangroup]
+        ):
+            del self.adapter.vlan_map[self.vlangroup][self.vid]
         _vlan.delete()
         return super().delete()
 

@@ -1,0 +1,1 @@
+The IP Fabric sync now syncs Interfaces that IP Fabric's interface inventory does not return but that its managed address table names, such as an SVI, a loopback or a tunnel. The job reports what the inventory omitted, once per naming scheme.

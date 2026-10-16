@@ -1,0 +1,1 @@
+An IP Fabric Interface whose type is resolved from neither the reported media type nor the Interface's name now keeps the type Nautobot holds, rather than being overwritten with the configured default. The default still applies to an Interface the sync creates. The job log reports what went unresolved, once per media type and once per naming scheme.

@@ -3,23 +3,28 @@
 #  pylint: disable=too-many-locals
 """IP Fabric Data Target Job."""
 
+import logging
 import uuid
 
 from diffsync.enum import DiffSyncFlags
 from diffsync.exceptions import ObjectNotCreated
 from django.templatetags.static import static
 from django.urls import reverse
-from httpx import ConnectError
 from ipfabric import IPFClient
 from nautobot.core.forms import DynamicModelChoiceField
 from nautobot.dcim.models import Location
 from nautobot.extras.jobs import BooleanVar, ChoiceVar, ScriptVariable
 
-from nautobot_ssot.integrations.ipfabric import constants
+from nautobot_ssot.integrations.ipfabric import constants, strict_mode
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
-from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
-from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import DiffSyncExtras
+from nautobot_ssot.integrations.ipfabric.sync_scope import (
+    SyncScope,
+    disabled_keys,
+    form_fields,
+    scope_field_order,
+)
+from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 from nautobot_ssot.jobs.base import DataMapping, DataSource
 
 LAST = "$last"
@@ -115,6 +120,15 @@ class IpFabricDataSource(DataSource):
         label="Sync Tagged Only",
         description="Only sync objects that have the 'SSoT Synced from IPFabric' Tag.",
     )
+    bulk_write_mode = BooleanVar(
+        default=False,
+        label="Bulk Write Mode",
+        description=(
+            "Write Interfaces and IP Addresses in batches. Much faster on a large sync, at the cost "
+            "of no change log entries, no signals and no per-object validation for those two. "
+            "Database constraints still apply. Leave off unless a sync is too slow without it."
+        ),
+    )
     location_filter = OptionalObjectVar(
         description="Only sync Nautobot records belonging to a single Location.",
         model=Location,
@@ -134,22 +148,31 @@ class IpFabricDataSource(DataSource):
             "snapshot",
             "safe_delete_mode",
             "sync_ipfabric_tagged_only",
+            "bulk_write_mode",
+            strict_mode.FIELD_NAME,
+            *scope_field_order(),
             "dryrun",
         )
 
     @staticmethod
     def _init_ipf_client():
+        """Return `(client, None)`, or `(None, reason)` when no client can be built.
+
+        The reason is returned rather than logged because the Job form builds a client too, before
+        there is a run to log to. The SDK raises `RuntimeError` when its major version does not
+        match the server's, and an `OSError` subclass for connection and HTTP failures.
+        """
         try:
-            return IPFClient(
+            client = IPFClient(
                 base_url=constants.IPFABRIC_HOST,
                 auth=constants.IPFABRIC_API_TOKEN,
                 verify=constants.IPFABRIC_SSL_VERIFY,
                 timeout=constants.IPFABRIC_TIMEOUT,
                 unloaded=False,
             )
-        except (RuntimeError, ConnectError) as error:
-            print(f"Got an error {error}")
-            return None
+        except (RuntimeError, OSError) as error:
+            return None, str(error)
+        return client, None
 
     @classmethod
     def _get_vars(cls):
@@ -160,7 +183,14 @@ class IpFabricDataSource(DataSource):
         got_vars = super()._get_vars()
 
         if cls.client is None:
-            cls.client = cls._init_ipf_client()
+            cls.client, error = cls._init_ipf_client()
+            if cls.client is None:
+                # Building the form is not a run, so there is no Job Result log to report to and the
+                # server log is the only place this can go. Fetched here rather than held by the
+                # module, so that no code a run executes can report through it by mistake.
+                logging.getLogger("nautobot.ssot.ipfabric").error(
+                    "IP Fabric client is not ready, so the Job form lists no snapshots: %s", error
+                )
         else:
             cls.client.update()
 
@@ -180,6 +210,11 @@ class IpFabricDataSource(DataSource):
         if hasattr(cls, "snapshot"):
             got_vars["snapshot"] = cls.snapshot
 
+        # Built here rather than declared on the class so that an object type an administrator has
+        # disabled is absent from the form, not merely defaulted off.
+        got_vars.update(form_fields())
+        got_vars[strict_mode.FIELD_NAME] = strict_mode.form_field()
+
         return got_vars
 
     @classmethod
@@ -191,6 +226,8 @@ class IpFabricDataSource(DataSource):
             DataMapping("Interfaces", None, "Interfaces", reverse("dcim:interface_list")),
             DataMapping("IP Addresses", None, "IP Addresses", reverse("ipam:ipaddress_list")),
             DataMapping("VLANs", None, "VLANs", reverse("ipam:vlan_list")),
+            DataMapping("Stack Members", None, "Virtual Chassis", reverse("dcim:virtualchassis_list")),
+            DataMapping("Connectivity Matrix", None, "Cables", reverse("dcim:cable_list")),
         )
 
     @classmethod
@@ -209,10 +246,13 @@ class IpFabricDataSource(DataSource):
             "Use Canonical Interface Names": str(constants.IP_FABRIC_USE_CANONICAL_INTERFACE_NAME),
             "Default MAC Address": constants.DEFAULT_INTERFACE_MAC,
             "Default MTU": constants.DEFAULT_INTERFACE_MTU,
+            "Default Cable Status": constants.DEFAULT_CABLE_STATUS,
             "Safe Delete Device Status": constants.SAFE_DELETE_DEVICE_STATUS,
             "Safe Delete Location Status": constants.SAFE_DELETE_LOCATION_STATUS,
             "Safe Delete IPAddress Status": constants.SAFE_DELETE_IPADDRESS_STATUS,
             "Safe Delete VLAN status": constants.SAFE_DELETE_VLAN_STATUS,
+            "Safe Delete Cable Status": constants.SAFE_DELETE_CABLE_STATUS,
+            "Disabled Sync Objects": ", ".join(disabled_keys()) or "None",
         }
 
     # pylint: disable-next=too-many-arguments, arguments-differ
@@ -223,12 +263,22 @@ class IpFabricDataSource(DataSource):
             "dryrun": kwargs.get("dryrun"),
             "safe_delete_mode": kwargs.get("safe_delete_mode"),
             "sync_ipfabric_tagged_only": kwargs.get("sync_ipfabric_tagged_only"),
+            "bulk_write_mode": kwargs.get("bulk_write_mode"),
+            "strict": strict_mode.StrictObjects.from_job_kwargs(kwargs),
             "location_filter": kwargs.get("location_filter"),
             "debug": kwargs.get("debug"),
+            "scope": SyncScope.from_job_kwargs(kwargs),
         }
         self.dryrun = kwargs.get("dryrun")
         self.memory_profiling = kwargs.get("memory_profiling")
         self.parallel_loading = kwargs.get("parallel_loading")
+        # Nautobot instantiates a Device Type's component templates on a Device's first save. A
+        # batched insert never calls save(), so a Device written in a batch gets none of them, but a
+        # batch the database refuses is retried an object at a time and those saves would. Suppressed
+        # for the run, so a Device's components do not depend on whether the batch it fell in was
+        # refused, and the Interfaces IP Fabric reports are not left colliding with templated ones.
+        # Read by `sync_data`, so it has to be set before the base class runs it.
+        self.skip_auto_component_creation = bool(kwargs.get("bulk_write_mode"))
         super().run(*args, **kwargs)
 
     def load_source_adapter(self):
@@ -239,16 +289,25 @@ class IpFabricDataSource(DataSource):
 
     def sync_data(self, *_args, **_kwargs):
         """Sync a device data from IP Fabric into Nautobot."""
+        error = None
         if self.client is None:
-            self.client = self._init_ipf_client()
+            self.client, error = self._init_ipf_client()
         if self.client is None:
-            self.logger.error("IPFabric client is not ready. Check your config.")
+            self.logger.error("IPFabric client is not ready: %s", error)
             return
+
+        # Thread local and shared by every run in this worker. A run that failed part way through
+        # leaves them populated, holding objects that may belong to a transaction that rolled back,
+        # so a run starts by emptying them rather than trusting the last one to have finished.
+        job_scoped_cache.clear_all()
 
         self.client.snapshot_id = self.kwargs["snapshot"]
         dryrun = self.kwargs["dryrun"]
         safe_mode = self.kwargs["safe_delete_mode"]
         tagged_only = self.kwargs["sync_ipfabric_tagged_only"]
+        bulk_write_mode = self.kwargs["bulk_write_mode"]
+        strict = self.kwargs["strict"]
+        scope = self.kwargs["scope"]
         location_filter = self.kwargs["location_filter"]
         debug_mode = self.kwargs["debug"]
 
@@ -256,27 +315,40 @@ class IpFabricDataSource(DataSource):
             location_filter_object = Location.objects.get(pk=location_filter)
         else:
             location_filter_object = None
-        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Location Filter`: {location_filter_object}"
+        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Bulk Write Mode`: {bulk_write_mode}, `Location Filter`: {location_filter_object}"
         self.logger.info(f"Starting job with the following options: {options}")
+        self.logger.info("Object types in scope: %s", scope.describe())
+        self.logger.info("Object types matched rather than created: %s", strict.describe())
+        for explanation in (*scope.explanations(), *strict.explanations(scope)):
+            self.logger.warning(explanation)
 
         ipfabric_source = IPFabricDiffSync(
             job=self,
             sync=self.sync,
             client=self.client,
             location_filter=location_filter_object.name if location_filter_object else None,
+            scope=scope,
+            strict=strict,
+            safe_delete_mode=safe_mode,
         )
         self.logger.info("Loading current data from IP Fabric...")
         ipfabric_source.load()
 
-        # Set safe mode either way (Defaults to True)
-        DiffSyncModelAdapters.safe_delete_mode = safe_mode
-        DiffSyncExtras.safe_delete_mode = safe_mode
-
+        # Constructed after the source has loaded, so that the addresses it could not find a subnet
+        # for are known and this side can withhold the same ones.
         dest = NautobotDiffSync(
             job=self,
             sync=self.sync,
             sync_ipfabric_tagged_only=tagged_only,
+            bulk_write_mode=bulk_write_mode,
+            safe_delete_mode=safe_mode,
             location_filter=location_filter_object,
+            scope=scope,
+            strict=strict,
+            addresses_without_a_subnet=ipfabric_source.addresses_without_a_subnet,
+            interfaces_without_admin_state=ipfabric_source.interfaces_without_admin_state,
+            devices_without_a_hardware_serial=ipfabric_source.devices_without_a_hardware_serial,
+            interfaces_without_a_type=ipfabric_source.interfaces_without_a_type,
         )
 
         self.logger.info("Loading current data from Nautobot...")

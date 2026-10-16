@@ -1,11 +1,12 @@
 """General utils for IPFabric."""
 
+import ipaddress
 import re
 import threading
 from collections import defaultdict
 from functools import wraps
-
-from nautobot_ssot.integrations.ipfabric.constants import DEFAULT_INTERFACE_TYPE
+from itertools import takewhile
+from typing import Optional
 
 VIRTUAL = "virtual"
 BRIDGE = "bridge"
@@ -40,19 +41,96 @@ FOUR_HUNDRED_GIG = "400g"
 EIGHT_HUNDRED_GIG = "800g"
 
 
-def convert_media_type(  # pylint: disable=too-many-return-statements,too-many-branches,too-many-statements
-    media_type: str,
-    interface_name: str,
-) -> str:
-    """Convert provided `media_type` to value used by Nautobot.
+INTERFACE_NAME_TYPES = (
+    (r"po(rt-?channel)?\d", "lag"),
+    (r"vl(an)?\d", "virtual"),
+    (r"lo(opback)?\d", "virtual"),
+    (r"tu(nnel)?\d", "virtual"),
+    (r"vx(lan)?\d", "virtual"),
+    (r"fa(stethernet)?\d", "100base-tx"),
+    (r"gi(gabitethernet)?\d", "1000base-t"),
+    (r"te(ngigabitethernet)?\d", "10gbase-x-sfpp"),
+    (r"twentyfivegigabitethernet\d", "25gbase-x-sfp28"),
+    (r"fo(rtygigabitethernet)?\d", "40gbase-x-qsfpp"),
+    (r"fi(ftygigabitethernet)?\d", "50gbase-x-sfp56"),
+    (r"hu(ndredgigabitethernet)?\d", "100gbase-x-qsfp28"),
+    (r"twohundredgigabitethernet\d", "200gbase-x-qsfp56"),
+)
+
+
+def convert_media_type(media_type: str, interface_name: str) -> Optional[str]:
+    """Return the Nautobot Interface type for a reported media type, or None if nothing resolves.
+
+    Read from the media type IP Fabric reports, and failing that from the Interface's name, which is
+    the only other thing that names what a port is. None where neither answers: a type standing for
+    "not resolved" would be indistinguishable from one genuinely resolved to that value, and would
+    overwrite whatever Nautobot holds with a guess on every run.
 
     Args:
-        media_type: The media type of an inteface (i.e. SFP-10GBase)
+        media_type: The media type of an interface (i.e. SFP-10GBase).
         interface_name: The name of the interface with `media_type`.
 
     Returns:
-        str: The corresponding represention of `media_type` in Nautobot.
+        The corresponding representation of `media_type` in Nautobot, or None.
     """
+    return type_of_media(media_type) or type_of_interface_name(interface_name)
+
+
+def lag_member_names(reported: str) -> list:
+    """Return the Interface names a port channel's member column lists.
+
+    IP Fabric reports members as one string, each name followed by its state in brackets:
+    `Et35(DOWN), Et36(DOWN)`. The state is taken off the end rather than the name read from the
+    front, because a name may carry brackets of its own, and only the last pair is the state.
+    """
+    members = []
+    for part in (reported or "").split(","):
+        name = part.strip().rsplit("(", 1)[0].strip()
+        if name:
+            members.append(name)
+    return members
+
+
+def parent_interface_name(interface_name: str) -> Optional[str]:
+    """Return the Interface a subinterface hangs off, or None where the name names no parent.
+
+    A dot separates a physical port from the logical interface configured on it, on every platform
+    this sync has met: `GigabitEthernet0/1.100` on IOS, `ge-0/0/0.0` on Junos. The part before the
+    last dot is the port, which is what Nautobot wants `parent_interface` pointed at.
+
+    The name is the only evidence available. IP Fabric's interface inventory reports no relation
+    between a subinterface and its port, so the caller confirms the parent is a port the same Device
+    reported before using it.
+    """
+    port, separator, unit = interface_name.rpartition(".")
+    if not separator or not port or not unit:
+        return None
+    return port
+
+
+def interface_name_kind(interface_name: str) -> str:
+    """Return the leading letters of an Interface's name, which is what names the kind of port.
+
+    `Ethernet1/1` and `Ethernet49` are one kind reported twice, so counting Interfaces by this rather
+    than by name says which pattern is missing from `INTERFACE_NAME_TYPES` instead of listing every
+    port that matched none of them.
+    """
+    return "".join(takewhile(str.isalpha, interface_name))
+
+
+def type_of_interface_name(interface_name: str) -> Optional[str]:
+    """Return the Nautobot Interface type an Interface's name implies, or None if none does."""
+    interface_name = interface_name.lower()
+    for regex, iface_type in INTERFACE_NAME_TYPES:
+        if re.match(regex, interface_name):
+            return iface_type
+    return None
+
+
+def type_of_media(  # pylint: disable=too-many-return-statements,too-many-branches,too-many-statements
+    media_type: str,
+) -> Optional[str]:
+    """Return the Nautobot Interface type the reported media type names, or None if none does."""
     if media_type:
         media_type = media_type.lower().replace("-", "")
         if VIRTUAL in media_type:
@@ -139,28 +217,7 @@ def convert_media_type(  # pylint: disable=too-many-return-statements,too-many-b
             else:
                 nautobot_media_type += "osfp"
             return nautobot_media_type
-    else:
-        interface_name = interface_name.lower()
-        regex_to_type = (
-            (r"po(rt-?channel)?\d", "lag"),
-            (r"vl(an)?\d", "virtual"),
-            (r"lo(opback)?\d", "virtual"),
-            (r"tu(nnel)?\d", "virtual"),
-            (r"vx(lan)?\d", "virtual"),
-            (r"fa(stethernet)?\d", "100base-tx"),
-            (r"gi(gabitethernet)?\d", "1000base-t"),
-            (r"te(ngigabitethernet)?\d", "10gbase-x-sfpp"),
-            (r"twentyfivegigabitethernet\d", "25gbase-x-sfp28"),
-            (r"fo(rtygigabitethernet)?\d", "40gbase-x-qsfpp"),
-            (r"fi(ftygigabitethernet)?\d", "50gbase-x-sfp56"),
-            (r"hu(ndredgigabitethernet)?\d", "100gbase-x-qsfp28"),
-            (r"twohundredgigabitethernet\d", "200gbase-x-qsfp56"),
-        )
-        for regex, iface_type in regex_to_type:
-            if re.match(regex, interface_name):
-                return iface_type
-
-    return DEFAULT_INTERFACE_TYPE
+    return None
 
 
 class job_scoped_cache:  # pylint: disable=invalid-name
@@ -177,6 +234,11 @@ class job_scoped_cache:  # pylint: disable=invalid-name
         def get_service_type(code):
             return ServiceType.objects.filter(service_type_code=code).first()
 
+        # Keep only the most recent entries, for results too large to hold one of per key:
+        @job_scoped_cache(maxsize=2)
+        def get_interfaces(device):
+            return list(device.interfaces.all())
+
         # Clear only one group:
         job_scoped_cache.clear_group("facility_circuits")
 
@@ -188,9 +250,18 @@ class job_scoped_cache:  # pylint: disable=invalid-name
     _groups = defaultdict(list)
     _local = threading.local()
 
-    def __init__(self, fn=None, *, group=None):
-        """Initialize the cache."""
+    def __init__(self, fn=None, *, group=None, maxsize=None):
+        """Initialize the cache.
+
+        Args:
+            fn: The function to cache, when used without arguments.
+            group: Name of a group, so this cache can be cleared apart from the others.
+            maxsize: How many results to keep, oldest evicted first. Unbounded by default, which
+                suits small results keyed by a name; set it where one result is large enough that
+                keeping one per key over a whole run would cost real memory.
+        """
         self._group = group
+        self._maxsize = maxsize
         if fn is not None:
             # Called as @job_scoped_cache (no arguments)
             self._init_fn(fn)
@@ -207,7 +278,7 @@ class job_scoped_cache:  # pylint: disable=invalid-name
     def __call__(self, *args, **kwargs):
         """Handle call to function, checks cache, calls function if missing and caches result."""
         if not hasattr(self, "_fn"):
-            # Called as @job_scoped_cache(group="...") — receives the function
+            # Called as @job_scoped_cache(group="..."), so this receives the function
             self._init_fn(args[0])
             return self
         state = self._get_state()
@@ -217,7 +288,12 @@ class job_scoped_cache:  # pylint: disable=invalid-name
             return state["store"][key]
         state["misses"] += 1
         result = self._fn(*args, **kwargs)
-        state["store"][key] = result
+        store = state["store"]
+        store[key] = result
+        if self._maxsize is not None and len(store) > self._maxsize:
+            # One entry is added per miss, so the bound is exceeded by at most one. Insertion
+            # ordered, so the first key is the oldest.
+            del store[next(iter(store))]
         return result
 
     def _get_state(self):
@@ -243,7 +319,7 @@ class job_scoped_cache:  # pylint: disable=invalid-name
 
         state = self._get_state()
         _CacheInfo = namedtuple("CacheInfo", ["hits", "misses", "maxsize", "currsize"])
-        return _CacheInfo(state["hits"], state["misses"], None, len(state["store"]))
+        return _CacheInfo(state["hits"], state["misses"], self._maxsize, len(state["store"]))
 
     @classmethod
     def clear_group(cls, group):
@@ -256,3 +332,35 @@ class job_scoped_cache:  # pylint: disable=invalid-name
         """Clears all cache info on all instances and groups."""
         for instance in cls._all_instances:
             instance.cache_clear()
+
+
+def parse_vlan_ranges(value):
+    """Return the VLAN IDs a switchport range names, as a sorted list.
+
+    IP Fabric reports a trunk's VLANs the way the device's configuration does, as a comma separated
+    mix of single IDs and inclusive ranges: `110-119,999`. A part that is not a number or a range,
+    or a range that counts backwards, is skipped rather than guessed at.
+    """
+    vlan_ids = set()
+    for part in str(value or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        bounds = part.split("-")
+        try:
+            numbers = [int(bound) for bound in bounds]
+        except ValueError:
+            continue
+        if len(numbers) == 1:
+            vlan_ids.add(numbers[0])
+        elif len(numbers) == 2 and numbers[0] <= numbers[1]:
+            vlan_ids.update(range(numbers[0], numbers[1] + 1))
+    return sorted(vlan_id for vlan_id in vlan_ids if 1 <= vlan_id <= 4094)
+
+
+def host_route_length(host):
+    """Return the prefix length of the route covering only the given address."""
+    try:
+        return ipaddress.ip_address(host).max_prefixlen
+    except ValueError:
+        return 32

@@ -1,5 +1,7 @@
 """Tests for the JobResultSyncLink template extension."""
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from nautobot.apps.testing import TestCase
 from nautobot.extras.models import JobResult
 
@@ -24,3 +26,29 @@ class TestJobResultSyncLink(TestCase):
         result = extension.buttons()
         self.assertIn("SSoT Sync Details", result)
         self.assertIn(str(sync.pk), result)
+
+    def test_buttons_with_multiple_syncs_renders_link(self):
+        """A JobResult that ended up with more than one Sync still renders a single button (see #950)."""
+        job_result = JobResult.objects.create(name="MultiSync", task_name="multisync", worker="default")
+        create_example_sync(job_result=job_result)
+        create_example_sync(job_result=job_result)
+        extension = JobResultSyncLink({"object": job_result})
+        result = extension.buttons()
+        self.assertEqual(result.count("SSoT Sync Details"), 1)
+
+    def test_buttons_query_fetches_only_pk(self):
+        """The Sync lookup selects only the primary key, in a single query.
+
+        The `diff` and `summary` JSON columns can be hundreds of megabytes; selecting them alongside the ORDER BY
+        that `.first()` adds overflowed MySQL's sort buffer on the JobResult detail view.
+        """
+        job_result = JobResult.objects.create(name="WithSync", task_name="withsync", worker="default")
+        create_example_sync(job_result=job_result, diff={"large": "payload"}, summary={"create": 1})
+        extension = JobResultSyncLink({"object": job_result})
+        with CaptureQueriesContext(connection) as queries:
+            extension.buttons()
+        self.assertEqual(len(queries.captured_queries), 1)
+        sql = queries.captured_queries[0]["sql"]
+        self.assertIn("nautobot_ssot_sync", sql)
+        self.assertNotIn("diff", sql)
+        self.assertNotIn("summary", sql)

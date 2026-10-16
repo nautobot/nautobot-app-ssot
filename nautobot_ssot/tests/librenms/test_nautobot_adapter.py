@@ -1,7 +1,7 @@
 """Unit test for Nautobot object models."""
 
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.testing import TestCase
@@ -19,6 +19,11 @@ from nautobot_ssot.integrations.librenms.diffsync.adapters.nautobot import (
     NautobotAdapter,
 )
 from nautobot_ssot.integrations.librenms.jobs import LibrenmsDataSource
+from nautobot_ssot.integrations.librenms.utils.nautobot import (
+    clear_network_driver_caches,
+    librenms_os_to_network_driver,
+    platform_to_network_driver,
+)
 
 
 def load_json(path):
@@ -220,3 +225,127 @@ class TestNautobotAdapterTestCase(TestCase):
                 "Site",
                 f"Location type mismatch for {location['location']}.",
             )
+
+
+class TestNautobotAdapterPlatformResolution(TestCase):
+    """Test how the Nautobot adapter turns an existing Platform into a DiffSync platform value."""
+
+    databases = ("default", "job_logs")
+
+    def setUp(self):
+        """Create one device whose Platform each test rewrites."""
+        super().setUp()
+        clear_network_driver_caches()
+        self.addCleanup(clear_network_driver_caches)
+
+        self.active_status, _ = Status.objects.get_or_create(name="Active")
+        self.active_status.content_types.add(ContentType.objects.get_for_model(ORMDevice))
+        self.site_type, _ = LocationType.objects.get_or_create(name="Site")
+        self.site_type.content_types.add(ContentType.objects.get_for_model(ORMDevice))
+        self.location = ORMLocation.objects.create(
+            name="Test Site", location_type=self.site_type, status=self.active_status
+        )
+        self.manufacturer, _ = Manufacturer.objects.get_or_create(name="Cisco")
+        self.device_type, _ = DeviceType.objects.get_or_create(model="C9300", manufacturer=self.manufacturer)
+        self.role, _ = Role.objects.get_or_create(name="network")
+        self.role.content_types.add(ContentType.objects.get_for_model(ORMDevice))
+
+        self.job = LibrenmsDataSource()
+        self.job.logger.warning = MagicMock()
+        self.job.sync_locations = False
+        self.job.debug = False
+        self.job.job_result = JobResult.objects.create(
+            name=self.job.class_path, task_name="fake task", worker="default"
+        )
+
+    def _loaded_platform(self, platform, consolidated):
+        """Attach `platform` to a device, load it, and return the emitted platform value."""
+        ORMDevice.objects.create(
+            name="test-device",
+            device_type=self.device_type,
+            role=self.role,
+            location=self.location,
+            status=self.active_status,
+            platform=platform,
+        )
+        adapter = NautobotAdapter(job=self.job, sync=None)
+        adapter.consolidated_platforms = consolidated
+        adapter.load_device()
+        return adapter.get("device", {"name": "test-device"}).platform
+
+    def test_consolidated_mode_prefers_network_driver(self):
+        """A valid network_driver is used directly."""
+        platform = Platform.objects.create(name="cisco.ios.ios", network_driver="cisco_ios")
+        self.assertEqual(self._loaded_platform(platform, consolidated=True), "cisco_ios")
+
+    def test_consolidated_mode_resolves_legacy_fqcn(self):
+        """The legacy shape canonicalizes into driver space."""
+        platform = Platform.objects.create(name="cisco.ios.ios", network_driver="cisco.ios.ios")
+        self.assertEqual(self._loaded_platform(platform, consolidated=True), "cisco_ios")
+
+    def test_consolidated_mode_falls_back_to_name(self):
+        """A hand-made platform keeps its identity rather than being guessed at."""
+        platform = Platform.objects.create(name="Cisco IOS", network_driver="")
+        self.assertEqual(self._loaded_platform(platform, consolidated=True), "Cisco IOS")
+
+    def test_legacy_mode_emits_platform_name(self):
+        """Legacy mode is unchanged: the DiffSync attribute is the Platform name."""
+        platform = Platform.objects.create(name="cisco.ios.ios", network_driver="cisco.ios.ios")
+        self.assertEqual(self._loaded_platform(platform, consolidated=False), "cisco.ios.ios")
+
+    def test_mode_is_read_from_plugin_config(self):
+        """The adapter reads the setting once at construction."""
+        with patch.dict(
+            "nautobot_ssot.integrations.librenms.constants.PLUGIN_CFG",
+            {"librenms_consolidated_platforms": True},
+        ):
+            adapter = NautobotAdapter(job=self.job, sync=None)
+        self.assertTrue(adapter.consolidated_platforms)
+
+    def test_mode_defaults_to_legacy(self):
+        """Absent the setting, the adapter stays in legacy mode."""
+        self.assertFalse(NautobotAdapter(job=self.job, sync=None).consolidated_platforms)
+
+
+class TestPlatformInteropWithDeviceOnboarding(TestCase):
+    """Both adapters must emit the same platform value, so a sync never rewrites another app's Platform."""
+
+    databases = ("default", "job_logs")
+
+    def setUp(self):
+        super().setUp()
+        clear_network_driver_caches()
+        self.addCleanup(clear_network_driver_caches)
+
+    def _librenms_side(self, librenms_os):
+        """What the LibreNMS adapter would emit for this OS in consolidated mode."""
+        return librenms_os_to_network_driver(librenms_os) or librenms_os
+
+    def _nautobot_side(self, name, network_driver):
+        """What the Nautobot adapter would emit for this Platform in consolidated mode."""
+        return platform_to_network_driver(Platform(name=name, network_driver=network_driver))
+
+    def test_no_diff_for_onboarding_created_platform(self):
+        """A device onboarded as cisco_ios is not rewritten to cisco.ios.ios."""
+        self.assertEqual(self._nautobot_side("cisco_ios", "cisco_ios"), self._librenms_side("ios"))
+
+    def test_no_diff_for_legacy_fqcn_platform(self):
+        """Enabling the flag while holding cisco.ios.ios produces no diff, so nothing is written."""
+        self.assertEqual(self._nautobot_side("cisco.ios.ios", "cisco.ios.ios"), self._librenms_side("ios"))
+
+    def test_no_diff_for_dna_center_style_platform(self):
+        """FQCN name with a correct driver also matches."""
+        self.assertEqual(self._nautobot_side("cisco.ios.ios", "cisco_ios"), self._librenms_side("ios"))
+
+    def test_no_diff_for_legacy_raw_os_platform(self):
+        """A legacy fortios row matches the fortinet driver LibreNMS now emits."""
+        self.assertEqual(self._nautobot_side("fortios", "fortios"), self._librenms_side("fortios"))
+
+    def test_no_diff_for_unmapped_os(self):
+        """An intentionally unmapped OS is stable on both sides."""
+        self.assertEqual(self._nautobot_side("opnsense", ""), self._librenms_side("opnsense"))
+
+    def test_iosxe_diverges_on_purpose(self):
+        """The one intended movement: iosxe splits off the shared cisco.ios.ios row."""
+        self.assertNotEqual(self._nautobot_side("cisco.ios.ios", "cisco.ios.ios"), self._librenms_side("iosxe"))
+        self.assertEqual(self._librenms_side("iosxe"), "cisco_xe")

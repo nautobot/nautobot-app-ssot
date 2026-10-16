@@ -20,6 +20,7 @@ from nautobot_ssot.integrations.meraki.diffsync.models.base import (
     Prefix,
     PrefixLocation,
 )
+from nautobot_ssot.integrations.meraki.utils.nautobot import update_note
 
 
 class NautobotNetwork(Network):
@@ -58,14 +59,13 @@ class NautobotNetwork(Network):
         site = Location.objects.get(id=self.uuid)
         if "timezone" in attrs:
             site.time_zone = attrs["timezone"]
-        if attrs.get("notes"):
-            new_note = Note(
+        if "notes" in attrs:
+            update_note(
+                nautobot_object=site,
                 note=attrs["notes"],
                 user=self.adapter.job.user,
-                assigned_object_type_id=self.adapter.contenttype_map["location"],
-                assigned_object_id=site.id,
+                contenttype_id=self.adapter.contenttype_map["location"],
             )
-            new_note.validated_save()
         if "tags" in attrs:
             site.tags.set(attrs["tags"])
             for tag in site.tags.all():
@@ -190,14 +190,13 @@ class NautobotDevice(Device):
             device.device_type_id = self.adapter.devicetype_map[attrs["model"]]
         if "network" in attrs:
             device.location = self.adapter.site_map[attrs["network"]]
-        if attrs.get("notes"):
-            new_note = Note(
+        if "notes" in attrs:
+            update_note(
+                nautobot_object=device,
                 note=attrs["notes"],
                 user=self.adapter.job.user,
-                assigned_object_type_id=self.adapter.contenttype_map["device"],
-                assigned_object_id=device.id,
+                contenttype_id=self.adapter.contenttype_map["device"],
             )
-            new_note.validated_save()
         if "tags" in attrs:
             device.tags.set(attrs["tags"])
             for tag in device.tags.all():

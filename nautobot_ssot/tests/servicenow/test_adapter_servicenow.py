@@ -4,13 +4,16 @@ from collections import defaultdict
 from itertools import islice
 from unittest.mock import MagicMock
 
+import requests
 from nautobot.apps.testing import TestCase
 from nautobot.extras.models import JobResult
 
 from nautobot_ssot.integrations.servicenow.diffsync import models
 from nautobot_ssot.integrations.servicenow.diffsync.adapter_servicenow import ServiceNowDiffSync
+from nautobot_ssot.integrations.servicenow.exceptions import AmbiguousReferenceError
 from nautobot_ssot.integrations.servicenow.jobs import ServiceNowDataTarget
 from nautobot_ssot.integrations.servicenow.servicenow import ServiceNowClient
+from nautobot_ssot.integrations.servicenow.third_party.pysnow.exceptions import MultipleResults
 
 
 class MockServiceNowClient:
@@ -646,6 +649,7 @@ class ServiceNowClientPaginationTestCase(TestCase):
     @staticmethod
     def _client_returning(rows):
         client = ServiceNowClient.__new__(ServiceNowClient)
+        client.worker = None
         calls = []
 
         def resource(api_path=None):  # pylint: disable=unused-argument
@@ -678,6 +682,7 @@ class ServiceNowClientPaginationTestCase(TestCase):
         server_cap = 4576
         rows = [{"sys_id": f"id{i}"} for i in range(12934)]
         client = ServiceNowClient.__new__(ServiceNowClient)
+        client.worker = None
         calls = []
 
         def resource(api_path=None):  # pylint: disable=unused-argument
@@ -733,6 +738,7 @@ class ServiceNowClientPaginationTestCase(TestCase):
                     yield {"sys_id": f"id{i}"}
 
         client = ServiceNowClient.__new__(ServiceNowClient)
+        client.worker = None
 
         def resource(api_path=None):  # pylint: disable=unused-argument
             res = MagicMock()
@@ -752,6 +758,74 @@ class ServiceNowClientPaginationTestCase(TestCase):
         self.assertEqual(pages[0].pulled, 3)
 
 
+class ServiceNowClientReferenceTestCase(TestCase):
+    """Test that reference lookups distinguish "no match" from "multiple matches"."""
+
+    TABLE = "cmdb_hardware_product_model"
+    QUERY = {"name": "C9300-48P"}
+
+    @staticmethod
+    def _client(response=None, get_error=None):
+        """Build a client whose resource().get() returns `response`, or raises `get_error`."""
+        client = ServiceNowClient.__new__(ServiceNowClient)
+        client.worker = None
+        resource = MagicMock()
+        if get_error is not None:
+            resource.get.side_effect = get_error
+        else:
+            resource.get.return_value = response
+        client.resource = MagicMock(return_value=resource)
+        return client, resource
+
+    @staticmethod
+    def _response(one_or_none=None, error=None, rows=None):
+        response = MagicMock()
+        if error is not None:
+            response.one_or_none.side_effect = error
+        else:
+            response.one_or_none.return_value = one_or_none
+        response.all.return_value = iter(rows or [])
+        return response
+
+    def test_get_by_query_raises_on_multiple_results(self):
+        """Ambiguity must be raised, not collapsed to None, so callers cannot silently skip the field."""
+        client, _ = self._client(self._response(error=MultipleResults("Expected single-record result")))
+        with self.assertRaises(AmbiguousReferenceError) as context:
+            client.get_by_query(self.TABLE, self.QUERY)
+        self.assertEqual(context.exception.table, self.TABLE)
+        self.assertEqual(context.exception.column, "name")
+        self.assertEqual(context.exception.value, "C9300-48P")
+
+    def test_get_by_query_returns_none_on_http_error(self):
+        """An HTTP error (e.g. a nonexistent table) is still tolerated by the load path."""
+        client, _ = self._client(get_error=requests.exceptions.HTTPError("400 Client Error"))
+        self.assertIsNone(client.get_by_query(self.TABLE, self.QUERY))
+
+    def test_get_by_query_returns_none_when_no_match(self):
+        """A genuine miss is still None; only ambiguity changes behavior."""
+        client, _ = self._client(self._response(one_or_none=None))
+        self.assertIsNone(client.get_by_query(self.TABLE, self.QUERY))
+
+    def test_get_all_by_query_returns_every_candidate(self):
+        """The write path needs all candidates so it can report which records collided."""
+        rows = [{"sys_id": "aaa", "name": "C9300-48P"}, {"sys_id": "bbb", "name": "C9300-48P"}]
+        client, resource = self._client(self._response(rows=rows))
+        self.assertEqual(client.get_all_by_query(self.TABLE, self.QUERY), rows)
+        self.assertEqual(resource.get.call_args.kwargs["query"], self.QUERY)
+        self.assertEqual(resource.get.call_args.kwargs["limit"], 100)
+
+    def test_get_all_by_query_returns_empty_list_on_http_error(self):
+        client, _ = self._client(get_error=requests.exceptions.HTTPError("400 Client Error"))
+        self.assertEqual(client.get_all_by_query(self.TABLE, self.QUERY), [])
+
+    def test_diagnostics_reach_the_job_log(self):
+        """Client-side diagnostics must reach the Job Result, not only the module logger."""
+        client, _ = self._client(self._response(one_or_none=None))
+        client.worker = MagicMock()
+        client.get_by_query(self.TABLE, self.QUERY)
+        client.worker.logger.warning.assert_called_once()
+
+
 class FieldsForMappingsTestCase(TestCase):
     """Test sysparm_fields derivation from the YAML mappings."""
 
@@ -769,6 +843,65 @@ class FieldsForMappingsTestCase(TestCase):
             ServiceNowDiffSync.fields_for_mappings(mappings),
             ["manufacturer", "model_number", "name", "sys_id"],
         )
+
+
+class AmbiguousReferenceWarningTestCase(TestCase):
+    """Test that duplicates which will break the next sync are surfaced during load, dry run included."""
+
+    @staticmethod
+    def _adapter(product_models):
+        adapter = ServiceNowDiffSync(client=MagicMock(), job=MagicMock())
+        adapter.mapping_data = ServiceNowDiffSync.load_yaml_datafile("mappings.yaml")
+        adapter.sys_ids = {"cmdb_hardware_product_model": {record["sys_id"]: record for record in product_models}}
+        return adapter
+
+    def test_indistinguishable_records_are_reported(self):
+        """A dry run never writes, so it never resolves a reference; the collision must surface at load."""
+        adapter = self._adapter(
+            [
+                {"sys_id": "m1", "name": "C9300-48P", "manufacturer": "c1"},
+                {"sys_id": "m2", "name": "C9300-48P", "manufacturer": "c1"},
+            ]
+        )
+        adapter.warn_about_ambiguous_references()
+        warning = str(adapter.job.logger.warning.call_args)
+        self.assertIn("cmdb_hardware_product_model", warning)
+        self.assertIn("C9300-48P", warning)
+        self.assertIn("model_name", warning)
+
+    def test_records_separated_by_the_match_column_are_not_reported(self):
+        """Same model name under different manufacturers is exactly what the `match` clause resolves."""
+        adapter = self._adapter(
+            [
+                {"sys_id": "m1", "name": "C9300-48P", "manufacturer": "c1"},
+                {"sys_id": "m2", "name": "C9300-48P", "manufacturer": "c2"},
+            ]
+        )
+        adapter.warn_about_ambiguous_references()
+        adapter.job.logger.warning.assert_not_called()
+
+    def test_records_with_an_empty_lookup_value_are_not_reported(self):
+        """A null source value never triggers a lookup, so these records can never collide."""
+        adapter = self._adapter(
+            [
+                {"sys_id": "m1", "name": "", "manufacturer": ""},
+                {"sys_id": "m2", "name": "", "manufacturer": ""},
+                {"sys_id": "m3", "name": "", "manufacturer": "c1"},
+            ]
+        )
+        adapter.warn_about_ambiguous_references()
+        adapter.job.logger.warning.assert_not_called()
+
+    def test_an_empty_match_column_still_reports_a_name_collision(self):
+        """Only the lookup column itself being empty makes a record unreachable, not a match column."""
+        adapter = self._adapter(
+            [
+                {"sys_id": "m1", "name": "Unknown", "manufacturer": ""},
+                {"sys_id": "m2", "name": "Unknown", "manufacturer": ""},
+            ]
+        )
+        adapter.warn_about_ambiguous_references()
+        self.assertIn("Unknown", str(adapter.job.logger.warning.call_args))
 
 
 class ServiceNowModelUpdateTestCase(TestCase):

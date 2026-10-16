@@ -1,0 +1,1 @@
+A subinterface synced from IP Fabric is now put under the port it is configured on, through Nautobot's Parent Interface. Nautobot accepts a parent only on a virtual Interface, so a subinterface given one is synced as virtual.
