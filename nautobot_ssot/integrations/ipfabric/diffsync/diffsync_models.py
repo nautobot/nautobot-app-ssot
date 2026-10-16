@@ -54,6 +54,13 @@ from nautobot_ssot.integrations.ipfabric.constants import (
 )
 
 
+def record_other_tenant(adapter, error: tonb_nbutils.BelongsToAnotherTenant) -> None:
+    """Note an object skipped for belonging to another Tenant, for the report at the end of the run."""
+    nautobot_object = error.nautobot_object
+    model_name = nautobot_object._meta.verbose_name_plural  # pylint: disable=protected-access
+    adapter.objects_of_another_tenant[model_name].append(str(nautobot_object))
+
+
 def resolve_location(adapter, location_name: str, location_id: Optional[str] = None):
     """Return the Nautobot Location a synced object belongs to, creating one only if this run may."""
     if adapter.may_create("locations"):
@@ -62,6 +69,7 @@ def resolve_location(adapter, location_name: str, location_id: Optional[str] = N
             location_id=location_id,
             logger=adapter.job.logger,
             pending=adapter.pending,
+            tenant=adapter.tenant,
         )
     return tonb_nbutils.get_location_object(location_name, logger=adapter.job.logger)
 
@@ -434,17 +442,21 @@ class Device(DiffSyncExtras):
                     # owned by another system may name a different Manufacturer to the DeviceType,
                     # which `Device.clean()` rejects but this integration accepts; validating before
                     # the insert would stop such a Device being written at all.
-                    new_device, _ = NautobotDevice.objects.get_or_create(
-                        defaults={"platform": platform_object}, **lookup
+                    new_device, created = NautobotDevice.objects.get_or_create(
+                        defaults={"platform": platform_object, "tenant": adapter.tenant}, **lookup
                     )
                     queue_new = False
                 else:
                     try:
                         new_device = NautobotDevice.objects.get(**lookup)
-                        queue_new = False
+                        created = queue_new = False
                     except NautobotDevice.DoesNotExist:
-                        new_device = NautobotDevice(platform=platform_object, **lookup)
-                        queue_new = True
+                        new_device = NautobotDevice(platform=platform_object, tenant=adapter.tenant, **lookup)
+                        created = queue_new = True
+                if not created:
+                    tonb_nbutils.claim_for_tenant(new_device, adapter.tenant)
+            except tonb_nbutils.BelongsToAnotherTenant as error:
+                record_other_tenant(adapter, error)
             except NautobotDevice.MultipleObjectsReturned:
                 adapter.job.logger.error(
                     f"Multiple Devices returned with name {device_name} at Location {location_name}"
@@ -667,7 +679,7 @@ class Interface(DiffSyncExtras):
         if adapter.pending is not None:
             device_obj = adapter.pending.find(NautobotDevice, device_name)
         device_obj = device_obj or tonb_nbutils.get_syncable_device(
-            device_name, tagged_only=adapter.sync_ipfabric_tagged_only
+            device_name, tagged_only=adapter.sync_ipfabric_tagged_only, tenant=adapter.tenant
         )
         if not device_obj:
             adapter.job.logger.warning(
@@ -696,7 +708,9 @@ class Interface(DiffSyncExtras):
     @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete Interface Object."""
-        device = tonb_nbutils.get_syncable_device(self.device_name, tagged_only=self.adapter.sync_ipfabric_tagged_only)
+        device = tonb_nbutils.get_syncable_device(
+            self.device_name, tagged_only=self.adapter.sync_ipfabric_tagged_only, tenant=self.adapter.tenant
+        )
         if device:
             return_super = True
             # Every Interface of the Device at once, so removing many of them costs one lookup
@@ -728,7 +742,9 @@ class Interface(DiffSyncExtras):
     @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update Interface object in Nautobot."""
-        device = tonb_nbutils.get_syncable_device(self.device_name, tagged_only=self.adapter.sync_ipfabric_tagged_only)
+        device = tonb_nbutils.get_syncable_device(
+            self.device_name, tagged_only=self.adapter.sync_ipfabric_tagged_only, tenant=self.adapter.tenant
+        )
         if device:
             return_super = True
             # Every Interface of the Device at once, so a Device with many of them changing costs
@@ -877,7 +893,7 @@ class InterfaceAddress(DiffSyncExtras):
         """
         if adapter.pending is not None:
             device = adapter.pending.find(NautobotDevice, device_name) or tonb_nbutils.get_syncable_device(
-                device_name, tagged_only=adapter.sync_ipfabric_tagged_only
+                device_name, tagged_only=adapter.sync_ipfabric_tagged_only, tenant=adapter.tenant
             )
             if device is not None:
                 queued = adapter.pending.find(NautobotInterface, (device.pk, interface_name))
@@ -887,6 +903,7 @@ class InterfaceAddress(DiffSyncExtras):
             device_name,
             interface_name,
             tagged_only=adapter.sync_ipfabric_tagged_only,
+            tenant=adapter.tenant,
             logger=adapter.job.logger,
         )
         if interface is None:
@@ -958,14 +975,19 @@ class InterfaceAddress(DiffSyncExtras):
             # A Prefix created here would hide the unaccounted address space strict mode is meant to surface.
             adapter.addresses_outside_every_prefix.append(f"{address} on {ids['device_name']}:{ids['interface_name']}")
             return None
-        address_object = tonb_nbutils.create_ip(
-            ip_address=ids["host"],
-            mask_length=attrs["mask_length"],
-            status=attrs.get("status", "Active"),
-            object_pk=interface,
-            logger=adapter.job.logger,
-            pending=adapter.pending,
-        )
+        try:
+            address_object = tonb_nbutils.create_ip(
+                ip_address=ids["host"],
+                mask_length=attrs["mask_length"],
+                status=attrs.get("status", "Active"),
+                object_pk=interface,
+                logger=adapter.job.logger,
+                pending=adapter.pending,
+                tenant=adapter.tenant,
+            )
+        except tonb_nbutils.BelongsToAnotherTenant as error:
+            record_other_tenant(adapter, error)
+            return None
         if address_object is None:
             adapter.job.logger.warning(
                 f"Unable to write an IPAddress of {ids['host']}/{attrs['mask_length']} for Interface "
@@ -1098,16 +1120,21 @@ class Vlan(DiffSyncExtras):
                 create=adapter.may_create("vlan_groups"),
                 logger=adapter.job.logger,
             )
-            vlan = tonb_nbutils.create_vlan(
-                vlan_name=vlan_name,
-                vlan_id=vlan_id,
-                vlan_status=status,
-                location_obj=location,
-                description=description,
-                logger=adapter.job.logger,
-                pending=adapter.pending,
-                vlan_group=vlan_group,
-            )
+            try:
+                vlan = tonb_nbutils.create_vlan(
+                    vlan_name=vlan_name,
+                    vlan_id=vlan_id,
+                    vlan_status=status,
+                    location_obj=location,
+                    description=description,
+                    logger=adapter.job.logger,
+                    pending=adapter.pending,
+                    vlan_group=vlan_group,
+                    tenant=adapter.tenant,
+                )
+            except tonb_nbutils.BelongsToAnotherTenant as error:
+                record_other_tenant(adapter, error)
+                return None
             if vlan:
                 return super().create(ids=ids, adapter=adapter, attrs=attrs)
             if adapter.job.debug:
@@ -1221,7 +1248,14 @@ class RouteTarget(DiffSyncExtras):
     @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create a Route Target in Nautobot."""
-        if tonb_nbutils.create_route_target(ids["name"], logger=adapter.job.logger) is None:
+        try:
+            route_target = tonb_nbutils.create_route_target(
+                ids["name"], logger=adapter.job.logger, tenant=adapter.tenant
+            )
+        except tonb_nbutils.BelongsToAnotherTenant as error:
+            record_other_tenant(adapter, error)
+            return None
+        if route_target is None:
             return None
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
@@ -1269,14 +1303,19 @@ class Vrf(DiffSyncExtras):
                 name,
             )
             return None
-        vrf_obj = tonb_nbutils.create_vrf(
-            name=name,
-            rd=attrs.get("rd"),
-            vrf_status=attrs["status"],
-            conflict=attrs.get("conflict", ""),
-            logger=adapter.job.logger,
-            pending=adapter.pending,
-        )
+        try:
+            vrf_obj = tonb_nbutils.create_vrf(
+                name=name,
+                rd=attrs.get("rd"),
+                vrf_status=attrs["status"],
+                conflict=attrs.get("conflict", ""),
+                logger=adapter.job.logger,
+                pending=adapter.pending,
+                tenant=adapter.tenant,
+            )
+        except tonb_nbutils.BelongsToAnotherTenant as error:
+            record_other_tenant(adapter, error)
+            return None
         if vrf_obj is None:
             return None
         tonb_nbutils.set_route_targets(
@@ -1369,6 +1408,7 @@ class VrfDeviceAssignment(DiffSyncExtras):
             vrf_name=ids["vrf_name"],
             device_name=ids["device_name"],
             tagged_only=adapter.sync_ipfabric_tagged_only,
+            tenant=adapter.tenant,
             logger=adapter.job.logger,
             pending=adapter.pending,
         )
@@ -1429,6 +1469,7 @@ class InterfaceVlan(DiffSyncExtras):
             untagged_vid=attrs.get("untagged_vid"),
             tagged_vids=attrs.get("tagged_vids") or [],
             tagged_only=adapter.sync_ipfabric_tagged_only,
+            tenant=adapter.tenant,
             logger=adapter.job.logger,
             pending=adapter.pending,
         ):
@@ -1445,6 +1486,7 @@ class InterfaceVlan(DiffSyncExtras):
             untagged_vid=attrs["untagged_vid"] if "untagged_vid" in attrs else self.untagged_vid,
             tagged_vids=attrs["tagged_vids"] if "tagged_vids" in attrs else self.tagged_vids,
             tagged_only=self.adapter.sync_ipfabric_tagged_only,
+            tenant=self.adapter.tenant,
             logger=self.adapter.job.logger,
             pending=self.adapter.pending,
         ):
@@ -1465,6 +1507,7 @@ class InterfaceVlan(DiffSyncExtras):
             untagged_vid=None,
             tagged_vids=[],
             tagged_only=self.adapter.sync_ipfabric_tagged_only,
+            tenant=self.adapter.tenant,
             logger=self.adapter.job.logger,
             pending=self.adapter.pending,
         ):
@@ -1503,6 +1546,7 @@ class InterfaceVrf(DiffSyncExtras):
             interface_name=ids["interface_name"],
             vrf_name=attrs["vrf_name"],
             tagged_only=adapter.sync_ipfabric_tagged_only,
+            tenant=adapter.tenant,
             logger=adapter.job.logger,
             pending=adapter.pending,
         ):
@@ -1517,6 +1561,7 @@ class InterfaceVrf(DiffSyncExtras):
             interface_name=self.interface_name,
             vrf_name=attrs["vrf_name"],
             tagged_only=self.adapter.sync_ipfabric_tagged_only,
+            tenant=self.adapter.tenant,
             logger=self.adapter.job.logger,
             pending=self.adapter.pending,
         ):
@@ -1535,6 +1580,7 @@ class InterfaceVrf(DiffSyncExtras):
             interface_name=self.interface_name,
             vrf_name=None,
             tagged_only=self.adapter.sync_ipfabric_tagged_only,
+            tenant=self.adapter.tenant,
             logger=self.adapter.job.logger,
             pending=self.adapter.pending,
         ):
@@ -1570,7 +1616,14 @@ class Prefix(DiffSyncExtras):
         does not hold is recorded instead, and reported with the others once the sync is over.
         """
         create = not adapter.strict.prefixes
-        if tonb_nbutils.create_prefix(ids["prefix"], create=create, logger=adapter.job.logger) is None:
+        try:
+            prefix_obj = tonb_nbutils.create_prefix(
+                ids["prefix"], create=create, logger=adapter.job.logger, tenant=adapter.tenant
+            )
+        except tonb_nbutils.BelongsToAnotherTenant as error:
+            record_other_tenant(adapter, error)
+            return None
+        if prefix_obj is None:
             if not create:
                 adapter.prefixes_not_created.add(ids["prefix"])
             return None
@@ -1635,8 +1688,10 @@ class PrefixLocation(DiffSyncExtras):
     @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Record a Prefix at a Location in Nautobot."""
-        if ids["prefix"] in adapter.prefixes_not_created:
-            # Already reported as a network this run was not allowed to create.
+        if ids["prefix"] in adapter.prefixes_not_created or ids["prefix"] in adapter.objects_of_another_tenant.get(
+            "prefixes", ()
+        ):
+            # Already reported, as a network this run was not allowed to create or another Tenant's.
             return None
         if not tonb_nbutils.add_prefix_location(
             ids["prefix"], ids["location_name"], logger=adapter.job.logger, pending=adapter.pending
@@ -1697,10 +1752,18 @@ class Cable(DiffSyncExtras):
         job_logger = adapter.job.logger
         tagged_only = adapter.sync_ipfabric_tagged_only
         interface_a = tonb_nbutils.get_tagged_interface(
-            ids["termination_a_device"], ids["termination_a_name"], logger=job_logger, tagged_only=tagged_only
+            ids["termination_a_device"],
+            ids["termination_a_name"],
+            logger=job_logger,
+            tagged_only=tagged_only,
+            tenant=adapter.tenant,
         )
         interface_b = tonb_nbutils.get_tagged_interface(
-            ids["termination_b_device"], ids["termination_b_name"], logger=job_logger, tagged_only=tagged_only
+            ids["termination_b_device"],
+            ids["termination_b_name"],
+            logger=job_logger,
+            tagged_only=tagged_only,
+            tenant=adapter.tenant,
         )
         if not interface_a or not interface_b:
             return None, None

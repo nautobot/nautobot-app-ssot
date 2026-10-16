@@ -111,7 +111,7 @@ def delete_objects_one_at_a_time(queued_deletions: List, logger):
             logger.warning(f"Deletion failed due to IntegrityError with {model.__name__} {pk}")
 
 
-class NautobotDiffSync(DiffSyncModelAdapters):
+class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-public-methods
     """Nautobot adapter for DiffSync."""
 
     _vlan: ClassVar[Any] = VLAN
@@ -193,6 +193,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             job_scoped_cache.clear_all()
         self.report_safe_delete_tally()
         self.report_prefix_findings()
+        self.report_objects_of_another_tenant()
         return super().sync_complete(source, *args, **kwargs)
 
     def report_prefix_findings(self):
@@ -220,6 +221,18 @@ class NautobotDiffSync(DiffSyncModelAdapters):
                 location_name,
             )
         self.prefix_locations_not_found.clear()
+
+    def report_objects_of_another_tenant(self):
+        """Report the objects not touched because they belong to another Tenant, once per model."""
+        for model_name, names in sorted(self.objects_of_another_tenant.items()):
+            self.job.logger.warning(
+                "Not syncing %d %s IP Fabric reports, as they belong to a Tenant other than %s: %s",
+                len(names),
+                model_name,
+                self.tenant,
+                ", ".join(sorted(names)),
+            )
+        self.objects_of_another_tenant.clear()
 
     def report_safe_delete_tally(self):
         """Report what Safe Delete Mode did, one line per object type and outcome."""
@@ -392,6 +405,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         devices = Device.objects.filter(location__in=location_objects)
         if self.sync_ipfabric_tagged_only:
             devices = devices.filter(tags=self.ssot_tag)
+        if self.tenant is not None:
+            devices = devices.filter(tenant=self.tenant)
         return devices
 
     def load_devices(self, filtered_devices: List, locations_by_name: Dict[str, Any]):
@@ -478,12 +493,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         One query covers every Location. A VLAN assigned to several of them is loaded once per
         Location, as each is a separate DiffSync VLAN, matching how IP Fabric reports VLANs per site.
         """
-        filtered_vlans = (
-            VLAN.objects.filter(locations__in=location_objects)
-            .select_related("status")
-            .prefetch_related("locations")
-            .distinct()
-        )
+        vlans = VLAN.objects.filter(locations__in=location_objects)
+        if self.tenant is not None:
+            vlans = vlans.filter(tenant=self.tenant)
+        filtered_vlans = vlans.select_related("status").prefetch_related("locations").distinct()
         for vlan_record in filtered_vlans:
             for location_record in vlan_record.locations.all():
                 location = locations_by_name.get(location_record.name)
@@ -600,7 +613,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         since the name is unique: it is reported as a create, and creating it marks the one Nautobot
         already holds. That is what lets a first run converge against an existing estate.
         """
-        for route_target in RouteTarget.objects.filter(tags=self.ssot_tag).values_list("name", flat=True):
+        route_targets = RouteTarget.objects.filter(tags=self.ssot_tag)
+        if self.tenant is not None:
+            route_targets = route_targets.filter(tenant=self.tenant)
+        for route_target in route_targets.values_list("name", flat=True):
             self.add(self.network_wide(self.route_target, name=route_target))
 
     def load_vrfs(self):
@@ -613,6 +629,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         first; loading neither leaves both alone and reports why.
         """
         vrfs = VRF.objects.filter(namespace=tonb_utils.get_global_namespace()).select_related("status")
+        if self.tenant is not None:
+            vrfs = vrfs.filter(tenant=self.tenant)
         if self.scope.route_targets:
             vrfs = vrfs.prefetch_related("import_targets", "export_targets")
         by_name = defaultdict(list)
@@ -669,6 +687,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             .select_related("status")
             .prefetch_related("locations")
         )
+        if self.tenant is not None:
+            prefixes = prefixes.filter(tenant=self.tenant)
         for prefix_record in prefixes:
             prefix = ipaddress.ip_network(str(prefix_record.prefix)).with_prefixlen
             status = prefix_record.status.name if prefix_record.status else "Active"

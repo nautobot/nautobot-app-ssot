@@ -78,6 +78,7 @@ class TestDeletesUnderAJobsChangeContext(_ChangeContextTestCase):
         """The manual run that found this: `Interface.update` defers, and the delete sat inside it."""
         adapter = MagicMock()
         adapter.sync_ipfabric_tagged_only = False
+        adapter.tenant = None
         adapter.safe_delete_tally = Counter()
         adapter.safe_delete_mode = False
         model = InterfaceModel(name=self.unit.name, device_name=self.device.name, status="Active")

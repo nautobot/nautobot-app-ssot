@@ -14,6 +14,7 @@ from ipfabric import IPFClient
 from nautobot.core.forms import DynamicModelChoiceField
 from nautobot.dcim.models import Location
 from nautobot.extras.jobs import BooleanVar, ChoiceVar, ScriptVariable
+from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.ipfabric import constants, strict_mode
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import IPFabricDiffSync
@@ -135,6 +136,14 @@ class IpFabricDataSource(DataSource):
         model=Location,
         required=False,
     )
+    tenant = OptionalObjectVar(
+        description=(
+            "The Tenant this IP Fabric instance belongs to. Only that Tenant's Nautobot records are "
+            "read, and the records the sync creates are given it."
+        ),
+        model=Tenant,
+        required=False,
+    )
     kwargs = {}
 
     class Meta:
@@ -149,6 +158,7 @@ class IpFabricDataSource(DataSource):
             "snapshot",
             "safe_delete_mode",
             "sync_ipfabric_tagged_only",
+            "tenant",
             "bulk_write_mode",
             strict_mode.FIELD_NAME,
             *scope_field_order(),
@@ -269,6 +279,7 @@ class IpFabricDataSource(DataSource):
             "bulk_write_mode": kwargs.get("bulk_write_mode"),
             "strict": strict_mode.StrictObjects.from_job_kwargs(kwargs),
             "location_filter": kwargs.get("location_filter"),
+            "tenant": kwargs.get("tenant"),
             "debug": kwargs.get("debug"),
             "scope": SyncScope.from_job_kwargs(kwargs),
         }
@@ -305,6 +316,15 @@ class IpFabricDataSource(DataSource):
                 constants.SYNCED_TAG_NAME,
             )
 
+    def log_run_options(self, options: str, scope: SyncScope, strict: strict_mode.StrictObjects):
+        """Log the options the run started with, and what its scope and strictness leave out."""
+        self.logger.info(f"Starting job with the following options: {options}")
+        self.logger.info("Object types in scope: %s", scope.describe())
+        self.logger.info("Object types matched rather than created: %s", strict.describe())
+        for explanation in (*scope.explanations(), *strict.explanations(scope)):
+            self.logger.warning(explanation)
+        self.warn_if_the_synced_tag_was_renamed()
+
     def sync_data(self, *_args, **_kwargs):
         """Sync a device data from IP Fabric into Nautobot."""
         error = None
@@ -328,18 +348,14 @@ class IpFabricDataSource(DataSource):
         scope = self.kwargs["scope"]
         location_filter = self.kwargs["location_filter"]
         debug_mode = self.kwargs["debug"]
+        tenant = Tenant.objects.get(pk=self.kwargs["tenant"]) if self.kwargs.get("tenant") else None
 
         if location_filter:
             location_filter_object = Location.objects.get(pk=location_filter)
         else:
             location_filter_object = None
-        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Bulk Write Mode`: {bulk_write_mode}, `Location Filter`: {location_filter_object}"
-        self.logger.info(f"Starting job with the following options: {options}")
-        self.logger.info("Object types in scope: %s", scope.describe())
-        self.logger.info("Object types matched rather than created: %s", strict.describe())
-        for explanation in (*scope.explanations(), *strict.explanations(scope)):
-            self.logger.warning(explanation)
-        self.warn_if_the_synced_tag_was_renamed()
+        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Bulk Write Mode`: {bulk_write_mode}, `Location Filter`: {location_filter_object}, `Tenant`: {tenant}"
+        self.log_run_options(options, scope, strict)
 
         ipfabric_source = IPFabricDiffSync(
             job=self,
@@ -348,6 +364,7 @@ class IpFabricDataSource(DataSource):
             location_filter=location_filter_object.name if location_filter_object else None,
             scope=scope,
             strict=strict,
+            tenant=tenant,
             safe_delete_mode=safe_mode,
         )
         self.logger.info("Loading current data from IP Fabric...")
@@ -364,6 +381,7 @@ class IpFabricDataSource(DataSource):
             location_filter=location_filter_object,
             scope=scope,
             strict=strict,
+            tenant=tenant,
             addresses_without_a_subnet=ipfabric_source.addresses_without_a_subnet,
             interfaces_without_admin_state=ipfabric_source.interfaces_without_admin_state,
             devices_without_a_hardware_serial=ipfabric_source.devices_without_a_hardware_serial,
