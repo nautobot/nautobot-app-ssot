@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
+from nautobot.dcim.models import Location
 from nautobot.ipam.models import VLAN, Prefix
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import (
@@ -55,39 +56,6 @@ class AgreedPrefixVlanTestCase(SimpleTestCase):
                 "conflict": "IP Fabric reports this network in VLAN 10 at a, VLAN 20 at b",
             },
         )
-
-
-class IPFabricPrefixVlanLoadTestCase(SimpleTestCase):
-    """Loading the VLAN IP Fabric reports each network in."""
-
-    def load(self, vlan_rows):
-        """Return an IP Fabric adapter that has loaded the network 10.0.0.0/24 and the given VLAN rows."""
-        client = MagicMock()
-        client.technology.addressing.managed_ipv4_summary.all.return_value = [summary_row("10.0.0.0/24")]
-        client.fetch_all.return_value = []
-        client.technology.addressing.managed_ip_ipv4.all.return_value = list(vlan_rows)
-        client.technology.addressing.managed_ip_ipv6.all.return_value = []
-        adapter = IPFabricDiffSync(
-            job=MagicMock(), sync=MagicMock(), client=client, location_filter=None, scope=full_scope()
-        )
-        adapter.add(adapter.location(adapter=adapter, name="site1", site_id="site1", status="Active"))
-        adapter.load_prefixes()
-        return adapter
-
-    def test_only_the_rows_naming_a_vlan_are_requested(self):
-        adapter = self.load([])
-        call = adapter.client.technology.addressing.managed_ip_ipv4.all.call_args
-        self.assertEqual(call.kwargs["filters"], {"vlanId": ["empty", False]})
-
-    def test_a_loaded_networks_vlan_is_loaded(self):
-        adapter = self.load([vlan_row("10.0.0.5/24", 10), vlan_row("10.9.0.5/24", 99)])
-        loaded = [(model.prefix, model.vid, model.location_name) for model in adapter.get_all("prefix_vlan")]
-        self.assertEqual(loaded, [("10.0.0.0/24", 10, "site1")])
-
-    def test_a_network_in_different_vlans_is_reported_once(self):
-        adapter = self.load([vlan_row("10.0.0.5/24", 10), vlan_row("10.0.0.6/24", 20)])
-        self.assertIsNone(adapter.get("prefix_vlan", "10.0.0.0/24").vid)
-        self.assertIn("Not recording a VLAN for 1 Prefixes", job_log_text(adapter.job.logger, "warning"))
 
 
 class PrefixVlanTestCase(PrefixTestCase):
@@ -153,6 +121,18 @@ class PrefixVlanWriteTestCase(PrefixVlanTestCase):
         self.prefix_obj.refresh_from_db()
         self.assertIsNone(self.prefix_obj.vlan)
 
+    def test_another_tenants_prefix_is_skipped(self):
+        self.adapter.objects_of_another_tenant["prefixes"].append("10.0.0.0/24")
+        self.assertIsNone(self.create())
+        self.prefix_obj.refresh_from_db()
+        self.assertIsNone(self.prefix_obj.vlan)
+
+    def test_a_vlan_at_several_locations_is_found_by_its_first(self):
+        self.vlan.locations.add(self.make_location("aaa"))
+        self.assertIsNotNone(self.create(location_name="aaa"))
+        self.prefix_obj.refresh_from_db()
+        self.assertEqual(self.prefix_obj.vlan, self.vlan)
+
     def test_update_moves_the_prefix_to_a_conflict(self):
         self.create()
         self.model().update({"vid": None, "location_name": None, "conflict": "IP Fabric reports two"})
@@ -199,17 +179,91 @@ class NautobotPrefixVlanLoadTestCase(PrefixVlanTestCase):
     def test_a_prefix_without_a_vlan_or_conflict_loads_none(self):
         self.assertEqual(self.loaded(), [])
 
-    def test_a_prefixs_vlan_is_loaded_at_the_location_they_share(self):
-        other = self.make_location("aaa")
-        self.vlan.locations.add(other)
+    def test_a_prefixs_vlan_is_loaded_at_its_first_location(self):
+        self.vlan.locations.add(self.make_location("aaa"))
         Prefix.objects.filter(pk=self.prefix_obj.pk).update(vlan=self.vlan)
-        self.assertEqual(self.loaded(), [("10.0.0.0/24", 10, "site1", "")])
-
-    def test_a_vlan_sharing_no_location_with_its_prefix_is_loaded_at_its_first(self):
-        self.prefix_obj.locations.clear()
-        Prefix.objects.filter(pk=self.prefix_obj.pk).update(vlan=self.vlan)
-        self.assertEqual(self.loaded(), [("10.0.0.0/24", 10, "site1", "")])
+        self.assertEqual(self.loaded(), [("10.0.0.0/24", 10, "aaa", "")])
 
     def test_a_conflict_is_loaded_without_a_vlan(self):
         self.create(vid=None, location_name=None, conflict="IP Fabric reports two")
         self.assertEqual(self.loaded(), [("10.0.0.0/24", None, None, "IP Fabric reports two")])
+
+
+class IPFabricPrefixVlanLoadTestCase(PrefixVlanTestCase):
+    """Loading the VLAN IP Fabric reports each network in."""
+
+    def ipfabric_adapter(self, vlan_rows=(), scope=None):
+        """Return an IP Fabric adapter whose managed IP tables serve the given rows."""
+        client = MagicMock()
+        client.technology.addressing.managed_ipv4_summary.all.return_value = [summary_row("10.0.0.0/24")]
+        client.fetch_all.return_value = []
+        client.technology.addressing.managed_ip_ipv4.all.return_value = list(vlan_rows)
+        client.technology.addressing.managed_ip_ipv6.all.return_value = []
+        adapter = IPFabricDiffSync(
+            job=MagicMock(), sync=MagicMock(), client=client, location_filter=None, scope=scope or full_scope()
+        )
+        adapter.add(adapter.location(adapter=adapter, name="site1", site_id="site1", status="Active"))
+        return adapter
+
+    def load(self, vlan_rows):
+        """Return an IP Fabric adapter that has loaded the network 10.0.0.0/24 and the given VLAN rows."""
+        adapter = self.ipfabric_adapter(vlan_rows)
+        adapter.load_prefixes()
+        return adapter
+
+    def loaded(self, adapter):
+        """Return the PrefixVlan models an adapter loaded, as tuples."""
+        return [
+            (model.prefix, model.vid, model.location_name, model.conflict) for model in adapter.get_all("prefix_vlan")
+        ]
+
+    def test_only_the_rows_naming_a_vlan_are_requested_from_both_tables(self):
+        addressing = self.load([]).client.technology.addressing
+        for table in (addressing.managed_ip_ipv4, addressing.managed_ip_ipv6):
+            self.assertEqual(table.all.call_args.kwargs["filters"], {"vlanId": ["empty", False]})
+
+    def test_a_loaded_networks_vlan_is_loaded(self):
+        adapter = self.load([vlan_row("10.0.0.5/24", 10), vlan_row("10.9.0.5/24", 99)])
+        self.assertEqual(self.loaded(adapter), [("10.0.0.0/24", 10, "site1", "")])
+
+    def test_a_vlan_nautobot_does_not_hold_is_named_by_the_reported_site(self):
+        adapter = self.load([vlan_row("10.0.0.5/24", 30, "elsewhere")])
+        self.assertEqual(self.loaded(adapter), [("10.0.0.0/24", 30, "elsewhere", "")])
+
+    def test_a_network_in_different_vlans_is_reported_once(self):
+        adapter = self.load([vlan_row("10.0.0.5/24", 10), vlan_row("10.0.0.6/24", 20)])
+        self.assertIsNone(adapter.get("prefix_vlan", "10.0.0.0/24").vid)
+        self.assertIn("Not recording a VLAN for 1 Prefixes", job_log_text(adapter.job.logger, "warning"))
+
+    def test_a_vlan_at_several_locations_reads_the_same_on_both_sides(self):
+        self.vlan.locations.add(self.make_location("aaa"))
+        self.prefix_obj.locations.add(*Location.objects.all())
+        Prefix.objects.filter(pk=self.prefix_obj.pk).update(vlan=self.vlan)
+        source = self.load([vlan_row("10.0.0.5/24", 10, "site1")])
+        destination = nautobot_adapter()
+        destination.load_prefixes()
+        self.assertEqual(self.loaded(source), self.loaded(destination))
+        self.assertEqual(self.loaded(source), [("10.0.0.0/24", 10, "aaa", "")])
+
+    def test_the_rows_kept_from_the_address_read_are_not_requested_again(self):
+        adapter = self.ipfabric_adapter()
+        adapter.rows_naming_a_vlan = [vlan_row("10.0.0.5/24", 10)]
+        adapter.load_prefixes()
+        adapter.client.technology.addressing.managed_ip_ipv4.all.assert_not_called()
+        self.assertEqual(self.loaded(adapter), [("10.0.0.0/24", 10, "site1", "")])
+
+    def test_the_address_read_keeps_the_rows_naming_a_vlan_when_prefixes_are_in_scope(self):
+        rows = [
+            vlan_row("10.0.0.5/24", 10) | {"sn": "a", "intName": "e0", "ip": "10.0.0.5"},
+            vlan_row("10.0.0.6/24", None),
+        ]
+        adapter = self.ipfabric_adapter(rows)
+        adapter.load_data()
+        columns = adapter.client.technology.addressing.managed_ip_ipv4.all.call_args.kwargs["columns"]
+        self.assertIn("siteName", columns)
+        self.assertEqual(adapter.rows_naming_a_vlan, rows[:1])
+
+    def test_the_address_read_keeps_nothing_without_prefixes(self):
+        adapter = self.ipfabric_adapter(scope=full_scope(prefixes=False))
+        adapter.load_data()
+        self.assertIsNone(adapter.rows_naming_a_vlan)

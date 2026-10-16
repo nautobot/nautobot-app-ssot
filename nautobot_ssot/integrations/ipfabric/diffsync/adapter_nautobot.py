@@ -197,7 +197,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         return super().sync_complete(source, *args, **kwargs)
 
     def report_prefix_findings(self):
-        """Report what being strict about Prefixes held back, and the Locations and VLANs no Prefix could be recorded at."""
+        """Report what strictness held back, and the Locations and VLANs no Prefix could be recorded at."""
         if self.prefixes_not_created:
             self.job.logger.warning(
                 "Not creating %d Prefixes IP Fabric reports, as Nautobot holds none of them and this run "
@@ -723,9 +723,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
     def load_prefix_vlan(self, prefix: str, prefix_record: Prefix):
         """Add a Prefix's VLAN, or the conflict recorded in its place, as a DiffSync PrefixVlan model.
 
-        A VLAN is identified by its ID at a Location, as IP Fabric reports it. A VLAN may be at several
-        Locations, so the one it shares with the Prefix is taken, which is the site IP Fabric reported
-        the pair at; failing that, the first by name.
+        A VLAN is named by its ID and its first Location by name, as the IP Fabric adapter names the
+        VLAN at the site it reports; see `first_locations_of_vlans`.
         """
         conflict = prefix_record.custom_field_data.get(tonb_utils.PREFIX_VLAN_CONFLICT_CF_NAME) or ""
         vlan_record = prefix_record.vlan
@@ -734,10 +733,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         vid = location_name = None
         if vlan_record is not None:
             vid = vlan_record.vid
-            vlan_locations = sorted(location.name for location in vlan_record.locations.all())
-            prefix_locations = {location.name for location in prefix_record.locations.all()}
-            shared = [name for name in vlan_locations if name in prefix_locations]
-            location_name = next(iter(shared or vlan_locations), None)
+            location_name = min((location.name for location in vlan_record.locations.all()), default=None)
         self.add(
             self.network_wide(self.prefix_vlan, prefix=prefix, vid=vid, location_name=location_name, conflict=conflict)
         )
