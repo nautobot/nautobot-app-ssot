@@ -321,6 +321,15 @@ class IpFabricDataSource(DataSource):
                 constants.SYNCED_TAG_NAME,
             )
 
+    def log_run_options(self, options: str, scope: SyncScope, strict: strict_mode.StrictObjects):
+        """Log the options the run started with, and what its scope and strictness leave out."""
+        self.logger.info(f"Starting job with the following options: {options}")
+        self.logger.info("Object types in scope: %s", scope.describe())
+        self.logger.info("Object types matched rather than created: %s", strict.describe())
+        for explanation in (*scope.explanations(), *strict.explanations(scope)):
+            self.logger.warning(explanation)
+        self.warn_if_the_synced_tag_was_renamed()
+
     def sync_data(self, *_args, **_kwargs):
         """Sync a device data from IP Fabric into Nautobot."""
         error = None
@@ -351,12 +360,7 @@ class IpFabricDataSource(DataSource):
         else:
             location_filter_object = None
         options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Bulk Write Mode`: {bulk_write_mode}, `Location Filter`: {location_filter_object}, `Tenant`: {tenant}"
-        self.logger.info(f"Starting job with the following options: {options}")
-        self.logger.info("Object types in scope: %s", scope.describe())
-        self.logger.info("Object types matched rather than created: %s", strict.describe())
-        for explanation in (*scope.explanations(), *strict.explanations(scope)):
-            self.logger.warning(explanation)
-        self.warn_if_the_synced_tag_was_renamed()
+        self.log_run_options(options, scope, strict)
 
         ipfabric_source = IPFabricDiffSync(
             job=self,
