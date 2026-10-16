@@ -222,6 +222,8 @@ class IpFabricDataSource(DataSource):
         """List describing the data mappings involved in this DataSource."""
         return (
             DataMapping("Device", None, "Device", reverse("dcim:device_list")),
+            DataMapping("Device OS Version", None, "Software Version", reverse("dcim:softwareversion_list")),
+            DataMapping("Device Image", None, "Software Image File", reverse("dcim:softwareimagefile_list")),
             DataMapping("Location", None, "Location", reverse("dcim:location_list")),
             DataMapping("Interfaces", None, "Interfaces", reverse("dcim:interface_list")),
             DataMapping("IP Addresses", None, "IP Addresses", reverse("ipam:ipaddress_list")),
@@ -349,6 +351,8 @@ class IpFabricDataSource(DataSource):
             interfaces_without_admin_state=ipfabric_source.interfaces_without_admin_state,
             devices_without_a_hardware_serial=ipfabric_source.devices_without_a_hardware_serial,
             interfaces_without_a_type=ipfabric_source.interfaces_without_a_type,
+            devices_without_a_software_version=ipfabric_source.devices_without_a_software_version,
+            devices_without_a_software_image=ipfabric_source.devices_without_a_software_image,
         )
 
         self.logger.info("Loading current data from Nautobot...")

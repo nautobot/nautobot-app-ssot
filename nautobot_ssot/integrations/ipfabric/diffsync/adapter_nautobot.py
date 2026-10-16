@@ -366,6 +366,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             "virtual_chassis",
             "virtual_chassis__master",
         ]
+        if self.scope.software_versions:
+            related.append("software_version")
         # Only fetch the relations something in scope reads: the primary IP decides whether an
         # Interface holds it, and the Interfaces themselves are only walked when they are in scope.
         prefetch = []
@@ -376,6 +378,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             prefetch.append("interfaces__ip_addresses__status")
         elif self.scope.interfaces:
             prefetch.append("interfaces")
+        if self.scope.software_images:
+            prefetch.append("software_image_files")
         if self.scope.interfaces:
             # Each Interface reports the port it hangs off by name, which is one query per
             # Interface without this.
@@ -413,6 +417,22 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             )
             if device_record.platform:
                 device.platform = device_record.platform.name
+            # None where out of scope, or where IP Fabric reported no version to compare with:
+            # see `devices_without_a_software_version`.
+            if (
+                self.scope.software_versions
+                and device_record.software_version
+                and device_record.name not in self.devices_without_a_software_version
+            ):
+                device.software_version = device_record.software_version.version
+            if self.scope.software_images and device_record.name not in self.devices_without_a_software_image:
+                device.software_image = (
+                    # Lowercased as the IP Fabric side reports it, since an existing image is matched ignoring case.
+                    ", ".join(
+                        sorted(image.image_file_name.lower() for image in device_record.software_image_files.all())
+                    )
+                    or None
+                )
             if device_record.virtual_chassis:
                 device.vc_name = device_record.virtual_chassis.name
                 device.vc_position = device_record.vc_position

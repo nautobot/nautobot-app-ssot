@@ -123,6 +123,18 @@ def resolve_virtual_chassis(adapter, name: str):
     return tonb_nbutils.get_virtual_chassis_object(name, logger=adapter.job.logger)
 
 
+def resolve_software_version(adapter, platform_object, version: str):
+    """Return the Nautobot SoftwareVersion of a Platform, creating it if Nautobot holds none."""
+    return tonb_nbutils.get_or_create_software_version(platform_object, version, logger=adapter.job.logger)
+
+
+def resolve_software_image(adapter, software_version_object, image_file_name: str, device_type_object):
+    """Return a Software Version's image file, mapped to the Device Type running it."""
+    return tonb_nbutils.get_or_create_software_image(
+        software_version_object, image_file_name, device_type_object, logger=adapter.job.logger
+    )
+
+
 def resolve_platform(adapter, platform_name: str, manufacturer_object):
     """Return the Nautobot Platform for a family IP Fabric reports.
 
@@ -318,6 +330,8 @@ class Device(DiffSyncExtras):
         "role",
         "status",
         "platform",
+        "software_version",
+        "software_image",
         "vc_name",
         "vc_priority",
         "vc_position",
@@ -336,6 +350,8 @@ class Device(DiffSyncExtras):
     role: Optional[str] = None
     status: Optional[str] = None
     platform: Optional[str] = None
+    software_version: Optional[str] = None
+    software_image: Optional[str] = None
     vc_name: Optional[str] = None
     vc_priority: Optional[int] = None
     vc_position: Optional[int] = None
@@ -451,13 +467,27 @@ class Device(DiffSyncExtras):
                     f"Unable to create a new Device named {device_name} at Location {location_name}"
                 )
             else:
+                if attrs.get("software_version") and platform_object:
+                    software_version_object = resolve_software_version(
+                        adapter, platform_object, attrs["software_version"]
+                    )
+                    if software_version_object:
+                        new_device.software_version = software_version_object
                 if attrs.get("unique_serial"):
                     # Set before either write, so a queued Device carries it on the insert rather
                     # than needing a second statement to add it.
                     new_device.cf[DEVICE_UNIQUE_SERIAL_CF_NAME] = attrs["unique_serial"]
                 if queue_new:
                     tonb_nbutils.queue_new_object(pending, new_device, key=device_name)
-                else:
+                # Before the validated save below, which accepts the image because it is mapped to the
+                # Device Type by the time it is set.
+                if attrs.get("software_image") and new_device.software_version:
+                    image = resolve_software_image(
+                        adapter, new_device.software_version, attrs["software_image"], device_type_object
+                    )
+                    if image:
+                        tonb_nbutils.assign_software_image(new_device, image, pending=pending)
+                if not queue_new:
                     try:
                         # Validated save happens inside of tag_objet
                         tonb_nbutils.tag_object(nautobot_object=new_device, custom_field=LAST_SYNCHRONIZED_CF_NAME)
@@ -550,6 +580,31 @@ class Device(DiffSyncExtras):
                         f"Unable to update Device {self.name} with a Platform of {platform_name}"
                     )
                     return_super = False
+            # Resolved again when the Platform changes too, since a Software Version belongs to one.
+            software_version = attrs.get("software_version", self.software_version)
+            if software_version and ("software_version" in attrs or platform_name) and _device.platform:
+                software_version_object = resolve_software_version(self.adapter, _device.platform, software_version)
+                if software_version_object:
+                    _device.software_version = software_version_object
+                else:
+                    return_super = False
+            # Resolved again when the version moves too, since an image belongs to one version.
+            software_image = attrs.get("software_image", self.software_image)
+            version_moved = "software_version" in attrs or bool(platform_name)
+            if software_image and ("software_image" in attrs or version_moved) and _device.software_version:
+                image = resolve_software_image(
+                    self.adapter, _device.software_version, software_image, _device.device_type
+                )
+                if image:
+                    tonb_nbutils.assign_software_image(_device, image)
+                else:
+                    return_super = False
+            elif version_moved and self.adapter.scope.software_images and _device.software_version:
+                # No image reported to move with the version, and one filed under another version
+                # does not describe what the Device runs now.
+                _device.software_image_files.remove(
+                    *_device.software_image_files.exclude(software_version=_device.software_version)
+                )
 
             location_name = attrs.get("location_name")
             if location_name:

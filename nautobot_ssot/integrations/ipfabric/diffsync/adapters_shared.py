@@ -71,6 +71,8 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         safe_delete_mode: bool = True,
         devices_without_a_hardware_serial: Optional[Set[str]] = None,
         interfaces_without_a_type: Optional[Set[Tuple[str, str]]] = None,
+        devices_without_a_software_version: Optional[Set[str]] = None,
+        devices_without_a_software_image: Optional[Set[str]] = None,
         **kwargs,
     ):
         """Initialize the adapter with the object types this run covers.
@@ -106,6 +108,14 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         report no `type` for those, so the type Nautobot holds is kept rather than overwritten with
         a configured default that would be indistinguishable from a real one.
 
+        `devices_without_a_software_version` holds the name of every Device IP Fabric reports no
+        OS version for, or no family to file one under. A Software Version belongs to a Platform,
+        so without one there is nothing to point the Device at. Both adapters report no version
+        for those, leaving the one Nautobot holds alone.
+
+        `devices_without_a_software_image` holds the name of every Device IP Fabric reports no image
+        file for, or no version to file one under. Both adapters report no image for those.
+
         `addresses_without_a_subnet` holds the `(device name, interface name, host)` of every address
         IP Fabric reports no usable subnet for. The IP Fabric adapter fills it while loading and
         reports none of those addresses; the Nautobot adapter is handed it afterwards so that it
@@ -130,6 +140,12 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
             set() if devices_without_a_hardware_serial is None else devices_without_a_hardware_serial
         )
         self.interfaces_without_a_type = set() if interfaces_without_a_type is None else interfaces_without_a_type
+        self.devices_without_a_software_version = (
+            set() if devices_without_a_software_version is None else devices_without_a_software_version
+        )
+        self.devices_without_a_software_image = (
+            set() if devices_without_a_software_image is None else devices_without_a_software_image
+        )
         # VRF names the Global Namespace holds more than one of, which the Nautobot adapter declines
         # to load. Recorded so that `Vrf.create` can decline them because the name is ambiguous,
         # rather than inferring it from the loader having skipped them. Per adapter rather than per

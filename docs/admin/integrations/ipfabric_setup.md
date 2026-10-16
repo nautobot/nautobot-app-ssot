@@ -184,6 +184,8 @@ of that type are left untouched rather than treated as absent from the source an
 | `device_types`  | `Sync Device Types`   | On      |                |
 | `roles`         | `Sync Roles`          | On      |                |
 | `platforms`     | `Sync Platforms`      | On      |                |
+| `software_versions` | `Sync Software Versions` | Off  |                |
+| `software_images` | `Sync Software Images` | Off      | `software_versions` |
 | `interfaces`    | `Sync Interfaces`     | On      |                |
 | `ip_addresses`  | `Sync IP Addresses`   | On      | `interfaces`   |
 | `primary_ip`    | `Sync Primary IP`     | On      | `ip_addresses` |

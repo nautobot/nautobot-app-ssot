@@ -76,6 +76,17 @@ def convert_media_type(media_type: str, interface_name: str) -> Optional[str]:
     return type_of_media(media_type) or type_of_interface_name(interface_name)
 
 
+def software_image_name(reported: Optional[str]) -> Optional[str]:
+    """Return the file name of a software image IP Fabric reports with its location, lowercased.
+
+    IOS reports `flash:/c3750e-universalk9-mz.150-2.SE10a.bin`, or `flash:c3750e-...bin` with no
+    slash at all, so the name is what follows the last `/` or `:`.
+    """
+    if not reported:
+        return None
+    return re.split(r"[/:]", reported.strip())[-1].lower() or None
+
+
 def lag_member_names(reported: str) -> list:
     """Return the Interface names a port channel's member column lists.
 
