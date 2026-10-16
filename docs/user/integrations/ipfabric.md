@@ -84,6 +84,7 @@ Currently, this integration will provide the ability to sync the following IP Fa
 - Interfaces ➡️ Nautobot Device Interfaces
 - IP Addresses ➡️ Nautobot IP Addresses (primary, secondary, IPv6 and FHRP virtual)
 - Managed IP Summary ➡️ Nautobot Prefixes (opt in, see [Prefixes](#prefixes))
+- Managed IP VLAN IDs ➡️ the VLAN of each Nautobot Prefix (with Prefixes, see [A Prefix's VLAN](#a-prefixs-vlan))
 - Stack Members ➡️ Nautobot Virtual Chassis
 - Connectivity Matrix ➡️ Nautobot Cables (opt in, see [Cables](#cables))
 
@@ -516,6 +517,14 @@ Selected, each network in IP Fabric's managed IP summary becomes a Prefix in the
 A Prefix Nautobot already holds for the same network is adopted rather than duplicated: it is tagged `SSoT Synced from IPFabric` and its type and status are left as they are. Only Prefixes carrying that Tag are read back from Nautobot, so a Prefix the sync never tagged is never removed. One it did tag, or adopted, is removed once IP Fabric stops reporting it, through Safe Delete Mode like any other object. Nautobot will not delete a Prefix that still holds addresses, so such a Prefix stays and the job log names the refusal.
 
 A Location is recorded on a Prefix only where this run loaded a Location of that name. A site Nautobot holds no Location for is reported once with the number of Prefixes it applied to. The Location's type is made to permit Prefixes where it did not, as it is for VLANs. Under a **Site Filter**, a run sees only that site's networks, so it may add Prefixes and Locations but removes neither.
+
+### A Prefix's VLAN
+
+IP Fabric's managed IP tables name the VLAN each address sits in. Nautobot holds one VLAN per Prefix, so a Prefix is put in a VLAN only when every address in the network that names one names the same VLAN at the same site. Addresses that name no VLAN, such as those on routed ports, are not counted.
+
+- Where they agree, the Prefix is put in that VLAN, looked up by its ID at that site. The sync doesn't create the VLAN: if Nautobot holds no such VLAN, the Prefix is left as it is and the job reports it once, with the number of Prefixes it applied to. **Sync VLANs** creates the VLANs IP Fabric reports, so selecting it alongside **Sync Prefixes** fills this in.
+- Where they disagree, the Prefix is left without a VLAN, and its `IPFabric Prefix VLAN Conflict` custom field lists each VLAN and site reported, for example `IP Fabric reports this network in VLAN 10 at site1, VLAN 20 at site2`. The job reports how many Prefixes this applies to, with a few examples. A VRF's route distinguisher is handled the same way.
+- Where IP Fabric reports no VLAN for a network, the Prefix is taken out of its VLAN, including one set on it by hand. Neither the Prefix nor the VLAN is deleted. Only Prefixes carrying the synced Tag are read, so a Prefix the sync never tagged keeps its VLAN.
 
 ### Ranges reused at unrelated sites
 
