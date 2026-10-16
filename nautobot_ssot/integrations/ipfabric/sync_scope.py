@@ -53,8 +53,9 @@ class SyncableObject:
         """Return the job form field for this object type."""
         description = self.description
         if self.requires:
-            required = ", ".join(f"'{key}'" for key in self.requires)
-            description = f"{description} Skipped unless {required} is also selected."
+            required = " and ".join(f"'{key}'" for key in self.requires)
+            verb = "is" if len(self.requires) == 1 else "are"
+            description = f"{description} Skipped unless {required} {verb} also selected."
         return BooleanVar(default=self.default_selection(), label=self.label, description=description)
 
 
@@ -151,6 +152,17 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
             "the Strict Objects, only Prefixes Nautobot already holds are adopted and none is created."
         ),
         default=False,
+    ),
+    SyncableObject(
+        key="host_addresses",
+        label="Sync Host Addresses",
+        description=(
+            "Create an IP Address for each host IP Fabric discovers, such as a server or virtual machine "
+            "seen in ARP, with its DNS name and MAC address, under the synced Prefix that covers it. Off "
+            "by default: in an estate of routers, switches and firewalls these are addresses nobody manages."
+        ),
+        default=False,
+        requires=("prefixes", "ip_addresses"),
     ),
     SyncableObject(
         key="vlans",
