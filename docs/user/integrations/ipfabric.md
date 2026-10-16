@@ -615,6 +615,8 @@ With a Namespace chosen:
 - IP Addresses, Prefixes and VRFs are read from that Namespace only, and the ones the sync creates are put in it, including the parent Prefix created for an address.
 - An address another Namespace holds is never reused or removed, even on an Interface the sync manages. The same address can then exist in both, which is what Namespaces are for.
 
+Choosing a Namespace for an install that has been syncing into Global does not move what is already there. The sync no longer reads the Global objects, so it neither updates nor removes them, and creates its own in the chosen Namespace. Remove or move the Global ones in Nautobot if they are not wanted.
+
 With no Namespace chosen, the sync writes to Global. An IP Address whose mask matches what IP Fabric reports is reused from whatever Namespace holds it, and every address on a synced Interface is read.
 
 ## VRFs and Route Targets

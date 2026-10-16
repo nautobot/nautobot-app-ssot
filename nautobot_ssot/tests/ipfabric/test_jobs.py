@@ -161,6 +161,18 @@ class IPFabricJobFormTestCase(TestCase):
         order = jobs.IpFabricDataSource.Meta.field_order
         self.assertEqual(order.index("namespace"), order.index("tenant") + 1)
 
+    def test_the_namespace_is_cleared_when_a_run_ends_even_if_it_fails(self):
+        def fail_after_choosing(*_args, **_kwargs):
+            nbutils.use_namespace(Namespace.objects.create(name="customer-a"))
+            raise RuntimeError("sync failed")
+
+        job = jobs.IpFabricDataSource()
+        job.logger = mock.MagicMock()
+        with mock.patch("nautobot_ssot.jobs.base.DataSource.run", side_effect=fail_after_choosing):
+            with self.assertRaises(RuntimeError):
+                job.run(dryrun=True)
+        self.assertFalse(nbutils.namespace_chosen())
+
     def test_run_resolves_the_submitted_selection_into_a_scope(self):
         """`run` is where the form's booleans become the one scope both adapters read."""
         job = jobs.IpFabricDataSource()
@@ -255,6 +267,14 @@ class IPFabricSyncDataTest(TestCase):
         namespace = Namespace.objects.create(name="customer-a")
         self._run(self._job(namespace=namespace.pk))
         self.assertEqual(nbutils.get_run_namespace(), namespace)
+
+    def test_the_namespace_is_named_in_the_options_logged(self):
+        self.addCleanup(nbutils.use_namespace, None)
+        namespace = Namespace.objects.create(name="customer-a")
+        job = self._job(namespace=namespace.pk)
+        self._run(job)
+        options = str(job.logger.info.call_args_list[0])
+        self.assertIn("`Namespace`: customer-a", options)
 
     def test_a_run_with_no_namespace_does_not_inherit_the_last_ones(self):
         self.addCleanup(nbutils.use_namespace, None)
