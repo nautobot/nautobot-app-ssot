@@ -162,8 +162,8 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
         key="vrfs",
         label="Sync VRFs",
         description=(
-            "Create Nautobot VRFs from the routing instances IP Fabric reports, in the Global "
-            "Namespace. Deselect where another system owns the VRF list. Off by default, as a "
+            "Create Nautobot VRFs from the routing instances IP Fabric reports, in the job's "
+            "Namespace (Global unless one is chosen). Deselect where another system owns the VRF list. Off by default, as a "
             "network whose VRFs are modelled elsewhere should not have them introduced by a sync."
         ),
         default=False,
