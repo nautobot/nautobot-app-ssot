@@ -811,7 +811,11 @@ def get_global_namespace() -> Namespace:
 
 
 def get_run_namespace() -> Namespace:
-    """Return the Namespace this run reads and writes addresses, Prefixes and VRFs in."""
+    """Return the Namespace this run reads and writes addresses, Prefixes and VRFs in.
+
+    Not cached itself: a chosen Namespace is already an object, and Global comes from the cached
+    `get_global_namespace`.
+    """
     chosen = getattr(_run_namespace, "chosen", None)
     return chosen if chosen is not None else get_global_namespace()
 

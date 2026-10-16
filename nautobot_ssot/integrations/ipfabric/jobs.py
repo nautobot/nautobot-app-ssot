@@ -291,7 +291,11 @@ class IpFabricDataSource(DataSource):
         # refused, and the Interfaces IP Fabric reports are not left colliding with templated ones.
         # Read by `sync_data`, so it has to be set before the base class runs it.
         self.skip_auto_component_creation = bool(kwargs.get("bulk_write_mode"))
-        super().run(*args, **kwargs)
+        try:
+            super().run(*args, **kwargs)
+        finally:
+            # `sync_data` sets it for the run; cleared after, so nothing outside a run can read it.
+            nbutils.use_namespace(None)
 
     def load_source_adapter(self):
         """Not used."""
