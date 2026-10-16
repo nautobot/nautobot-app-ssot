@@ -49,6 +49,7 @@ There are several options available.
 - **Sync IP Addresses**: Sync the IP Address on each Interface. Enabled by default; requires **Sync Interfaces**.
 - **Sync Primary IP**: Assign a Device's primary IP from IP Fabric. Enabled by default; requires **Sync IP Addresses**. IP Fabric reports the address it logged in with, which is not necessarily the address a CMDB considers the management one.
 - **Sync Prefixes**: Create Nautobot Prefixes in the job's [Namespace](#namespace) from the networks IP Fabric reports, and record the Locations each is seen at. Disabled by default. See [Prefixes](#prefixes).
+- **Sync Host Addresses**: Create an IP Address for each host IP Fabric discovers, with its DNS name and MAC address. Disabled by default, and needs **Sync Prefixes** and **Sync IP Addresses**. See [Host Addresses](#host-addresses).
 - **Sync VLANs**: Sync each Location's VLANs. Enabled by default.
 - **Sync VRFs**: Create Nautobot VRFs in the job's [Namespace](#namespace) from the routing instances IP Fabric reports. Disabled by default. See [VRFs and Route Targets](#vrfs-and-route-targets).
 - **Sync Route Targets**: Sync the Route Targets IP Fabric reports and record each synced VRF's import and export targets. Disabled by default; requires **Sync VRFs**.
@@ -85,6 +86,7 @@ Currently, this integration will provide the ability to sync the following IP Fa
 - IP Addresses ➡️ Nautobot IP Addresses (primary, secondary, IPv6 and FHRP virtual)
 - Managed IP Summary ➡️ Nautobot Prefixes (opt in, see [Prefixes](#prefixes))
 - Managed IP VLAN IDs ➡️ the VLAN of each Nautobot Prefix (with Prefixes, see [A Prefix's VLAN](#a-prefixs-vlan))
+- Hosts ➡️ Nautobot IP Addresses (opt in, see [Host Addresses](#host-addresses))
 - Stack Members ➡️ Nautobot Virtual Chassis
 - Connectivity Matrix ➡️ Nautobot Cables (opt in, see [Cables](#cables))
 
@@ -544,6 +546,19 @@ With **Sync Prefixes** selected as well, the networks IP Fabric reports are matc
 | Off | On  | Not synced. | Is reported and left unwritten. The case for an IPAM owned elsewhere. |
 | On  | Off | Created, or adopted where Nautobot holds it. | Gets a Prefix created for it, though one of IP Fabric's networks almost always covers it already. |
 | On  | On  | Adopted where Nautobot holds it, otherwise reported and not created. | Is reported and left unwritten. |
+
+## Host Addresses
+
+Host address synchronization is opt in via the **Sync Host Addresses** job option and is disabled by default. IP Fabric discovers hosts, such as servers and virtual machines, from ARP and MAC tables. For an estate of routers, switches and firewalls they are addresses nobody manages, but where addresses are handed out outside IPAM they show how much of each subnet is really in use. The option needs **Sync Prefixes** and **Sync IP Addresses** selected as well.
+
+Selected, each host in IP Fabric's IPv4 and IPv6 host tables becomes an IP Address in the job's Namespace:
+
+- A host is reported without a mask, so it takes the length of the most specific network IP Fabric reports that covers it, which is also the Prefix it is filed under. A host no reported network covers is not synced, and the job reports how many with a few examples.
+- Its DNS name is written to the IP Address's DNS name, and its MAC address to the `IPFabric Host MAC` custom field. An address IP Fabric reports for more than one host, as the same address in two VRFs can be, is synced without either, since which host they describe is not known.
+- An address Nautobot already holds is adopted and given the synced Tag rather than duplicated. A host whose address is on an Interface IP Fabric reports is left to that Interface.
+- A host IP Fabric stops reporting is removed through [Safe Delete Mode](#safe-delete-mode) like any other object: with Safe Delete Mode selected it is marked rather than deleted, and restored if IP Fabric discovers it again. Only IP Addresses carrying the synced Tag that no Interface holds are read back, so this never touches an address the sync did not write, and an address an Interface holds is never removed as a host. An address the sync tagged that an Interface used to hold, but no longer does, is read as a host and removed if IP Fabric does not report it as one.
+
+With **Prefixes** under [Strict Objects](#strict-objects), a host no Prefix Nautobot holds covers is left unwritten and reported with the other addresses outside every Prefix.
 
 ## Strict Objects
 

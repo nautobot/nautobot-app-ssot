@@ -1777,6 +1777,84 @@ class PrefixVlan(DiffSyncExtras):
         return super().delete()
 
 
+class HostAddress(DiffSyncExtras):
+    """The IP Address of a host IP Fabric discovers, such as a server or virtual machine seen in ARP.
+
+    Top level and after the Prefixes, since a host is reported without a mask and takes the length of
+    the synced Prefix that covers it. Matched as an interface address is, so an address Nautobot holds
+    already is adopted rather than duplicated. One an Interface holds is an interface address, and is
+    neither loaded nor removed here.
+    """
+
+    _modelname = "host_address"
+    _identifiers = ("host",)
+    _attributes = ("mask_length", "dns_name", "mac_address", "status")
+
+    host: str
+    mask_length: int
+    dns_name: str = ""
+    mac_address: str = ""
+    status: str = "Active"
+
+    @classmethod
+    @tonb_nbutils.deferred_change_logging()
+    def create(cls, adapter, ids, attrs):
+        """Create, or adopt, the IP Address of a host IP Fabric discovered."""
+        address = f"{ids['host']}/{attrs['mask_length']}"
+        if adapter.strict.prefixes and not tonb_nbutils.covering_prefix_exists(address):
+            # Reported with the addresses on Interfaces that no Prefix covers.
+            adapter.addresses_outside_every_prefix.append(f"{address} (host)")
+            return None
+        try:
+            ip_obj = tonb_nbutils.create_ip(
+                ids["host"], attrs["mask_length"], logger=adapter.job.logger, tenant=adapter.tenant
+            )
+        except tonb_nbutils.BelongsToAnotherTenant as error:
+            record_other_tenant(adapter, error)
+            return None
+        if ip_obj is None or not tonb_nbutils.set_host_details(
+            ip_obj, attrs.get("dns_name", ""), attrs.get("mac_address", ""), logger=adapter.job.logger
+        ):
+            return None
+        return super().create(ids=ids, adapter=adapter, attrs=attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def update(self, attrs):
+        """Correct a host's mask, DNS name or MAC address, or restore one Safe Delete Mode marked."""
+        ip_obj = tonb_nbutils.get_host_address(self.host)
+        if ip_obj is None:
+            self.adapter.job.logger.error("Unable to find an IP Address of %s to update", self.host)
+            return None
+        if "mask_length" in attrs:
+            ip_obj.mask_length = attrs["mask_length"]
+        if attrs.get("status") == "Active":
+            # The Nautobot side reports any status other than Safe Delete Mode's as Active, so this
+            # is a host that IP Fabric reports again.
+            ip_obj.status = tonb_nbutils.get_status_for_model(IPAddress, "Active")
+            ip_obj.tags.remove(self.adapter.safe_delete_tag)
+        merged = {"dns_name": self.dns_name, "mac_address": self.mac_address, **attrs}
+        if not tonb_nbutils.set_host_details(
+            ip_obj, merged["dns_name"], merged["mac_address"], logger=self.adapter.job.logger
+        ):
+            return None
+        return super().update(attrs)
+
+    @tonb_nbutils.deferred_change_logging()
+    def delete(self) -> Optional["DiffSyncModel"]:
+        """Remove a host IP Fabric no longer reports, through Safe Delete Mode like any other object.
+
+        An address an Interface has come to hold since the load belongs to that Interface instead, and
+        is left alone.
+        """
+        ip_obj = tonb_nbutils.get_host_address(self.host)
+        if ip_obj is None:
+            self.adapter.job.logger.error("Unable to find an IP Address of %s to delete", self.host)
+            return None
+        if not ip_obj.interfaces.exists():
+            self.safe_delete(ip_obj, SAFE_DELETE_IPADDRESS_STATUS, self.adapter.safe_delete_tag)
+        return super().delete()
+
+
 class Cable(DiffSyncExtras):
     """Cable model.
 

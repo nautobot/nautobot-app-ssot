@@ -42,6 +42,7 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
     prefix = diffsync_models.Prefix
     prefix_location = diffsync_models.PrefixLocation
     prefix_vlan = diffsync_models.PrefixVlan
+    host_address = diffsync_models.HostAddress
 
     # Cables are top level because a link may span two Locations, and come after "location" so the
     # Devices and Interfaces they terminate on exist by the time they are created.
@@ -60,6 +61,8 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         "location",
         "prefix_location",
         "prefix_vlan",
+        # After the Prefixes, which a host's address takes its mask from and is filed under.
+        "host_address",
         "cable",
         "route_target",
         "vrf",
