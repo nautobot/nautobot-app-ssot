@@ -34,6 +34,7 @@ from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
     PREFIX_VLAN_CONFLICT_CF_NAME,
     first_locations_of_vlans,
     get_run_namespace,
+    normalise_mac,
     vlan_group_can_hold,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length, parse_vlan_ranges
@@ -873,6 +874,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
             for site in sorted(sites & loaded_sites):
                 self.add(self.network_wide(self.prefix_location, prefix=prefix, location_name=site))
         self.load_prefix_vlans(by_prefix)
+        if self.scope.host_addresses:
+            self.load_host_addresses(by_prefix)
         overlapping = prefixes_overlapping_other_sites(by_prefix)
         if overlapping:
             self.job.logger.warning(
@@ -925,6 +928,53 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
                 len(disagreeing),
                 ", ".join(sorted(disagreeing)[:5]),
                 PREFIX_VLAN_CONFLICT_CF_NAME,
+            )
+
+    def load_host_addresses(self, by_prefix):
+        """Add the hosts IP Fabric discovers as DiffSync HostAddress models.
+
+        Read from the IPv4 and IPv6 host tables. A host whose address is on an Interface IP Fabric
+        reports is an interface address, and is left to that model. One reported more than once, as
+        one address in two VRFs can be, keeps no DNS name or MAC address, since which host they belong
+        to is not known. A host reports no mask, so it takes the length of the most specific network
+        loaded here that covers it; one no network covers is counted and reported instead.
+        """
+        on_interfaces = {
+            host_of(record["ip"])
+            for records in self.addresses_by_interface.values()
+            for record in records
+            if record.get("ip")
+        }
+        rows = [
+            *self.client.inventory.hosts.all(columns=["ip", "dnsName", "mac"]),
+            *(
+                {"ip": row.get("ipv6"), "mac": row.get("mac")}
+                for row in self.client.inventory.hosts_ipv6.all(columns=["ipv6", "mac"])
+            ),
+        ]
+        hosts = reported_hosts(rows)
+        lengths = covering_lengths(hosts, by_prefix)
+        uncovered = []
+        for host, (dns_name, mac_address) in hosts.items():
+            if host in on_interfaces:
+                continue
+            if host not in lengths:
+                uncovered.append(host)
+                continue
+            self.add(
+                self.network_wide(
+                    self.host_address,
+                    host=host,
+                    mask_length=lengths[host],
+                    dns_name=dns_name,
+                    mac_address=mac_address,
+                )
+            )
+        if uncovered:
+            self.job.logger.warning(
+                "Not syncing %d hosts IP Fabric discovers, as no network it reports covers them, for example %s.",
+                len(uncovered),
+                ", ".join(sorted(uncovered)[:5]),
             )
 
     def load_interface_vrfs(self):
@@ -1498,6 +1548,42 @@ def agreed_prefix_vlan(pairs):
         return {"vid": vlan_id, "location_name": site, "conflict": ""}
     named = ", ".join(f"VLAN {vlan_id} at {site}" for site, vlan_id in sorted(pairs))
     return {"vid": None, "location_name": None, "conflict": f"IP Fabric reports this network in {named}"}
+
+
+def host_of(address: str) -> str:
+    """Return an address's host in the form `ipaddress` prints it, dropping any mask."""
+    return str(ipaddress.ip_address(str(address).split("/", maxsplit=1)[0]))
+
+
+def reported_hosts(rows):
+    """Return each host address IP Fabric reports, with its DNS name and normalised MAC address.
+
+    An address reported more than once keeps neither, since which of its hosts they describe is not
+    known. A row whose address is not one is skipped.
+    """
+    details = {}
+    times_reported = Counter()
+    for row in rows:
+        try:
+            host = host_of(row.get("ip") or "")
+        except ValueError:
+            continue
+        times_reported[host] += 1
+        details[host] = ((row.get("dnsName") or "").strip(), normalise_mac(row.get("mac")))
+    return {host: ("", "") if times_reported[host] > 1 else pair for host, pair in details.items()}
+
+
+def covering_lengths(hosts, prefixes):
+    """Return, for each host, the length of the most specific of the given networks that covers it."""
+    networks = {ipaddress.ip_network(prefix) for prefix in prefixes}
+    lengths = {}
+    for host in hosts:
+        address = ipaddress.ip_address(host)
+        for length in range(address.max_prefixlen, -1, -1):
+            if ipaddress.ip_network(f"{host}/{length}", strict=False) in networks:
+                lengths[host] = length
+                break
+    return lengths
 
 
 def prefixes_overlapping_other_sites(by_prefix):

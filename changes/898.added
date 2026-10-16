@@ -1,0 +1,1 @@
+Added a Sync Host Addresses option to the IP Fabric integration, which created an IP Address for each host IP Fabric discovered, with its DNS name and MAC address, under the synced Prefix that covered it.

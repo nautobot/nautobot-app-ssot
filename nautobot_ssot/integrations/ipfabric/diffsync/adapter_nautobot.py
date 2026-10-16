@@ -15,7 +15,7 @@ from django.db.models import ProtectedError
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Cable, Device, Location
 from nautobot.extras.models import Tag
-from nautobot.ipam.models import VLAN, VRF, Interface, Prefix, RouteTarget, VRFDeviceAssignment
+from nautobot.ipam.models import VLAN, VRF, Interface, IPAddress, Prefix, RouteTarget, VRFDeviceAssignment
 from netutils.mac import mac_to_format
 
 import nautobot_ssot.integrations.ipfabric.utilities.cables as tonb_cables
@@ -29,6 +29,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     INTERFACE_L2_CF_NAME,
     INTERFACE_REASON_CF_NAME,
     PSEUDO_MANAGEMENT_INTERFACE_NAME,
+    SAFE_DELETE_IPADDRESS_STATUS,
     SAFE_DELETE_PREFIX_STATUS,
     SAFE_DELETE_TAG_NAME,
     SYNC_IPF_DEV_TYPE_TO_ROLE,
@@ -750,6 +751,41 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
                 self.add(self.network_wide(self.prefix_location, prefix=prefix, location_name=location.name))
             self.load_prefix_vlan(prefix, prefix_record)
 
+    def load_host_addresses(self):
+        """Add the IP Addresses of the hosts this integration synced as DiffSync HostAddress models.
+
+        Those are the addresses carrying the sync's Tag that no Interface holds. Each is network wide,
+        like the Prefix it sits under, so a Location filtered run does not remove the hosts of the
+        sites it cannot see. An address carrying the Tag that an Interface used to hold is read here
+        too, and removed like a host IP Fabric no longer reports.
+
+        Status is reported as Active unless it is Safe Delete Mode's, as for a Prefix, so that a host
+        this sync marked is restored when IP Fabric discovers it again.
+        """
+        addresses = IPAddress.objects.filter(
+            tags=self.ssot_tag, interfaces__isnull=True, vm_interfaces__isnull=True, **tonb_utils.run_namespace_filter()
+        ).select_related("status")
+        if self.tenant is not None:
+            addresses = addresses.filter(tenant=self.tenant)
+        for address_record in addresses:
+            status = address_record.status.name if address_record.status else "Active"
+            host_address = self.network_wide(
+                self.host_address,
+                host=str(address_record.host),
+                mask_length=address_record.mask_length,
+                dns_name=address_record.dns_name or "",
+                mac_address=address_record.custom_field_data.get(tonb_utils.HOST_MAC_CF_NAME) or "",
+                status=status if status == SAFE_DELETE_IPADDRESS_STATUS else "Active",
+            )
+            try:
+                self.add(host_address)
+            except ObjectAlreadyExists:
+                # The same host in two Namespaces, read together when no Namespace is chosen.
+                self.job.logger.warning(
+                    "Not syncing the host %s, as more than one Namespace holds an IP Address of it",
+                    address_record.host,
+                )
+
     def load_prefix_vlan(self, prefix: str, prefix_record: Prefix):
         """Add a Prefix's VLAN, or the conflict recorded in its place, as a DiffSync PrefixVlan model.
 
@@ -801,6 +837,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             self.load_vrfs()
         if self.scope.prefixes:
             self.load_prefixes()
+        if self.scope.host_addresses:
+            self.load_host_addresses()
 
         location_objects = self.get_initial_location(self.ssot_tag)
         # The parent object that stores all children, is the Location.
