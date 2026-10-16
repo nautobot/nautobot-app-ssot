@@ -184,15 +184,20 @@ class IpFabricDataSource(DataSource):
 
         if cls.client is None:
             cls.client, error = cls._init_ipf_client()
-            if cls.client is None:
-                # Building the form is not a run, so there is no Job Result log to report to and the
-                # server log is the only place this can go. Fetched here rather than held by the
-                # module, so that no code a run executes can report through it by mistake.
-                logging.getLogger("nautobot.ssot.ipfabric").error(
-                    "IP Fabric client is not ready, so the Job form lists no snapshots: %s", error
-                )
         else:
-            cls.client.update()
+            try:
+                cls.client.update()
+            except (RuntimeError, OSError) as refresh_error:
+                # Dropped rather than kept, so that the next form builds a new client instead of
+                # failing on this one until the worker restarts.
+                cls.client, error = None, str(refresh_error)
+        if cls.client is None:
+            # Building the form is not a run, so there is no Job Result log to report to and the
+            # server log is the only place this can go. Fetched here rather than held by the
+            # module, so that no code a run executes can report through it by mistake.
+            logging.getLogger("nautobot.ssot.ipfabric").error(
+                "IP Fabric client is not ready, so the Job form lists no snapshots: %s", error
+            )
 
         formatted_snapshots = get_formatted_snapshots(cls.client)
         if formatted_snapshots:
@@ -293,7 +298,7 @@ class IpFabricDataSource(DataSource):
         if self.client is None:
             self.client, error = self._init_ipf_client()
         if self.client is None:
-            self.logger.error("IPFabric client is not ready: %s", error)
+            self.logger.error("IP Fabric client is not ready: %s", error)
             return
 
         # Thread local and shared by every run in this worker. A run that failed part way through

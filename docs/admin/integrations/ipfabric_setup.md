@@ -21,7 +21,7 @@ The integration supports IP Fabric 7 and 8. The `ipfabric` Python SDK only conne
 
 Without a pin, pip installs the newest SDK the app allows, which is 8. For an IP Fabric 7 server, also add `ipfabric<8` to `local_requirements.txt` next to `nautobot-ssot[ipfabric]`, so a later upgrade doesn't replace the SDK with one that can't connect.
 
-If the SDK and the server don't match, the Job log reports `IPFabric client is not ready` followed by the SDK's message naming both versions, for example ``OS Major Version `8` does not match SDK Major Version `7`.`` Install the SDK that matches the server and restart Nautobot and its workers.
+If the SDK and the server don't match, the Job log reports `IP Fabric client is not ready` followed by the SDK's message naming both versions, for example ``OS Major Version `8` does not match SDK Major Version `7`.`` Install the SDK that matches the server and restart Nautobot and its workers.
 
 ## Configuration
 
