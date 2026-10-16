@@ -149,7 +149,7 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         # Objects IP Fabric reported that already belong to another Tenant and so were not touched,
         # by model, reported once the sync is over.
         self.objects_of_another_tenant = defaultdict(list)
-        # VRF names the Global Namespace holds more than one of, which the Nautobot adapter declines
+        # VRF names the run's Namespace holds more than one of, which the Nautobot adapter declines
         # to load. Recorded so that `Vrf.create` can decline them because the name is ambiguous,
         # rather than inferring it from the loader having skipped them. Per adapter rather than per
         # class, so that two runs in one worker cannot see each other's.

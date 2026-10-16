@@ -146,9 +146,9 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
         label="Sync Prefixes",
         description=(
             "Create Nautobot Prefixes from the networks IP Fabric's managed IP summary reports, in "
-            "the Global Namespace, and record the Locations each is seen at. Off by default: select "
-            "only where nothing else owns IPAM. With Prefixes among the Strict Objects, only "
-            "Prefixes Nautobot already holds are adopted and none is created."
+            "the job's Namespace (Global unless one is chosen), and record the Locations each is "
+            "seen at. Off by default: select only where nothing else owns IPAM. With Prefixes among "
+            "the Strict Objects, only Prefixes Nautobot already holds are adopted and none is created."
         ),
         default=False,
     ),
@@ -162,8 +162,8 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
         key="vrfs",
         label="Sync VRFs",
         description=(
-            "Create Nautobot VRFs from the routing instances IP Fabric reports, in the Global "
-            "Namespace. Deselect where another system owns the VRF list. Off by default, as a "
+            "Create Nautobot VRFs from the routing instances IP Fabric reports, in the job's "
+            "Namespace (Global unless one is chosen). Deselect where another system owns the VRF list. Off by default, as a "
             "network whose VRFs are modelled elsewhere should not have them introduced by a sync."
         ),
         default=False,

@@ -1005,7 +1005,7 @@ class InterfaceAddress(DiffSyncExtras):
         if interface is None:
             return None
         try:
-            address_object = interface.ip_addresses.get(host=self.host)
+            address_object = interface.ip_addresses.get(host=self.host, **tonb_nbutils.run_namespace_filter())
         except IPAddress.DoesNotExist:
             self.adapter.job.logger.error(
                 f"Unable to find an IPAddress of {self.host} on Interface named {self.interface_name} "
@@ -1047,7 +1047,7 @@ class InterfaceAddress(DiffSyncExtras):
         _device, interface = self.find_interface(self.adapter, self.device_name, self.interface_name)
         if interface is None:
             return None
-        address_object = interface.ip_addresses.filter(host=self.host).first()
+        address_object = interface.ip_addresses.filter(host=self.host, **tonb_nbutils.run_namespace_filter()).first()
         if address_object is None:
             self.adapter.job.logger.warning(
                 f"Unable to find an IPAddress of {self.host} on Interface named {self.interface_name} "
@@ -1294,13 +1294,14 @@ class Vrf(DiffSyncExtras):
     @classmethod
     @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
-        """Create a VRF in Nautobot's Global Namespace."""
+        """Create a VRF in the run's Namespace."""
         name = ids["name"]
         if name in adapter.ambiguous_vrf_names:
             adapter.job.logger.error(
-                "Not creating a VRF named %s, as the Global Namespace already holds more than one "
+                "Not creating a VRF named %s, as Namespace %s already holds more than one "
                 "VRF of that name and IP Fabric reports nothing that tells them apart",
                 name,
+                tonb_nbutils.get_run_namespace(),
             )
             return None
         try:
@@ -1595,7 +1596,7 @@ class Prefix(DiffSyncExtras):
     rather than one created for them. The Locations a Prefix is seen at are a separate model, written
     after the Locations themselves.
 
-    Identified by the network in CIDR notation, which is unique within the Global Namespace. The
+    Identified by the network in CIDR notation, which is unique within the run's Namespace. The
     Nautobot adapter reports any status other than the Safe Delete Mode one as Active, so a Prefix's
     own status is left alone.
     """
@@ -1610,7 +1611,7 @@ class Prefix(DiffSyncExtras):
     @classmethod
     @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
-        """Create a Prefix in Nautobot's Global Namespace, or adopt the one already there.
+        """Create a Prefix in the run's Namespace, or adopt the one already there.
 
         Strict about Prefixes, one already there is adopted and none is created. A network Nautobot
         does not hold is recorded instead, and reported with the others once the sync is over.
