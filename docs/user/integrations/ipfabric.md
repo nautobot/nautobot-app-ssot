@@ -531,7 +531,7 @@ IP Fabric's managed IP tables name the VLAN each address sits in. Nautobot holds
 
 - Where they agree, the Prefix is put in that VLAN, looked up by its ID at that site. The sync doesn't create the VLAN: if Nautobot holds no such VLAN, the Prefix is left as it is and the job reports it once, with the number of Prefixes it applied to. **Sync VLANs** creates the VLANs IP Fabric reports, so selecting it alongside **Sync Prefixes** fills this in.
 - Where they disagree, the Prefix is left without a VLAN, and its `IPFabric Prefix VLAN Conflict` custom field lists each VLAN and site reported, for example `IP Fabric reports this network in VLAN 10 at site1, VLAN 20 at site2`. The job reports how many Prefixes this applies to, with a few examples. A VRF's route distinguisher is handled the same way.
-- Where IP Fabric stops reporting a VLAN for a network, the Prefix is taken out of its VLAN. Neither the Prefix nor the VLAN is deleted.
+- Where IP Fabric reports no VLAN for a network, the Prefix is taken out of its VLAN, including one set on it by hand. Neither the Prefix nor the VLAN is deleted. Only Prefixes carrying the synced Tag are read, so a Prefix the sync never tagged keeps its VLAN.
 
 ### Ranges reused at unrelated sites
 

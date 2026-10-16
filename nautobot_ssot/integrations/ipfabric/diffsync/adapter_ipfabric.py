@@ -32,6 +32,7 @@ from nautobot_ssot.integrations.ipfabric.utilities import utils as ipfabric_util
 from nautobot_ssot.integrations.ipfabric.utilities.cables import canonical_endpoints
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
     PREFIX_VLAN_CONFLICT_CF_NAME,
+    first_locations_of_vlans,
     get_run_namespace,
     vlan_group_can_hold,
 )
@@ -202,6 +203,9 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
         # what the source reports so the two sides agree, and reported once rather than diffed every
         # run, which is the treatment an address with no reported subnet mask already gets.
         self.unreachable_interface_vlans = defaultdict(set)
+        # The managed IP rows that name a VLAN, kept from the address read for the Prefix VLANs when
+        # both are in scope, so those tables are not requested twice. None when they were not read.
+        self.rows_naming_a_vlan = None
         # Held because a VRF is network wide while this filter is not, so a filtered run must not
         # delete the VRFs of the sites it cannot see; see `DiffSyncModelAdapters.network_wide`.
         self.location_filter = location_filter
@@ -884,23 +888,35 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
     def load_prefix_vlans(self, by_prefix):
         """Add the VLAN each loaded network is in as DiffSync PrefixVlan models.
 
-        Read from the managed IP tables, which name the VLAN an address sits in, filtered to the rows
-        that name one. A network whose addresses disagree is recorded with none and the pairs they
-        named, and the job reports how many with a few examples.
+        Read from the managed IP tables, which name the VLAN an address sits in: the rows the address
+        read kept, or else a request filtered to the rows that name one. A network whose addresses
+        disagree is recorded with none and the pairs they named, and the job reports how many with a
+        few examples. A VLAN Nautobot already holds is named by its first Location, as the Nautobot
+        adapter names it, so a VLAN at several Locations reads the same on both sides.
         """
-        columns = ["net", "siteName", "vlanId"]
-        names_a_vlan = {"vlanId": ["empty", False]}
-        rows = chain(
-            self.client.technology.addressing.managed_ip_ipv4.all(columns=columns, filters=names_a_vlan),
-            self.client.technology.addressing.managed_ip_ipv6.all(columns=columns, filters=names_a_vlan),
+        rows = self.rows_naming_a_vlan
+        if rows is None:
+            columns = ["net", "siteName", "vlanId"]
+            names_a_vlan = {"vlanId": ["empty", False]}
+            rows = chain(
+                self.client.technology.addressing.managed_ip_ipv4.all(columns=columns, filters=names_a_vlan),
+                self.client.technology.addressing.managed_ip_ipv6.all(columns=columns, filters=names_a_vlan),
+            )
+        agreed = {}
+        for prefix, pairs in vlans_by_prefix(rows).items():
+            if prefix in by_prefix:
+                agreed[prefix] = agreed_prefix_vlan(pairs)
+        first_locations = first_locations_of_vlans(
+            (attrs["location_name"], attrs["vid"]) for attrs in agreed.values() if attrs["vid"] is not None
         )
         disagreeing = []
-        for prefix, pairs in vlans_by_prefix(rows).items():
-            if prefix not in by_prefix:
-                continue
-            attrs = agreed_prefix_vlan(pairs)
+        for prefix, attrs in agreed.items():
             if attrs["conflict"]:
                 disagreeing.append(prefix)
+            else:
+                attrs["location_name"] = first_locations.get(
+                    (attrs["location_name"], attrs["vid"]), attrs["location_name"]
+                )
             self.add(self.network_wide(self.prefix_vlan, prefix=prefix, **attrs))
         if disagreeing:
             self.job.logger.warning(
@@ -1030,6 +1046,10 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
             # Only the columns the sync reads: these are the largest requests the job makes, and
             # every row of two unfiltered tables carries each one asked for.
             ip_columns = ["sn", "intName", "net", "ip", "vlanId"]
+            if self.scope.prefixes:
+                # The site as well, so a Prefix's VLAN is read from these rows rather than asked for again.
+                ip_columns.append("siteName")
+                self.rows_naming_a_vlan = []
             for table in (
                 self.client.technology.addressing.managed_ip_ipv4,
                 self.client.technology.addressing.managed_ip_ipv6,
@@ -1037,6 +1057,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
                 for ip_address in table.all(columns=ip_columns):
                     if self.scope.ip_addresses:
                         reported_addresses.append(ip_address)
+                    if self.rows_naming_a_vlan is not None and ip_address.get("vlanId"):
+                        self.rows_naming_a_vlan.append(ip_address)
                     self.index_by_interface(ip_address)
             if self.scope.ip_addresses:
                 for virtual in self.fhrp_addresses():
