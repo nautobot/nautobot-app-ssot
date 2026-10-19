@@ -38,6 +38,8 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
     vrf_device_assignment = diffsync_models.VrfDeviceAssignment
     interface_vrf = diffsync_models.InterfaceVrf
     interface_vlan = diffsync_models.InterfaceVlan
+    prefix = diffsync_models.Prefix
+    prefix_location = diffsync_models.PrefixLocation
 
     # Cables are top level because a link may span two Locations, and come after "location" so the
     # Devices and Interfaces they terminate on exist by the time they are created.
@@ -47,8 +49,14 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
     # by the time it is written.
     # A VRF device assignment comes last of all, since it needs both the VRF and the Device, and
     # Devices are written as children of their Location.
+    #
+    # Prefixes come first, since the addresses written under each Interface below a Location need
+    # one to sit in. The Locations a Prefix is seen at follow the Location tree, which is what
+    # creates them.
     top_level = [
+        "prefix",
         "location",
+        "prefix_location",
         "cable",
         "route_target",
         "vrf",
@@ -135,6 +143,14 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         # rather than inferring it from the loader having skipped them. Per adapter rather than per
         # class, so that two runs in one worker cannot see each other's.
         self.ambiguous_vrf_names = set()
+        # Addresses left unwritten because no Prefix covers them, as `address on device:interface`,
+        # and networks left uncreated, both under strict Prefixes. Each list is reported once at the
+        # end of the sync.
+        self.addresses_outside_every_prefix = []
+        self.prefixes_not_created = set()
+        # Locations a Prefix is seen at that Nautobot does not hold, counted by name and reported
+        # once, rather than once for every Prefix seen at each.
+        self.prefix_locations_not_found = Counter()
 
     def carries_pseudo_management_interface(self) -> bool:
         """Return whether this run reports the Interface fabricated for a NAT management address.
@@ -155,10 +171,10 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         taken on trust. Strict, a name that resolves to nothing is bad data rather than a record
         to add.
 
-        For the supporting object types only. `interfaces` and `ip_addresses` are also registered as
-        strict, but neither is a creation gate: those two ask whether IP Fabric reported an Interface
-        and whether it reported a subnet mask, and both are read at their own load sites rather than
-        through here.
+        For the supporting object types only. `interfaces`, `ip_addresses` and `prefixes` are also
+        registered as strict, but none is a creation gate: those ask whether IP Fabric reported an
+        Interface, whether it reported a subnet mask, and whether a Prefix covers an address, each
+        read where it applies rather than through here.
         """
         if not self.scope.covers(key):
             return False

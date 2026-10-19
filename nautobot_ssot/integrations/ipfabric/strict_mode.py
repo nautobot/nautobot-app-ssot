@@ -41,6 +41,10 @@ class StrictObject:
     `scoped` records whether the type also has a sync scope toggle. Declared rather than discovered,
     so that `validate_registry` can hold the two registries to it: a key misspelled here would
     otherwise read as a type the scope does not govern, which is silently the wrong answer.
+
+    `acts_on` names the scope toggles whose writes the check is applied to, where that is not the
+    type's own. Being strict about Prefixes checks the addresses written under them as well as the
+    Prefixes themselves, so it has something to do whenever either is synced.
     """
 
     key: str
@@ -48,6 +52,12 @@ class StrictObject:
     description: str
     default: bool = False
     scoped: bool = True
+    acts_on: Tuple[str, ...] = ()
+
+    @property
+    def checked_scope(self) -> Tuple[str, ...]:
+        """Return the scope toggles that decide whether this check has anything to act on."""
+        return self.acts_on or (self.key,)
 
     @property
     def setting_name(self) -> str:
@@ -125,6 +135,15 @@ STRICT_OBJECTS: Tuple[StrictObject, ...] = (
         description="an address IP Fabric reports no subnet mask for is reported, and left as Nautobot holds it",
         default=True,
     ),
+    StrictObject(
+        key="prefixes",
+        label="Prefixes",
+        description=(
+            "no Prefix is created: a network IP Fabric reports that Nautobot does not hold is "
+            "reported, and an address no Prefix covers is reported and left unwritten"
+        ),
+        acts_on=("ip_addresses", "prefixes"),
+    ),
 )
 
 
@@ -146,6 +165,9 @@ def validate_registry(objects: Iterable[StrictObject]) -> Dict[str, StrictObject
                 f"{strict_object.key!r} declares scoped={strict_object.scoped}, which disagrees with "
                 f"the sync scope registry"
             )
+        for acted_on in strict_object.acts_on:
+            if not sync_scope.is_registered(acted_on):
+                raise ValueError(f"{strict_object.key!r} acts on unknown object type {acted_on!r}")
         by_key[strict_object.key] = strict_object
     return by_key
 
@@ -238,8 +260,18 @@ class StrictObjects:
         the reason nothing was written. Takes the scope rather than holding one, since the two
         controls are resolved independently and only the run knows both.
         """
-        return [
-            f"Not checking '{key}', as it is out of scope for this sync and so nothing is written for it."
-            for key in self
-            if not scope.covers(key)
-        ]
+        messages = []
+        for key in self:
+            checked = _BY_KEY[key].checked_scope
+            if any(scope.covers(acted_on) for acted_on in checked):
+                continue
+            if checked == (key,):
+                messages.append(
+                    f"Not checking '{key}', as it is out of scope for this sync and so nothing is written for it."
+                )
+            else:
+                messages.append(
+                    f"Not checking '{key}', as none of {', '.join(repr(acted_on) for acted_on in checked)} is in "
+                    "scope for this sync and so nothing is written for the check to apply to."
+                )
+        return messages
