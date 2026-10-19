@@ -86,7 +86,7 @@ class PrefixVlanTestCase(PrefixTestCase):
         return self.prefix_obj.cf.get(nbutils.PREFIX_VLAN_CONFLICT_CF_NAME)
 
 
-class PrefixVlanWriteTestCase(PrefixVlanTestCase):
+class PrefixVlanWriteTestCase(PrefixVlanTestCase):  # pylint: disable=too-many-ancestors
     """Writing the VLAN a Prefix is in."""
 
     def test_create_puts_the_prefix_in_the_vlan(self):
@@ -165,7 +165,7 @@ class PrefixVlanWriteTestCase(PrefixVlanTestCase):
         self.assertIn("Unable to find a Prefix of 10.0.0.0/24", job_log_text(self.adapter.job.logger, "error"))
 
 
-class NautobotPrefixVlanLoadTestCase(PrefixVlanTestCase):
+class NautobotPrefixVlanLoadTestCase(PrefixVlanTestCase):  # pylint: disable=too-many-ancestors
     """Loading the VLAN, or the conflict, each synced Prefix holds."""
 
     def loaded(self):
@@ -189,7 +189,7 @@ class NautobotPrefixVlanLoadTestCase(PrefixVlanTestCase):
         self.assertEqual(self.loaded(), [("10.0.0.0/24", None, None, "IP Fabric reports two")])
 
 
-class IPFabricPrefixVlanLoadTestCase(PrefixVlanTestCase):
+class IPFabricPrefixVlanLoadTestCase(PrefixVlanTestCase):  # pylint: disable=too-many-ancestors
     """Loading the VLAN IP Fabric reports each network in."""
 
     def ipfabric_adapter(self, vlan_rows=(), scope=None):

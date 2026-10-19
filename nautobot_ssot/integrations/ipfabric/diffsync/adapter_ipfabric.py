@@ -1028,7 +1028,6 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
         the job makes, so a narrowed sync should not pay to download and index a table it will never
         look at.
         """
-        reported_addresses = []
         stacks, interfaces = defaultdict(list), defaultdict(list)
         vlans_by_location = defaultdict(list)
 
@@ -1041,29 +1040,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
         # So it is read for either, or an SVI's VLAN would be absent from the source while the
         # Nautobot side still reported it, and the difference would clear what an earlier run wrote.
         if self.scope.ip_addresses or self.scope.interface_vlans:
-            # No filter on `type`: a secondary address is configured on the device and renders into
-            # its configuration, so it belongs in Nautobot alongside the primary one.
-            # Only the columns the sync reads: these are the largest requests the job makes, and
-            # every row of two unfiltered tables carries each one asked for.
-            ip_columns = ["sn", "intName", "net", "ip", "vlanId"]
-            if self.scope.prefixes:
-                # The site as well, so a Prefix's VLAN is read from these rows rather than asked for again.
-                ip_columns.append("siteName")
-                self.rows_naming_a_vlan = []
-            for table in (
-                self.client.technology.addressing.managed_ip_ipv4,
-                self.client.technology.addressing.managed_ip_ipv6,
-            ):
-                for ip_address in table.all(columns=ip_columns):
-                    if self.scope.ip_addresses:
-                        reported_addresses.append(ip_address)
-                    if self.rows_naming_a_vlan is not None and ip_address.get("vlanId"):
-                        self.rows_naming_a_vlan.append(ip_address)
-                    self.index_by_interface(ip_address)
-            if self.scope.ip_addresses:
-                for virtual in self.fhrp_addresses():
-                    self.index_by_interface(virtual)
-                self.prefix_length_by_address = prefix_lengths_by_address(reported_addresses, logger=self.job.logger)
+            self.load_managed_addresses()
 
         # Get all interfaces for devices
         if self.scope.interfaces:
@@ -1078,6 +1055,34 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
         ):
             stacks[stack["sn"]].append(stack)
         return vlans_by_location, stacks, interfaces
+
+    def load_managed_addresses(self):
+        """Index the managed address tables' rows by Interface, and choose each address's mask.
+
+        No filter on `type`: a secondary address is configured on the device and renders into its
+        configuration, so it belongs in Nautobot alongside the primary one. Only the columns the sync
+        reads are asked for, since every row of these two unfiltered tables carries each one.
+        """
+        reported_addresses = []
+        ip_columns = ["sn", "intName", "net", "ip", "vlanId"]
+        if self.scope.prefixes:
+            # The site as well, so a Prefix's VLAN is read from these rows rather than asked for again.
+            ip_columns.append("siteName")
+            self.rows_naming_a_vlan = []
+        for table in (
+            self.client.technology.addressing.managed_ip_ipv4,
+            self.client.technology.addressing.managed_ip_ipv6,
+        ):
+            for ip_address in table.all(columns=ip_columns):
+                if self.scope.ip_addresses:
+                    reported_addresses.append(ip_address)
+                if self.rows_naming_a_vlan is not None and ip_address.get("vlanId"):
+                    self.rows_naming_a_vlan.append(ip_address)
+                self.index_by_interface(ip_address)
+        if self.scope.ip_addresses:
+            for virtual in self.fhrp_addresses():
+                self.index_by_interface(virtual)
+            self.prefix_length_by_address = prefix_lengths_by_address(reported_addresses, logger=self.job.logger)
 
     def load(self):  # pylint: disable=too-many-locals,too-many-statements,too-many-branches
         """Load data from IP Fabric."""
