@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 """Unit tests for the IPFabric DiffSync adapter class."""
 
 import ipaddress
