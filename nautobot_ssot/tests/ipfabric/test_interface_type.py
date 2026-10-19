@@ -28,6 +28,19 @@ from nautobot_ssot.tests.ipfabric.test_ipfabric_adapter import (
 )
 
 
+def inventory_with_an_unresolvable_name():
+    """Return the interface inventory with one name no pattern matches and no media type reported.
+
+    `fxp0`, the Junos management port, is physical but named for no pattern, so neither the media
+    type nor the name resolves a type for it.
+    """
+    inventory = copy.deepcopy(INTERFACE_FIXTURE)
+    for interface in inventory:
+        if interface["intName"] == "ipip":
+            interface["intName"] = "fxp0"
+    return inventory
+
+
 class TestTheKindAnInterfaceNameNames(TestCase):
     """Grouping unresolved Interfaces by name, which is what says the mapping is missing a pattern."""
 
@@ -46,7 +59,9 @@ class TestLoadingInterfaceType(TestCase):
     def loaded(self):
         """Return `(interfaces keyed by (device, interface), the adapter, the job's logger)`."""
         job_logger = MagicMock()
-        adapter = build_adapter(logger=job_logger)
+        client = mock_ipfabric_client()
+        client.inventory.interfaces.all.return_value = inventory_with_an_unresolvable_name()
+        adapter = build_adapter(client=client, logger=job_logger)
         interfaces = {(interface.device_name, interface.name): interface for interface in adapter.get_all("interface")}
         return interfaces, adapter, job_logger
 
@@ -57,8 +72,8 @@ class TestLoadingInterfaceType(TestCase):
         """Said on neither side, or the difference is diffed on every run and never settles."""
         interfaces, adapter, _ = self.loaded()
 
-        self.assertIsNone(interfaces[("nyc-rtr-01", "ipip")].type)
-        self.assertIn(("nyc-rtr-01", "ipip"), adapter.interfaces_without_a_type)
+        self.assertIsNone(interfaces[("nyc-rtr-01", "fxp0")].type)
+        self.assertIn(("nyc-rtr-01", "fxp0"), adapter.interfaces_without_a_type)
 
     def test_an_unresolved_type_reaches_the_job_result_log(self):
         """Not just the worker's stdout, or an operator cannot see what went unresolved."""
@@ -76,11 +91,11 @@ class TestLoadingInterfaceType(TestCase):
             for call in job_logger.warning.call_args_list
             if "no media type" in call.args[0]
         ]
-        self.assertEqual([("Ethernet...", 2), ("ipip...", 1)], sorted(counted))
+        self.assertEqual([("Ethernet...", 2), ("fxp...", 1)], sorted(counted))
 
     def test_each_unmappable_media_type_is_reported_once_however_many_interfaces_carry_it(self):
         """Per distinct value, so what is missing from the mapping is legible rather than buried."""
-        inventory = copy.deepcopy(INTERFACE_FIXTURE)
+        inventory = inventory_with_an_unresolvable_name()
         # `Gi4` keeps a media type that maps: the other three are named for no pattern either, so
         # the name fallback cannot rescue them and the count is of the media values alone.
         for interface, media in zip(inventory, ("Coax", "Coax", "Virtual", "SomeNewOptic")):

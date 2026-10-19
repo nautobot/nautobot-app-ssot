@@ -1,0 +1,1 @@
+Fixed the IP Fabric sync leaving logical interfaces with no port behind them, such as Junos `gr-0/0/0`, `st0`, `irb`, `vlan` and `gre`, IOS-XR `Null0` and Linux `tun` devices, with the default physical type rather than recording them as virtual.
