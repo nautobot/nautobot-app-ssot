@@ -1,0 +1,1 @@
+Added the VLAN a network is reported in to the Prefixes the IP Fabric integration syncs. A network whose addresses are in different VLANs is left without one, and the VLANs are recorded in a custom field.

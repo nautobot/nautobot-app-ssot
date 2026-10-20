@@ -65,6 +65,10 @@ BULK_WRITTEN_LOOKUPS = "bulk_written_lookups"
 # without a route distinguisher is distinguishable from one whose devices agreed it has none.
 VRF_CONFLICT_CF_NAME = "ipfabric_vrf_conflict"
 
+# Likewise for a Prefix's VLAN: the site and VLAN pairs IP Fabric reported for a network when they
+# did not agree on one, so that a Prefix left without a VLAN can be told from one that has none.
+PREFIX_VLAN_CONFLICT_CF_NAME = "ipfabric_prefix_vlan_conflict"
+
 
 @contextmanager
 def deferred_change_logging():
@@ -1252,6 +1256,65 @@ def add_prefix_location(
             logger.error(
                 "Unable to record the Prefix %s at the Location named %s. Error: %s", prefix, location_name, err
             )
+        return False
+    return True
+
+
+def get_vlan_at_location_name(vid: int, location_name: str) -> Optional[VLAN]:
+    """Return the VLAN with the given ID at the Location of the given name, if Nautobot holds one."""
+    return VLAN.objects.filter(vid=vid, locations__name=location_name).first()
+
+
+def first_locations_of_vlans(pairs: Iterable) -> dict:
+    """Return the first Location, by name, of the VLAN Nautobot holds for each (Location name, VLAN ID).
+
+    The Location a Prefix's VLAN is named by on both sides of the diff. A VLAN at several Locations
+    is then the same VLAN whichever of them IP Fabric reported it at. A pair Nautobot holds no VLAN
+    for is left out.
+    """
+    pairs = set(pairs)
+    if not pairs:
+        return {}
+    vlans = (
+        VLAN.objects.filter(vid__in={vid for _, vid in pairs}, locations__name__in={site for site, _ in pairs})
+        .prefetch_related("locations")
+        .distinct()
+    )
+    first = {}
+    for vlan_record in vlans:
+        names = sorted(location.name for location in vlan_record.locations.all())
+        for name in names:
+            first.setdefault((name, vlan_record.vid), names[0])
+    return {pair: first[pair] for pair in pairs if pair in first}
+
+
+def set_prefix_vlan(
+    prefix: str, vlan_obj: Optional[VLAN], conflict: str, logger: Optional[logging.Logger] = None
+) -> bool:
+    """Point a Prefix at a VLAN, or at none, and record what IP Fabric reported inconsistently for it.
+
+    Args:
+        prefix: The network in CIDR notation.
+        vlan_obj: The VLAN, or None to leave the Prefix without one.
+        conflict: The site and VLAN pairs IP Fabric disagreed between, or an empty string.
+        logger: Logger to use for messaging.
+
+    Returns:
+        bool: Whether the Prefix was written.
+    """
+    prefix_obj = get_prefix(prefix)
+    if prefix_obj is None:
+        if logger:
+            logger.error("Unable to find a Prefix of %s to record its VLAN on", prefix)
+        return False
+    prefix_obj.vlan = vlan_obj
+    prefix_obj.cf[PREFIX_VLAN_CONFLICT_CF_NAME] = conflict
+    try:
+        # Calls validated_save() on the object.
+        tag_object(nautobot_object=prefix_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error("Unable to record the VLAN of the Prefix %s. Error: %s", prefix, err)
         return False
     return True
 
