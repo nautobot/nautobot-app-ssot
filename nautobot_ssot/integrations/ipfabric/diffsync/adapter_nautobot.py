@@ -6,7 +6,7 @@
 
 import ipaddress
 from collections import defaultdict
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
@@ -421,6 +421,31 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             devices = devices.filter(tenant=self.tenant)
         return devices
 
+    def software_of(self, device_record: Device) -> Tuple[Optional[str], Optional[str]]:
+        """Return the software version and images to report for a Device.
+
+        None for either where it is out of scope, or where IP Fabric reported nothing to compare with:
+        see `devices_without_a_software_version` and `devices_without_a_software_image`.
+        """
+        version = image = None
+        if (
+            self.scope.software_versions
+            and device_record.software_version
+            and device_record.name not in self.devices_without_a_software_version
+        ):
+            version = device_record.software_version.version
+        if self.scope.software_images and device_record.name not in self.devices_without_a_software_image:
+            # Lowercased as the IP Fabric side reports it, since an existing image is matched ignoring case.
+            image = (
+                ", ".join(
+                    sorted(
+                        image_file.image_file_name.lower() for image_file in device_record.software_image_files.all()
+                    )
+                )
+                or None
+            )
+        return version, image
+
     def load_devices(self, filtered_devices: List, locations_by_name: Dict[str, Any]):
         """Load Devices from Nautobot, placing each under the Location it belongs to.
 
@@ -491,22 +516,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             )
             if device_record.platform:
                 device.platform = device_record.platform.name
-            # None where out of scope, or where IP Fabric reported no version to compare with:
-            # see `devices_without_a_software_version`.
-            if (
-                self.scope.software_versions
-                and device_record.software_version
-                and device_record.name not in self.devices_without_a_software_version
-            ):
-                device.software_version = device_record.software_version.version
-            if self.scope.software_images and device_record.name not in self.devices_without_a_software_image:
-                device.software_image = (
-                    # Lowercased as the IP Fabric side reports it, since an existing image is matched ignoring case.
-                    ", ".join(
-                        sorted(image.image_file_name.lower() for image in device_record.software_image_files.all())
-                    )
-                    or None
-                )
+            device.software_version, device.software_image = self.software_of(device_record)
             if device_record.virtual_chassis:
                 device.vc_name = device_record.virtual_chassis.name
                 device.vc_position = device_record.vc_position
