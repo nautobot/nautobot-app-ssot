@@ -42,6 +42,7 @@ from nautobot.ipam.models import (
     VRFDeviceAssignment,
     get_default_namespace,
 )
+from nautobot.tenancy.models import Tenant
 from netutils.lib_mapper import NAPALM_LIB_MAPPER
 
 from nautobot_ssot.integrations.ipfabric.constants import (
@@ -119,18 +120,44 @@ def change_logging_not_deferred():
         change_context.defer_object_changes = True
 
 
+class BelongsToAnotherTenant(Exception):
+    """Raised for an object this run would adopt that already belongs to a different Tenant."""
+
+    def __init__(self, nautobot_object: Any):
+        """Hold the object, so the caller can name it in its report."""
+        super().__init__(f"{nautobot_object} belongs to the Tenant {nautobot_object.tenant}")
+        self.nautobot_object = nautobot_object
+
+
+def claim_for_tenant(nautobot_object: Any, tenant: Optional[Tenant]) -> bool:
+    """Give an existing object the run's Tenant if it has none, and return whether it changed.
+
+    Nothing changes when the run has no Tenant or the object already has this one. An object of
+    another Tenant is not this run's to touch, so that raises `BelongsToAnotherTenant` instead.
+    """
+    if tenant is None or nautobot_object.tenant_id == tenant.pk:
+        return False
+    if nautobot_object.tenant_id is None:
+        nautobot_object.tenant = tenant
+        return True
+    raise BelongsToAnotherTenant(nautobot_object)
+
+
 @job_scoped_cache
 def get_or_create_location_object(
     location_name: str,
     location_id: Optional[str] = None,
     logger: Optional[logging.Logger] = None,
     pending: Optional[Any] = None,
+    tenant: Optional[Tenant] = None,
 ) -> Optional[Location]:
     """Creates a specified location in Nautobot.
 
     Args:
         location_name: Name of the location.
         location_id: ID of the location.
+        tenant: The run's Tenant, given to a Location this creates. A Location that already exists
+            is left with whatever Tenant it has, since a site may be shared.
         logger: Logger to use for messaging.
         pending: When given, a new Location is queued for a batched write rather than saved. The
             returned Location already has its primary key, so a caller may go on to reference it.
@@ -157,6 +184,7 @@ def get_or_create_location_object(
                 name=location_name,
                 location_type=location_type,
                 status=get_status_by_name("Active"),
+                tenant=tenant,
             )
             is_new = True
     except Location.MultipleObjectsReturned:
@@ -767,7 +795,7 @@ def get_global_namespace() -> Namespace:
 
 
 @job_scoped_cache(group=BULK_WRITTEN_LOOKUPS)
-def get_syncable_device(device_name: str, *, tagged_only: bool) -> Optional[Device]:
+def get_syncable_device(device_name: str, *, tagged_only: bool, tenant: Optional[Tenant]) -> Optional[Device]:
     """Return the Device an Interface or Cable operation is for, or None when it is out of scope.
 
     `tagged_only` mirrors the job option of that name, and has to, because the Nautobot adapter reads
@@ -775,13 +803,17 @@ def get_syncable_device(device_name: str, *, tagged_only: bool) -> Optional[Devi
     Device: matching on the Tag while the adapter loaded without it leaves those Devices' Interfaces
     reported as changed on every run and never written, and reported only as a warning.
 
-    Required rather than defaulted, so that a write path added later cannot quietly reintroduce that
-    by omitting it. The adapter also scopes Devices by Location, which this does not; a Device whose
-    Location is outside the run is still matched by name.
+    `tenant` is the run's Tenant, which narrows the Devices the adapter reads in the same way.
+
+    Both are keyword-only and required, so no caller can leave one out and reopen that mismatch.
+    The adapter also scopes Devices by Location, which this does
+    not; a Device whose Location is outside the run is still matched by name.
     """
     devices = Device.objects.filter(name=device_name)
     if tagged_only:
         devices = devices.filter(tags=get_or_create_tag_object(tag_name=SYNCED_TAG_NAME))
+    if tenant is not None:
+        devices = devices.filter(tenant=tenant)
     return devices.first()
 
 
@@ -812,6 +844,7 @@ def get_tagged_interface(
     interface_name: str,
     *,
     tagged_only: bool,
+    tenant: Optional[Tenant],
     logger: Optional[logging.Logger] = None,
 ) -> Optional[Interface]:
     """Retrieve an Interface belonging to a Device this run covers.
@@ -822,12 +855,13 @@ def get_tagged_interface(
         logger: Logger to use for messaging.
         tagged_only: Whether only Devices tagged as synced from IP Fabric are in scope, mirroring
             the job option of that name.
+        tenant: The run's Tenant, when only that Tenant's Devices are in scope.
 
     Returns:
         Interface: When the Interface is found.
         None: When either the Device or the Interface cannot be found.
     """
-    device = get_syncable_device(device_name, tagged_only=tagged_only)
+    device = get_syncable_device(device_name, tagged_only=tagged_only, tenant=tenant)
     if not device:
         if logger:
             logger.warning(
@@ -856,6 +890,7 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
     object_pk: Optional[Interface] = None,
     logger: Optional[logging.Logger] = None,
     pending: Optional[Any] = None,
+    tenant: Optional[Tenant] = None,
 ) -> Optional[IPAddress]:
     """Verify ip address exists in Nautobot. If not, creates specified ip.
 
@@ -870,6 +905,7 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
         logger: Logger to use for messaging.
         pending: When given, a new IPAddress and its Interface assignment are queued for a batched
             write rather than saved.
+        tenant: The run's Tenant, given to a new address and to an existing one that has none.
 
     Returns:
         IPAddress: When a IPAddress Object is retrieved or created.
@@ -903,12 +939,14 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
                 interface=object_pk,
                 pending=pending,
                 logger=logger,
+                tenant=tenant,
             )
-        ip_obj = resolve_ip(f"{ip_address}/{mask_length}", status_obj, logger=logger)
+        ip_obj = resolve_ip(f"{ip_address}/{mask_length}", status_obj, logger=logger, tenant=tenant)
         if ip_obj is None:
             return None
 
         if not ip_obj.present_in_database:
+            ip_obj.tenant = tenant
             # Stamped before the one save a new address takes, so the Tag row that follows is the
             # only further write.
             stamp_synced(ip_obj, LAST_SYNCHRONIZED_CF_NAME)
@@ -921,10 +959,11 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
                 return None
         else:
             # The mask IP Fabric reports rides the tagging save rather than taking one of its own.
+            claimed = claim_for_tenant(ip_obj, tenant)
             mask_changed = ip_obj.mask_length != mask_length
             ip_obj.mask_length = mask_length
             try:
-                if mask_changed:
+                if mask_changed or claimed:
                     tag_object(nautobot_object=ip_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
                 else:
                     # The usual case on a re-sync, and the one worth keeping cheap: IP Fabric
@@ -976,7 +1015,9 @@ def _cleaned_ip(address: str, status_obj: Status) -> Optional[IPAddress]:
     return ip_obj
 
 
-def resolve_new_ip(address: str, status_obj: Status, logger: Optional[logging.Logger] = None) -> Optional[IPAddress]:
+def resolve_new_ip(
+    address: str, status_obj: Status, logger: Optional[logging.Logger] = None, tenant: Optional[Tenant] = None
+) -> Optional[IPAddress]:
     """Return an unsaved IPAddress ready to be written, creating its parent Prefix if there is none.
 
     The parent is set here rather than left to Nautobot to work out on save. Nautobot's own
@@ -994,12 +1035,14 @@ def resolve_new_ip(address: str, status_obj: Status, logger: Optional[logging.Lo
         return ip_obj
     # Nothing covers the address. IP Fabric reports addresses without their subnets, so this is the
     # normal state for the first address a sync sees from one.
-    if not create_parent_prefix(address, logger=logger):
+    if not create_parent_prefix(address, logger=logger, tenant=tenant):
         return None
     return _cleaned_ip(address, status_obj)
 
 
-def create_parent_prefix(address: str, logger: Optional[logging.Logger] = None) -> bool:
+def create_parent_prefix(
+    address: str, logger: Optional[logging.Logger] = None, tenant: Optional[Tenant] = None
+) -> bool:
     """Create the Prefix an address belongs under, for when Nautobot holds none.
 
     IP Fabric reports addresses without the subnets they sit in, so the first address a sync sees
@@ -1009,6 +1052,7 @@ def create_parent_prefix(address: str, logger: Optional[logging.Logger] = None) 
     Args:
         address: The address in CIDR notation, whose network the Prefix is taken from.
         logger: Logger to use for messaging.
+        tenant: The run's Tenant, given to the Prefix this creates.
 
     Returns:
         bool: Whether a Prefix now exists for the address.
@@ -1029,6 +1073,7 @@ def create_parent_prefix(address: str, logger: Optional[logging.Logger] = None) 
             type=PrefixTypeChoices.TYPE_NETWORK,
             status=get_status_for_model(Prefix, "Active"),
             namespace=get_global_namespace(),
+            defaults={"tenant": tenant},
         )
     except (DjangoBaseDBError, ValidationError) as err:
         if logger:
@@ -1066,7 +1111,9 @@ def get_prefix(prefix: str) -> Optional[Prefix]:
     ).first()
 
 
-def create_prefix(prefix: str, create: bool = True, logger: Optional[logging.Logger] = None) -> Optional[Prefix]:
+def create_prefix(
+    prefix: str, create: bool = True, logger: Optional[logging.Logger] = None, tenant: Optional[Tenant] = None
+) -> Optional[Prefix]:
     """Create a Prefix in the Global Namespace, or adopt the one Nautobot already holds.
 
     A Prefix is unique on its network within a Namespace, so one another process or an earlier
@@ -1082,6 +1129,7 @@ def create_prefix(prefix: str, create: bool = True, logger: Optional[logging.Log
         prefix: The network in CIDR notation.
         create: Whether a Prefix may be created when Nautobot holds none, which a run strict about
             Prefixes does not allow. One already there is adopted either way.
+        tenant: The run's Tenant, given to a new Prefix and to an existing one that has none.
         logger: Logger to use for messaging.
 
     Returns:
@@ -1090,6 +1138,7 @@ def create_prefix(prefix: str, create: bool = True, logger: Optional[logging.Log
     """
     existing = get_prefix(prefix)
     if existing is not None:
+        claim_for_tenant(existing, tenant)
         try:
             tag_object(nautobot_object=existing, custom_field=LAST_SYNCHRONIZED_CF_NAME)
         except (DjangoBaseDBError, ValidationError) as err:
@@ -1105,6 +1154,7 @@ def create_prefix(prefix: str, create: bool = True, logger: Optional[logging.Log
         namespace=get_global_namespace(),
         type=PrefixTypeChoices.TYPE_NETWORK,
         status=get_status_for_model(Prefix, "Active"),
+        tenant=tenant,
     )
     stamp_synced(prefix_obj, LAST_SYNCHRONIZED_CF_NAME)
     try:
@@ -1193,7 +1243,9 @@ def mask_length_of(address: str) -> int:
     return int(address.split("/")[1])
 
 
-def resolve_ip(address: str, status_obj: Status, logger: Optional[logging.Logger] = None) -> Optional[IPAddress]:
+def resolve_ip(
+    address: str, status_obj: Status, logger: Optional[logging.Logger] = None, tenant: Optional[Tenant] = None
+) -> Optional[IPAddress]:
     """Return the IPAddress to use for `address`, whether Nautobot already holds one or not.
 
     One that `present_in_database` reports as saved is Nautobot's own, to be reused. A new one comes
@@ -1222,15 +1274,16 @@ def resolve_ip(address: str, status_obj: Status, logger: Optional[logging.Logger
     for existing in candidates:
         if existing.parent.namespace_id == namespace.pk:
             return existing
-    return resolve_new_ip(address, status_obj, logger=logger)
+    return resolve_new_ip(address, status_obj, logger=logger, tenant=tenant)
 
 
-def queue_ip(
+def queue_ip(  # pylint: disable=too-many-arguments
     address: str,
     status_obj: Status,
     interface: Optional[Interface],
     pending: Any,
     logger: Optional[logging.Logger] = None,
+    tenant: Optional[Tenant] = None,
 ) -> Optional[IPAddress]:
     """Queue an IPAddress, and its assignment to an Interface, for a batched write.
 
@@ -1248,7 +1301,7 @@ def queue_ip(
     sync should not be writing, which is worth keeping even in bulk mode: the alternative is a row
     with no parent Prefix, which leaves the address orphaned in IPAM.
     """
-    ip_obj = resolve_ip(address, status_obj, logger=logger)
+    ip_obj = resolve_ip(address, status_obj, logger=logger, tenant=tenant)
     if ip_obj is None:
         if logger:
             logger.error(f"Unable to queue an IPAddress of {address} for a bulk write")
@@ -1262,9 +1315,13 @@ def queue_ip(
         if queued is not None:
             ip_obj = queued
         else:
+            ip_obj.tenant = tenant
             queue_new_object(pending, ip_obj, key=key)
-    elif ip_obj.mask_length != mask_length_of(address):
-        pending.defer_update(ip_obj, {"mask_length": mask_length_of(address)})
+    else:
+        if claim_for_tenant(ip_obj, tenant):
+            pending.defer_update(ip_obj, {"tenant": tenant})
+        if ip_obj.mask_length != mask_length_of(address):
+            pending.defer_update(ip_obj, {"mask_length": mask_length_of(address)})
 
     if interface is not None:
         pending.add_through(IPAddressToInterface(ip_address=ip_obj, interface_id=interface.pk))
@@ -1489,7 +1546,7 @@ def vlan_group_refuses_name(group, vlan_name: str, vlan_id: int) -> bool:
 
 
 @job_scoped_cache
-def create_vlan(  # pylint: disable=too-many-arguments,too-many-return-statements
+def create_vlan(  # pylint: disable=too-many-arguments,too-many-locals,too-many-return-statements
     vlan_name: str,
     vlan_id: int,
     vlan_status: str,
@@ -1498,6 +1555,7 @@ def create_vlan(  # pylint: disable=too-many-arguments,too-many-return-statement
     logger: Optional[logging.Logger] = None,
     pending: Optional[Any] = None,
     vlan_group: Optional[Any] = None,
+    tenant: Optional[Tenant] = None,
 ) -> Optional[VLAN]:
     """Creates or obtains VLAN object.
 
@@ -1511,6 +1569,7 @@ def create_vlan(  # pylint: disable=too-many-arguments,too-many-return-statement
         pending: When given, a new VLAN and its location assignment are queued for a batched write
             rather than saved.
         vlan_group: The VLAN Group the Location's VLANs belong in, or None to leave them ungrouped.
+        tenant: The run's Tenant, given to a new VLAN and to an existing one that has none.
 
     Returns:
         VLAN: When a VLAN Object is retrieved or created.
@@ -1547,6 +1606,7 @@ def create_vlan(  # pylint: disable=too-many-arguments,too-many-return-statement
                 description=description,
                 location=location_obj,
                 vlan_group=vlan_group,
+                tenant=tenant,
             )
             is_new = True
     except VLAN.MultipleObjectsReturned:
@@ -1558,6 +1618,7 @@ def create_vlan(  # pylint: disable=too-many-arguments,too-many-return-statement
             logger.error(f"Unable to create a new VLAN named {vlan_name} with an ID {vlan_id}. Error: {err}")
         return None
 
+    claimed = not is_new and claim_for_tenant(vlan_obj, tenant)
     adopted = not is_new and vlan_group is not None and vlan_obj.vlan_group_id != vlan_group.pk
     if adopted:
         # A VLAN that predates the group is filed under it, since the constraint only covers what is
@@ -1574,9 +1635,9 @@ def create_vlan(  # pylint: disable=too-many-arguments,too-many-return-statement
         return queue_new_object(pending, vlan_obj, key=key, through_rows=assignments)
 
     try:
-        if is_new or adopted:
+        if is_new or adopted or claimed:
             # tag_object performs validated_save(), which is the only save a new VLAN takes and the
-            # one that persists the group a VLAN has just been filed under.
+            # one that persists the group or Tenant an existing VLAN has just been given.
             tag_object(nautobot_object=vlan_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
         else:
             # Nothing above changed a field on a VLAN Nautobot already holds, so the stamp is the
@@ -1588,7 +1649,9 @@ def create_vlan(  # pylint: disable=too-many-arguments,too-many-return-statement
     return vlan_obj
 
 
-def create_route_target(name: str, logger: Optional[logging.Logger] = None) -> Optional[RouteTarget]:
+def create_route_target(
+    name: str, logger: Optional[logging.Logger] = None, tenant: Optional[Tenant] = None
+) -> Optional[RouteTarget]:
     """Create a Route Target, or adopt the one Nautobot already holds under that name.
 
     A Route Target's name is unique across Nautobot, so one another process created is the same
@@ -1609,6 +1672,7 @@ def create_route_target(name: str, logger: Optional[logging.Logger] = None) -> O
     """
     route_target = RouteTarget.objects.filter(name=name).first()
     if route_target is not None:
+        claim_for_tenant(route_target, tenant)
         # Already there, so it is re-stamped in place; `tag_object` answers "does it carry the Tag
         # already" from the per-model set rather than asking the tag table for every target.
         try:
@@ -1618,7 +1682,7 @@ def create_route_target(name: str, logger: Optional[logging.Logger] = None) -> O
                 logger.error("Unable to mark the Route Target named %s as synced. Error: %s", name, err)
         return route_target
 
-    route_target = RouteTarget(name=name)
+    route_target = RouteTarget(name=name, tenant=tenant)
     # Stamped before the one save a new Route Target takes, so the Tag row that follows is the only
     # further write.
     stamp_synced(route_target, LAST_SYNCHRONIZED_CF_NAME)
@@ -1740,6 +1804,7 @@ def set_interface_vlans(  # pylint: disable=too-many-arguments,too-many-locals
     untagged_vid: Optional[int],
     tagged_vids: Iterable[int],
     tagged_only: bool,
+    tenant: Optional[Tenant],
     logger: Optional[logging.Logger] = None,
     pending: Optional[Any] = None,
 ) -> bool:
@@ -1764,13 +1829,15 @@ def set_interface_vlans(  # pylint: disable=too-many-arguments,too-many-locals
         bool: Whether the Interface now holds what was asked for.
     """
     device_obj = (pending.find(Device, device_name) if pending is not None else None) or get_syncable_device(
-        device_name, tagged_only=tagged_only
+        device_name, tagged_only=tagged_only, tenant=tenant
     )
     interface_obj = None
     if pending is not None and device_obj is not None:
         interface_obj = pending.find(Interface, (device_obj.pk, interface_name))
     if interface_obj is None:
-        interface_obj = get_tagged_interface(device_name, interface_name, tagged_only=tagged_only, logger=logger)
+        interface_obj = get_tagged_interface(
+            device_name, interface_name, tagged_only=tagged_only, tenant=tenant, logger=logger
+        )
     if interface_obj is None:
         return False
 
@@ -1826,6 +1893,7 @@ def set_interface_vrf(  # pylint: disable=too-many-arguments
     interface_name: str,
     vrf_name: Optional[str],
     tagged_only: bool,
+    tenant: Optional[Tenant],
     logger: Optional[logging.Logger] = None,
     pending: Optional[Any] = None,
 ) -> bool:
@@ -1855,13 +1923,15 @@ def set_interface_vrf(  # pylint: disable=too-many-arguments
             return False
 
     device_obj = (pending.find(Device, device_name) if pending is not None else None) or get_syncable_device(
-        device_name, tagged_only=tagged_only
+        device_name, tagged_only=tagged_only, tenant=tenant
     )
     interface_obj = None
     if pending is not None and device_obj is not None:
         interface_obj = pending.find(Interface, (device_obj.pk, interface_name))
     if interface_obj is None:
-        interface_obj = get_tagged_interface(device_name, interface_name, tagged_only=tagged_only, logger=logger)
+        interface_obj = get_tagged_interface(
+            device_name, interface_name, tagged_only=tagged_only, tenant=tenant, logger=logger
+        )
     if interface_obj is None:
         return False
 
@@ -1893,10 +1963,11 @@ def get_vrf_device_assignment(vrf_name: str, device_name: str) -> Optional[VRFDe
     ).first()
 
 
-def create_vrf_device_assignment(
+def create_vrf_device_assignment(  # pylint: disable=too-many-arguments
     vrf_name: str,
     device_name: str,
     tagged_only: bool,
+    tenant: Optional[Tenant],
     logger: Optional[logging.Logger] = None,
     pending: Optional[Any] = None,
 ) -> Optional[VRFDeviceAssignment]:
@@ -1929,7 +2000,7 @@ def create_vrf_device_assignment(
             logger.error("Unable to find a VRF named %s to assign to the Device named %s", vrf_name, device_name)
         return None
     device_obj = pending.find(Device, device_name) if pending is not None else None
-    device_obj = device_obj or get_syncable_device(device_name, tagged_only=tagged_only)
+    device_obj = device_obj or get_syncable_device(device_name, tagged_only=tagged_only, tenant=tenant)
     if device_obj is None:
         if logger:
             logger.error("Unable to find a Device named %s to assign the VRF named %s to", device_name, vrf_name)
@@ -1992,8 +2063,13 @@ def create_vrf(  # pylint: disable=too-many-arguments
     conflict: str,
     logger: Optional[logging.Logger] = None,
     pending: Optional[Any] = None,
+    tenant: Optional[Tenant] = None,
 ) -> Optional[VRF]:
     """Create a VRF in the Global Namespace.
+
+    With a Tenant, an existing VRF of the name is adopted rather than duplicated, since the run reads
+    only its Tenant's VRFs and so did not load one that has no Tenant. A name the Namespace holds
+    more than once is refused, as the loader refuses it.
 
     Args:
         name: VRF name.
@@ -2009,11 +2085,31 @@ def create_vrf(  # pylint: disable=too-many-arguments
         None: When Nautobot refuses it.
     """
     status_obj = get_or_create_status_object(vrf_status, ColorChoices.COLOR_GREEN, app_label="ipam", model="vrf")
+    if tenant is not None:
+        existing = list(VRF.objects.filter(name=name, namespace=get_global_namespace())[:2])
+        if len(existing) > 1:
+            if logger:
+                logger.error("Not creating a VRF named %s, as the Global Namespace already holds more than one", name)
+            return None
+        if existing:
+            vrf_obj = existing[0]
+            claim_for_tenant(vrf_obj, tenant)
+            vrf_obj.rd = rd or None
+            vrf_obj.status = status_obj
+            vrf_obj.cf[VRF_CONFLICT_CF_NAME] = conflict
+            try:
+                tag_object(nautobot_object=vrf_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+            except (DjangoBaseDBError, ValidationError) as err:
+                if logger:
+                    logger.error("Unable to adopt the VRF named %s. Error: %s", name, err)
+                return None
+            return vrf_obj
     vrf_obj = VRF(
         name=name,
         rd=rd or None,
         status=status_obj,
         namespace=get_global_namespace(),
+        tenant=tenant,
     )
     vrf_obj.cf[VRF_CONFLICT_CF_NAME] = conflict
     if pending is not None:

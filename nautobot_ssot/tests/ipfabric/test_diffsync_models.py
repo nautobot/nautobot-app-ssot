@@ -68,6 +68,8 @@ def _make_adapter(scope=None, strict=None, bulk_write_mode=False):
     # Set explicitly because, left as a mock, it is truthy and every model here would queue its
     # writes instead of making them.
     adapter.pending = PendingWrites(mock.MagicMock()) if bulk_write_mode else None
+    # None rather than a mock, which would read as a Tenant every lookup has to be narrowed to.
+    adapter.tenant = None
     adapter.job = mock.MagicMock()
     adapter.job.debug = False
     adapter.ssot_tag = mock.MagicMock(name="ssot_tag")
@@ -619,7 +621,7 @@ class TestDeviceModel(_ModelTestBase):  # pylint: disable=too-many-public-method
             diff_model.update({"location_name": "new-loc"})
 
         mock_loc_helper.assert_called_once_with(
-            location_name="new-loc", location_id=None, logger=self.adapter.job.logger, pending=None
+            location_name="new-loc", location_id=None, logger=self.adapter.job.logger, pending=None, tenant=None
         )
         self.assertIs(nb_device.location, new_location)
 
@@ -637,7 +639,7 @@ class TestResolveLocation(_ModelTestBase):
 
         self.assertEqual(resolved, "created")
         mock_helper.assert_called_once_with(
-            location_name="loc", location_id="site-id", logger=self.adapter.job.logger, pending=None
+            location_name="loc", location_id="site-id", logger=self.adapter.job.logger, pending=None, tenant=None
         )
 
     def test_only_looks_up_when_locations_are_out_of_scope(self):

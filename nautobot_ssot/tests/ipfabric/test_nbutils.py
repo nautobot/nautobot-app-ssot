@@ -1012,17 +1012,17 @@ class TestNautobotUtils(TestCase):
         )
         ssot_tag.content_types.add(self.content_type)
         self.device.tags.add(ssot_tag)
-        result = get_syncable_device(self.device.name, tagged_only=True)
+        result = get_syncable_device(self.device.name, tagged_only=True, tenant=None)
         self.assertEqual(result.id, self.device.id)
 
     def test_get_syncable_device_no_match(self):
         """Test returns None when device has no SSoT tag."""
-        result = get_syncable_device("Test-Device", tagged_only=True)
+        result = get_syncable_device("Test-Device", tagged_only=True, tenant=None)
         self.assertIsNone(result)
 
     def test_get_syncable_device_finds_an_untagged_device_when_the_run_is_not_tagged_only(self):
         """The Nautobot adapter loads every Device then, so every Device has to be writable."""
-        result = get_syncable_device(self.device.name, tagged_only=False)
+        result = get_syncable_device(self.device.name, tagged_only=False, tenant=None)
         self.assertEqual(result.id, self.device.id)
 
     def test_get_syncable_device_cache_reuse(self):
@@ -1032,9 +1032,9 @@ class TestNautobotUtils(TestCase):
         )
         ssot_tag.content_types.add(self.content_type)
         self.device.tags.add(ssot_tag)
-        first = get_syncable_device(self.device.name, tagged_only=True)
+        first = get_syncable_device(self.device.name, tagged_only=True, tenant=None)
         with mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Device.objects.filter") as mock_filter:
-            second = get_syncable_device(self.device.name, tagged_only=True)
+            second = get_syncable_device(self.device.name, tagged_only=True, tenant=None)
             mock_filter.assert_not_called()
         self.assertIs(first, second)
 
@@ -1053,7 +1053,7 @@ class TestNautobotUtils(TestCase):
         self._tag_test_device()
         interface = self.device.interfaces.get(name="Test-Interface")
 
-        result = get_tagged_interface(self.device.name, "Test-Interface", tagged_only=True)
+        result = get_tagged_interface(self.device.name, "Test-Interface", tagged_only=True, tenant=None)
 
         self.assertEqual(result.id, interface.id)
 
@@ -1061,7 +1061,9 @@ class TestNautobotUtils(TestCase):
         """Test returns None and warns when the Device is not tagged as synced."""
         mock_logger = mock.MagicMock()
 
-        result = get_tagged_interface(self.device.name, "Test-Interface", tagged_only=True, logger=mock_logger)
+        result = get_tagged_interface(
+            self.device.name, "Test-Interface", tagged_only=True, tenant=None, logger=mock_logger
+        )
 
         self.assertIsNone(result)
         mock_logger.warning.assert_called_once()
@@ -1071,7 +1073,9 @@ class TestNautobotUtils(TestCase):
         self._tag_test_device()
         mock_logger = mock.MagicMock()
 
-        result = get_tagged_interface(self.device.name, "Ethernet9/9", tagged_only=True, logger=mock_logger)
+        result = get_tagged_interface(
+            self.device.name, "Ethernet9/9", tagged_only=True, tenant=None, logger=mock_logger
+        )
 
         self.assertIsNone(result)
         mock_logger.warning.assert_called_once()
@@ -1083,16 +1087,18 @@ class TestNautobotUtils(TestCase):
 
         with mock.patch.object(Device, "interfaces", new_callable=mock.PropertyMock) as mock_interfaces:
             mock_interfaces.return_value.get.side_effect = Interface.MultipleObjectsReturned
-            result = get_tagged_interface(self.device.name, "Test-Interface", tagged_only=True, logger=mock_logger)
+            result = get_tagged_interface(
+                self.device.name, "Test-Interface", tagged_only=True, tenant=None, logger=mock_logger
+            )
 
         self.assertIsNone(result)
         mock_logger.error.assert_called_once()
 
     def test_get_tagged_interface_no_logger(self):
         """Test the logger is optional on every failure path."""
-        self.assertIsNone(get_tagged_interface(self.device.name, "Test-Interface", tagged_only=True))
+        self.assertIsNone(get_tagged_interface(self.device.name, "Test-Interface", tagged_only=True, tenant=None))
         self._tag_test_device()
-        self.assertIsNone(get_tagged_interface(self.device.name, "Ethernet9/9", tagged_only=True))
+        self.assertIsNone(get_tagged_interface(self.device.name, "Ethernet9/9", tagged_only=True, tenant=None))
 
     # ===== tag_object (direct) =====
 

@@ -6,6 +6,7 @@ from unittest import mock
 from django.conf import settings
 from django.urls import reverse
 from nautobot.apps.testing import TestCase
+from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.ipfabric import jobs, strict_mode, sync_scope
 from nautobot_ssot.integrations.ipfabric.strict_mode import StrictObjects
@@ -150,6 +151,10 @@ class IPFabricJobFormTestCase(TestCase):
         for syncable in SYNCABLE_OBJECTS:
             self.assertIn(syncable.field_name, jobs.IpFabricDataSource.Meta.field_order)
 
+    def test_the_tenant_is_offered_after_sync_tagged_only(self):
+        order = jobs.IpFabricDataSource.Meta.field_order
+        self.assertEqual(order.index("tenant"), order.index("sync_ipfabric_tagged_only") + 1)
+
     def test_run_resolves_the_submitted_selection_into_a_scope(self):
         """`run` is where the form's booleans become the one scope both adapters read."""
         job = jobs.IpFabricDataSource()
@@ -210,6 +215,7 @@ class IPFabricSyncDataTest(TestCase):
             "bulk_write_mode": False,
             "strict": StrictObjects(strict if strict is not None else strict_mode.default_keys()),
             "location_filter": None,
+            "tenant": None,
             "debug": False,
             "scope": SyncScope(scope) if scope is not None else SyncScope.from_job_kwargs({}),
             **overrides,
@@ -230,6 +236,17 @@ class IPFabricSyncDataTest(TestCase):
         job = self._job(bulk_write_mode=True)
         _source, dest = self._run(job)
         self.assertTrue(dest.call_args.kwargs["bulk_write_mode"])
+
+    def test_sync_data_passes_the_tenant_to_both_adapters(self):
+        tenant = Tenant.objects.create(name="customer-a")
+        source, dest = self._run(self._job(tenant=tenant.pk))
+        self.assertEqual(source.call_args.kwargs["tenant"], tenant)
+        self.assertEqual(dest.call_args.kwargs["tenant"], tenant)
+
+    def test_sync_data_defaults_to_no_tenant(self):
+        source, dest = self._run(self._job())
+        self.assertIsNone(source.call_args.kwargs["tenant"])
+        self.assertIsNone(dest.call_args.kwargs["tenant"])
 
     def test_sync_data_defaults_bulk_write_mode_off(self):
         job = self._job()
