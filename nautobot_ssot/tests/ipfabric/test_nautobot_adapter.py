@@ -1,3 +1,4 @@
+# One module holds every Nautobot adapter test  #  pylint: disable=too-many-lines
 """Unit tests for the IPFabric DiffSync adapter class."""
 
 import unittest
@@ -800,6 +801,27 @@ class TestNautobotAdapter(TestCase):
         self.nb_adapter.load_cables(Device.objects.all())
 
         self.assertEqual(self.nb_adapter.get_all("cable"), [])
+
+    def test_load_cables_under_tagged_only_skips_a_cable_this_sync_did_not_tag(self):
+        """A Cable another process made between two synced Devices is not this sync's to reconcile."""
+        foreign = self._cable(self._interface("dev1", "eth0"), self._interface("dev2", "eth0"))
+        synced = self._cable(self._interface("dev1", "eth1"), self._interface("dev2", "eth1"))
+        synced.tags.add(self.nb_adapter.ssot_tag)
+        self.nb_adapter.load_data()
+        self.nb_adapter.sync_ipfabric_tagged_only = True
+
+        self.nb_adapter.load_cables(Device.objects.all())
+
+        self.assertEqual([cable.cable_pk for cable in self.nb_adapter.get_all("cable")], [synced.pk])
+        self.assertNotEqual(foreign.pk, synced.pk)
+
+    def test_load_cables_without_tagged_only_loads_every_cable(self):
+        self._cable(self._interface("dev1", "eth0"), self._interface("dev2", "eth0"))
+        self.nb_adapter.load_data()
+
+        self.nb_adapter.load_cables(Device.objects.all())
+
+        self.assertEqual(len(self.nb_adapter.get_all("cable")), 1)
 
     def test_load_cables_skips_cables_with_too_many_in_scope_ends(self):
         """A Cable terminating on more than two in-scope Interfaces cannot be described point to point."""

@@ -13,7 +13,7 @@ from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 from nautobot.core.choices import ColorChoices
-from nautobot.dcim.models import Device, Location
+from nautobot.dcim.models import Cable, Device, Location
 from nautobot.extras.models import Tag
 from nautobot.ipam.models import VLAN, VRF, Interface, Prefix, RouteTarget, VRFDeviceAssignment
 from netutils.mac import mac_to_format
@@ -30,7 +30,9 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     INTERFACE_REASON_CF_NAME,
     PSEUDO_MANAGEMENT_INTERFACE_NAME,
     SAFE_DELETE_PREFIX_STATUS,
+    SAFE_DELETE_TAG_NAME,
     SYNC_IPF_DEV_TYPE_TO_ROLE,
+    SYNCED_TAG_NAME,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
@@ -143,7 +145,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         # Placeholder Interfaces found while strict about Interfaces, reported once loading is done.
         self.placeholder_interfaces = []
         self.ssot_tag = tonb_utils.get_or_create_tag_object(
-            tag_name="SSoT Synced from IPFabric",
+            tag_name=SYNCED_TAG_NAME,
             tag_color=ColorChoices.COLOR_LIGHT_GREEN,
             description="Object synced at some point from IPFabric to Nautobot",
             app_label="dcim",
@@ -151,7 +153,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):
             logger=self.job.logger,
         )
         self.safe_delete_tag = tonb_utils.get_or_create_tag_object(
-            tag_name="SSoT Safe Delete",
+            tag_name=SAFE_DELETE_TAG_NAME,
             tag_color=ColorChoices.COLOR_RED,
             description="Safe Delete Mode tag to flag an object, but not delete from Nautobot.",
             app_label="dcim",
@@ -342,12 +344,17 @@ class NautobotDiffSync(DiffSyncModelAdapters):
         deleted on every run.
         """
         endpoints_by_cable = defaultdict(list)
+        # Under Sync Tagged Only, a Cable another process made between two synced Devices is not
+        # this sync's to reconcile, so only the ones carrying its Tag are loaded.
+        tagged_cables = tonb_utils.get_tagged_pks(Cable, self.ssot_tag.id) if self.sync_ipfabric_tagged_only else None
         for interface_record in tonb_cables.cabled_interfaces(device_queryset):
             endpoint = (interface_record.device.name, interface_record.name)
             try:
                 self.get(self.interface, {"name": endpoint[1], "device_name": endpoint[0]})
             except ObjectNotFound:
                 # The Interface's Device was skipped while loading, so the link is out of scope.
+                continue
+            if tagged_cables is not None and interface_record.cable.pk not in tagged_cables:
                 continue
             endpoints_by_cable[interface_record.cable].append(endpoint)
 
