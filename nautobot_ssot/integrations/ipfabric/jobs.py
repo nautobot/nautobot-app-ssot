@@ -14,6 +14,7 @@ from ipfabric import IPFClient
 from nautobot.core.forms import DynamicModelChoiceField
 from nautobot.dcim.models import Location
 from nautobot.extras.jobs import BooleanVar, ChoiceVar, ScriptVariable
+from nautobot.ipam.models import Namespace
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.ipfabric import constants, strict_mode
@@ -144,6 +145,14 @@ class IpFabricDataSource(DataSource):
         model=Tenant,
         required=False,
     )
+    namespace = OptionalObjectVar(
+        description=(
+            "The Namespace the sync's IP Addresses, Prefixes and VRFs belong to. Only that Namespace's "
+            "records are read, and the records the sync creates are put in it. Global when left empty."
+        ),
+        model=Namespace,
+        required=False,
+    )
     kwargs = {}
 
     class Meta:
@@ -159,6 +168,7 @@ class IpFabricDataSource(DataSource):
             "safe_delete_mode",
             "sync_ipfabric_tagged_only",
             "tenant",
+            "namespace",
             "bulk_write_mode",
             strict_mode.FIELD_NAME,
             *scope_field_order(),
@@ -285,6 +295,7 @@ class IpFabricDataSource(DataSource):
             "strict": strict_mode.StrictObjects.from_job_kwargs(kwargs),
             "location_filter": kwargs.get("location_filter"),
             "tenant": kwargs.get("tenant"),
+            "namespace": kwargs.get("namespace"),
             "debug": kwargs.get("debug"),
             "scope": SyncScope.from_job_kwargs(kwargs),
         }
@@ -298,7 +309,11 @@ class IpFabricDataSource(DataSource):
         # refused, and the Interfaces IP Fabric reports are not left colliding with templated ones.
         # Read by `sync_data`, so it has to be set before the base class runs it.
         self.skip_auto_component_creation = bool(kwargs.get("bulk_write_mode"))
-        super().run(*args, **kwargs)
+        try:
+            super().run(*args, **kwargs)
+        finally:
+            # `sync_data` sets it for the run; cleared after, so nothing outside a run can read it.
+            nbutils.use_namespace(None)
 
     def load_source_adapter(self):
         """Not used."""
@@ -354,12 +369,16 @@ class IpFabricDataSource(DataSource):
         location_filter = self.kwargs["location_filter"]
         debug_mode = self.kwargs["debug"]
         tenant = Tenant.objects.get(pk=self.kwargs["tenant"]) if self.kwargs.get("tenant") else None
+        namespace = Namespace.objects.get(pk=self.kwargs["namespace"]) if self.kwargs.get("namespace") else None
+        # Set on every run, None included, so that a Namespace chosen for the last run in this
+        # worker is not inherited by this one.
+        nbutils.use_namespace(namespace)
 
         if location_filter:
             location_filter_object = Location.objects.get(pk=location_filter)
         else:
             location_filter_object = None
-        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Bulk Write Mode`: {bulk_write_mode}, `Location Filter`: {location_filter_object}, `Tenant`: {tenant}"
+        options = f"`Snapshot_id`: {self.client.snapshot_id}.`Debug`: {debug_mode}, `Dry Run`: {dryrun}, `Safe Delete Mode`: {safe_mode}, `Sync Tagged Only`: {tagged_only}, `Bulk Write Mode`: {bulk_write_mode}, `Location Filter`: {location_filter_object}, `Tenant`: {tenant}, `Namespace`: {nbutils.get_run_namespace()}"
         self.log_run_options(options, scope, strict)
 
         ipfabric_source = IPFabricDiffSync(

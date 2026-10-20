@@ -6,11 +6,13 @@ from unittest import mock
 from django.conf import settings
 from django.urls import reverse
 from nautobot.apps.testing import TestCase
+from nautobot.ipam.models import Namespace
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.ipfabric import jobs, strict_mode, sync_scope
 from nautobot_ssot.integrations.ipfabric.strict_mode import StrictObjects
 from nautobot_ssot.integrations.ipfabric.sync_scope import SYNCABLE_OBJECTS, SyncScope
+from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 
 CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
 BACKUP_CONFIG = deepcopy(CONFIG)
@@ -155,6 +157,22 @@ class IPFabricJobFormTestCase(TestCase):
         order = jobs.IpFabricDataSource.Meta.field_order
         self.assertEqual(order.index("tenant"), order.index("sync_ipfabric_tagged_only") + 1)
 
+    def test_the_namespace_is_offered_after_the_tenant(self):
+        order = jobs.IpFabricDataSource.Meta.field_order
+        self.assertEqual(order.index("namespace"), order.index("tenant") + 1)
+
+    def test_the_namespace_is_cleared_when_a_run_ends_even_if_it_fails(self):
+        def fail_after_choosing(*_args, **_kwargs):
+            nbutils.use_namespace(Namespace.objects.create(name="customer-a"))
+            raise RuntimeError("sync failed")
+
+        job = jobs.IpFabricDataSource()
+        job.logger = mock.MagicMock()
+        with mock.patch("nautobot_ssot.jobs.base.DataSource.run", side_effect=fail_after_choosing):
+            with self.assertRaises(RuntimeError):
+                job.run(dryrun=True)
+        self.assertFalse(nbutils.namespace_chosen())
+
     def test_run_resolves_the_submitted_selection_into_a_scope(self):
         """`run` is where the form's booleans become the one scope both adapters read."""
         job = jobs.IpFabricDataSource()
@@ -216,6 +234,7 @@ class IPFabricSyncDataTest(TestCase):
             "strict": StrictObjects(strict if strict is not None else strict_mode.default_keys()),
             "location_filter": None,
             "tenant": None,
+            "namespace": None,
             "debug": False,
             "scope": SyncScope(scope) if scope is not None else SyncScope.from_job_kwargs({}),
             **overrides,
@@ -242,6 +261,27 @@ class IPFabricSyncDataTest(TestCase):
         source, dest = self._run(self._job(tenant=tenant.pk))
         self.assertEqual(source.call_args.kwargs["tenant"], tenant)
         self.assertEqual(dest.call_args.kwargs["tenant"], tenant)
+
+    def test_sync_data_sets_the_namespace_for_the_run(self):
+        self.addCleanup(nbutils.use_namespace, None)
+        namespace = Namespace.objects.create(name="customer-a")
+        self._run(self._job(namespace=namespace.pk))
+        self.assertEqual(nbutils.get_run_namespace(), namespace)
+
+    def test_the_namespace_is_named_in_the_options_logged(self):
+        self.addCleanup(nbutils.use_namespace, None)
+        namespace = Namespace.objects.create(name="customer-a")
+        job = self._job(namespace=namespace.pk)
+        self._run(job)
+        options = str(job.logger.info.call_args_list[0])
+        self.assertIn("`Namespace`: customer-a", options)
+
+    def test_a_run_with_no_namespace_does_not_inherit_the_last_ones(self):
+        self.addCleanup(nbutils.use_namespace, None)
+        nbutils.use_namespace(Namespace.objects.create(name="customer-a"))
+        self._run(self._job())
+        self.assertFalse(nbutils.namespace_chosen())
+        self.assertEqual(nbutils.get_run_namespace().name, "Global")
 
     def test_sync_data_defaults_to_no_tenant(self):
         source, dest = self._run(self._job())

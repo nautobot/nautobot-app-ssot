@@ -38,6 +38,7 @@ There are several options available.
 - **Safe Delete Mode**: Delete operations changes the object status to a predefined value (configurable via settings) and tags the object with the Safe Delete Tag, `SSoT Safe Delete` unless [configured otherwise](#tags-the-sync-applies).
 - **Sync Tagged Only**: Only load Nautobot data into DiffSync adapters that has the synced Tag, `SSoT Synced from IPFabric` unless [configured otherwise](#tags-the-sync-applies).
 - **Tenant**: The Tenant this IP Fabric instance belongs to. Only that Tenant's records are read, and records the sync creates are given it. See [Tenant](#tenant).
+- **Namespace**: The Namespace the sync's IP Addresses, Prefixes and VRFs belong to, Global when left empty. See [Namespace](#namespace).
 - **Bulk Write Mode**: Write objects in batches rather than one at a time. Much faster on a large sync, at the cost of change log entries, signals and per-object validation. Disabled by default; see [Bulk Write Mode](#bulk-write-mode) for what it does and does not give up.
 - **Sync Locations**: Create, update and delete Nautobot Locations from IP Fabric sites. Enabled by default. Deselect where another system owns the site list; see [Choosing what to sync](../../admin/integrations/ipfabric_setup.md#locations) for what that does and does not stop.
 - **Sync Manufacturers**: Create Nautobot Manufacturers for the vendors IP Fabric reports. Enabled by default.
@@ -47,9 +48,9 @@ There are several options available.
 - **Sync Interfaces**: Sync each Device's Interfaces. Enabled by default.
 - **Sync IP Addresses**: Sync the IP Address on each Interface. Enabled by default; requires **Sync Interfaces**.
 - **Sync Primary IP**: Assign a Device's primary IP from IP Fabric. Enabled by default; requires **Sync IP Addresses**. IP Fabric reports the address it logged in with, which is not necessarily the address a CMDB considers the management one.
-- **Sync Prefixes**: Create Nautobot Prefixes in the Global Namespace from the networks IP Fabric reports, and record the Locations each is seen at. Disabled by default. See [Prefixes](#prefixes).
+- **Sync Prefixes**: Create Nautobot Prefixes in the job's [Namespace](#namespace) from the networks IP Fabric reports, and record the Locations each is seen at. Disabled by default. See [Prefixes](#prefixes).
 - **Sync VLANs**: Sync each Location's VLANs. Enabled by default.
-- **Sync VRFs**: Create Nautobot VRFs in the Global Namespace from the routing instances IP Fabric reports. Disabled by default. See [VRFs and Route Targets](#vrfs-and-route-targets).
+- **Sync VRFs**: Create Nautobot VRFs in the job's [Namespace](#namespace) from the routing instances IP Fabric reports. Disabled by default. See [VRFs and Route Targets](#vrfs-and-route-targets).
 - **Sync Route Targets**: Sync the Route Targets IP Fabric reports and record each synced VRF's import and export targets. Disabled by default; requires **Sync VRFs**.
 - **Sync Device VRFs**: Record which Devices carry each VRF. Disabled by default; requires **Sync VRFs**.
 - **Sync Interface VRFs**: Put each Interface in the VRF IP Fabric reports for it. Disabled by default; requires **Sync Interfaces** and **Sync Device VRFs**.
@@ -517,7 +518,7 @@ A subnet that does not parse counts as none reported: it is logged and passed ov
 
 Prefix synchronization is opt in via the **Sync Prefixes** job option and is disabled by default, since many installs manage Prefixes in another IPAM.
 
-Selected, each network in IP Fabric's managed IP summary becomes a Prefix in the Global Namespace, IPv4 and IPv6 alike, with the Locations IP Fabric sees it at. A network configured at several sites is one Prefix with several Locations, since a Namespace holds one of each network. Prefixes are written before anything else, so the addresses synced onto Interfaces are filed under them rather than under Prefixes created to accommodate each one.
+Selected, each network in IP Fabric's managed IP summary becomes a Prefix in the job's Namespace, IPv4 and IPv6 alike, with the Locations IP Fabric sees it at. A network configured at several sites is one Prefix with several Locations, since a Namespace holds one of each network. Prefixes are written before anything else, so the addresses synced onto Interfaces are filed under them rather than under Prefixes created to accommodate each one.
 
 A Prefix Nautobot already holds for the same network is adopted rather than duplicated: it is tagged `SSoT Synced from IPFabric` and its type and status are left as they are. Only Prefixes carrying that Tag are read back from Nautobot, so a Prefix the sync never tagged is never removed. One it did tag, or adopted, is removed once IP Fabric stops reporting it, through Safe Delete Mode like any other object. Nautobot will not delete a Prefix that still holds addresses, so such a Prefix stays and the job log names the refusal.
 
@@ -525,13 +526,13 @@ A Location is recorded on a Prefix only where this run loaded a Location of that
 
 ### Ranges reused at unrelated sites
 
-Nested Prefixes are the ordinary shape of an address plan and are synced as such. Where a network sits inside, or contains, a network IP Fabric reports only at other sites, it is more often the same range used twice, a `10.0.0.0/24` in one cloud account and a `10.0.0.0/25` in another. The Global Namespace cannot tell those apart, so they are synced as one hierarchy, and the job reports how many networks this applies to with a few examples. Holding them separately needs a Namespace per routing domain, which this integration does not yet assign.
+Nested Prefixes are the ordinary shape of an address plan and are synced as such. Where a network sits inside, or contains, a network IP Fabric reports only at other sites, it is more often the same range used twice, a `10.0.0.0/24` in one cloud account and a `10.0.0.0/25` in another. One Namespace cannot tell those apart, so they are synced as one hierarchy, and the job reports how many networks this applies to with a few examples. Holding them separately needs a Namespace per routing domain: an IP Fabric instance per domain, each synced with its own [Namespace](#namespace).
 
 ### Addresses outside every Prefix
 
 Without Prefixes synced, an address no Prefix covers gets one created for it, since Nautobot will not hold an address without a parent. That makes a first sync into an empty Nautobot work, but where another system owns IPAM it hides address space the IPAM doesn't know about.
 
-Selecting **Prefixes** under [Strict Objects](#strict-objects) stops that, and stops the sync creating a Prefix by any route. An address no Prefix in the Global Namespace covers is left unwritten, and the job reports every such address together once the sync is over, as `address on device:interface`. Any Prefix containing the host will do, whatever its length against the address's mask, since that is all Nautobot needs to parent it. The address is reported on every run until a Prefix covers it.
+Selecting **Prefixes** under [Strict Objects](#strict-objects) stops that, and stops the sync creating a Prefix by any route. An address no Prefix in the job's Namespace covers is left unwritten, and the job reports every such address together once the sync is over, as `address on device:interface`. Any Prefix containing the host will do, whatever its length against the address's mask, since that is all Nautobot needs to parent it. The address is reported on every run until a Prefix covers it.
 
 With **Sync Prefixes** selected as well, the networks IP Fabric reports are matched against the Prefixes Nautobot already holds rather than created. One Nautobot holds is adopted and recorded at its Locations as usual; one it does not is left out, and the job lists those networks together once the sync is over.
 
@@ -605,11 +606,24 @@ Selecting a **Tenant** runs the sync on behalf of that Tenant, for an IP Fabric 
 
 With **Tenant** left empty, every object is read regardless of Tenant and no Tenant is set.
 
+## Namespace
+
+IP Fabric has no Namespace concept, so the sync puts every IP Address, Prefix and VRF in one Namespace per run: the **Namespace** chosen on the job, or Global when it is left empty. For an IP Fabric instance whose addressing overlaps another's, sync each into its own Namespace.
+
+With a Namespace chosen:
+
+- IP Addresses, Prefixes and VRFs are read from that Namespace only, and the ones the sync creates are put in it, including the parent Prefix created for an address.
+- An address another Namespace holds is never reused or removed, even on an Interface the sync manages. The same address can then exist in both, which is what Namespaces are for.
+
+Choosing a Namespace for an install that has been syncing into Global does not move what is already there. The sync no longer reads the Global objects, so it neither updates nor removes them, and creates its own in the chosen Namespace. Remove or move the Global ones in Nautobot if they are not wanted.
+
+With no Namespace chosen, the sync writes to Global. An IP Address whose mask matches what IP Fabric reports is reused from whatever Namespace holds it, and every address on a synced Interface is read.
+
 ## VRFs and Route Targets
 
 VRF synchronization is opt in via the **Sync VRFs** job option and is disabled by default, because a network whose VRFs are modelled in another system should not have them introduced by a sync. Route targets are a second option on top of it, so a deployment that wants VRFs but governs route targets elsewhere can have one without the other.
 
-VRFs are created in the Global Namespace, the same Namespace this integration puts Prefixes and IP Addresses in.
+VRFs are created in the job's [Namespace](#namespace), the same Namespace the sync puts Prefixes and IP Addresses in.
 
 ### One value per VRF, from many devices
 
@@ -668,7 +682,7 @@ does not apply: the Interface and the VRF both remain, and what goes is the refe
 
 ### What the sync will not do
 
-A VRF name that the Global Namespace already holds twice is left alone entirely, and the Job log says so. Nautobot constrains a VRF to a unique route distinguisher within its Namespace but not to a unique name, so a Namespace can hold two VRFs called the same thing, and IP Fabric reports nothing that would say which of them its report describes.
+A VRF name that the job's Namespace already holds twice is left alone entirely, and the Job log says so. Nautobot constrains a VRF to a unique route distinguisher within its Namespace but not to a unique name, so a Namespace can hold two VRFs called the same thing, and IP Fabric reports nothing that would say which of them its report describes.
 
 With a **Site Filter** applied, VRFs and Route Targets are created and updated but never deleted. A filtered run sees only the VRFs configured on that site's devices, and the Route Targets those VRFs name, so everything else Nautobot holds would look absent from IP Fabric.
 

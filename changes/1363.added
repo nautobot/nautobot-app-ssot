@@ -1,0 +1,1 @@
+Added a Namespace option to the IP Fabric job, which put the sync's IP Addresses, Prefixes and VRFs in the chosen Namespace instead of always in the Global Namespace.
