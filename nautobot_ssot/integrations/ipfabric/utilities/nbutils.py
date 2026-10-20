@@ -16,11 +16,14 @@ from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import (
     Device,
     DeviceType,
+    DeviceTypeToSoftwareImageFile,
     Interface,
     Location,
     LocationType,
     Manufacturer,
     Platform,
+    SoftwareImageFile,
+    SoftwareVersion,
     VirtualChassis,
 )
 from nautobot.extras.choices import CustomFieldTypeChoices
@@ -422,6 +425,96 @@ def get_or_create_device_type_object(
             f"Unable to get or create a Manufacturer named {vendor_name}, and therefore cannot create a DeviceType {device_type}"
         )
     return None
+
+
+@job_scoped_cache
+def get_or_create_software_version(
+    platform_obj: Platform, version: str, logger: Optional[logging.Logger] = None
+) -> Optional[SoftwareVersion]:
+    """Return the Software Version of a Platform, creating and marking it as synced if there is none.
+
+    An existing version is reused unchanged, whoever created it. Cached because every Device running
+    a release asks the same question. Written directly rather than queued, since a queued Device
+    needs the version's row to point at.
+
+    Returns:
+        SoftwareVersion: When the version is found or created.
+        None: When Nautobot refuses it.
+    """
+    existing = SoftwareVersion.objects.filter(platform=platform_obj, version=version).first()
+    if existing is not None:
+        return existing
+    software_version = SoftwareVersion(
+        platform=platform_obj,
+        version=version,
+        status=get_status_for_model(SoftwareVersion, "Active"),
+    )
+    stamp_synced(software_version, LAST_SYNCHRONIZED_CF_NAME)
+    try:
+        software_version.validated_save()
+        software_version.tags.add(synced_tag_for(software_version))
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error(
+                "Unable to create a Software Version %s for the Platform %s. Error: %s", version, platform_obj, err
+            )
+        return None
+    return software_version
+
+
+@job_scoped_cache
+def get_or_create_software_image(
+    software_version: SoftwareVersion,
+    image_file_name: str,
+    device_type: DeviceType,
+    logger: Optional[logging.Logger] = None,
+) -> Optional[SoftwareImageFile]:
+    """Return a Software Version's image file, creating it if there is none, mapped to a Device Type.
+
+    Nautobot refuses an image on a Device unless the image is mapped to the Device's type, so the
+    mapping is made here for every Device Type found running it. An existing image is matched
+    ignoring case, since the name this sync reports is lowercased.
+
+    Returns:
+        SoftwareImageFile: When the image is found or created and mapped.
+        None: When Nautobot refuses either.
+    """
+    image = SoftwareImageFile.objects.filter(
+        software_version=software_version, image_file_name__iexact=image_file_name
+    ).first()
+    try:
+        if image is None:
+            image = SoftwareImageFile(
+                software_version=software_version,
+                image_file_name=image_file_name,
+                status=get_status_for_model(SoftwareImageFile, "Active"),
+            )
+            stamp_synced(image, LAST_SYNCHRONIZED_CF_NAME)
+            image.validated_save()
+            image.tags.add(synced_tag_for(image))
+        DeviceTypeToSoftwareImageFile.objects.get_or_create(device_type=device_type, software_image_file=image)
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error(
+                "Unable to record the Software Image File %s of %s for the Device Type %s. Error: %s",
+                image_file_name,
+                software_version,
+                device_type,
+                err,
+            )
+        return None
+    return image
+
+
+def assign_software_image(device: Device, image: SoftwareImageFile, pending: Optional[Any] = None) -> None:
+    """Make an image the one a Device runs, replacing any other the Device names.
+
+    A queued Device has no row to attach the image to yet, so the join row is queued after it.
+    """
+    if pending is not None and device._state.adding:  # pylint: disable=protected-access
+        pending.add_through(Device.software_image_files.through(device=device, softwareimagefile=image))
+        return
+    device.software_image_files.set([image])
 
 
 @job_scoped_cache

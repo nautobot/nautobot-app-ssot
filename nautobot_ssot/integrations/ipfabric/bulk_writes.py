@@ -61,6 +61,7 @@ THROUGH_LEVELS: Tuple[Any, ...] = (
     VRF.import_targets.through,
     VRF.export_targets.through,
     Interface.tagged_vlans.through,
+    Device.software_image_files.through,
 )
 
 

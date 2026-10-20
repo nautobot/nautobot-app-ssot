@@ -6,7 +6,7 @@
 
 import ipaddress
 from collections import defaultdict
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
@@ -421,6 +421,31 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             devices = devices.filter(tenant=self.tenant)
         return devices
 
+    def software_of(self, device_record: Device) -> Tuple[Optional[str], Optional[str]]:
+        """Return the software version and images to report for a Device.
+
+        None for either where it is out of scope, or where IP Fabric reported nothing to compare with:
+        see `devices_without_a_software_version` and `devices_without_a_software_image`.
+        """
+        version = image = None
+        if (
+            self.scope.software_versions
+            and device_record.software_version
+            and device_record.name not in self.devices_without_a_software_version
+        ):
+            version = device_record.software_version.version
+        if self.scope.software_images and device_record.name not in self.devices_without_a_software_image:
+            # Lowercased as the IP Fabric side reports it, since an existing image is matched ignoring case.
+            image = (
+                ", ".join(
+                    sorted(
+                        image_file.image_file_name.lower() for image_file in device_record.software_image_files.all()
+                    )
+                )
+                or None
+            )
+        return version, image
+
     def load_devices(self, filtered_devices: List, locations_by_name: Dict[str, Any]):
         """Load Devices from Nautobot, placing each under the Location it belongs to.
 
@@ -437,6 +462,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             "virtual_chassis",
             "virtual_chassis__master",
         ]
+        if self.scope.software_versions:
+            related.append("software_version")
         # Only fetch the relations something in scope reads: the primary IP decides whether an
         # Interface holds it, and the Interfaces themselves are only walked when they are in scope.
         prefetch = []
@@ -450,6 +477,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
                 prefetch.append("interfaces__ip_addresses__parent")
         elif self.scope.interfaces:
             prefetch.append("interfaces")
+        if self.scope.software_images:
+            prefetch.append("software_image_files")
         if self.scope.interfaces:
             # Each Interface reports the port it hangs off by name, which is one query per
             # Interface without this.
@@ -487,6 +516,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             )
             if device_record.platform:
                 device.platform = device_record.platform.name
+            device.software_version, device.software_image = self.software_of(device_record)
             if device_record.virtual_chassis:
                 device.vc_name = device_record.virtual_chassis.name
                 device.vc_position = device_record.vc_position
