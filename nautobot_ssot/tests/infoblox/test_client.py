@@ -552,6 +552,18 @@ class TestInfobloxTest(unittest.TestCase):
 
         self.assertEqual(resp, expected)
 
+    def test_get_all_subnets_ipv6_skips_range_lookup(self):
+        """IPv6 subnets are read from `ipv6network`, with no DHCP Range lookup and no INFO-level log."""
+        mock_response = {"result": [{"network": "2001:db8::/64", "network_view": "default"}]}
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/ipv6network", json=mock_response, status_code=200)
+            with self.assertNoLogs("nautobot.ssot.infoblox", level="INFO"):
+                resp = self.infoblox_client.get_all_subnets(ipv6=True)
+            requested = [request.path.rsplit("/", 1)[-1] for request in req.request_history]
+
+        self.assertEqual(resp, mock_response["result"])
+        self.assertEqual(requested, ["ipv6network"])
+
     def test_get_all_subnets_fail(self):
         """Test get_all_subnets fail."""
         mock_response = ""
