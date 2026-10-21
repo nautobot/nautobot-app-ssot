@@ -78,6 +78,19 @@ The Secrets Group linked to the Infoblox External Integration must contain passw
 
 
 
+### Default Configuration Created at Startup
+
+When the Infoblox integration is enabled and no Infoblox configuration exists yet, Nautobot creates one automatically each time the database is ready, for example after `nautobot-server migrate` or `nautobot-server post_upgrade`. It creates:
+
+- An `SSOTInfobloxConfig` named `InfobloxConfigDefault`, with `job_enabled` and `enable_sync_to_nautobot` set to `True` and `dns_record_type` set to Create Host record.
+- An External Integration named `DefaultInfobloxInstance`, pointing at the placeholder URL `https://replace.me.local`.
+- A Secrets Group named `InfobloxSSOTDefaultSecretGroup`, whose username and password secrets read the `NAUTOBOT_SSOT_INFOBLOX_USERNAME` and `NAUTOBOT_SSOT_INFOBLOX_PASSWORD` environment variables.
+
+Values from the deprecated `nautobot_config.py` settings (for example `infoblox_url`) are copied into these objects when present.
+
+!!! warning
+    Review the default configuration before running a sync job: update the External Integration's Remote URL and the credentials, or disable the default configuration. If you delete every Infoblox configuration, the default configuration is recreated the next time the database is ready. To stop that, keep at least one configuration of your own.
+
 ### Configuring Infoblox Sync Filters
 
 Infoblox Sync Filters is a mandatory setting used to control the scope of the IP objects that are loaded from Nautobot and Infoblox. Only these objects are in the scope of the synchronization process. The default value of this setting is:
