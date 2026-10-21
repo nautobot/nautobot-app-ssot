@@ -1594,6 +1594,39 @@ class TestDeferredChangeLoggingCoverage(SimpleTestCase):
             self.assertEqual(Widget(name="a").update({}), "updated")
         self.assertEqual(entered, [True, True])
 
+    def test_a_model_that_is_not_batched_writes_the_queue_before_each_operation(self):
+        class Gadget(DiffSyncExtras):
+            _modelname = "gadget"
+            _identifiers = ("name",)
+            batched = False
+
+            name: str
+
+            @classmethod
+            def create(cls, adapter, ids, attrs):
+                return adapter.flush_pending_writes.call_count
+
+            def delete(self):
+                return self.adapter.flush_pending_writes.call_count
+
+        adapter = DiffSyncModelAdapters()
+        adapter.pending = mock.MagicMock()
+        adapter.flush_pending_writes = mock.MagicMock()
+        self.assertEqual(Gadget.create(adapter=adapter, ids={"name": "a"}, attrs={}), 1)
+        self.assertEqual(Gadget(name="a", adapter=adapter).delete(), 2)
+        adapter.pending = None
+        self.assertEqual(Gadget.create(adapter, {"name": "b"}, {}), 2)
+
+    def test_cables_and_prefix_vlans_are_the_models_written_object_by_object(self):
+        self.assertEqual(
+            sorted(
+                model.__name__
+                for model in DiffSyncExtras.__subclasses__()
+                if not model.batched and model.__module__ == diffsync_models.__name__
+            ),
+            ["Cable", "PrefixVlan"],
+        )
+
 
 class _Site(DiffSyncModel):
     """Stands in for the Location a VLAN hangs under, which is all the diff needs of one."""
