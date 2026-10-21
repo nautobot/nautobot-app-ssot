@@ -19,6 +19,7 @@ from nautobot.extras.models import CustomField, Role, Status, Tag
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
+from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 # A site IP Fabric reports that this sync did not load from Nautobot.
@@ -146,6 +147,30 @@ class LocationScopeTestCase(TestCase):
 
 class LocationDiffTestCase(LocationScopeTestCase):
     """What the diff considers, which decides whether children are reached at all."""
+
+    def test_a_location_filtered_run_writes_only_to_the_devices_it_reads(self):
+        adapter = NautobotDiffSync(
+            job=unittest.mock.Mock(),
+            sync=unittest.mock.Mock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=Location.objects.get(name=KNOWN_TO_BOTH),
+        )
+        adapter.load()
+        self.assertEqual(set(adapter.get_in_scope_devices().values_list("name", flat=True)), {f"{KNOWN_TO_BOTH}-dev"})
+        self.assertIsNotNone(nbutils.get_syncable_device(f"{KNOWN_TO_BOTH}-dev", scope=adapter.device_scope))
+        self.assertIsNone(nbutils.get_syncable_device(f"{UNKNOWN_TO_IPFABRIC}-dev", scope=adapter.device_scope))
+
+    def test_a_tagged_only_run_covers_only_the_devices_at_tagged_locations(self):
+        self._location("untagged", tagged=False)
+        self._device("untagged-dev", "untagged")
+        self.nb_adapter.load()
+        self.assertIsNone(nbutils.get_syncable_device("untagged-dev", scope=self.nb_adapter.device_scope))
+        self.assertIsNotNone(nbutils.get_syncable_device(f"{KNOWN_TO_BOTH}-dev", scope=self.nb_adapter.device_scope))
+
+    def test_a_run_over_every_location_carries_none_of_them(self):
+        adapter = self._adapter(tagged_only=False)
+        adapter.load()
+        self.assertIsNone(adapter.device_scope.location_pks)
 
     def test_locations_in_scope_are_created_updated_and_deleted(self):
         """The default behaviour, recorded here so the out of scope case is a visible contrast."""

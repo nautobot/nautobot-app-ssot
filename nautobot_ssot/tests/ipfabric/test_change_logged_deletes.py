@@ -24,6 +24,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import delete
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Cable as CableModel
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
+    DeviceScope,
     change_logging_not_deferred,
     deferred_change_logging,
 )
@@ -78,6 +79,7 @@ class TestDeletesUnderAJobsChangeContext(_ChangeContextTestCase):
         """The manual run that found this: `Interface.update` defers, and the delete sat inside it."""
         adapter = MagicMock()
         adapter.sync_ipfabric_tagged_only = False
+        adapter.device_scope = DeviceScope()
         adapter.tenant = None
         adapter.safe_delete_tally = Counter()
         adapter.safe_delete_mode = False

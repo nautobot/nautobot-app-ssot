@@ -16,6 +16,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import Nautob
 from nautobot_ssot.integrations.ipfabric.signals import nautobot_database_ready_callback
 from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import DeviceScope
 from nautobot_ssot.tests.ipfabric.job_log import job_log_text
 from nautobot_ssot.tests.ipfabric.supporting_objects import SupportingObjectTestCase
 
@@ -99,9 +100,9 @@ class TestWritingDevices(SupportingObjectTestCase):
         self.create_device(name="ours")
         self.adapter.tenant = self.other_tenant
         self.create_device(name="theirs")
-        self.assertIsNotNone(nbutils.get_syncable_device("ours", tagged_only=False, tenant=self.tenant))
-        self.assertIsNone(nbutils.get_syncable_device("theirs", tagged_only=False, tenant=self.tenant))
-        self.assertIsNotNone(nbutils.get_syncable_device("theirs", tagged_only=False, tenant=None))
+        self.assertIsNotNone(nbutils.get_syncable_device("ours", scope=DeviceScope(tenant=self.tenant)))
+        self.assertIsNone(nbutils.get_syncable_device("theirs", scope=DeviceScope(tenant=self.tenant)))
+        self.assertIsNotNone(nbutils.get_syncable_device("theirs", scope=DeviceScope()))
 
 
 class TestTheOtherObjectsTheSyncCreates(SupportingObjectTestCase):
@@ -337,7 +338,7 @@ class TestReadingOnlyTheTenantsObjects(SupportingObjectTestCase):
         self.adapter.tenant = self.other_tenant
         self.create_device(name="theirs")
         adapter = self.nautobot_adapter()
-        names = set(adapter.get_in_scope_devices(Location.objects.all()).values_list("name", flat=True))
+        names = set(adapter.get_in_scope_devices().values_list("name", flat=True))
         self.assertEqual(names, {"ours"})
 
     def test_only_the_tenants_vlans_vrfs_and_route_targets_are_loaded(self):

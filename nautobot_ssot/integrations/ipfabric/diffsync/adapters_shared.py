@@ -14,6 +14,7 @@ from nautobot_ssot.integrations.ipfabric.sync_scope import (
     UNSYNCED_LOCATION_FLAGS,
     SyncScope,
 )
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import DeviceScope
 
 
 # One register per value a run reports absent on both sides, which is how the two adapters agree.
@@ -161,6 +162,10 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         )
         self.interfaces_without_a_type = set() if interfaces_without_a_type is None else interfaces_without_a_type
         self.tenant = tenant
+        # Overridden by the Nautobot adapter, which is the side that writes. Every Device is covered
+        # until it narrows them: see `device_scope`.
+        self.sync_ipfabric_tagged_only = False
+        self.device_location_pks = None
         # Objects IP Fabric reported that already belong to another Tenant and so were not touched,
         # by model, reported once the sync is over.
         self.objects_of_another_tenant = defaultdict(list)
@@ -196,6 +201,13 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         a pairing broken on one side alone reads as absent from the source and deletes the record.
         """
         return self.scope.ip_addresses and not self.strict.interfaces
+
+    @property
+    def device_scope(self) -> DeviceScope:
+        """Return the Devices this run covers, which the Nautobot side reads and every write finds its Device in."""
+        return DeviceScope(
+            tagged_only=self.sync_ipfabric_tagged_only, tenant=self.tenant, location_pks=self.device_location_pks
+        )
 
     def may_create(self, key: str) -> bool:
         """Return whether this run may create a supporting object of the named type.
