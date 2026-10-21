@@ -1,0 +1,1 @@
+Fixed the Infoblox configuration documentation to list each setting by its field name, alongside its form label, and corrected the documented defaults for the DNS record type and the Network View to Namespace map.
