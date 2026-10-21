@@ -7,9 +7,7 @@ calls, regression guards for fixed bugs. Nautobot ORM calls and the
 test suites.
 """
 
-import ast
 import contextlib
-import pathlib
 from collections import Counter
 from types import SimpleNamespace
 from typing import List
@@ -23,6 +21,7 @@ from nautobot_ssot.integrations.ipfabric.bulk_writes import PendingWrites
 from nautobot_ssot.integrations.ipfabric.diffsync import diffsync_models
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
+    WRITE_OPERATIONS,
     Cable,
     Device,
     DiffSyncExtras,
@@ -1551,54 +1550,49 @@ class TestCableModel(_ModelTestBase):  # pylint: disable=too-many-public-methods
 
 
 class TestDeferredChangeLoggingCoverage(SimpleTestCase):
-    """Every model operation that writes must defer its change log.
+    """Every model operation that writes defers its change log, which `DiffSyncExtras` applies."""
 
-    The scope is applied as a decorator on each operation, since DiffSync calls `create`, `update`
-    and `delete` itself and each subclass does its writes before delegating to `super()`. Hand
-    application means a new model, or a rename, can silently lose it, so this asserts the invariant
-    instead of relying on it being remembered.
-    """
+    def test_every_write_operation_of_every_model_defers_its_change_log(self):
+        models = DiffSyncExtras.__subclasses__()
+        self.assertTrue(models, "No DiffSyncExtras subclasses found, so this test proves nothing.")
+        for model in models:
+            for name in WRITE_OPERATIONS:
+                if name in model.__dict__:
+                    with self.subTest(model=model.__name__, operation=name):
+                        self.assertTrue(getattr(getattr(model, name), "defers_change_logging", False))
 
-    WRITING_OPERATIONS = ("create", "update", "delete")
+    def test_a_new_model_is_covered_and_keeps_its_fields(self):
+        class Widget(DiffSyncExtras):
+            _modelname = "widget"
+            _identifiers = ("name",)
+            _attributes = ("colour",)
 
-    @staticmethod
-    def _decorated_operations(class_node):
-        """Return the operations on an `ast` class node that carry the deferral decorator."""
-        decorated = set()
-        for node in class_node.body:
-            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            for decorator in node.decorator_list:
-                # Matches `@tonb_nbutils.deferred_change_logging()`.
-                function = decorator.func if isinstance(decorator, ast.Call) else decorator
-                if isinstance(function, ast.Attribute) and function.attr == "deferred_change_logging":
-                    decorated.add(node.name)
-        return decorated
+            name: str
+            colour: str = "red"
 
-    def test_every_write_operation_defers_its_change_log(self):
-        module = ast.parse(pathlib.Path(diffsync_models.__file__).read_text(encoding="utf-8"))
-        subclasses = {model.__name__ for model in DiffSyncExtras.__subclasses__()}
-        self.assertTrue(subclasses, "No DiffSyncExtras subclasses found, so this test proves nothing.")
+            @classmethod
+            def create(cls, adapter, ids, attrs):
+                return "created"
 
-        checked = 0
-        for class_node in (node for node in module.body if isinstance(node, ast.ClassDef)):
-            if class_node.name not in subclasses:
-                continue
-            defined = {
-                node.name
-                for node in class_node.body
-                if isinstance(node, ast.FunctionDef) and node.name in self.WRITING_OPERATIONS
-            }
-            decorated = self._decorated_operations(class_node)
-            for operation in sorted(defined):
-                checked += 1
-                self.assertIn(
-                    operation,
-                    decorated,
-                    f"{class_node.name}.{operation} writes without deferring its change log, which "
-                    "costs a change log rewrite per write and pins the instance for the whole job.",
-                )
-        self.assertEqual(checked, 42, "Expected 42 write operations across the fifteen models.")
+            def update(self, attrs):
+                return "updated"
+
+        self.assertTrue(Widget.create.defers_change_logging)
+        self.assertTrue(Widget.update.defers_change_logging)
+        self.assertTrue({"name", "colour"} <= set(Widget.model_fields))
+        self.assertEqual(Widget(name="a").colour, "red")
+
+        entered = []
+
+        @contextlib.contextmanager
+        def recording_deferral():
+            entered.append(True)
+            yield
+
+        with mock.patch.object(diffsync_models.tonb_nbutils, "deferred_change_logging", recording_deferral):
+            self.assertEqual(Widget.create(None, {"name": "a"}, {}), "created")
+            self.assertEqual(Widget(name="a").update({}), "updated")
+        self.assertEqual(entered, [True, True])
 
 
 class _Site(DiffSyncModel):

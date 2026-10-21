@@ -92,7 +92,7 @@ def deferred_change_logging():
     Does nothing when change logging is not enabled, which is the case when an adapter is driven
     directly rather than by a job, or when an enclosing scope is already deferring.
 
-    Doubles as a decorator, which is how the model operations apply it.
+    Every model operation runs inside it; see `DiffSyncExtras.__pydantic_init_subclass__`.
     """
     change_context = change_context_state.get()
     if change_context is None or change_context.defer_object_changes:
