@@ -1,0 +1,1 @@
+Applied deferred change logging to every IP Fabric model operation from a shared base class, and declared which models write object by object, rather than each model doing both by hand.
