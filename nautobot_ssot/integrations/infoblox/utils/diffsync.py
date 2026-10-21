@@ -60,7 +60,8 @@ def get_ext_attr_dict(extattrs: dict, excluded_attrs: Optional[list] = None):
     Args:
         extattrs (dict): Extensibility Attributes dict for object.
         excluded_attrs (list): Extensibility Attributes to exclude, by Infoblox name (`Site Code`) or by the
-            Nautobot custom field key derived from it (`site_code`).
+            Nautobot custom field key derived from it (`site_code`). Both forms must match exactly; the
+            custom field key is lowercase.
 
     Returns:
         dict: Standardized dictionary for Extensibility Attributes.

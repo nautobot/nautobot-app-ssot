@@ -10,7 +10,7 @@ from unittest.mock import patch
 import requests_mock
 from requests.models import HTTPError
 
-from nautobot_ssot.integrations.infoblox.utils.client import InvalidUrlScheme, get_dns_name
+from nautobot_ssot.integrations.infoblox.utils.client import InvalidUrlScheme, get_default_ext_attrs, get_dns_name
 
 from .fixtures_infoblox import (
     LOCALHOST,
@@ -100,6 +100,14 @@ class TestInfobloxTest(unittest.TestCase):
         for fqdn, expected in tests.items():
             results = get_dns_name(possible_fqdn=fqdn)
             self.assertEqual(results, expected)
+
+    def test_get_default_ext_attrs_honors_exclusions(self):
+        """Excluded attributes get no default placeholder, whether listed by Infoblox name or custom field key."""
+        review_list = [{"extattrs": {"Site Code": {"value": "HQ"}, "Owner": {"value": "netops"}}}, {"extattrs": {}}]
+        for excluded in (["Site Code"], ["site_code"]):
+            with self.subTest(excluded=excluded):
+                self.assertEqual(get_default_ext_attrs(review_list, excluded_attrs=excluded), {"owner": None})
+        self.assertEqual(get_default_ext_attrs(review_list), {"site_code": None, "owner": None})
 
     def test_request_success_generic(self):
         """Test generic _request with OK status."""
