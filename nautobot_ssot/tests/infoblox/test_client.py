@@ -108,6 +108,15 @@ class TestInfobloxTest(unittest.TestCase):
             resp = self.infoblox_client._request("GET", "test_url")
         self.assertEqual(resp.status_code, 200)
 
+    def test_request_error_is_raised_with_api_message_and_not_logged(self):
+        """An API error is reported once, through the raised exception, not also logged by the client."""
+        with requests_mock.Mocker() as req:
+            req.get(f"{LOCALHOST}/test_url", json={"text": "Bad Request detail"}, status_code=400)
+            with self.assertNoLogs("nautobot.ssot.infoblox", level="ERROR"):
+                with self.assertRaises(HTTPError) as ctx:
+                    self.infoblox_client._request("GET", "test_url")
+        self.assertIn("Bad Request detail", str(ctx.exception))
+
     def test_request_with_headers(self):
         """Test request header contents."""
 
@@ -538,7 +547,8 @@ class TestInfobloxTest(unittest.TestCase):
                 status_code=200,
             )
             req.get(f"{LOCALHOST}/range", json=mock_range_response, status_code=200)
-            resp = self.infoblox_client.get_all_subnets()
+            with self.assertNoLogs("nautobot.ssot.infoblox", level="INFO"):
+                resp = self.infoblox_client.get_all_subnets()
 
         self.assertEqual(resp, expected)
 

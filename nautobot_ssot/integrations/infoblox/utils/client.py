@@ -186,7 +186,6 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
                 err_msg = resp.json()
             except json.decoder.JSONDecodeError:
                 err_msg = resp.text
-            logger.error(err_msg)
         # Ensure Job logs display error messages retrieved from the Infoblox API response.
         # Default error message does not have enough context.
         try:
@@ -432,7 +431,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             results.extend(json_response.get("result", []))
             counter = 1
             while json_response.get("next_page_id"):
-                logger.info(f"Call {counter} for 'get_ipaddrs_paged({prefix})'.")
+                logger.debug("Call %d for 'get_ipaddrs_paged(%s)'.", counter, prefix)
                 params["_page_id"] = json_response.get("next_page_id")
                 response = self._request("GET", "ipv4address", params=params)
                 json_response = response.json()
@@ -1174,7 +1173,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         counter = 1
 
         while response.json().get("next_page_id"):
-            logger.info(f"Call {counter} for 'get_all_subnets()'.")
+            logger.debug("Call %d for 'get_all_subnets()'.", counter)
             params["_page_id"] = response.json().get("next_page_id")
             response = self._request("GET", url_path, params=params)
             results.extend(response.json().get("result"))
@@ -1189,7 +1188,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
                 if prefix_ranges:
                     returned_prefix["ranges"] = prefix_ranges
         else:
-            logger.info("Support for DHCP Ranges is not currently supported for IPv6 Networks.")
+            logger.debug("DHCP Ranges are not supported for IPv6 Networks; skipping Range lookup.")
         return results
 
     def get_all_records_by_type(
@@ -1229,7 +1228,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
             records[record["_ref"]] = record
         counter = 1
         while json_response.get("next_page_id"):
-            logger.info(f"Call {counter} for 'get_all_records_by_type({record_type})'.")
+            logger.debug("Call %d for 'get_all_records_by_type(%s)'.", counter, record_type)
             params["_page_id"] = json_response.get("next_page_id")
             response = self._request("GET", record_type, params=params)
             json_response = response.json()
@@ -2316,7 +2315,7 @@ class InfobloxApi:  # pylint: disable=too-many-public-methods,  too-many-instanc
         if dns_view:
             self.network_view_to_dns_map[network_view] = dns_view
         else:
-            logger.warning(f"Cannot find DNS View for Network View {network_view}.")
+            logger.warning("Cannot find DNS View for Network View %s.", network_view)
 
         return dns_view
 
