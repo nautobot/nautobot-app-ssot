@@ -49,8 +49,8 @@ def _is_many_to_many(obj: object, field_name: str) -> bool:
 def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=too-many-branches,too-many-statements
     """Process Extensibility Attributes into Custom Fields or link to found objects.
 
-    Many-to-many assignments are deferred with `transaction.on_commit`, so a caller creating a new object must call
-    this inside the same `transaction.atomic()` block as the object's save.
+    Location many-to-many assignments are deferred with `transaction.on_commit`, so a caller creating a new object must
+    call this inside the same `transaction.atomic()` block as the object's save.
 
     Args:
         adapter (object): DiffSync Adapter
@@ -83,8 +83,13 @@ def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=
                         )
                     elif _is_many_to_many(obj, "locations"):
                         transaction.on_commit(functools.partial(obj.locations.add, location_entry["id"]))
-                    else:
+                    elif hasattr(obj, "location_id"):
                         obj.location_id = location_entry["id"]
+                    else:
+                        adapter.job.logger.warning(
+                            f"Cannot assign Location {attr_value} to {obj} found in Extensibility Attributes '{attr}'; "
+                            f"{obj._meta.verbose_name} objects do not support Location assignment."
+                        )
             if attr.lower() == "vrf":
                 if not _is_many_to_many(obj, "vrfs"):
                     adapter.job.logger.warning(
@@ -423,7 +428,12 @@ class NautobotVlanGroup(VlanView):
         _vg = OrmVlanGroup.objects.get(id=self.pk)
         if "ext_attrs" in attrs:
             process_ext_attrs(adapter=self.adapter, obj=_vg, extattrs=attrs["ext_attrs"])
-        return super().update(attrs)
+        try:
+            _vg.validated_save()
+            return super().update(attrs)
+        except ValidationError as err:
+            self.adapter.job.logger.warning(f"Unable to update VLAN Group {_vg.name}. {err}")
+            return None
 
     def delete(self):
         """Delete VLANGroup object in Nautobot."""

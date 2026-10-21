@@ -9,7 +9,7 @@ from nautobot.apps.testing import TestCase, TransactionTestCase
 from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Relationship, RelationshipAssociation, Role, Status, Tag
-from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup
+from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup, VLANLocationAssignment
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.infoblox.choices import (
@@ -1188,12 +1188,12 @@ class TestModelNautobotVlanGroupNamespaceVlan(TestCase):
             self.infoblox_adapter.add(self.infoblox_adapter.namespace(name="dev", ext_attrs={}))
 
     def test_vlangroup_update_ext_attrs(self):
-        """Validate VLANGroup update applies ext attrs via sync."""
+        """Validate VLANGroup update saves ext attrs and the Location from a `site` ext attr via sync."""
         self._add_source_namespaces(include_dev=True)
         VLANGroup.objects.get_or_create(name="VG-Update")
 
         ds_vlangroup = self.infoblox_adapter.vlangroup(
-            name="VG-Update", description="", ext_attrs={"department": "Network"}
+            name="VG-Update", description="", ext_attrs={"department": "Network", "site": self.location.name}
         )
         self.infoblox_adapter.add(ds_vlangroup)
 
@@ -1202,8 +1202,10 @@ class TestModelNautobotVlanGroupNamespaceVlan(TestCase):
         nb_adapter.load()
         self.infoblox_adapter.sync_to(nb_adapter)
 
-        self.assertTrue(VLANGroup.objects.filter(name="VG-Update").exists())
         self.assertTrue(CustomField.objects.filter(key="department").exists())
+        vlan_group = VLANGroup.objects.get(name="VG-Update")
+        self.assertEqual(vlan_group.cf.get("department"), "Network")
+        self.assertEqual(vlan_group.location, self.location)
 
     def test_vlangroup_delete(self):
         """Validate VLANGroup object is deleted when absent from source and enabled in deletable models."""
@@ -1537,6 +1539,22 @@ class TestModelNautobotBranchMatrix(TestCase):
         self.assertEqual(VLANGroup.objects.get(name="VG-Create").location, location)
         self.assertEqual(Namespace.objects.get(name="NS-Create").location, location)
 
+    def test_process_ext_attrs_location_on_model_without_location_warns(self):
+        """A Location for an object with no Location field is skipped with a warning, not set as a stray attribute."""
+        ip_address = IPAddress(address="10.99.7.1/24")
+        adapter = Mock()
+        adapter.job = Mock(logger=Mock())
+        adapter.config = Mock(infoblox_location_ext_attr="")
+        adapter.location_map = {
+            "ip site": {"id": uuid.uuid4(), "location_type": "Site", "content_types": {"ipaddress"}},
+        }
+
+        process_ext_attrs(adapter=adapter, obj=ip_address, extattrs={"site": "IP Site"})
+
+        self.assertFalse(hasattr(ip_address, "location_id"))
+        adapter.job.logger.warning.assert_called_once()
+        self.assertIn("do not support Location assignment", adapter.job.logger.warning.call_args[0][0])
+
     def test_process_ext_attrs_vrf_on_model_without_vrfs_warns(self):
         """A VRF Extensibility Attribute on an object that can't hold VRFs is skipped with a warning."""
         for obj in (
@@ -1801,3 +1819,35 @@ class TestModelNautobotVlanCreateAutocommit(TransactionTestCase):
         )
 
         self.assertEqual(list(VLAN.objects.get(vid=10, vlan_group=vlan_group).locations.all()), [location])
+
+    def test_vlan_create_failing_validation_rolls_back_location(self):
+        """A VLAN that fails validation is skipped, and its deferred Location assignment is discarded with it."""
+        status_active, _ = Status.objects.get_or_create(name="Active")
+        status_active.content_types.add(ContentType.objects.get_for_model(VLAN))
+        location_type, _ = LocationType.objects.get_or_create(name="Test LocationType VLAN Rollback")
+        location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
+        location, _ = Location.objects.get_or_create(
+            name="Rollback Site", location_type=location_type, status=status_active
+        )
+        vlan_group, _ = VLANGroup.objects.get_or_create(name="VG-Rollback", defaults={"range": "1-100"})
+
+        adapter = Mock(spec=NautobotAdapter)
+        adapter.job = Mock(logger=Mock())
+        adapter.config = Mock(infoblox_location_ext_attr="")
+        adapter.status_map = {"Active": status_active.id}
+        adapter.vlangroup_map = {"VG-Rollback": vlan_group.id}
+        adapter.vlan_map = {}
+        adapter.location_map = {
+            "rollback site": {"id": location.id, "location_type": location_type.name, "content_types": {"vlan"}},
+        }
+
+        # VID 200 is outside the VLAN Group's range, so `VLAN.clean()` raises `ValidationError`.
+        result = NautobotVlan.create(
+            adapter=adapter,
+            ids={"vid": 200, "name": "V200", "vlangroup": "VG-Rollback"},
+            attrs={"status": "ASSIGNED", "description": "", "ext_attrs": {"site": "Rollback Site"}},
+        )
+
+        self.assertIsNone(result)
+        self.assertFalse(VLAN.objects.filter(vid=200).exists())
+        self.assertFalse(VLANLocationAssignment.objects.filter(location=location).exists())
