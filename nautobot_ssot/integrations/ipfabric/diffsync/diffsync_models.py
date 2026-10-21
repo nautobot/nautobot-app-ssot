@@ -5,7 +5,7 @@
 """DiffSyncModel subclasses for Nautobot-to-IPFabric data sync."""
 
 import functools
-from typing import Any, List, Optional
+from typing import Any, ClassVar, List, Optional
 from uuid import UUID
 
 from diffsync import DiffSyncModel
@@ -174,20 +174,38 @@ def resolve_platform(adapter, platform_name: str, manufacturer_object):
 WRITE_OPERATIONS = ("create", "update", "delete")
 
 
-def deferring_change_logging(operation):
-    """Return a model operation that runs inside `deferred_change_logging`."""
+def model_operation(operation, *, flush_first: bool):
+    """Return a model operation that runs inside `deferred_change_logging`.
+
+    With `flush_first`, anything Bulk Write Mode has queued is written before the operation runs, for
+    a model that writes object by object and reads back what the run has written so far.
+    """
 
     @functools.wraps(operation)
-    def operation_deferring_change_logging(*args, **kwargs):
+    def wrapped_operation(*args, **kwargs):
         with tonb_nbutils.deferred_change_logging():
+            if flush_first:
+                # `create` is a classmethod given the adapter; `update` and `delete` run on a model bound to one.
+                first = args[0]
+                if isinstance(first, type):
+                    # Looked up by key rather than truth: an adapter holding no models yet is falsy.
+                    adapter = kwargs["adapter"] if "adapter" in kwargs else args[1]
+                else:
+                    adapter = first.adapter
+                if adapter.pending is not None:
+                    adapter.flush_pending_writes()
             return operation(*args, **kwargs)
 
-    operation_deferring_change_logging.defers_change_logging = True
-    return operation_deferring_change_logging
+    wrapped_operation.defers_change_logging = True
+    return wrapped_operation
 
 
 class DiffSyncExtras(DiffSyncModel):
     """Additional components to mix and subclass from with `DiffSyncModel`."""
+
+    # Whether the model's writes go through Bulk Write Mode's queue. One that writes object by object
+    # reads back from the database what the run has written, so the queue is written first.
+    batched: ClassVar[bool] = True
 
     @classmethod
     def __pydantic_init_subclass__(cls, **kwargs):
@@ -196,15 +214,16 @@ class DiffSyncExtras(DiffSyncModel):
         Applied here rather than by hand, so that a new model, or a renamed operation, cannot write
         without it. Run once pydantic has built the class, so replacing the operations cannot affect
         how its fields are collected. The deferral does nothing inside a scope that already defers,
-        so it composes with an operation that calls another.
+        so it composes with an operation that calls another. A model that is not `batched` has the
+        queue written before each of its operations too.
         """
         super().__pydantic_init_subclass__(**kwargs)
         for name in WRITE_OPERATIONS:
             operation = cls.__dict__.get(name)
             if isinstance(operation, classmethod):
-                setattr(cls, name, classmethod(deferring_change_logging(operation.__func__)))
+                setattr(cls, name, classmethod(model_operation(operation.__func__, flush_first=not cls.batched)))
             elif operation is not None:
-                setattr(cls, name, deferring_change_logging(operation))
+                setattr(cls, name, model_operation(operation, flush_first=not cls.batched))
 
     @classmethod
     def create(cls, adapter, ids, attrs):
@@ -1780,6 +1799,8 @@ class PrefixVlan(DiffSyncExtras):
     """
 
     _modelname = "prefix_vlan"
+    # Written object by object, after what it terminates on or points at; see `DiffSyncExtras.batched`.
+    batched: ClassVar[bool] = False
     _identifiers = ("prefix",)
     _attributes = ("vid", "location_name", "conflict")
 
@@ -1797,9 +1818,6 @@ class PrefixVlan(DiffSyncExtras):
         """
         vlan_obj = None
         if attrs["vid"] is not None:
-            if adapter.pending is not None:
-                # A VLAN created earlier in this run may only be queued.
-                adapter.flush_pending_writes()
             vlan_obj = tonb_nbutils.get_vlan_at_location_name(attrs["vid"], attrs["location_name"])
             if vlan_obj is None:
                 adapter.prefix_vlans_not_found[(attrs["location_name"], attrs["vid"])] += 1
@@ -1912,6 +1930,8 @@ class Cable(DiffSyncExtras):
     """
 
     _modelname = "cable"
+    # Written object by object, after what it terminates on or points at; see `DiffSyncExtras.batched`.
+    batched: ClassVar[bool] = False
     _identifiers = (
         "termination_a_device",
         "termination_a_name",
@@ -1939,12 +1959,10 @@ class Cable(DiffSyncExtras):
     def resolve_interfaces(adapter, ids):
         """Return the two Nautobot Interfaces a link terminates on, or (None, None) if either is missing.
 
-        Cables keep the per-object write path, so this reads its Interfaces back from the database.
-        The Devices and Interfaces a link terminates on are created earlier in the same sync, and in
-        bulk mode that means queued rather than written, so anything still queued is written first.
+        Cables keep the per-object write path, so this reads its Interfaces back from the database,
+        where the Devices and Interfaces created earlier in the sync are by now: a Cable is not
+        `batched`, so anything Bulk Write Mode queued is written before its operations run.
         """
-        if adapter.pending is not None:
-            adapter.flush_pending_writes()
         job_logger = adapter.job.logger
         tagged_only = adapter.sync_ipfabric_tagged_only
         interface_a = tonb_nbutils.get_tagged_interface(
