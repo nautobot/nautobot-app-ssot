@@ -1222,6 +1222,16 @@ class TestNautobotUtils(TestCase):
         logger.error.assert_called_with("Unable to create a new Interface named DB-Iface on Device named Mock-Device")
 
     @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_interface_reports_a_new_interface_nautobot_refuses(self, mock_logger):
+        logger = mock_logger("nb_job")
+        with mock.patch.object(Interface, "validated_save", side_effect=ValidationError("refused")):
+            result = create_interface(self.device, {"name": "Refused-Iface"}, logger=logger)
+        self.assertIsNone(result)
+        logger.error.assert_called_with(
+            f"Unable to create a new Interface named Refused-Iface on Device named {self.device.name}"
+        )
+
+    @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_interface_validation_error(self, mock_logger):
         """Test `create_interface` ValidationError on get_or_create path."""
         logger = mock_logger("nb_job")

@@ -249,32 +249,30 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             self.job.logger.warning("%d %s objects %s.", count, model_name, outcome)
         self.safe_delete_tally.clear()
 
-    def flush_pending_writes_if_full(self) -> int:
+    def flush_pending_writes_if_full(self) -> None:
         """Write the queue if it has grown past what is worth holding in memory.
 
         Called once a model has finished its own work, which is the only safe point: a queue flushed
         part way through an operation would miss whatever that operation went on to set, such as a
         Device's virtual chassis fields.
         """
-        if len(self.pending) < PENDING_WRITE_HIGH_WATER:
-            return 0
-        return self.flush_pending_writes()
+        if len(self.pending) >= PENDING_WRITE_HIGH_WATER:
+            self.flush_pending_writes()
 
-    def flush_pending_writes(self) -> int:
-        """Write whatever bulk mode has queued, and report what was written.
+    def flush_pending_writes(self) -> None:
+        """Write whatever bulk mode has queued, and log what was written.
 
         Called before anything that reads those objects back from the database, and at the end of
         the sync. A no-op when nothing is queued, so callers need not check the mode first.
         """
         if not self.pending:
-            return 0
+            return
         counts = self.pending.counts()
         written = self.pending.flush()
         # Rows exist now that did not when these lookups last ran, and one of them caching that a
         # Device could not be found is enough to lose every Cable terminating on it.
         job_scoped_cache.clear_group(tonb_utils.BULK_WRITTEN_LOOKUPS)
         self.job.logger.info("Wrote %d queued rows in bulk mode: %s", written, counts)
-        return written
 
     def load_interfaces(self, device_record: Device, diffsync_device):
         """Import a single Nautobot Interface object as a DiffSync Interface model."""

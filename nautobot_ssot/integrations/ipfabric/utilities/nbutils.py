@@ -1683,38 +1683,44 @@ def create_interface(  # pylint: disable=too-many-arguments
     reported_state = {
         custom_field: interface_details.get(attribute) for attribute, custom_field in INTERFACE_STATE_FIELDS.items()
     }
+    unable_to_create = f"Unable to create a new Interface named {interface_name} on Device named {device_obj.name}"
     try:
         if pending is not None and device_obj._state.adding:  # pylint: disable=protected-access
             # The Device is queued and has no rows of its own yet, so it can hold no Interface.
             interface_obj = None
         else:
             interface_obj = device_obj.interfaces.filter(name=interface_name, status=status_obj).first()
-        if interface_obj is None:
-            interface_obj = Interface(device=device_obj, name=interface_name, status=status_obj, **defaults)
-            interface_obj.cf.update(reported_state)
-            if pending is not None:
-                return queue_new_object(pending, interface_obj, key=(device_obj.pk, interface_name))
-            # Stamped before the one save a new Interface takes, so the Tag row that follows is
-            # the only further write.
-            stamp_synced(interface_obj, LAST_SYNCHRONIZED_CF_NAME)
-            interface_obj.validated_save()
-            interface_obj.tags.add(synced_tag_for(interface_obj))
-            return interface_obj
     except (DjangoBaseDBError, ValidationError):
         if logger:
-            logger.error(f"Unable to create a new Interface named {interface_name} on Device named {device_obj.name}")
+            logger.error(unable_to_create)
         return None
 
-    # An Interface Nautobot already holds is re-stamped in place. Nothing above changes a field on
-    # it, so the stamp is the whole of the write. Separate from the creation above so that a failure
-    # here still returns the existing Interface rather than None.
+    if interface_obj is not None:
+        # An Interface Nautobot already holds is re-stamped in place. Nothing above changes a field on
+        # it, so the stamp is the whole of the write, and a failure still returns the Interface.
+        try:
+            restamp_synced(interface_obj, LAST_SYNCHRONIZED_CF_NAME)
+        except (DjangoBaseDBError, ValidationError):
+            if logger:
+                logger.warning(
+                    f"Unable to perform validated_save() on Interface named {interface_name} on Device named {device_obj.name}"
+                )
+        return interface_obj
+
+    interface_obj = Interface(device=device_obj, name=interface_name, status=status_obj, **defaults)
+    interface_obj.cf.update(reported_state)
+    if pending is not None:
+        return queue_new_object(pending, interface_obj, key=(device_obj.pk, interface_name))
     try:
-        restamp_synced(interface_obj, LAST_SYNCHRONIZED_CF_NAME)
+        # Stamped before the one save a new Interface takes, so the Tag row that follows is the only
+        # further write.
+        stamp_synced(interface_obj, LAST_SYNCHRONIZED_CF_NAME)
+        interface_obj.validated_save()
+        interface_obj.tags.add(synced_tag_for(interface_obj))
     except (DjangoBaseDBError, ValidationError):
         if logger:
-            logger.warning(
-                f"Unable to perform validated_save() on Interface named {interface_name} on Device named {device_obj.name}"
-            )
+            logger.error(unable_to_create)
+        return None
     return interface_obj
 
 
