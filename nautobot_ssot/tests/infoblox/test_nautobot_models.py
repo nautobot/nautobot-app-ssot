@@ -5,7 +5,7 @@ import uuid
 from unittest.mock import Mock
 
 from django.contrib.contenttypes.models import ContentType
-from nautobot.apps.testing import TestCase
+from nautobot.apps.testing import TestCase, TransactionTestCase
 from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Relationship, RelationshipAssociation, Role, Status, Tag
@@ -19,7 +19,7 @@ from nautobot_ssot.integrations.infoblox.choices import (
 )
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
-from nautobot_ssot.integrations.infoblox.diffsync.models.nautobot import process_ext_attrs
+from nautobot_ssot.integrations.infoblox.diffsync.models.nautobot import NautobotVlan, process_ext_attrs
 from nautobot_ssot.tests.infoblox.fixtures_infoblox import create_default_infoblox_config, create_prefix_relationship
 
 
@@ -1472,6 +1472,40 @@ class TestModelNautobotBranchMatrix(TestCase):
         # The raw value is still preserved as a custom field.
         self.assertEqual("EXAMPLE REGION", prefix.custom_field_data.get("site"))
 
+    def test_process_ext_attrs_location_sets_single_location_field(self):
+        """Models with a single `location` field (e.g. VLAN Group) get it set instead of `locations.add()`."""
+        status_active, _ = Status.objects.get_or_create(name="Active")
+        location_type, _ = LocationType.objects.get_or_create(name="Test LocationType VLANGroup")
+        location_type.content_types.add(ContentType.objects.get_for_model(VLANGroup))
+        location, _ = Location.objects.get_or_create(name="VG Site", location_type=location_type, status=status_active)
+        vlan_group = VLANGroup(name="VG-Location")
+
+        adapter = Mock()
+        adapter.job = Mock(logger=Mock())
+        adapter.config = Mock(infoblox_location_ext_attr="")
+        adapter.location_map = {
+            "vg site": {"id": location.id, "location_type": location_type.name, "content_types": {"vlangroup"}},
+        }
+
+        process_ext_attrs(adapter=adapter, obj=vlan_group, extattrs={"site": "VG Site"})
+
+        self.assertEqual(vlan_group.location_id, location.id)
+
+    def test_process_ext_attrs_vrf_on_model_without_vrfs_warns(self):
+        """A VRF Extensibility Attribute on an object that can't hold VRFs (e.g. IP Address) is skipped with a warning."""
+        ip_address = IPAddress(address="10.99.6.1/24")
+
+        adapter = Mock()
+        adapter.job = Mock(logger=Mock())
+        adapter.config = Mock(infoblox_location_ext_attr="")
+        adapter.vrf_map = {"red": uuid.uuid4()}
+
+        process_ext_attrs(adapter=adapter, obj=ip_address, extattrs={"vrf": "red"})
+
+        adapter.job.logger.warning.assert_called_once()
+        self.assertIn("do not support VRF assignment", adapter.job.logger.warning.call_args[0][0])
+        self.assertEqual("red", ip_address.custom_field_data.get("vrf"))
+
     def test_process_ext_attrs_location_case_insensitive_match(self):
         """A location extattr resolves to a prefix-capable Location regardless of value case."""
         site_type = LocationType.objects.create(name="Matrix Site")
@@ -1680,3 +1714,40 @@ class TestModelNautobotBranchMatrix(TestCase):
         self.assertEqual("aa:bb:cc:dd:ee:ff", ip.custom_field_data.get("mac_address"))
         self.assertEqual("Final Comment", ip.custom_field_data.get("fixed_address_comment"))
         self.assertEqual("Matrix Team", ip.custom_field_data.get("department"))
+
+
+class TestModelNautobotVlanCreateAutocommit(TransactionTestCase):
+    """VLAN creation with a location Extensibility Attribute, in autocommit mode like a real sync job.
+
+    `TestCase` wraps each test in one transaction where foreign key checks are deferred, which hides the ordering bug
+    from #809: the Location assignment row being written before the VLAN row exists.
+    """
+
+    def test_vlan_create_with_site_ext_attr_assigns_location(self):
+        create_default_infoblox_config()
+        status_active, _ = Status.objects.get_or_create(name="Active")
+        status_active.content_types.add(ContentType.objects.get_for_model(VLAN))
+        location_type, _ = LocationType.objects.get_or_create(name="Test LocationType VLAN Autocommit")
+        location_type.content_types.add(ContentType.objects.get_for_model(VLAN))
+        location, _ = Location.objects.get_or_create(
+            name="VLAN Site", location_type=location_type, status=status_active
+        )
+        vlan_group, _ = VLANGroup.objects.get_or_create(name="VG-Autocommit")
+
+        adapter = Mock(spec=NautobotAdapter)
+        adapter.job = Mock(logger=Mock())
+        adapter.config = Mock(infoblox_location_ext_attr="")
+        adapter.status_map = {"Active": status_active.id}
+        adapter.vlangroup_map = {"VG-Autocommit": vlan_group.id}
+        adapter.vlan_map = {}
+        adapter.location_map = {
+            "vlan site": {"id": location.id, "location_type": location_type.name, "content_types": {"vlan"}},
+        }
+
+        NautobotVlan.create(
+            adapter=adapter,
+            ids={"vid": 10, "name": "V10", "vlangroup": "VG-Autocommit"},
+            attrs={"status": "ASSIGNED", "description": "", "ext_attrs": {"site": "VLAN Site"}},
+        )
+
+        self.assertEqual(list(VLAN.objects.get(vid=10, vlan_group=vlan_group).locations.all()), [location])

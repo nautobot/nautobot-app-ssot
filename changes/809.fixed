@@ -1,0 +1,1 @@
+Fixed Infoblox to Nautobot sync failures when an Extensibility Attribute maps to a Location or VRF: VLANs no longer fail with an `IntegrityError` on Location assignment, VLAN Groups get their single Location set, and a VRF on an object that can't hold VRFs is skipped with a warning instead of raising `AttributeError`.
