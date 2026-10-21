@@ -1,1 +1,2 @@
 Fixed Infoblox sync failures when an Extensibility Attribute maps to a Location or VRF on VLANs, VLAN Groups, Namespaces or IP Addresses.
+Fixed VLAN Group updates from Infoblox not being saved to Nautobot.
