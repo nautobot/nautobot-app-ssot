@@ -52,6 +52,7 @@ from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
     tag_object,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
+from nautobot_ssot.integrations.ipfabric.writers import BatchedWriter, ImmediateWriter
 
 
 # pylint: disable=too-many-instance-attributes,too-many-arguments,too-many-public-methods
@@ -119,18 +120,21 @@ class TestNautobotUtils(TestCase):
             vlan_status="Test-Vlan-Status",
             location_obj=self.location,
             description="Test-Vlan",
+            writer=ImmediateWriter(),
         )
         self.assertEqual(VLAN.objects.get(name="Test-Vlan").pk, vlan.pk)
 
     def test_create_location_existing_location_no_location_id(self):
         """Test `create_location` Utility."""
-        test_location = get_or_create_location_object(location_name="Test-Location")
+        test_location = get_or_create_location_object(location_name="Test-Location", writer=ImmediateWriter())
         self.assertEqual(test_location.id, self.location.id)
 
     def test_create_location_existing_location_with_location_id(self):
         """The site id reaches the database, not just the instance handed back."""
         self.assertFalse(self.location.cf.get("ipfabric_site_id"))
-        test_location = get_or_create_location_object(location_name="Test-Location", location_id="Test-Location")
+        test_location = get_or_create_location_object(
+            location_name="Test-Location", location_id="Test-Location", writer=ImmediateWriter()
+        )
         self.assertEqual(test_location.id, self.location.id)
         self.assertEqual(test_location.cf["ipfabric_site_id"], "Test-Location")
         self.location.refresh_from_db()
@@ -138,14 +142,14 @@ class TestNautobotUtils(TestCase):
 
     def test_create_location_no_location_id(self):
         """Test `create_location` Utility."""
-        test_location = get_or_create_location_object(location_name="Test-Location-new")
+        test_location = get_or_create_location_object(location_name="Test-Location-new", writer=ImmediateWriter())
         self.assertEqual(test_location.name, "Test-Location-new")
 
     def test_create_location_with_location_id(self):
         """Test `create_location` Utility."""
         self.assertFalse(Location.objects.filter(name="Test-Location-new"))
         test_location = get_or_create_location_object(
-            location_name="Test-Location-new", location_id="Test-Location-new"
+            location_name="Test-Location-new", location_id="Test-Location-new", writer=ImmediateWriter()
         )
         self.assertEqual(test_location.name, "Test-Location-new")
         self.assertEqual(test_location.cf["ipfabric_site_id"], "Test-Location-new")
@@ -158,7 +162,7 @@ class TestNautobotUtils(TestCase):
         mock_location.side_effect = [Location.MultipleObjectsReturned]
         logger = mock_logger("nb_job")
         test_location = get_or_create_location_object(
-            location_name="Test-Location", location_id="Test-Location", logger=logger
+            location_name="Test-Location", location_id="Test-Location", logger=logger, writer=ImmediateWriter()
         )
         self.assertEqual(test_location, None)
         logger.error.assert_called_with("Multiple Locations returned with name Test-Location")
@@ -172,7 +176,7 @@ class TestNautobotUtils(TestCase):
         mock_location.side_effect = [DjangoBaseDBError]
         logger = mock_logger("nb_job")
         test_location = get_or_create_location_object(
-            location_name="Test-Location", location_id="Test-Location", logger=logger
+            location_name="Test-Location", location_id="Test-Location", logger=logger, writer=ImmediateWriter()
         )
         self.assertEqual(test_location, None)
         logger.error.assert_called_with("Unable to create a new Location named Test-Location with LocationType Site")
@@ -186,19 +190,21 @@ class TestNautobotUtils(TestCase):
         mock_location.side_effect = [ValidationError("failure")]
         logger = mock_logger("nb_job")
         test_location = get_or_create_location_object(
-            location_name="Test-Location", location_id="Test-Location", logger=logger
+            location_name="Test-Location", location_id="Test-Location", logger=logger, writer=ImmediateWriter()
         )
         self.assertEqual(test_location, None)
         logger.error.assert_called_with("Unable to create a new Location named Test-Location with LocationType Site")
         mock_tag_object.assert_not_called()
 
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch.object(Location, "validated_save")
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_location_tag_db_error(self, mock_logger, mock_tag_object):
         """That save is a new Location's only one, so a refused one leaves no Location to return."""
         mock_tag_object.side_effect = [DjangoBaseDBError]
         logger = mock_logger("nb_job")
-        self.assertIsNone(get_or_create_location_object(location_name="Test-Location-new", logger=logger))
+        self.assertIsNone(
+            get_or_create_location_object(location_name="Test-Location-new", logger=logger, writer=ImmediateWriter())
+        )
         self.assertFalse(Location.objects.filter(name="Test-Location-new").exists())
         self.assertIn(
             "Unable to perform a validated_save() on Location Test-Location-new",
@@ -207,7 +213,7 @@ class TestNautobotUtils(TestCase):
 
     def test_get_location_object_returns_an_existing_location(self):
         """The lookup used when Locations are out of scope finds one another App may have created."""
-        existing = get_or_create_location_object(location_name="Test-Location")
+        existing = get_or_create_location_object(location_name="Test-Location", writer=ImmediateWriter())
         self.assertEqual(get_location_object("Test-Location"), existing)
 
     @unittest.mock.patch("logging.Logger", autospec=True)
@@ -226,13 +232,15 @@ class TestNautobotUtils(TestCase):
         self.assertIsNone(get_location_object("Test-Location", logger=logger))
         logger.error.assert_called_with("Multiple Locations returned with name Test-Location")
 
-    @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.tag_object")
+    @unittest.mock.patch.object(Location, "validated_save")
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_location_tag_validation_error(self, mock_logger, mock_tag_object):
         """A refused validation leaves the new Location unwritten, as a refused insert does."""
         mock_tag_object.side_effect = [ValidationError("failure")]
         logger = mock_logger("nb_job")
-        self.assertIsNone(get_or_create_location_object(location_name="Test-Location-new", logger=logger))
+        self.assertIsNone(
+            get_or_create_location_object(location_name="Test-Location-new", logger=logger, writer=ImmediateWriter())
+        )
         self.assertFalse(Location.objects.filter(name="Test-Location-new").exists())
         self.assertIn(
             "Unable to perform a validated_save() on Location Test-Location-new",
@@ -245,7 +253,9 @@ class TestNautobotUtils(TestCase):
         """A Location that was already there keeps its row, so a failed re-stamp does not withhold it."""
         mock_restamp.side_effect = [DjangoBaseDBError]
         logger = mock_logger("nb_job")
-        test_location = get_or_create_location_object(location_name="Test-Location", logger=logger)
+        test_location = get_or_create_location_object(
+            location_name="Test-Location", logger=logger, writer=ImmediateWriter()
+        )
         self.assertEqual(test_location.id, self.location.id)
         self.assertIn(
             "Unable to perform a validated_save() on Location Test-Location",
@@ -427,7 +437,7 @@ class TestNautobotUtils(TestCase):
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddressToInterface")
     def test_create_ip(self, mock_ipaddress_to_interface):
         """Test `create_ip` Utility."""
-        test_ip = create_ip("192.168.0.2", 32)
+        test_ip = create_ip("192.168.0.2", 32, writer=ImmediateWriter())
         self.assertEqual(test_ip.host, "192.168.0.2")
         self.assertEqual(test_ip.mask_length, 32)
         self.assertEqual(test_ip.status.name, "Active")
@@ -436,7 +446,7 @@ class TestNautobotUtils(TestCase):
 
     def test_create_ip_assign_interface(self):
         """Test `create_ip` Utility."""
-        test_ip = create_ip("192.168.0.2", 32, object_pk=self.device.interfaces.first())
+        test_ip = create_ip("192.168.0.2", 32, object_pk=self.device.interfaces.first(), writer=ImmediateWriter())
         self.assertEqual(test_ip.host, "192.168.0.2")
         self.assertEqual(test_ip.mask_length, 32)
         self.assertEqual(test_ip.parent, self.prefix)
@@ -444,7 +454,7 @@ class TestNautobotUtils(TestCase):
 
     def test_create_ip_alread_exists(self):
         """Test `create_ip` Utility."""
-        test_ip = create_ip("192.168.0.1", 32)
+        test_ip = create_ip("192.168.0.1", 32, writer=ImmediateWriter())
         self.assertEqual(test_ip.id, self.ip_address.id)
 
     @unittest.mock.patch(
@@ -458,7 +468,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         mock_status.return_value.get.side_effect = [Status.MultipleObjectsReturned]
         logger = mock_logger("nb_job")
-        test_ip = create_ip("192.168.0.1", 32, logger=logger)
+        test_ip = create_ip("192.168.0.1", 32, logger=logger, writer=ImmediateWriter())
         mock_ipaddress.assert_not_called()
         logger.error.assert_called_with(
             "Multiple Statuses returned with name Active, and therefore cannot create an IPAddress of 192.168.0.1/32"
@@ -476,7 +486,7 @@ class TestNautobotUtils(TestCase):
         """Test `create_device_type_object` Utility."""
         mock_status.return_value.get.side_effect = [Status.DoesNotExist]
         logger = mock_logger("nb_job")
-        test_ip = create_ip("192.168.0.1", 32, logger=logger)
+        test_ip = create_ip("192.168.0.1", 32, logger=logger, writer=ImmediateWriter())
         mock_ipaddress.assert_not_called()
         logger.error.assert_called_with(
             "Unable to find a Status with the name Active, and therefore cannot create an IPAddress of 192.168.0.1/32"
@@ -489,7 +499,7 @@ class TestNautobotUtils(TestCase):
         """Only the IPAddress is stamped; stamping the Interface as well doubles what it costs."""
         logger = mock_logger("nb_job")
         interface_obj = self.device.interfaces.first()
-        create_ip("192.168.0.1", 32, object_pk=interface_obj, logger=logger)
+        create_ip("192.168.0.1", 32, object_pk=interface_obj, logger=logger, writer=ImmediateWriter())
         stamped = [call.args[0] for call in mock_restamp.call_args_list]
         self.assertEqual(stamped, [self.ip_address])
 
@@ -499,7 +509,7 @@ class TestNautobotUtils(TestCase):
         """An address whose re-stamp fails is still returned, with a warning."""
         logger = mock_logger("nb_job")
         mock_restamp.side_effect = [DjangoBaseDBError]
-        test_ip = create_ip("192.168.0.1", 32, logger=logger)
+        test_ip = create_ip("192.168.0.1", 32, logger=logger, writer=ImmediateWriter())
         self.assertEqual(test_ip.id, self.ip_address.id)
         logger.warning.assert_called_with(
             f"Unable to perform validated_save() on IPAddress {test_ip.address} with an ID of {test_ip.id}"
@@ -511,7 +521,7 @@ class TestNautobotUtils(TestCase):
         """An address whose re-stamp fails is still returned, with a warning."""
         logger = mock_logger("nb_job")
         mock_restamp.side_effect = [ValidationError("failure")]
-        test_ip = create_ip("192.168.0.1", 32, logger=logger)
+        test_ip = create_ip("192.168.0.1", 32, logger=logger, writer=ImmediateWriter())
         self.assertEqual(test_ip.id, self.ip_address.id)
         logger.warning.assert_called_with(
             f"Unable to perform validated_save() on IPAddress {test_ip.address} with an ID of {test_ip.id}"
@@ -522,8 +532,8 @@ class TestNautobotUtils(TestCase):
     def test_create_ip_refuses_an_address_with_no_subnet_mask(self, mock_logger, mock_ip_get_or_create):
         logger = mock_logger("nb_job")
 
-        self.assertIsNone(create_ip("10.0.0.1", None, logger=logger))
-        self.assertIsNone(create_ip("10.0.0.1", 0, logger=logger))
+        self.assertIsNone(create_ip("10.0.0.1", None, logger=logger, writer=ImmediateWriter()))
+        self.assertIsNone(create_ip("10.0.0.1", 0, logger=logger, writer=ImmediateWriter()))
 
         mock_ip_get_or_create.assert_not_called()
         self.assertEqual(logger.warning.call_count, 2)
@@ -531,7 +541,7 @@ class TestNautobotUtils(TestCase):
 
     @unittest.mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.IPAddress.objects.get_or_create")
     def test_create_ip_refuses_an_address_with_no_subnet_mask_and_no_logger(self, mock_ip_get_or_create):
-        self.assertIsNone(create_ip("10.0.0.1", None))
+        self.assertIsNone(create_ip("10.0.0.1", None, writer=ImmediateWriter()))
 
         mock_ip_get_or_create.assert_not_called()
 
@@ -556,6 +566,7 @@ class TestNautobotUtils(TestCase):
             vlan_status="Active",
             location_obj=location,
             description="Test Description",
+            writer=ImmediateWriter(),
         )
 
         # Verify VLAN was created and associated with location
@@ -568,13 +579,13 @@ class TestNautobotUtils(TestCase):
     def test_create_interface(self):
         """Test `create_interface` Utility."""
         interface_details = {"name": "Test-Interface", "type": "virtual"}
-        test_interface = create_interface(self.device, interface_details)
+        test_interface = create_interface(self.device, interface_details, writer=ImmediateWriter())
         self.assertEqual(test_interface.id, self.device.interfaces.get(name="Test-Interface").id)
 
     def test_create_interface_new(self):
         """Test `create_interface` Utility for new interface."""
         interface_details = {"name": "Test-Interface-New", "type": "virtual", "mtu": 1500}
-        test_interface = create_interface(self.device, interface_details)
+        test_interface = create_interface(self.device, interface_details, writer=ImmediateWriter())
         self.assertEqual(test_interface.id, self.device.interfaces.get(name="Test-Interface-New").id)
         self.assertEqual(test_interface.mtu, 1500)
 
@@ -924,7 +935,7 @@ class TestNautobotUtils(TestCase):
         """Test initial assignment with VC, position, and priority."""
         vc = VirtualChassis.objects.create(name="Stack-Init")
         device = self._make_vc_test_device("VC-Initial")
-        result = assign_device_to_virtual_chassis(device, vc, position=1, priority=10)
+        result = assign_device_to_virtual_chassis(device, vc, position=1, priority=10, writer=ImmediateWriter())
         device.refresh_from_db()
         self.assertEqual(result.id, vc.id)
         self.assertEqual(device.virtual_chassis_id, vc.id)
@@ -935,17 +946,17 @@ class TestNautobotUtils(TestCase):
         """Test that calling twice with same args is a no-op on the second call."""
         vc = VirtualChassis.objects.create(name="Stack-Idem")
         device = self._make_vc_test_device("VC-Idem")
-        assign_device_to_virtual_chassis(device, vc, position=1, priority=10)
+        assign_device_to_virtual_chassis(device, vc, position=1, priority=10, writer=ImmediateWriter())
         device.refresh_from_db()
         with mock.patch.object(Device, "validated_save") as save_mock:
-            assign_device_to_virtual_chassis(device, vc, position=1, priority=10)
+            assign_device_to_virtual_chassis(device, vc, position=1, priority=10, writer=ImmediateWriter())
             save_mock.assert_not_called()
 
     def test_assign_device_to_virtual_chassis_position_only(self):
         """Test setting position without priority."""
         vc = VirtualChassis.objects.create(name="Stack-Pos")
         device = self._make_vc_test_device("VC-Pos")
-        assign_device_to_virtual_chassis(device, vc, position=2)
+        assign_device_to_virtual_chassis(device, vc, position=2, writer=ImmediateWriter())
         device.refresh_from_db()
         self.assertEqual(device.vc_position, 2)
         self.assertIsNone(device.vc_priority)
@@ -954,7 +965,7 @@ class TestNautobotUtils(TestCase):
         """Test setting master saves VC with the new master."""
         vc = VirtualChassis.objects.create(name="Stack-Master")
         device = self._make_vc_test_device("VC-Master")
-        assign_device_to_virtual_chassis(device, vc, position=1, master=True)
+        assign_device_to_virtual_chassis(device, vc, position=1, master=True, writer=ImmediateWriter())
         vc.refresh_from_db()
         self.assertEqual(vc.master_id, device.id)
 
@@ -962,20 +973,20 @@ class TestNautobotUtils(TestCase):
         """Test that re-assigning the same master is a no-op on the VC save."""
         vc = VirtualChassis.objects.create(name="Stack-MasterIdem")
         device = self._make_vc_test_device("VC-MasterIdem")
-        assign_device_to_virtual_chassis(device, vc, position=1, master=True)
+        assign_device_to_virtual_chassis(device, vc, position=1, master=True, writer=ImmediateWriter())
         with mock.patch.object(VirtualChassis, "validated_save") as save_mock:
-            assign_device_to_virtual_chassis(device, vc, position=1, master=True)
+            assign_device_to_virtual_chassis(device, vc, position=1, master=True, writer=ImmediateWriter())
             save_mock.assert_not_called()
 
     def test_assign_device_to_virtual_chassis_priority_update(self):
         """Calling again with a new priority updates priority and persists."""
         vc = VirtualChassis.objects.create(name="Stack-PriUpdate")
         device = self._make_vc_test_device("VC-PriUpdate")
-        assign_device_to_virtual_chassis(device, vc, position=1, priority=10)
+        assign_device_to_virtual_chassis(device, vc, position=1, priority=10, writer=ImmediateWriter())
         device.refresh_from_db()
         self.assertEqual(device.vc_priority, 10)
 
-        assign_device_to_virtual_chassis(device, vc, position=1, priority=20)
+        assign_device_to_virtual_chassis(device, vc, position=1, priority=20, writer=ImmediateWriter())
         device.refresh_from_db()
         self.assertEqual(device.vc_priority, 20)
 
@@ -983,11 +994,11 @@ class TestNautobotUtils(TestCase):
         """Calling again with a different position updates position and persists."""
         vc = VirtualChassis.objects.create(name="Stack-PosChange")
         device = self._make_vc_test_device("VC-PosChange")
-        assign_device_to_virtual_chassis(device, vc, position=1)
+        assign_device_to_virtual_chassis(device, vc, position=1, writer=ImmediateWriter())
         device.refresh_from_db()
         self.assertEqual(device.vc_position, 1)
 
-        assign_device_to_virtual_chassis(device, vc, position=3)
+        assign_device_to_virtual_chassis(device, vc, position=3, writer=ImmediateWriter())
         device.refresh_from_db()
         self.assertEqual(device.vc_position, 3)
 
@@ -996,11 +1007,11 @@ class TestNautobotUtils(TestCase):
         vc = VirtualChassis.objects.create(name="Stack-MasterSwap")
         first = self._make_vc_test_device("VC-MasterSwap-1")
         second = self._make_vc_test_device("VC-MasterSwap-2")
-        assign_device_to_virtual_chassis(first, vc, position=1, master=True)
+        assign_device_to_virtual_chassis(first, vc, position=1, master=True, writer=ImmediateWriter())
         vc.refresh_from_db()
         self.assertEqual(vc.master_id, first.id)
 
-        assign_device_to_virtual_chassis(second, vc, position=2, master=True)
+        assign_device_to_virtual_chassis(second, vc, position=2, master=True, writer=ImmediateWriter())
         vc.refresh_from_db()
         self.assertEqual(vc.master_id, second.id)
 
@@ -1136,6 +1147,7 @@ class TestNautobotUtils(TestCase):
             location_obj=self.location,
             description="t",
             logger=logger,
+            writer=ImmediateWriter(),
         )
         self.assertIsNone(result)
         logger.error.assert_called_with("Multiple VLANs returned with name Multi-VLAN and ID 200")
@@ -1153,6 +1165,7 @@ class TestNautobotUtils(TestCase):
             location_obj=self.location,
             description="t",
             logger=logger,
+            writer=ImmediateWriter(),
         )
         self.assertIsNone(result)
         self.assertTrue(logger.error.called)
@@ -1170,6 +1183,7 @@ class TestNautobotUtils(TestCase):
             location_obj=self.location,
             description="t",
             logger=logger,
+            writer=ImmediateWriter(),
         )
         self.assertIsNone(result)
         self.assertTrue(logger.error.called)
@@ -1187,6 +1201,7 @@ class TestNautobotUtils(TestCase):
             location_obj=self.location,
             description="t",
             logger=logger,
+            writer=ImmediateWriter(),
         )
         self.assertEqual(result.name, "TagDB-VLAN")
         self.assertTrue(logger.warning.called)
@@ -1204,6 +1219,7 @@ class TestNautobotUtils(TestCase):
             location_obj=self.location,
             description="t",
             logger=logger,
+            writer=ImmediateWriter(),
         )
         self.assertEqual(result.name, "TagV-VLAN")
         self.assertTrue(logger.warning.called)
@@ -1217,7 +1233,7 @@ class TestNautobotUtils(TestCase):
         mock_device = mock.MagicMock()
         mock_device.name = "Mock-Device"
         mock_device.interfaces.filter.side_effect = DjangoBaseDBError
-        result = create_interface(mock_device, {"name": "DB-Iface"}, logger=logger)
+        result = create_interface(mock_device, {"name": "DB-Iface"}, logger=logger, writer=ImmediateWriter())
         self.assertIsNone(result)
         logger.error.assert_called_with("Unable to create a new Interface named DB-Iface on Device named Mock-Device")
 
@@ -1225,7 +1241,7 @@ class TestNautobotUtils(TestCase):
     def test_create_interface_reports_a_new_interface_nautobot_refuses(self, mock_logger):
         logger = mock_logger("nb_job")
         with mock.patch.object(Interface, "validated_save", side_effect=ValidationError("refused")):
-            result = create_interface(self.device, {"name": "Refused-Iface"}, logger=logger)
+            result = create_interface(self.device, {"name": "Refused-Iface"}, logger=logger, writer=ImmediateWriter())
         self.assertIsNone(result)
         logger.error.assert_called_with(
             f"Unable to create a new Interface named Refused-Iface on Device named {self.device.name}"
@@ -1238,7 +1254,7 @@ class TestNautobotUtils(TestCase):
         mock_device = mock.MagicMock()
         mock_device.name = "Mock-Device"
         mock_device.interfaces.filter.side_effect = ValidationError("failure")
-        result = create_interface(mock_device, {"name": "V-Iface"}, logger=logger)
+        result = create_interface(mock_device, {"name": "V-Iface"}, logger=logger, writer=ImmediateWriter())
         self.assertIsNone(result)
         logger.error.assert_called_with("Unable to create a new Interface named V-Iface on Device named Mock-Device")
 
@@ -1252,7 +1268,7 @@ class TestNautobotUtils(TestCase):
         logger = mock_logger("nb_job")
         mock_device = mock.MagicMock()
         mock_device.name = "Mock-Device"
-        result = create_interface(mock_device, {"name": "NoStat-Iface"}, logger=logger)
+        result = create_interface(mock_device, {"name": "NoStat-Iface"}, logger=logger, writer=ImmediateWriter())
         self.assertIsNone(result)
         mock_device.interfaces.filter.assert_not_called()
         logger.error.assert_called_with(
@@ -1268,7 +1284,9 @@ class TestNautobotUtils(TestCase):
         Interface.objects.create(
             device=self.device, name="TagDB-Iface", status=Status.objects.get(name="Active"), type="virtual"
         )
-        result = create_interface(self.device, {"name": "TagDB-Iface", "type": "virtual"}, logger=logger)
+        result = create_interface(
+            self.device, {"name": "TagDB-Iface", "type": "virtual"}, logger=logger, writer=ImmediateWriter()
+        )
         self.assertEqual(result.name, "TagDB-Iface")
         self.assertTrue(logger.warning.called)
 
@@ -1281,7 +1299,9 @@ class TestNautobotUtils(TestCase):
         Interface.objects.create(
             device=self.device, name="TagV-Iface", status=Status.objects.get(name="Active"), type="virtual"
         )
-        result = create_interface(self.device, {"name": "TagV-Iface", "type": "virtual"}, logger=logger)
+        result = create_interface(
+            self.device, {"name": "TagV-Iface", "type": "virtual"}, logger=logger, writer=ImmediateWriter()
+        )
         self.assertEqual(result.name, "TagV-Iface")
         self.assertTrue(logger.warning.called)
 
@@ -1343,7 +1363,9 @@ class TestNautobotUtils(TestCase):
         logger = mock_logger("nb_job")
         mock_get_or_create.side_effect = CustomField.MultipleObjectsReturned
 
-        location = get_or_create_location_object(location_name="Test-Location", location_id="site-1", logger=logger)
+        location = get_or_create_location_object(
+            location_name="Test-Location", location_id="site-1", logger=logger, writer=ImmediateWriter()
+        )
 
         self.assertEqual(location.id, self.location.id)
         self.assertFalse(location.cf.get("ipfabric_site_id"))
@@ -1357,7 +1379,9 @@ class TestNautobotUtils(TestCase):
         logger = mock_logger("nb_job")
         mock_get_or_create.side_effect = ValidationError("refused")
 
-        location = get_or_create_location_object(location_name="Test-Location", location_id="site-1", logger=logger)
+        location = get_or_create_location_object(
+            location_name="Test-Location", location_id="site-1", logger=logger, writer=ImmediateWriter()
+        )
 
         self.assertEqual(location.id, self.location.id)
         self.assertFalse(location.cf.get("ipfabric_site_id"))
@@ -1371,7 +1395,7 @@ class TestNautobotUtils(TestCase):
         logger = mock_logger("nb_job")
 
         with mock.patch.object(IPAddress, "validated_save", side_effect=ValidationError("refused")):
-            result = create_ip("192.168.1.5", 24, logger=logger)
+            result = create_ip("192.168.1.5", 24, logger=logger, writer=ImmediateWriter())
 
         self.assertIsNone(result)
         self.assertFalse(IPAddress.objects.filter(host="192.168.1.5").exists())
@@ -1384,7 +1408,7 @@ class TestNautobotUtils(TestCase):
         logger = mock_logger("nb_job")
         mock_tag_object.side_effect = ValidationError("refused")
 
-        result = create_ip("192.168.0.1", 16, logger=logger)
+        result = create_ip("192.168.0.1", 16, logger=logger, writer=ImmediateWriter())
 
         self.assertEqual(result.id, self.ip_address.id)
         self.assertEqual(result.mask_length, 32, "The refused mask must not be left set in memory.")
@@ -1398,7 +1422,7 @@ class TestNautobotUtils(TestCase):
         interface = self.device.interfaces.first()
 
         with mock.patch.object(IPAddressToInterface, "validated_save", side_effect=ValidationError("refused")):
-            result = create_ip("192.168.0.1", 32, object_pk=interface, logger=logger)
+            result = create_ip("192.168.0.1", 32, object_pk=interface, logger=logger, writer=ImmediateWriter())
 
         self.assertEqual(result.id, self.ip_address.id)
         self.assertFalse(interface.ip_addresses.filter(pk=self.ip_address.pk).exists())
@@ -1415,7 +1439,7 @@ class TestNautobotUtils(TestCase):
             address="192.168.9.9/24",
             status_obj=Status.objects.get(name="Active"),
             interface=None,
-            pending=pending,
+            writer=BatchedWriter(pending),
             logger=logger,
         )
 
@@ -1439,7 +1463,7 @@ class TestNautobotUtils(TestCase):
         """
         interface = self.device.interfaces.first()
 
-        address = create_ip("2001:db8:f00d::5", 64, object_pk=interface)
+        address = create_ip("2001:db8:f00d::5", 64, object_pk=interface, writer=ImmediateWriter())
 
         self.assertIsNotNone(address, "The address was refused.")
         self.assertEqual(address.host, "2001:db8:f00d::5")
@@ -1477,6 +1501,7 @@ class TestNautobotUtils(TestCase):
             vlan_status="Test-Vlan-Status",
             location_obj=self.location,
             description="",
+            writer=ImmediateWriter(),
         )
 
         self.assertEqual(vlan.pk, existing.pk)
