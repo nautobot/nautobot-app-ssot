@@ -1264,9 +1264,10 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
                                     "vc_master": True,
                                 }
                             )
-                            if args["name"] != device.hostname:
-                                self.device_names[device.hostname] = args["name"]
                         member_devices.append(args)
+                    # The master is the first member, and the stack's hostname names it in every other table.
+                    if member_devices[0]["name"] != device.hostname:
+                        self.device_names[device.hostname] = member_devices[0]["name"]
                     # By number, as Nautobot holds a Device's position, where IP Fabric reports a string.
                     self.stack_device_names[device.hostname] = {
                         int(dev["vc_position"]): dev["name"] for dev in member_devices
