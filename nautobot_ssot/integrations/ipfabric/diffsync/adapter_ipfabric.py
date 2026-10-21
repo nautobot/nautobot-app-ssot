@@ -25,6 +25,8 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_MTU,
     IP_FABRIC_USE_CANONICAL_INTERFACE_NAME,
     PSEUDO_MANAGEMENT_INTERFACE_NAME,
+    STACK_MASTER_NAME,
+    STACK_MEMBER_NAME,
     SYNC_IPF_DEV_TYPE_TO_ROLE,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
@@ -37,7 +39,7 @@ from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
     normalise_mac,
     vlan_group_can_hold,
 )
-from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length, parse_vlan_ranges
+from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length, parse_vlan_ranges, stack_device_name
 
 try:
     from ipfabric import IPFClient
@@ -207,6 +209,12 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
         # The managed IP rows that name a VLAN, kept from the address read for the Prefix VLANs when
         # both are in scope, so those tables are not requested twice. None when they were not read.
         self.rows_naming_a_vlan = None
+        # The Nautobot name of each stack master whose name differs from its IP Fabric hostname, which
+        # every other table names the stack by; see `device_name_of`.
+        self.device_names = {}
+        # Each stack's Device names by member number, keyed by the Virtual Chassis name, so the
+        # Nautobot side can rename a stack's Devices to them before it loads.
+        self.stack_device_names = {}
         # Held because a VRF is network wide while this filter is not, so a filtered run must not
         # delete the VRFs of the sites it cannot see; see `DiffSyncModelAdapters.network_wide`.
         self.location_filter = location_filter
@@ -270,7 +278,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
             if enabled is None:
                 # Registered so the Nautobot side reports no admin state either and the value it
                 # holds is left alone rather than diffed against a guess.
-                self.interfaces_without_admin_state.add((iface.get("hostname"), iface_name))
+                self.interfaces_without_admin_state.add((self.device_name_of(iface.get("hostname")), iface_name))
                 if bare(iface.get("l1")):
                     # Only a state IP Fabric actually reported. The pseudo management Interface is
                     # fabricated here, so naming IP Fabric as the source of nothing would be noise.
@@ -283,7 +291,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
             if interface_type is None and parent is None:
                 # Registered so the Nautobot side reports no type either and the one it holds is
                 # kept rather than overwritten with a default that reads as a real resolution.
-                self.interfaces_without_a_type.add((iface.get("hostname"), iface_name))
+                self.interfaces_without_a_type.add((self.device_name_of(iface.get("hostname")), iface_name))
                 if iface is not pseudo_interface:
                     # Only an Interface IP Fabric actually reported. The pseudo management Interface
                     # is fabricated here, so counting it would report this adapter's own invention
@@ -296,7 +304,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
             try:
                 interface = self.interface(
                     name=iface_name,
-                    device_name=iface.get("hostname"),
+                    device_name=self.device_name_of(iface.get("hostname")),
                     description=iface.get("dscr", ""),
                     enabled=enabled,
                     mac_address=(
@@ -505,12 +513,12 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
                 # Withheld rather than carrying a length this side does not know, so that the
                 # Nautobot adapter withholds the same address and the mask it holds is left alone.
                 # Written, the address would land under the wrong parent Prefix.
-                self.addresses_without_a_subnet.add((iface.get("hostname"), iface_name, host))
+                self.addresses_without_a_subnet.add((self.device_name_of(iface.get("hostname")), iface_name, host))
                 continue
             resolved[host] = length
             try:
                 address = self.interface_address(
-                    device_name=iface.get("hostname"),
+                    device_name=self.device_name_of(iface.get("hostname")),
                     interface_name=iface_name,
                     host=host,
                     mask_length=length,
@@ -524,8 +532,14 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
                 # virtual address that is also configured on it.
                 self.job.logger.warning("Duplicate address %s discovered on Interface %s", host, iface_name)
 
-    @staticmethod
-    def link_endpoint(link, side):
+    def device_name_of(self, hostname: Optional[str]) -> Optional[str]:
+        """Return the Nautobot name of the Device IP Fabric names by a hostname.
+
+        The same hostname except for a stack master given a name of its own by `ipfabric_stack_master_name`.
+        """
+        return self.device_names.get(hostname, hostname)
+
+    def link_endpoint(self, link, side):
         """Return the "local" or "remote" side of a connectivity matrix entry as an endpoint."""
         hostname = link.get(f"{side}Host")
         interface_name = link.get(f"{side}Int")
@@ -533,7 +547,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
             return None
         if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
             interface_name = canonical_interface_name(interface_name)
-        return hostname, interface_name
+        return self.device_name_of(hostname), interface_name
 
     def endpoints_are_cableable(self, *endpoints):
         """Determine whether a Cable can be synced between the given endpoints.
@@ -741,7 +755,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
         )
         unreadable_modes = Counter()
         for row in rows:
-            device_name, interface_name = row.get("hostname"), row.get("intName")
+            device_name, interface_name = self.device_name_of(row.get("hostname")), row.get("intName")
             if not device_name or not interface_name:
                 continue
             if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
@@ -988,7 +1002,11 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
         """
         rows = self.client.technology.routing.vrf_interfaces.all(columns=["sn", "hostname", "intName", "vrf"])
         for row in rows:
-            device_name, interface_name, vrf_name = row.get("hostname"), row.get("intName"), row.get("vrf")
+            device_name, interface_name, vrf_name = (
+                self.device_name_of(row.get("hostname")),
+                row.get("intName"),
+                row.get("vrf"),
+            )
             if not device_name or not interface_name or not vrf_name:
                 continue
             if IP_FABRIC_USE_CANONICAL_INTERFACE_NAME:
@@ -1026,7 +1044,11 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
         unknown_devices = set()
         assigned = 0
         for vrf_name, device_name in sorted(
-            {(row.get("vrf"), row.get("hostname")) for row in detail_rows if row.get("vrf") and row.get("hostname")}
+            {
+                (row.get("vrf"), self.device_name_of(row.get("hostname")))
+                for row in detail_rows
+                if row.get("vrf") and row.get("hostname")
+            }
         ):
             try:
                 self.get(self.device, {"name": device_name})
@@ -1136,6 +1158,8 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
 
     def load(self):  # pylint: disable=too-many-locals,too-many-statements,too-many-branches
         """Load data from IP Fabric."""
+        # Before anything is named, so that a format that cannot name a stack stops the run here.
+        ipfabric_utils.check_stack_name_formats(STACK_MEMBER_NAME, STACK_MASTER_NAME)
         self.load_sites()
         vlans_by_location, stacks, interfaces = self.load_data()
 
@@ -1226,7 +1250,7 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
                                 # Each member is its own chassis, so the member's serial is the
                                 # chassis serial for it. The stack's `snHw` describes the master.
                                 "serial_number": holdable_serial(member_sn),
-                                "name": f"{device.hostname}-member{member.get('member')}",
+                                "name": stack_device_name(STACK_MEMBER_NAME, device.hostname, member.get("member")),
                                 "vc_name": device.hostname,
                                 "vc_master": False,
                                 "vc_priority": member.get("member"),
@@ -1236,11 +1260,17 @@ class IPFabricDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-insta
                         if index == 0:
                             args.update(
                                 {
-                                    "name": device.hostname,
+                                    "name": stack_device_name(STACK_MASTER_NAME, device.hostname, member.get("member")),
                                     "vc_master": True,
                                 }
                             )
+                            if args["name"] != device.hostname:
+                                self.device_names[device.hostname] = args["name"]
                         member_devices.append(args)
+                    # By number, as Nautobot holds a Device's position, where IP Fabric reports a string.
+                    self.stack_device_names[device.hostname] = {
+                        int(dev["vc_position"]): dev["name"] for dev in member_devices
+                    }
 
                 for index, dev in enumerate(member_devices):
                     if self.scope.software_versions and dev["software_version"] is None:

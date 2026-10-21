@@ -6,6 +6,7 @@ import threading
 from collections import defaultdict
 from functools import wraps
 from itertools import takewhile
+from string import Formatter
 from typing import Optional
 
 VIRTUAL = "virtual"
@@ -91,6 +92,44 @@ def software_image_name(reported: Optional[str]) -> Optional[str]:
     if not reported:
         return None
     return re.split(r"[/:]", reported.strip())[-1].lower() or None
+
+
+STACK_NAME_FIELDS = ("hostname", "member")
+
+
+def check_stack_name_formats(member_format: str, master_format: str) -> None:
+    """Raise `ValueError` naming what is wrong with the formats stack Devices are named by.
+
+    Each may use only `{hostname}`, the stack's IP Fabric hostname, and `{member}`, the member's
+    number, with an optional format spec such as `{member:02d}`. The member format must use
+    `{member}`, or every member of a stack would get one name.
+    """
+    for setting, template in (
+        ("ipfabric_stack_member_name", member_format),
+        ("ipfabric_stack_master_name", master_format),
+    ):
+        try:
+            fields = {field for _, field, _, _ in Formatter().parse(template) if field is not None}
+            unknown = fields - set(STACK_NAME_FIELDS)
+            if unknown:
+                raise ValueError(f"it names {', '.join(sorted(unknown))}; only hostname and member may be used")
+            template.format(hostname="stack", member=1)
+        except (ValueError, IndexError, KeyError) as error:
+            raise ValueError(f"The {setting} setting, {template!r}, is not a usable name format: {error}") from error
+    if "member" not in {field for _, field, _, _ in Formatter().parse(member_format) if field}:
+        raise ValueError(
+            f"The ipfabric_stack_member_name setting, {member_format!r}, does not use {{member}}, so every "
+            "member of a stack would get the same name"
+        )
+
+
+def stack_device_name(name_format: str, hostname: str, member) -> str:
+    """Return the name of one Device of a stack, from a format checked by `check_stack_name_formats`.
+
+    IP Fabric reports a member's number as a string, so it is made a number first, for a format such
+    as `{member:02d}` to pad it.
+    """
+    return name_format.format(hostname=hostname, member=int(member))
 
 
 def lag_member_names(reported: str) -> list:

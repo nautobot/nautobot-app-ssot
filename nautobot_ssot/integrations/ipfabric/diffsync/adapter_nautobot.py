@@ -10,6 +10,8 @@ from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from diffsync import Adapter
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
+from django.core.exceptions import ValidationError
+from django.db import Error as DjangoBaseDBError
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 from nautobot.core.choices import ColorChoices
@@ -128,10 +130,16 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         location_filter: Optional[Location],
         *args,
         bulk_write_mode: bool = False,
+        stack_device_names: Optional[Dict[str, Dict[int, str]]] = None,
         **kwargs,
     ):
-        """Initialize the NautobotDiffSync."""
+        """Initialize the NautobotDiffSync.
+
+        `stack_device_names` holds each stack's Device names by member number, keyed by its Virtual
+        Chassis name, as the IP Fabric adapter names them. See `rename_stack_devices`.
+        """
         super().__init__(*args, **kwargs)
+        self.stack_device_names = stack_device_names or {}
         self.job = job
         self.sync = sync
         self.sync_ipfabric_tagged_only = sync_ipfabric_tagged_only
@@ -891,6 +899,48 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
                 ", ".join(sorted(self.placeholder_interfaces)),
             )
 
+    def rename_stack_devices(self):
+        """Rename the stack Devices this sync wrote to the names the configured formats give them.
+
+        A Device is identified by its name, so changing `ipfabric_stack_member_name` or
+        `ipfabric_stack_master_name` would otherwise read as every stack Device removed and another
+        created, taking the master's Interfaces, addresses and Cables with it. Renamed first, each is
+        found under its new name and keeps all of that. A Device is matched by its Virtual Chassis and
+        its position in it, and only one carrying the sync's Tag is renamed. A dry run reports the
+        renames rather than making them, so its diff shows the old names removed and the new created.
+        """
+        renames = []
+        for vc_name, names in self.stack_device_names.items():
+            devices = Device.objects.filter(virtual_chassis__name=vc_name, vc_position__in=names, tags=self.ssot_tag)
+            if self.tenant is not None:
+                devices = devices.filter(tenant=self.tenant)
+            renames.extend(
+                (device, names[device.vc_position]) for device in devices if device.name != names[device.vc_position]
+            )
+        if not renames:
+            return
+        if self.job.dryrun:
+            self.job.logger.info(
+                "A sync would rename %d stack Devices to the configured format: %s",
+                len(renames),
+                ", ".join(f"{device.name} to {name}" for device, name in renames),
+            )
+            return
+        renamed = []
+        for device, name in renames:
+            old_name, device.name = device.name, name
+            try:
+                device.validated_save()
+            except (DjangoBaseDBError, ValidationError) as err:
+                self.job.logger.error("Unable to rename the stack Device %s to %s. Error: %s", old_name, name, err)
+                continue
+            renamed.append(f"{old_name} to {name}")
+        if renamed:
+            self.job.logger.info(
+                "Renamed %d stack Devices to the configured format: %s", len(renamed), ", ".join(renamed)
+            )
+
     def load(self):
         """Load data from Nautobot."""
+        self.rename_stack_devices()
         self.load_data()
