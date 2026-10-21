@@ -1473,23 +1473,31 @@ class TestModelNautobotBranchMatrix(TestCase):
         self.assertEqual("EXAMPLE REGION", prefix.custom_field_data.get("site"))
 
     def test_process_ext_attrs_location_sets_single_location_field(self):
-        """Models with a single `location` field (e.g. VLAN Group) get it set instead of `locations.add()`."""
+        """Models with a single `location` field (VLAN Group, Namespace) get it set instead of `locations.add()`."""
         status_active, _ = Status.objects.get_or_create(name="Active")
-        location_type, _ = LocationType.objects.get_or_create(name="Test LocationType VLANGroup")
-        location_type.content_types.add(ContentType.objects.get_for_model(VLANGroup))
-        location, _ = Location.objects.get_or_create(name="VG Site", location_type=location_type, status=status_active)
-        vlan_group = VLANGroup(name="VG-Location")
+        location_type, _ = LocationType.objects.get_or_create(name="Test LocationType Single Location")
+        location_type.content_types.add(
+            ContentType.objects.get_for_model(VLANGroup), ContentType.objects.get_for_model(Namespace)
+        )
+        location, _ = Location.objects.get_or_create(
+            name="Single Site", location_type=location_type, status=status_active
+        )
 
         adapter = Mock()
         adapter.job = Mock(logger=Mock())
         adapter.config = Mock(infoblox_location_ext_attr="")
         adapter.location_map = {
-            "vg site": {"id": location.id, "location_type": location_type.name, "content_types": {"vlangroup"}},
+            "single site": {
+                "id": location.id,
+                "location_type": location_type.name,
+                "content_types": {"vlangroup", "namespace"},
+            },
         }
 
-        process_ext_attrs(adapter=adapter, obj=vlan_group, extattrs={"site": "VG Site"})
-
-        self.assertEqual(vlan_group.location_id, location.id)
+        for obj in (VLANGroup(name="VG-Location"), Namespace(name="NS-Location")):
+            with self.subTest(model=obj._meta.model_name):
+                process_ext_attrs(adapter=adapter, obj=obj, extattrs={"site": "Single Site"})
+                self.assertEqual(obj.location_id, location.id)
 
     def test_process_ext_attrs_vrf_on_model_without_vrfs_warns(self):
         """A VRF Extensibility Attribute on an object that can't hold VRFs (e.g. IP Address) is skipped with a warning."""

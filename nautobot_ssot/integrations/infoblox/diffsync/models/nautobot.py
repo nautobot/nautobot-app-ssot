@@ -459,7 +459,9 @@ class NautobotVlan(Vlan):
         )
         try:
             # One transaction, so deferred many-to-many writes from `process_ext_attrs` run after the VLAN row exists
-            # and are discarded if the save fails.
+            # and are discarded if the save fails. This can't be `@transaction.atomic` on the method (as on
+            # `NautobotNetwork.create`): the `ValidationError` is caught below, so the method would return normally and
+            # commit, running the deferred writes for a VLAN that was never saved.
             with transaction.atomic():
                 if "ext_attrs" in attrs:
                     process_ext_attrs(adapter=adapter, obj=_vlan, extattrs=attrs["ext_attrs"])
