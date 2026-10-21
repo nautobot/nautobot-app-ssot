@@ -19,7 +19,12 @@ from nautobot_ssot.integrations.infoblox.choices import (
 )
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
-from nautobot_ssot.integrations.infoblox.diffsync.models.nautobot import NautobotVlan, process_ext_attrs
+from nautobot_ssot.integrations.infoblox.diffsync.models.nautobot import (
+    NautobotNamespace,
+    NautobotVlan,
+    NautobotVlanGroup,
+    process_ext_attrs,
+)
 from nautobot_ssot.tests.infoblox.fixtures_infoblox import create_default_infoblox_config, create_prefix_relationship
 
 
@@ -1499,20 +1504,58 @@ class TestModelNautobotBranchMatrix(TestCase):
                 process_ext_attrs(adapter=adapter, obj=obj, extattrs={"site": "Single Site"})
                 self.assertEqual(obj.location_id, location.id)
 
-    def test_process_ext_attrs_vrf_on_model_without_vrfs_warns(self):
-        """A VRF Extensibility Attribute on an object that can't hold VRFs (e.g. IP Address) is skipped with a warning."""
-        ip_address = IPAddress(address="10.99.6.1/24")
+    def test_create_persists_single_location_from_ext_attr(self):
+        """VLAN Group and Namespace `create()` save the Location set from a `site` Extensibility Attribute."""
+        status_active, _ = Status.objects.get_or_create(name="Active")
+        location_type, _ = LocationType.objects.get_or_create(name="Test LocationType Create Single Location")
+        location_type.content_types.add(
+            ContentType.objects.get_for_model(VLANGroup), ContentType.objects.get_for_model(Namespace)
+        )
+        location, _ = Location.objects.get_or_create(
+            name="Create Site", location_type=location_type, status=status_active
+        )
 
-        adapter = Mock()
+        adapter = Mock(spec=NautobotAdapter)
         adapter.job = Mock(logger=Mock())
         adapter.config = Mock(infoblox_location_ext_attr="")
-        adapter.vrf_map = {"red": uuid.uuid4()}
+        adapter.vlangroup_map = {}
+        adapter.namespace_map = {}
+        adapter.location_map = {
+            "create site": {
+                "id": location.id,
+                "location_type": location_type.name,
+                "content_types": {"vlangroup", "namespace"},
+            },
+        }
+        ext_attrs = {"site": "Create Site"}
 
-        process_ext_attrs(adapter=adapter, obj=ip_address, extattrs={"vrf": "red"})
+        NautobotVlanGroup.create(
+            adapter=adapter, ids={"name": "VG-Create"}, attrs={"description": "", "ext_attrs": ext_attrs}
+        )
+        NautobotNamespace.create(adapter=adapter, ids={"name": "NS-Create"}, attrs={"ext_attrs": ext_attrs})
 
-        adapter.job.logger.warning.assert_called_once()
-        self.assertIn("do not support VRF assignment", adapter.job.logger.warning.call_args[0][0])
-        self.assertEqual("red", ip_address.custom_field_data.get("vrf"))
+        self.assertEqual(VLANGroup.objects.get(name="VG-Create").location, location)
+        self.assertEqual(Namespace.objects.get(name="NS-Create").location, location)
+
+    def test_process_ext_attrs_vrf_on_model_without_vrfs_warns(self):
+        """A VRF Extensibility Attribute on an object that can't hold VRFs is skipped with a warning."""
+        for obj in (
+            IPAddress(address="10.99.6.1/24"),
+            VLAN(vid=99, name="VRF-VLAN"),
+            VLANGroup(name="VRF-VG"),
+            Namespace(name="VRF-NS"),
+        ):
+            with self.subTest(model=obj._meta.model_name):
+                adapter = Mock()
+                adapter.job = Mock(logger=Mock())
+                adapter.config = Mock(infoblox_location_ext_attr="")
+                adapter.vrf_map = {"red": uuid.uuid4()}
+
+                process_ext_attrs(adapter=adapter, obj=obj, extattrs={"vrf": "red"})
+
+                adapter.job.logger.warning.assert_called_once()
+                self.assertIn("do not support VRF assignment", adapter.job.logger.warning.call_args[0][0])
+                self.assertEqual("red", obj.custom_field_data.get("vrf"))
 
     def test_process_ext_attrs_location_case_insensitive_match(self):
         """A location extattr resolves to a prefix-capable Location regardless of value case."""
@@ -1732,7 +1775,6 @@ class TestModelNautobotVlanCreateAutocommit(TransactionTestCase):
     """
 
     def test_vlan_create_with_site_ext_attr_assigns_location(self):
-        create_default_infoblox_config()
         status_active, _ = Status.objects.get_or_create(name="Active")
         status_active.content_types.add(ContentType.objects.get_for_model(VLAN))
         location_type, _ = LocationType.objects.get_or_create(name="Test LocationType VLAN Autocommit")
