@@ -869,15 +869,17 @@ class TestNautobotAdapter(TestCase):
 
     def test_get_in_scope_devices_honours_tagged_only(self):
         """`sync_ipfabric_tagged_only` narrows Device scope to tagged Devices."""
-        locations = Location.objects.filter(name="stack")
+        self.nb_adapter.device_location_pks = frozenset(
+            Location.objects.filter(name="stack").values_list("pk", flat=True)
+        )
         self.nb_adapter.sync_ipfabric_tagged_only = False
-        self.assertEqual(self.nb_adapter.get_in_scope_devices(locations).count(), 3)
+        self.assertEqual(self.nb_adapter.get_in_scope_devices().count(), 3)
 
         self.nb_adapter.sync_ipfabric_tagged_only = True
-        self.assertEqual(self.nb_adapter.get_in_scope_devices(locations).count(), 0)
+        self.assertEqual(self.nb_adapter.get_in_scope_devices().count(), 0)
 
         Device.objects.get(name="stack1").tags.add(self.ssot_tag)
-        self.assertEqual(self.nb_adapter.get_in_scope_devices(locations).count(), 1)
+        self.assertEqual(self.nb_adapter.get_in_scope_devices().count(), 1)
 
     @unittest.skipIf(AssertNoRepeatedQueries is None, "Requires Nautobot 3.1+ (AssertNoRepeatedQueries)")
     def test_load_cables_no_n_plus_one(self):

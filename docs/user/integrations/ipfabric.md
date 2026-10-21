@@ -59,7 +59,7 @@ There are several options available.
 - **Sync Interface VRFs**: Put each Interface in the VRF IP Fabric reports for it. Disabled by default; requires **Sync Interfaces** and **Sync Device VRFs**.
 - **Sync Cables**: Sync the device connections in IP Fabric's connectivity matrix to Nautobot Cables. Disabled by default; requires **Sync Interfaces**. See [Cables](#cables).
 - **Dry run**: This will only report the difference between the source and destination without synchronization.
-- **Site Filter**: Filter the data loaded into DiffSync by a top level location of a specified Site.
+- **Site Filter**: Filter the data loaded into DiffSync by a top level location of a specified Site. The sync then writes only to Devices at that Location, the Devices it read, so a Device of the same name elsewhere is left alone.
 
 Deselecting an object type keeps it out of the sync in both directions, so existing Nautobot records of that type are left untouched rather than removed as absent from IP Fabric. An object type whose requirement is not selected is skipped, and the Job log names the unmet requirement. Devices are always synced, since every other object type is either a Device or hangs off one.
 

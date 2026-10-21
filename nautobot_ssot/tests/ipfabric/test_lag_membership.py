@@ -16,6 +16,7 @@ from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import Role, Status
 
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import DeviceScope
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache, lag_member_names
 from nautobot_ssot.tests.ipfabric.job_log import job_log_text, job_logger
 from nautobot_ssot.tests.ipfabric.test_ipfabric_adapter import (
@@ -180,6 +181,7 @@ class TestUpdatingTheRelationsOnAnInterfaceNautobotHolds(TestCase):
         """Return an Interface model bound to a stub adapter, as the Nautobot side loads one."""
         adapter = MagicMock()
         adapter.sync_ipfabric_tagged_only = False
+        adapter.device_scope = DeviceScope()
         adapter.tenant = None
         model = InterfaceModel(name=interface.name, device_name=self.device.name, status="Active")
         model.adapter = adapter

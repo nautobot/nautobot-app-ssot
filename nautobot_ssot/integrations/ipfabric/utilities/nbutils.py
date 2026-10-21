@@ -7,6 +7,7 @@ import ipaddress
 import logging
 import threading
 from contextlib import contextmanager
+from dataclasses import dataclass
 from typing import Any, Iterable, Optional
 
 from django.contrib.contenttypes.models import ContentType
@@ -929,27 +930,45 @@ def run_namespace_filter() -> dict:
     return {"parent__namespace": get_run_namespace()} if namespace_chosen() else {}
 
 
+@dataclass(frozen=True)
+class DeviceScope:
+    """The Devices one run of the sync covers, for reading them and for writing to them alike.
+
+    The Nautobot adapter reads its Devices through `devices`, and every write to an Interface, an
+    address, a VLAN, a VRF or a Cable finds its Device through `get_syncable_device`, which asks the
+    same question. A run that read a Device it could not write to would report the same changes on
+    every run and never apply them; one that wrote to a Device it did not read would change what it
+    never compared.
+
+    Attributes:
+        tagged_only: Whether only Devices carrying the synced Tag are covered, as **Sync Tagged Only**.
+        tenant: The run's Tenant, when only its Devices are covered.
+        location_pks: The Locations covered, or None for every Location.
+    """
+
+    tagged_only: bool = False
+    tenant: Optional[Tenant] = None
+    location_pks: Optional[frozenset] = None
+
+    def devices(self):
+        """Return the Devices this scope covers."""
+        devices = Device.objects.all()
+        if self.location_pks is not None:
+            devices = devices.filter(location__in=self.location_pks)
+        if self.tagged_only:
+            devices = devices.filter(tags=get_or_create_tag_object(tag_name=SYNCED_TAG_NAME))
+        if self.tenant is not None:
+            devices = devices.filter(tenant=self.tenant)
+        return devices
+
+
 @job_scoped_cache(group=BULK_WRITTEN_LOOKUPS)
-def get_syncable_device(device_name: str, *, tagged_only: bool, tenant: Optional[Tenant]) -> Optional[Device]:
+def get_syncable_device(device_name: str, *, scope: DeviceScope) -> Optional[Device]:
     """Return the Device an Interface or Cable operation is for, or None when it is out of scope.
 
-    `tagged_only` mirrors the job option of that name, and has to, because the Nautobot adapter reads
-    Devices under the same condition. A run that loads every Device must be able to write to every
-    Device: matching on the Tag while the adapter loaded without it leaves those Devices' Interfaces
-    reported as changed on every run and never written, and reported only as a warning.
-
-    `tenant` is the run's Tenant, which narrows the Devices the adapter reads in the same way.
-
-    Both are keyword-only and required, so no caller can leave one out and reopen that mismatch.
-    The adapter also scopes Devices by Location, which this does
-    not; a Device whose Location is outside the run is still matched by name.
+    `scope` is required, so no write path can match a Device the Nautobot adapter did not read.
     """
-    devices = Device.objects.filter(name=device_name)
-    if tagged_only:
-        devices = devices.filter(tags=get_or_create_tag_object(tag_name=SYNCED_TAG_NAME))
-    if tenant is not None:
-        devices = devices.filter(tenant=tenant)
-    return devices.first()
+    return scope.devices().filter(name=device_name).first()
 
 
 @job_scoped_cache(group=BULK_WRITTEN_LOOKUPS, maxsize=2)
@@ -978,8 +997,7 @@ def get_tagged_interface(
     device_name: str,
     interface_name: str,
     *,
-    tagged_only: bool,
-    tenant: Optional[Tenant],
+    scope: DeviceScope,
     logger: Optional[logging.Logger] = None,
 ) -> Optional[Interface]:
     """Retrieve an Interface belonging to a Device this run covers.
@@ -988,15 +1006,13 @@ def get_tagged_interface(
         device_name: Name of the Device the Interface belongs to.
         interface_name: Name of the Interface.
         logger: Logger to use for messaging.
-        tagged_only: Whether only Devices tagged as synced from IP Fabric are in scope, mirroring
-            the job option of that name.
-        tenant: The run's Tenant, when only that Tenant's Devices are in scope.
+        scope: The Devices this run covers; see `DeviceScope`.
 
     Returns:
         Interface: When the Interface is found.
         None: When either the Device or the Interface cannot be found.
     """
-    device = get_syncable_device(device_name, tagged_only=tagged_only, tenant=tenant)
+    device = get_syncable_device(device_name, scope=scope)
     if not device:
         if logger:
             logger.warning(
@@ -2037,8 +2053,7 @@ def set_interface_vlans(  # pylint: disable=too-many-arguments,too-many-locals
     mode: str,
     untagged_vid: Optional[int],
     tagged_vids: Iterable[int],
-    tagged_only: bool,
-    tenant: Optional[Tenant],
+    scope: DeviceScope,
     logger: Optional[logging.Logger] = None,
     pending: Optional[Any] = None,
 ) -> bool:
@@ -2054,8 +2069,7 @@ def set_interface_vlans(  # pylint: disable=too-many-arguments,too-many-locals
         mode: One of Nautobot's 802.1Q modes, or an empty string to take the Interface out of one.
         untagged_vid: VLAN ID to carry untagged, or None.
         tagged_vids: VLAN IDs to carry tagged.
-        tagged_only: Mirrors the job option, so an Interface on a Device this run may not write to
-            is left alone.
+        scope: The Devices this run covers; see `DeviceScope`.
         logger: Logger to use for messaging.
         pending: When given, the write is queued rather than saved.
 
@@ -2063,15 +2077,13 @@ def set_interface_vlans(  # pylint: disable=too-many-arguments,too-many-locals
         bool: Whether the Interface now holds what was asked for.
     """
     device_obj = (pending.find(Device, device_name) if pending is not None else None) or get_syncable_device(
-        device_name, tagged_only=tagged_only, tenant=tenant
+        device_name, scope=scope
     )
     interface_obj = None
     if pending is not None and device_obj is not None:
         interface_obj = pending.find(Interface, (device_obj.pk, interface_name))
     if interface_obj is None:
-        interface_obj = get_tagged_interface(
-            device_name, interface_name, tagged_only=tagged_only, tenant=tenant, logger=logger
-        )
+        interface_obj = get_tagged_interface(device_name, interface_name, scope=scope, logger=logger)
     if interface_obj is None:
         return False
 
@@ -2126,8 +2138,7 @@ def set_interface_vrf(  # pylint: disable=too-many-arguments
     device_name: str,
     interface_name: str,
     vrf_name: Optional[str],
-    tagged_only: bool,
-    tenant: Optional[Tenant],
+    scope: DeviceScope,
     logger: Optional[logging.Logger] = None,
     pending: Optional[Any] = None,
 ) -> bool:
@@ -2140,8 +2151,7 @@ def set_interface_vrf(  # pylint: disable=too-many-arguments
         device_name: Name of the Device the Interface belongs to.
         interface_name: Name of the Interface.
         vrf_name: Name of the VRF in the run's Namespace, or None to take the Interface out of one.
-        tagged_only: Mirrors the job option, so an Interface on a Device this run may not write to
-            is left alone.
+        scope: The Devices this run covers; see `DeviceScope`.
         logger: Logger to use for messaging.
         pending: When given, the write is queued rather than saved.
 
@@ -2157,15 +2167,13 @@ def set_interface_vrf(  # pylint: disable=too-many-arguments
             return False
 
     device_obj = (pending.find(Device, device_name) if pending is not None else None) or get_syncable_device(
-        device_name, tagged_only=tagged_only, tenant=tenant
+        device_name, scope=scope
     )
     interface_obj = None
     if pending is not None and device_obj is not None:
         interface_obj = pending.find(Interface, (device_obj.pk, interface_name))
     if interface_obj is None:
-        interface_obj = get_tagged_interface(
-            device_name, interface_name, tagged_only=tagged_only, tenant=tenant, logger=logger
-        )
+        interface_obj = get_tagged_interface(device_name, interface_name, scope=scope, logger=logger)
     if interface_obj is None:
         return False
 
@@ -2200,8 +2208,7 @@ def get_vrf_device_assignment(vrf_name: str, device_name: str) -> Optional[VRFDe
 def create_vrf_device_assignment(  # pylint: disable=too-many-arguments
     vrf_name: str,
     device_name: str,
-    tagged_only: bool,
-    tenant: Optional[Tenant],
+    scope: DeviceScope,
     logger: Optional[logging.Logger] = None,
     pending: Optional[Any] = None,
 ) -> Optional[VRFDeviceAssignment]:
@@ -2214,8 +2221,7 @@ def create_vrf_device_assignment(  # pylint: disable=too-many-arguments
     Args:
         vrf_name: Name of the VRF, in the run's Namespace.
         device_name: Name of the Device carrying it.
-        tagged_only: Mirrors the job option, so that a Device this run may not write to is not
-            assigned to; see `get_syncable_device`.
+        scope: The Devices this run covers; see `DeviceScope`.
         logger: Logger to use for messaging.
         pending: When given, the assignment is queued for a batched write rather than saved, and
             is where a VRF or Device queued earlier in the run is looked for.
@@ -2234,7 +2240,7 @@ def create_vrf_device_assignment(  # pylint: disable=too-many-arguments
             logger.error("Unable to find a VRF named %s to assign to the Device named %s", vrf_name, device_name)
         return None
     device_obj = pending.find(Device, device_name) if pending is not None else None
-    device_obj = device_obj or get_syncable_device(device_name, tagged_only=tagged_only, tenant=tenant)
+    device_obj = device_obj or get_syncable_device(device_name, scope=scope)
     if device_obj is None:
         if logger:
             logger.error("Unable to find a Device named %s to assign the VRF named %s to", device_name, vrf_name)

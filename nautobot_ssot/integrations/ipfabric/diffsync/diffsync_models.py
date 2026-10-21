@@ -783,9 +783,7 @@ class Interface(DiffSyncExtras):
         device_obj = None
         if adapter.pending is not None:
             device_obj = adapter.pending.find(NautobotDevice, device_name)
-        device_obj = device_obj or tonb_nbutils.get_syncable_device(
-            device_name, tagged_only=adapter.sync_ipfabric_tagged_only, tenant=adapter.tenant
-        )
+        device_obj = device_obj or tonb_nbutils.get_syncable_device(device_name, scope=adapter.device_scope)
         if not device_obj:
             adapter.job.logger.warning(
                 f"Unable to create an Interface with the name {interface_name} because of a failure "
@@ -812,9 +810,7 @@ class Interface(DiffSyncExtras):
 
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete Interface Object."""
-        device = tonb_nbutils.get_syncable_device(
-            self.device_name, tagged_only=self.adapter.sync_ipfabric_tagged_only, tenant=self.adapter.tenant
-        )
+        device = tonb_nbutils.get_syncable_device(self.device_name, scope=self.adapter.device_scope)
         if device:
             return_super = True
             # Every Interface of the Device at once, so removing many of them costs one lookup
@@ -845,9 +841,7 @@ class Interface(DiffSyncExtras):
 
     def update(self, attrs):
         """Update Interface object in Nautobot."""
-        device = tonb_nbutils.get_syncable_device(
-            self.device_name, tagged_only=self.adapter.sync_ipfabric_tagged_only, tenant=self.adapter.tenant
-        )
+        device = tonb_nbutils.get_syncable_device(self.device_name, scope=self.adapter.device_scope)
         if device:
             return_super = True
             # Every Interface of the Device at once, so a Device with many of them changing costs
@@ -996,7 +990,7 @@ class InterfaceAddress(DiffSyncExtras):
         """
         if adapter.pending is not None:
             device = adapter.pending.find(NautobotDevice, device_name) or tonb_nbutils.get_syncable_device(
-                device_name, tagged_only=adapter.sync_ipfabric_tagged_only, tenant=adapter.tenant
+                device_name, scope=adapter.device_scope
             )
             if device is not None:
                 queued = adapter.pending.find(NautobotInterface, (device.pk, interface_name))
@@ -1005,8 +999,7 @@ class InterfaceAddress(DiffSyncExtras):
         interface = tonb_nbutils.get_tagged_interface(
             device_name,
             interface_name,
-            tagged_only=adapter.sync_ipfabric_tagged_only,
-            tenant=adapter.tenant,
+            scope=adapter.device_scope,
             logger=adapter.job.logger,
         )
         if interface is None:
@@ -1499,8 +1492,7 @@ class VrfDeviceAssignment(DiffSyncExtras):
         assignment = tonb_nbutils.create_vrf_device_assignment(
             vrf_name=ids["vrf_name"],
             device_name=ids["device_name"],
-            tagged_only=adapter.sync_ipfabric_tagged_only,
-            tenant=adapter.tenant,
+            scope=adapter.device_scope,
             logger=adapter.job.logger,
             pending=adapter.pending,
         )
@@ -1558,8 +1550,7 @@ class InterfaceVlan(DiffSyncExtras):
             mode=attrs["mode"],
             untagged_vid=attrs.get("untagged_vid"),
             tagged_vids=attrs.get("tagged_vids") or [],
-            tagged_only=adapter.sync_ipfabric_tagged_only,
-            tenant=adapter.tenant,
+            scope=adapter.device_scope,
             logger=adapter.job.logger,
             pending=adapter.pending,
         ):
@@ -1574,8 +1565,7 @@ class InterfaceVlan(DiffSyncExtras):
             mode=attrs.get("mode", self.mode),
             untagged_vid=attrs["untagged_vid"] if "untagged_vid" in attrs else self.untagged_vid,
             tagged_vids=attrs["tagged_vids"] if "tagged_vids" in attrs else self.tagged_vids,
-            tagged_only=self.adapter.sync_ipfabric_tagged_only,
-            tenant=self.adapter.tenant,
+            scope=self.adapter.device_scope,
             logger=self.adapter.job.logger,
             pending=self.adapter.pending,
         ):
@@ -1594,8 +1584,7 @@ class InterfaceVlan(DiffSyncExtras):
             mode="",
             untagged_vid=None,
             tagged_vids=[],
-            tagged_only=self.adapter.sync_ipfabric_tagged_only,
-            tenant=self.adapter.tenant,
+            scope=self.adapter.device_scope,
             logger=self.adapter.job.logger,
             pending=self.adapter.pending,
         ):
@@ -1632,8 +1621,7 @@ class InterfaceVrf(DiffSyncExtras):
             device_name=ids["device_name"],
             interface_name=ids["interface_name"],
             vrf_name=attrs["vrf_name"],
-            tagged_only=adapter.sync_ipfabric_tagged_only,
-            tenant=adapter.tenant,
+            scope=adapter.device_scope,
             logger=adapter.job.logger,
             pending=adapter.pending,
         ):
@@ -1646,8 +1634,7 @@ class InterfaceVrf(DiffSyncExtras):
             device_name=self.device_name,
             interface_name=self.interface_name,
             vrf_name=attrs["vrf_name"],
-            tagged_only=self.adapter.sync_ipfabric_tagged_only,
-            tenant=self.adapter.tenant,
+            scope=self.adapter.device_scope,
             logger=self.adapter.job.logger,
             pending=self.adapter.pending,
         ):
@@ -1664,8 +1651,7 @@ class InterfaceVrf(DiffSyncExtras):
             device_name=self.device_name,
             interface_name=self.interface_name,
             vrf_name=None,
-            tagged_only=self.adapter.sync_ipfabric_tagged_only,
-            tenant=self.adapter.tenant,
+            scope=self.adapter.device_scope,
             logger=self.adapter.job.logger,
             pending=self.adapter.pending,
         ):
@@ -1963,21 +1949,17 @@ class Cable(DiffSyncExtras):
         where the Devices and Interfaces created earlier in the sync are by now: a Cable is not
         `batched`, so anything Bulk Write Mode queued is written before its operations run.
         """
-        job_logger = adapter.job.logger
-        tagged_only = adapter.sync_ipfabric_tagged_only
         interface_a = tonb_nbutils.get_tagged_interface(
             ids["termination_a_device"],
             ids["termination_a_name"],
-            logger=job_logger,
-            tagged_only=tagged_only,
-            tenant=adapter.tenant,
+            scope=adapter.device_scope,
+            logger=adapter.job.logger,
         )
         interface_b = tonb_nbutils.get_tagged_interface(
             ids["termination_b_device"],
             ids["termination_b_name"],
-            logger=job_logger,
-            tagged_only=tagged_only,
-            tenant=adapter.tenant,
+            scope=adapter.device_scope,
+            logger=adapter.job.logger,
         )
         if not interface_a or not interface_b:
             return None, None
