@@ -86,6 +86,8 @@ def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=
                     elif hasattr(obj, "location_id"):
                         obj.location_id = location_entry["id"]
                     else:
+                        # Defensive: every model passed here today has a Location field, and the LocationType
+                        # content-type check above already rejects models that can't have a Location.
                         adapter.job.logger.warning(
                             f"Cannot assign Location {attr_value} to {obj} found in Extensibility Attributes '{attr}'; "
                             f"{obj._meta.verbose_name} objects do not support Location assignment."
@@ -426,6 +428,8 @@ class NautobotVlanGroup(VlanView):
     def update(self, attrs):
         """Update VLANGroup object in Nautobot."""
         _vg = OrmVlanGroup.objects.get(id=self.pk)
+        if "description" in attrs:
+            _vg.description = attrs["description"] or ""
         if "ext_attrs" in attrs:
             process_ext_attrs(adapter=self.adapter, obj=_vg, extattrs=attrs["ext_attrs"])
         try:

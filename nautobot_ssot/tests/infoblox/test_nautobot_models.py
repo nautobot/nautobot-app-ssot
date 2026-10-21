@@ -1193,7 +1193,9 @@ class TestModelNautobotVlanGroupNamespaceVlan(TestCase):
         VLANGroup.objects.get_or_create(name="VG-Update")
 
         ds_vlangroup = self.infoblox_adapter.vlangroup(
-            name="VG-Update", description="", ext_attrs={"department": "Network", "site": self.location.name}
+            name="VG-Update",
+            description="Updated in Infoblox",
+            ext_attrs={"department": "Network", "site": self.location.name},
         )
         self.infoblox_adapter.add(ds_vlangroup)
 
@@ -1204,8 +1206,27 @@ class TestModelNautobotVlanGroupNamespaceVlan(TestCase):
 
         self.assertTrue(CustomField.objects.filter(key="department").exists())
         vlan_group = VLANGroup.objects.get(name="VG-Update")
+        self.assertEqual(vlan_group.description, "Updated in Infoblox")
         self.assertEqual(vlan_group.cf.get("department"), "Network")
         self.assertEqual(vlan_group.location, self.location)
+
+    def test_vlangroup_update_validation_error_skips_object(self):
+        """A VLAN Group that fails validation on update is skipped with a warning, and the sync carries on."""
+        vlan_group, _ = VLANGroup.objects.get_or_create(name="VG-Invalid", defaults={"range": "1-100"})
+        VLAN.objects.create(vid=50, name="VLAN50", vlan_group=vlan_group, status=self.status_active)
+        # Shrink the range below the existing VLAN without validation, so the next `validated_save()` fails.
+        VLANGroup.objects.filter(pk=vlan_group.pk).update(range="1-10")
+
+        nb_adapter = NautobotAdapter(config=self.config)
+        nb_adapter.job = Mock(debug=True, logger=Mock())
+        nb_adapter.load()
+        ds_vlangroup = nb_adapter.get("vlangroup", "VG-Invalid")
+
+        self.assertIsNone(ds_vlangroup.update({"description": "changed"}))
+        nb_adapter.job.logger.warning.assert_called_once()
+        self.assertIn("Unable to update VLAN Group VG-Invalid", nb_adapter.job.logger.warning.call_args[0][0])
+        vlan_group.refresh_from_db()
+        self.assertEqual(vlan_group.description, "")
 
     def test_vlangroup_delete(self):
         """Validate VLANGroup object is deleted when absent from source and enabled in deletable models."""
@@ -1540,7 +1561,10 @@ class TestModelNautobotBranchMatrix(TestCase):
         self.assertEqual(Namespace.objects.get(name="NS-Create").location, location)
 
     def test_process_ext_attrs_location_on_model_without_location_warns(self):
-        """A Location for an object with no Location field is skipped with a warning, not set as a stray attribute."""
+        """A Location for an object with no Location field is skipped with a warning, not set as a stray attribute.
+
+        Not a real IP Address scenario: `content_types` includes `ipaddress` only to reach the defensive branch.
+        """
         ip_address = IPAddress(address="10.99.7.1/24")
         adapter = Mock()
         adapter.job = Mock(logger=Mock())
@@ -1788,8 +1812,9 @@ class TestModelNautobotBranchMatrix(TestCase):
 class TestModelNautobotVlanCreateAutocommit(TransactionTestCase):
     """VLAN creation with a location Extensibility Attribute, in autocommit mode like a real sync job.
 
-    `TestCase` wraps each test in one transaction where foreign key checks are deferred, which hides the ordering bug
-    from #809: the Location assignment row being written before the VLAN row exists.
+    `TestCase` runs inside a transaction, so `on_commit` callbacks are queued until after the save instead of running
+    immediately as in a real autocommit job. That hides the ordering bug from #809: the Location assignment row being
+    written before the VLAN row exists.
     """
 
     def test_vlan_create_with_site_ext_attr_assigns_location(self):
