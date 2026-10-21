@@ -57,6 +57,12 @@ class TestUtils(unittest.TestCase):
         standardized_dict = get_ext_attr_dict(extattrs=test_dict, excluded_attrs=excluded_attrs)
         self.assertEqual(standardized_dict, expected)
 
+    def test_get_ext_attr_dict_exclusion_list_accepts_custom_field_key(self):
+        """An attribute is excluded when listed by the Nautobot custom field key it maps to."""
+        test_dict = {"Site Code": {"value": "HQ"}, "Region": {"value": "Central"}}
+        standardized_dict = get_ext_attr_dict(extattrs=test_dict, excluded_attrs=["site_code"])
+        self.assertEqual(standardized_dict, {"region": "Central"})
+
     def test_validate_dns_name(self):
         """Test validate_dns_name."""
         client = unittest.mock.Mock()

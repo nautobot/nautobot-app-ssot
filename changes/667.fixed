@@ -1,0 +1,1 @@
+Fixed Infoblox Extensible Attributes listed in `cf_fields_ignore` by their Nautobot custom field key (for example `site_code`) still being synchronized.
