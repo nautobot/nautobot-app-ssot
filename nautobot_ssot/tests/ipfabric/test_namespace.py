@@ -13,6 +13,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import Nautob
 from nautobot_ssot.integrations.ipfabric.signals import nautobot_database_ready_callback
 from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
+from nautobot_ssot.integrations.ipfabric.writers import BatchedWriter, ImmediateWriter
 from nautobot_ssot.tests.ipfabric.supporting_objects import SupportingObjectTestCase, addresses_of
 
 
@@ -59,14 +60,14 @@ class TestWritingInTheChosenNamespace(SupportingObjectTestCase):
 
     def test_an_address_and_its_parent_prefix_are_created_in_it(self):
         nbutils.use_namespace(self.namespace)
-        ip_obj = nbutils.create_ip("10.0.0.1", 24)
+        ip_obj = nbutils.create_ip("10.0.0.1", 24, writer=ImmediateWriter())
         self.assertEqual(ip_obj.parent.namespace, self.namespace)
         self.assertFalse(Prefix.objects.filter(namespace=get_default_namespace()).exists())
 
     def test_the_same_address_in_global_is_left_alone_rather_than_reused(self):
         in_global = make_address("10.0.0.1/24", get_default_namespace(), self.active_status)
         nbutils.use_namespace(self.namespace)
-        ip_obj = nbutils.create_ip("10.0.0.1", 24)
+        ip_obj = nbutils.create_ip("10.0.0.1", 24, writer=ImmediateWriter())
         self.assertNotEqual(ip_obj.pk, in_global.pk)
         self.assertEqual(IPAddress.objects.filter(host="10.0.0.1").count(), 2)
 
@@ -74,14 +75,14 @@ class TestWritingInTheChosenNamespace(SupportingObjectTestCase):
         in_global = make_address("10.0.0.1/24", get_default_namespace(), self.active_status)
         nbutils.use_namespace(self.namespace)
         pending = PendingWrites(mock.MagicMock())
-        nbutils.create_ip("10.0.0.1", 24, pending=pending)
+        nbutils.create_ip("10.0.0.1", 24, writer=BatchedWriter(pending))
         pending.flush()
         ours = IPAddress.objects.exclude(pk=in_global.pk).get(host="10.0.0.1")
         self.assertEqual(ours.parent.namespace, self.namespace)
 
     def test_without_a_choice_an_exact_match_is_still_reused_from_any_namespace(self):
         elsewhere = make_address("10.0.0.1/24", self.namespace, self.active_status)
-        self.assertEqual(nbutils.create_ip("10.0.0.1", 24).pk, elsewhere.pk)
+        self.assertEqual(nbutils.create_ip("10.0.0.1", 24, writer=ImmediateWriter()).pk, elsewhere.pk)
 
     def test_a_prefix_is_created_in_it(self):
         nbutils.use_namespace(self.namespace)
@@ -98,7 +99,7 @@ class TestWritingInTheChosenNamespace(SupportingObjectTestCase):
     def test_a_vrf_is_created_and_found_in_it(self):
         VRF.objects.create(name="BLUE", namespace=get_default_namespace(), status=self.active_status)
         nbutils.use_namespace(self.namespace)
-        created = nbutils.create_vrf("BLUE", None, "Active", "")
+        created = nbutils.create_vrf("BLUE", None, "Active", "", writer=ImmediateWriter())
         self.assertEqual(created.namespace, self.namespace)
         self.assertEqual(nbutils.get_vrf("BLUE"), created)
 
@@ -106,7 +107,7 @@ class TestWritingInTheChosenNamespace(SupportingObjectTestCase):
         in_global = VRF.objects.create(name="BLUE", namespace=get_default_namespace(), status=self.active_status)
         tenant = Tenant.objects.create(name="customer-a")
         nbutils.use_namespace(self.namespace)
-        created = nbutils.create_vrf("BLUE", None, "Active", "", tenant=tenant)
+        created = nbutils.create_vrf("BLUE", None, "Active", "", tenant=tenant, writer=ImmediateWriter())
         self.assertEqual((created.namespace, created.tenant), (self.namespace, tenant))
         in_global.refresh_from_db()
         self.assertIsNone(in_global.tenant)

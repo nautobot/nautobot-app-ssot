@@ -37,6 +37,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import DeviceScope
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
+from nautobot_ssot.integrations.ipfabric.writers import BatchedWriter, ImmediateWriter
 from nautobot_ssot.tests.ipfabric.job_log import job_log_text, job_logger
 
 
@@ -503,8 +504,12 @@ class BulkModeLocationAndVlanTestCase(TestCase):
         `Location.create` asks with the site id and `Device.create` without it, so relying on the
         lookup cache alone would build two and write both.
         """
-        first = nbutils.get_or_create_location_object(location_name="dup", location_id="site-9", pending=self.pending)
-        second = nbutils.get_or_create_location_object(location_name="dup", location_id=None, pending=self.pending)
+        first = nbutils.get_or_create_location_object(
+            location_name="dup", location_id="site-9", writer=BatchedWriter(self.pending)
+        )
+        second = nbutils.get_or_create_location_object(
+            location_name="dup", location_id=None, writer=BatchedWriter(self.pending)
+        )
 
         self.assertIs(second, first, "The second caller should have been given the queued Location.")
         self.pending.flush()
@@ -512,7 +517,7 @@ class BulkModeLocationAndVlanTestCase(TestCase):
 
     def test_a_queued_location_carries_its_site_id_and_tag(self):
         location = nbutils.get_or_create_location_object(
-            location_name="stamped", location_id="site-7", pending=self.pending
+            location_name="stamped", location_id="site-7", writer=BatchedWriter(self.pending)
         )
         self.pending.flush()
 
@@ -523,14 +528,14 @@ class BulkModeLocationAndVlanTestCase(TestCase):
 
     def test_a_queued_vlan_gets_its_location_and_tag(self):
         """`VLAN.save()` makes the location assignment, and a batched insert never calls it."""
-        location = nbutils.get_or_create_location_object(location_name="vlan-home", pending=self.pending)
+        location = nbutils.get_or_create_location_object(location_name="vlan-home", writer=BatchedWriter(self.pending))
         vlan = nbutils.create_vlan(
             vlan_name="bulk-vlan",
             vlan_id=42,
             vlan_status="Active",
             location_obj=location,
             description="queued",
-            pending=self.pending,
+            writer=BatchedWriter(self.pending),
         )
         self.pending.flush()
 
@@ -542,7 +547,7 @@ class BulkModeLocationAndVlanTestCase(TestCase):
 
     def test_a_vlan_and_its_location_land_in_one_flush(self):
         """The VLAN references a Location that has not been written when the VLAN is built."""
-        location = nbutils.get_or_create_location_object(location_name="same-flush", pending=self.pending)
+        location = nbutils.get_or_create_location_object(location_name="same-flush", writer=BatchedWriter(self.pending))
         self.assertFalse(Location.objects.filter(name="same-flush").exists())
         vlan = nbutils.create_vlan(
             vlan_name="same-flush-vlan",
@@ -550,7 +555,7 @@ class BulkModeLocationAndVlanTestCase(TestCase):
             vlan_status="Active",
             location_obj=location,
             description="",
-            pending=self.pending,
+            writer=BatchedWriter(self.pending),
         )
 
         self.pending.flush()
@@ -562,7 +567,7 @@ class BulkModeLocationAndVlanTestCase(TestCase):
         existing = Location.objects.create(
             name="already-there", location_type=LocationType.objects.get(name="Site"), status=self.active
         )
-        found = nbutils.get_or_create_location_object(location_name="already-there", pending=self.pending)
+        found = nbutils.get_or_create_location_object(location_name="already-there", writer=BatchedWriter(self.pending))
 
         self.assertEqual(found.pk, existing.pk)
         self.assertEqual(self.pending.counts(), {}, "Nothing should have been queued for an existing Location.")
@@ -1051,10 +1056,10 @@ class NewAddressResolutionTestCase(TestCase):
         """
         self.make_prefix("2001:db8:beef::/64")
 
-        per_object = nbutils.create_ip("2001:db8:beef::1", 64, logger=self.logger)
+        per_object = nbutils.create_ip("2001:db8:beef::1", 64, logger=self.logger, writer=ImmediateWriter())
 
         pending = PendingWrites(job_logger())
-        queued = nbutils.create_ip("2001:db8:beef::2", 64, logger=self.logger, pending=pending)
+        queued = nbutils.create_ip("2001:db8:beef::2", 64, logger=self.logger, writer=BatchedWriter(pending))
         pending.flush()
 
         self.assertEqual(self.errors(), [])
@@ -1078,7 +1083,9 @@ class NewAddressResolutionTestCase(TestCase):
             with self.subTest(mode=label):
                 address = f"10.0.{0 if pending is None else 1}.1"
                 self.make_prefix(f"10.0.{0 if pending is None else 1}.0/25")
-                result = nbutils.create_ip(address, 24, logger=self.logger, pending=pending)
+                result = nbutils.create_ip(
+                    address, 24, logger=self.logger, writer=BatchedWriter(pending) if pending else ImmediateWriter()
+                )
                 if pending is not None:
                     pending.flush()
 
@@ -1091,7 +1098,7 @@ class NewAddressResolutionTestCase(TestCase):
         """A wider Prefix does not help, since the address parents to the most specific one."""
         self.make_prefix("10.5.0.0/25")
 
-        nbutils.create_ip("10.5.0.1", 24, logger=self.logger)
+        nbutils.create_ip("10.5.0.1", 24, logger=self.logger, writer=ImmediateWriter())
 
         self.assertFalse(
             Prefix.objects.filter(prefix="10.5.0.0/24").exists(),
@@ -1104,7 +1111,12 @@ class NewAddressResolutionTestCase(TestCase):
         for label, pending in (("per object", None), ("bulk", PendingWrites(job_logger()))):
             with self.subTest(mode=label):
                 octet = 10 if pending is None else 11
-                result = nbutils.create_ip(f"10.{octet}.0.1", 24, logger=self.logger, pending=pending)
+                result = nbutils.create_ip(
+                    f"10.{octet}.0.1",
+                    24,
+                    logger=self.logger,
+                    writer=BatchedWriter(pending) if pending else ImmediateWriter(),
+                )
                 if pending is not None:
                     pending.flush()
 
@@ -1117,7 +1129,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing = IPAddress(address="10.20.0.1/24", namespace=self.namespace, status=self.active)
         existing.validated_save()
 
-        result = nbutils.create_ip("10.20.0.1", 24, logger=self.logger)
+        result = nbutils.create_ip("10.20.0.1", 24, logger=self.logger, writer=ImmediateWriter())
 
         self.assertEqual(result.pk, existing.pk)
         self.assertEqual(IPAddress.objects.filter(host="10.20.0.1").count(), 1)
@@ -1127,13 +1139,15 @@ class NewAddressResolutionTestCase(TestCase):
         with unittest.mock.patch.object(
             nbutils.Prefix.objects, "get_or_create", side_effect=nbutils.ValidationError("refused")
         ):
-            result = nbutils.create_ip("10.30.0.1", 24, logger=self.logger)
+            result = nbutils.create_ip("10.30.0.1", 24, logger=self.logger, writer=ImmediateWriter())
 
         self.assertIsNone(result)
         self.assertTrue(any("Unable to create a missing Prefix" in line for line in self.errors()), self.errors())
 
     def test_a_status_that_does_not_exist_is_reported(self):
-        result = nbutils.create_ip("10.40.0.1", 24, status="No-Such-Status", logger=self.logger)
+        result = nbutils.create_ip(
+            "10.40.0.1", 24, status="No-Such-Status", logger=self.logger, writer=ImmediateWriter()
+        )
 
         self.assertIsNone(result)
         self.assertTrue(any("No-Such-Status" in line for line in self.errors()), self.errors())
@@ -1148,7 +1162,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing = IPAddress(address="10.50.0.1/25", namespace=self.namespace, status=self.active)
         existing.validated_save()
 
-        result = nbutils.create_ip("10.50.0.1", 24, logger=self.logger)
+        result = nbutils.create_ip("10.50.0.1", 24, logger=self.logger, writer=ImmediateWriter())
 
         self.assertEqual(result.pk, existing.pk)
         self.assertEqual(IPAddress.objects.filter(host="10.50.0.1").count(), 1)
@@ -1160,7 +1174,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing.validated_save()
         pending = PendingWrites(job_logger())
 
-        result = nbutils.create_ip("10.52.0.1", 24, logger=self.logger, pending=pending)
+        result = nbutils.create_ip("10.52.0.1", 24, logger=self.logger, writer=BatchedWriter(pending))
         pending.flush()
 
         self.assertEqual(result.pk, existing.pk)
@@ -1172,8 +1186,8 @@ class NewAddressResolutionTestCase(TestCase):
         self.make_prefix("10.53.0.0/25")
         pending = PendingWrites(job_logger())
 
-        first = nbutils.create_ip("10.53.0.1", 25, logger=self.logger, pending=pending)
-        second = nbutils.create_ip("10.53.0.1", 24, logger=self.logger, pending=pending)
+        first = nbutils.create_ip("10.53.0.1", 25, logger=self.logger, writer=BatchedWriter(pending))
+        second = nbutils.create_ip("10.53.0.1", 24, logger=self.logger, writer=BatchedWriter(pending))
         pending.flush()
 
         self.assertEqual(first.pk, second.pk)
@@ -1190,7 +1204,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing = IPAddress(address="10.54.0.1/25", namespace=self.namespace, status=self.active)
         existing.validated_save()
 
-        nbutils.create_ip("10.54.0.1", 24, logger=self.logger)
+        nbutils.create_ip("10.54.0.1", 24, logger=self.logger, writer=ImmediateWriter())
 
         self.assertEqual(
             sorted(str(prefix.prefix) for prefix in Prefix.objects.filter(network="10.54.0.0")),
@@ -1206,7 +1220,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing = IPAddress(address="10.55.0.1/25", namespace=self.namespace, status=self.active)
         existing.validated_save()
 
-        nbutils.create_ip("10.55.0.1", 24, logger=self.logger)
+        nbutils.create_ip("10.55.0.1", 24, logger=self.logger, writer=ImmediateWriter())
 
         self.assertEqual(IPAddress.objects.get(pk=existing.pk).mask_length, 24)
         self.assertEqual(self.errors(), [])
@@ -1217,7 +1231,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing.validated_save()
         pending = PendingWrites(job_logger())
 
-        nbutils.create_ip("10.56.0.1", 24, logger=self.logger, pending=pending)
+        nbutils.create_ip("10.56.0.1", 24, logger=self.logger, writer=BatchedWriter(pending))
         pending.flush()
 
         self.assertEqual(IPAddress.objects.get(pk=existing.pk).mask_length, 24)

@@ -34,6 +34,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
 )
 from nautobot_ssot.integrations.ipfabric.utilities import cables, nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
+from nautobot_ssot.integrations.ipfabric.writers import ImmediateWriter
 from nautobot_ssot.tests.ipfabric.job_log import job_log_text, job_logger
 
 
@@ -475,11 +476,13 @@ class ChangeLogCostTestCase(_CostTestCase):
         interface = self.interfaces(1, "quiet")[0]
         # The run that first tags and stamps it does change it, and is recorded. The one after is
         # the one under test.
-        nbutils.create_interface(self.device, {"name": interface.name, "type": "1000base-t"})
+        nbutils.create_interface(self.device, {"name": interface.name, "type": "1000base-t"}, writer=ImmediateWriter())
         job_scoped_cache.clear_all()
 
         with change_logging(JobChangeContext(user=self.user)):
-            nbutils.create_interface(self.device, {"name": interface.name, "type": "1000base-t"})
+            nbutils.create_interface(
+                self.device, {"name": interface.name, "type": "1000base-t"}, writer=ImmediateWriter()
+            )
 
         changes = ObjectChange.objects.filter(
             changed_object_type=ContentType.objects.get_for_model(Interface),
@@ -604,7 +607,7 @@ class ResyncCostTestCase(_CostTestCase):
         the custom field data.
         """
         with patch.object(IPAddress, "validated_save", autospec=True) as mock_save:
-            nbutils.create_ip("10.70.0.5", 24)
+            nbutils.create_ip("10.70.0.5", 24, writer=ImmediateWriter())
 
         mock_save.assert_not_called()
         self.address.refresh_from_db()
@@ -615,14 +618,16 @@ class ResyncCostTestCase(_CostTestCase):
     def test_a_changed_mask_is_still_written_through_validation(self):
         """Validation is what settles which Prefix an address hangs under, so a change still needs it."""
         with patch.object(IPAddress, "validated_save", autospec=True) as mock_save:
-            nbutils.create_ip("10.70.0.5", 25)
+            nbutils.create_ip("10.70.0.5", 25, writer=ImmediateWriter())
 
         mock_save.assert_called_once()
 
     def test_an_unchanged_interface_is_stamped_without_being_revalidated(self):
         """An Interface Nautobot already holds has no field set on it, so the stamp is the whole write."""
         with patch.object(Interface, "validated_save", autospec=True) as mock_save:
-            nbutils.create_interface(self.device, {"name": self.interface.name, "type": "1000base-t"})
+            nbutils.create_interface(
+                self.device, {"name": self.interface.name, "type": "1000base-t"}, writer=ImmediateWriter()
+            )
 
         mock_save.assert_not_called()
         self.interface.refresh_from_db()
@@ -631,11 +636,15 @@ class ResyncCostTestCase(_CostTestCase):
 
     def test_an_object_already_tagged_is_not_tagged_again(self):
         """The Tag is two statements of its own, so it is asked for only where it is missing."""
-        nbutils.create_interface(self.device, {"name": self.interface.name, "type": "1000base-t"})
+        nbutils.create_interface(
+            self.device, {"name": self.interface.name, "type": "1000base-t"}, writer=ImmediateWriter()
+        )
         job_scoped_cache.clear_all()
 
         with CaptureQueriesContext(connection) as queries:
-            nbutils.create_interface(self.device, {"name": self.interface.name, "type": "1000base-t"})
+            nbutils.create_interface(
+                self.device, {"name": self.interface.name, "type": "1000base-t"}, writer=ImmediateWriter()
+            )
 
         tag_writes = [
             query["sql"]
@@ -723,7 +732,7 @@ class VlanLookupCostTestCase(_CostTestCase):
     def create_vlans(self, count):
         """Create `count` VLANs at this test's Location."""
         for index in range(count):
-            nbutils.create_vlan(f"vlan{index}", 100 + index, "Active", self.location, "")
+            nbutils.create_vlan(f"vlan{index}", 100 + index, "Active", self.location, "", writer=ImmediateWriter())
 
     def assert_asked_once(self, lookup, vlan_count):
         """Assert the lookup went to the database once and answered the remaining VLANs from memory.
@@ -754,7 +763,7 @@ class VlanLookupCostTestCase(_CostTestCase):
             name="vlan-less-site", location_type=location_type, status=self.active_status
         )
 
-        nbutils.create_vlan("granted", 200, "Active", location, "")
+        nbutils.create_vlan("granted", 200, "Active", location, "", writer=ImmediateWriter())
 
         self.assertTrue(location_type.content_types.filter(app_label="ipam", model="vlan").exists())
         self.assertEqual(VLAN.objects.get(vid=200).locations.get(), location)

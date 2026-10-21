@@ -22,6 +22,7 @@ from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
     vlan_group_can_hold,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
+from nautobot_ssot.integrations.ipfabric.writers import ImmediateWriter
 
 
 class _VlanGroupTestCase(TestCase):
@@ -60,6 +61,7 @@ class TestVlanGroupPerLocation(_VlanGroupTestCase):
             location_obj=self.location,
             description="",
             vlan_group=group,
+            writer=ImmediateWriter(),
         )
 
     def test_a_group_is_created_for_the_location_and_named_after_it(self):
@@ -138,6 +140,7 @@ class TestVlanGroupPerLocation(_VlanGroupTestCase):
             description="",
             logger=logger,
             vlan_group=group,
+            writer=ImmediateWriter(),
         )
 
         self.assertIsNotNone(written, "The VLAN itself is still worth syncing.")

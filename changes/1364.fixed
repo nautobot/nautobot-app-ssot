@@ -1,1 +1,2 @@
 Fixed the IP Fabric integration removing the Cables, VRF assignments, Interface VRFs and Interface VLANs of the Devices at a site IP Fabric does not report when Locations are deselected.
+Fixed Bulk Write Mode in the IP Fabric integration failing to move a Device already in Nautobot to a Location created in the same run, and missing the port or port channel created in the same run for an Interface already in Nautobot.

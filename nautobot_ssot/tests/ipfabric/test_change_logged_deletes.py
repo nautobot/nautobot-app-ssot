@@ -29,6 +29,7 @@ from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
     deferred_change_logging,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
+from nautobot_ssot.integrations.ipfabric.writers import ImmediateWriter
 
 
 class _ChangeContextTestCase(TestCase):
@@ -80,6 +81,7 @@ class TestDeletesUnderAJobsChangeContext(_ChangeContextTestCase):
         adapter = MagicMock()
         adapter.sync_ipfabric_tagged_only = False
         adapter.device_scope = DeviceScope()
+        adapter.writer = ImmediateWriter()
         adapter.tenant = None
         adapter.safe_delete_tally = Counter()
         adapter.safe_delete_mode = False

@@ -15,15 +15,16 @@ from nautobot_ssot.integrations.ipfabric.sync_scope import (
     SyncScope,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import DeviceScope
+from nautobot_ssot.integrations.ipfabric.writers import BatchedWriter, ImmediateWriter
 
 
 # One register per value a run reports absent on both sides, which is how the two adapters agree.
 class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attributes
     """Nautobot adapter for DiffSync."""
 
-    # The collector to queue writes into, or None when they go one at a time. Declared here so that
-    # a model may ask any adapter; only the destination adapter ever sets it.
-    pending = None
+    # What every model writes through; see `pending`. Declared here so that a model may ask any
+    # adapter, and only the destination adapter is ever given a queue. Holds no state, so one serves.
+    writer = ImmediateWriter()
 
     # The Location a run is narrowed to, or None. Declared here for the same reason, since what is
     # network wide has to know whether the run can see the whole network.
@@ -200,6 +201,16 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         a pairing broken on one side alone reads as absent from the source and deletes the record.
         """
         return self.scope.ip_addresses and not self.strict.interfaces
+
+    @property
+    def pending(self):
+        """Return Bulk Write Mode's queue, or None when every write is made at once."""
+        return self.writer.pending
+
+    @pending.setter
+    def pending(self, pending):
+        """Write through a queue for Bulk Write Mode, or one object at a time when given None."""
+        self.writer = BatchedWriter(pending) if pending is not None else ImmediateWriter()
 
     @property
     def tagged_locations_only(self) -> bool:
