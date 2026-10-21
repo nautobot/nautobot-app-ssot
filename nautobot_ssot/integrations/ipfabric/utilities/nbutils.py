@@ -48,6 +48,7 @@ from nautobot.ipam.models import (
 )
 from nautobot.tenancy.models import Tenant
 from netutils.lib_mapper import NAPALM_LIB_MAPPER
+from netutils.mac import is_valid_mac, mac_to_format
 
 from nautobot_ssot.integrations.ipfabric.constants import (
     DEFAULT_INTERFACE_TYPE,
@@ -71,6 +72,9 @@ VRF_CONFLICT_CF_NAME = "ipfabric_vrf_conflict"
 # Likewise for a Prefix's VLAN: the site and VLAN pairs IP Fabric reported for a network when they
 # did not agree on one, so that a Prefix left without a VLAN can be told from one that has none.
 PREFIX_VLAN_CONFLICT_CF_NAME = "ipfabric_prefix_vlan_conflict"
+
+# The MAC address IP Fabric discovered a host's IP Address at, which Nautobot has no field for.
+HOST_MAC_CF_NAME = "ipfabric_host_mac"
 
 
 @contextmanager
@@ -1408,6 +1412,46 @@ def set_prefix_vlan(
     except (DjangoBaseDBError, ValidationError) as err:
         if logger:
             logger.error("Unable to record the VLAN of the Prefix %s. Error: %s", prefix, err)
+        return False
+    return True
+
+
+def normalise_mac(mac: Optional[str]) -> str:
+    """Return a MAC address in Nautobot's colon separated upper case form, or "" when it is not one.
+
+    IP Fabric reports a host's MAC in Cisco's dotted form, `aac1.ab6f.dbe2`, and the Interface MACs
+    this integration writes are formatted the same way as this.
+    """
+    if not mac or not is_valid_mac(mac):
+        return ""
+    return mac_to_format(mac, "MAC_COLON_TWO").upper()
+
+
+def get_host_address(host: str) -> Optional[IPAddress]:
+    """Return the IP Address of a host IP Fabric discovered, matched as an interface address is."""
+    return IPAddress.objects.filter(host=host, **run_namespace_filter()).first()
+
+
+def set_host_details(ip_obj: IPAddress, dns_name: str, mac: str, logger: Optional[logging.Logger] = None) -> bool:
+    """Record a host's DNS name and MAC address on its IP Address, and save whatever else changed with them.
+
+    Args:
+        ip_obj: The host's IP Address, which the caller may have changed in other ways too.
+        dns_name: The DNS name IP Fabric discovered, or an empty string.
+        mac: The MAC address IP Fabric discovered, in the form `normalise_mac` returns, or an empty string.
+        logger: Logger to use for messaging.
+
+    Returns:
+        bool: Whether the IP Address was saved.
+    """
+    ip_obj.dns_name = dns_name
+    ip_obj.cf[HOST_MAC_CF_NAME] = mac
+    try:
+        # Calls validated_save() on the object.
+        tag_object(nautobot_object=ip_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+    except (DjangoBaseDBError, ValidationError) as err:
+        if logger:
+            logger.error("Unable to record the host details of the IP Address %s. Error: %s", ip_obj.host, err)
         return False
     return True
 
