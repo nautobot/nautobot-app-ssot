@@ -1,0 +1,1 @@
+Added a CI step to verify that the dependencies of this App are compatible with the dependencies of nautobot-chatops.
