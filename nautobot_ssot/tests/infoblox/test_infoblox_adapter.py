@@ -4,6 +4,7 @@ import unittest
 
 from nautobot_ssot.integrations.infoblox.choices import FixedAddressTypeChoices
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import InfobloxAdapter
+from nautobot_ssot.integrations.infoblox.utils.diffsync import build_vlan_map
 
 from .fixtures_infoblox import create_default_infoblox_config
 
@@ -811,3 +812,26 @@ class TestInfobloxAdapter(unittest.TestCase):
         self.assertEqual("fa-server1", ip_address.description)
         self.assertEqual([], infoblox_adapter.get_all("dnshostrecord"))
         job.logger.warning.assert_any_call(f"Host record {host_ref} not found, likely dynamic and expired.")
+
+    def test_load_vlans_uses_vlan_view_as_group(self):
+        """A VLAN's group is the VLAN View from its `_ref`, including VLANs in a VLAN Range and names with spaces.
+
+        The Prefix -> VLAN mapping (`build_vlan_map`) must derive the same group, or Prefixes cannot find their VLANs.
+        """
+        refs = {
+            "vlan/ZG5zLnZsYW4k:default/DATA_VLAN/20": "default",
+            "vlan/ZG5zLnZsYW4k:test/testrange/VL10/10": "test",
+            "vlan/ZG5zLnZsYW4k:default/My VLAN/20": "default",
+            "vlan/ZG5zLnZsYW4k:Prod View/DATA/20": "Prod View",
+        }
+        for ref, expected_group in refs.items():
+            with self.subTest(ref=ref):
+                self.infoblox_adapter.conn.get_vlans.return_value = [
+                    {"_ref": ref, "name": "vlan", "id": 20, "status": "ASSIGNED", "extattrs": {}}
+                ]
+                for vlan in self.infoblox_adapter.get_all("vlan"):
+                    self.infoblox_adapter.remove(vlan)
+                self.infoblox_adapter.load_vlans()
+                self.assertEqual(self.infoblox_adapter.get_all("vlan")[0].vlangroup, expected_group)
+                prefix_vlan_map = build_vlan_map(vlans=[{"id": 20, "name": "vlan", "vlan": ref}])
+                self.assertEqual(prefix_vlan_map[20]["group"], expected_group)
