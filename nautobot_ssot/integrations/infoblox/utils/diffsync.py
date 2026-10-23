@@ -59,18 +59,21 @@ def get_ext_attr_dict(extattrs: dict, excluded_attrs: Optional[list] = None):
 
     Args:
         extattrs (dict): Extensibility Attributes dict for object.
-        excluded_attrs (list): List of Extensibility Attributes to exclude.
+        excluded_attrs (list): Extensibility Attributes to exclude, by Infoblox name (`Site Code`) or by the
+            Nautobot custom field key derived from it (`site_code`). Both forms must match exactly; the
+            custom field key is lowercase.
 
     Returns:
         dict: Standardized dictionary for Extensibility Attributes.
     """
-    if excluded_attrs is None:
-        excluded_attrs = []
+    excluded = set(excluded_attrs or [])
     fixed_dict = {}
     for key, value in extattrs.items():
-        if key in excluded_attrs:
+        cf_key = slugify(key).replace("-", "_")
+        # Accept either the Infoblox EA name or the Nautobot custom field key derived from it.
+        if key in excluded or cf_key in excluded:
             continue
-        fixed_dict[slugify(key).replace("-", "_")] = value["value"]
+        fixed_dict[cf_key] = value["value"]
     return fixed_dict
 
 

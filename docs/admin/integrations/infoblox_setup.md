@@ -191,7 +191,7 @@ The default value of this setting is:
 
 That is, by default, all of the extensible attributes and custom fields will be synchronized, except the custom fields used internally by the Infoblox integration.
 
-To exclude Infoblox extensible attributes from being synchronized to Nautobot add the attribute names to the `extensible_attributes` list.
+To exclude Infoblox extensible attributes from being synchronized to Nautobot add the attribute names to the `extensible_attributes` list. Either form of the name works: the name as returned by the Infoblox API (for example `Site Code`), or the Nautobot custom field key the integration creates for it (`site_code`). Matching is exact, so the custom field key must be written in lowercase with underscores, as shown in Nautobot; variants such as `SITE_CODE` or `site code` are not matched.
 
 To exclude Infoblox custom fields from being synchronized to Infoblox add the custom field names to the `custom_fields` list.
 

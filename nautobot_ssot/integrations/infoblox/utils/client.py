@@ -47,14 +47,10 @@ def get_default_ext_attrs(review_list: list, excluded_attrs: Optional[list] = No
     Returns:
         dict: Dictionary of default Extensibility Attributes for a VLAN View, VLANs, Prefixes, or IP Addresses.
     """
-    if excluded_attrs is None:
-        excluded_attrs = []
     default_ext_attrs = {}
     for item in review_list:
         normalized_ext_attrs = get_ext_attr_dict(extattrs=item.get("extattrs", {}), excluded_attrs=excluded_attrs)
         for attr in normalized_ext_attrs:
-            if attr in excluded_attrs:
-                continue
             if attr not in default_ext_attrs:
                 default_ext_attrs[attr] = None
     return default_ext_attrs
