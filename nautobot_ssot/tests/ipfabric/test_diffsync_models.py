@@ -1563,6 +1563,8 @@ class TestDeferredChangeLoggingCoverage(SimpleTestCase):
 
     def test_a_new_model_is_covered_and_keeps_its_fields(self):
         class Widget(DiffSyncExtras):
+            """A model defined after the integration's own, as a new one would be."""
+
             _modelname = "widget"
             _identifiers = ("name",)
             _attributes = ("colour",)
@@ -1577,8 +1579,8 @@ class TestDeferredChangeLoggingCoverage(SimpleTestCase):
             def update(self, attrs):
                 return "updated"
 
-        self.assertTrue(Widget.create.defers_change_logging)
-        self.assertTrue(Widget.update.defers_change_logging)
+        self.assertTrue(getattr(Widget.create, "defers_change_logging", False))
+        self.assertTrue(getattr(Widget.update, "defers_change_logging", False))
         self.assertTrue({"name", "colour"} <= set(Widget.model_fields))
         self.assertEqual(Widget(name="a").colour, "red")
 
@@ -1596,6 +1598,8 @@ class TestDeferredChangeLoggingCoverage(SimpleTestCase):
 
     def test_a_model_that_is_not_batched_writes_the_queue_before_each_operation(self):
         class Gadget(DiffSyncExtras):
+            """A model written object by object."""
+
             _modelname = "gadget"
             _identifiers = ("name",)
             batched = False
