@@ -8,7 +8,7 @@ import logging
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
@@ -59,6 +59,10 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SYNCED_TAG_NAME,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.utils import host_route_length, job_scoped_cache
+
+if TYPE_CHECKING:
+    # Typing only: `writers` builds on this module, so importing it here at runtime would be circular.
+    from nautobot_ssot.integrations.ipfabric.writers import Writer
 
 # pylint: disable=too-many-branches
 
@@ -161,7 +165,8 @@ def get_or_create_location_object(
     location_name: str,
     location_id: Optional[str] = None,
     logger: Optional[logging.Logger] = None,
-    pending: Optional[Any] = None,
+    *,
+    writer: "Writer",
     tenant: Optional[Tenant] = None,
 ) -> Optional[Location]:
     """Creates a specified location in Nautobot.
@@ -172,8 +177,8 @@ def get_or_create_location_object(
         tenant: The run's Tenant, given to a Location this creates. A Location that already exists
             is left with whatever Tenant it has, since a site may be shared.
         logger: Logger to use for messaging.
-        pending: When given, a new Location is queued for a batched write rather than saved. The
-            returned Location already has its primary key, so a caller may go on to reference it.
+        writer: What writes a new Location. A queued one already has its primary key, so a caller may
+            go on to reference it.
 
     Returns:
         Location: When a Location Object is retrieved or created.
@@ -181,10 +186,9 @@ def get_or_create_location_object(
     """
     # A Location this run has already queued is not in the database yet, so it has to be found here
     # or a second one would be built and both written.
-    if pending is not None:
-        queued = pending.find(Location, location_name)
-        if queued is not None:
-            return queued
+    queued = writer.find(Location, location_name)
+    if queued is not None:
+        return queued
 
     try:
         location_type = LocationType.objects.get(name="Site")
@@ -227,16 +231,11 @@ def get_or_create_location_object(
             custom_field_obj.content_types.add(ContentType.objects.get_for_model(Location))
             location_obj.cf["ipfabric_site_id"] = location_id
 
-    if is_new and pending is not None:
-        return queue_new_object(pending, location_obj, key=location_name)
-
     try:
         if is_new:
-            # tag_object performs validated_save(), which is the only save a new Location takes.
-            tag_object(nautobot_object=location_obj, custom_field=LAST_SYNCHRONIZED_CF_NAME)
-        else:
-            # The site ID above is custom field data, so it rides the same statement as the stamp.
-            restamp_synced(location_obj, LAST_SYNCHRONIZED_CF_NAME)
+            return writer.create(location_obj, key=location_name)
+        # The site ID above is custom field data, so it rides the same statement as the stamp.
+        restamp_synced(location_obj, LAST_SYNCHRONIZED_CF_NAME)
     except (DjangoBaseDBError, ValidationError):
         if logger:
             logger.warning(
@@ -511,13 +510,13 @@ def get_or_create_software_image(
     return image
 
 
-def assign_software_image(device: Device, image: SoftwareImageFile, pending: Optional[Any] = None) -> None:
+def assign_software_image(device: Device, image: SoftwareImageFile, *, writer: "Writer") -> None:
     """Make an image the one a Device runs, replacing any other the Device names.
 
     A queued Device has no row to attach the image to yet, so the join row is queued after it.
     """
-    if pending is not None and device._state.adding:  # pylint: disable=protected-access
-        pending.add_through(Device.software_image_files.through(device=device, softwareimagefile=image))
+    if writer.holds(device):
+        writer.assign(Device.software_image_files.through(device=device, softwareimagefile=image))
         return
     device.software_image_files.set([image])
 
@@ -814,12 +813,14 @@ def get_or_create_virtual_chassis_object(name: str, logger=None) -> Optional[Vir
     return None
 
 
-def assign_device_to_virtual_chassis(device, virtual_chassis, position, master=False, priority=None, pending=None):  # pylint: disable=too-many-arguments
+def assign_device_to_virtual_chassis(  # pylint: disable=too-many-arguments
+    device, virtual_chassis, position, master=False, priority=None, *, writer: "Writer"
+):
     """Assign an existing device to an existing VirtualChassis. Update attributes if required.
 
-    With `pending`, the Device is queued rather than saved, so its membership fields go in with the
-    insert instead of needing a save of their own. The VirtualChassis master points back at the
-    Device, so that one is deferred until the Device's row exists.
+    A Device the writer has queued carries its membership fields into its insert, and one already in
+    Nautobot is saved. The VirtualChassis master points back at the Device, so that is set once the
+    Device's row exists.
     """
     updated = False
     if device.virtual_chassis != virtual_chassis:
@@ -831,14 +832,10 @@ def assign_device_to_virtual_chassis(device, virtual_chassis, position, master=F
     if priority and device.vc_priority != priority:
         device.vc_priority = priority
         updated = True
-    if updated and pending is None:
-        device.validated_save()
+    if updated:
+        writer.save(device)
     if master and virtual_chassis.master != device:
-        if pending is None:
-            virtual_chassis.master = device
-            virtual_chassis.validated_save()
-        else:
-            pending.defer_update(virtual_chassis, {"master": device})
+        writer.set_later(virtual_chassis, {"master": device})
     return virtual_chassis
 
 
@@ -1040,7 +1037,8 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
     status: str = "Active",
     object_pk: Optional[Interface] = None,
     logger: Optional[logging.Logger] = None,
-    pending: Optional[Any] = None,
+    *,
+    writer: "Writer",
     tenant: Optional[Tenant] = None,
 ) -> Optional[IPAddress]:
     """Verify ip address exists in Nautobot. If not, creates specified ip.
@@ -1054,8 +1052,7 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
         status: Status to assign to IP Address.
         object_pk: Interface Object to assigne IPAdress to.
         logger: Logger to use for messaging.
-        pending: When given, a new IPAddress and its Interface assignment are queued for a batched
-            write rather than saved.
+        writer: What writes a new IPAddress and its Interface assignment.
         tenant: The run's Tenant, given to a new address and to an existing one that has none.
 
     Returns:
@@ -1083,12 +1080,14 @@ def create_ip(  # pylint: disable=too-many-statements,too-many-arguments
                 f"and therefore cannot create an IPAddress of {ip_address}/{mask_length}"
             )
     else:
-        if pending is not None:
+        if writer.batched:
+            # Its own path rather than the writer's methods alone, since an address this run already
+            # queued has to be found by what Nautobot makes unique; see `queue_ip`.
             return queue_ip(
                 address=f"{ip_address}/{mask_length}",
                 status_obj=status_obj,
                 interface=object_pk,
-                pending=pending,
+                writer=writer,
                 logger=logger,
                 tenant=tenant,
             )
@@ -1318,20 +1317,17 @@ def create_prefix(
     return prefix_obj
 
 
-def resolve_prefix_location(location_name: str, pending: Optional[Any] = None) -> Optional[Location]:
+def resolve_prefix_location(location_name: str, *, writer: "Writer") -> Optional[Location]:
     """Return the Location a Prefix is seen at, from this run's queue or from Nautobot."""
-    if pending is not None:
-        queued = pending.find(Location, location_name)
-        if queued is not None:
-            return queued
-    return get_location_object(location_name)
+    return writer.find(Location, location_name) or get_location_object(location_name)
 
 
 def add_prefix_location(
     prefix: str,
     location_name: str,
     logger: Optional[logging.Logger] = None,
-    pending: Optional[Any] = None,
+    *,
+    writer: "Writer",
 ) -> bool:
     """Record that a Prefix is seen at a Location.
 
@@ -1342,8 +1338,7 @@ def add_prefix_location(
         prefix: The network in CIDR notation.
         location_name: Name of the Location.
         logger: Logger to use for messaging.
-        pending: When given, the assignment is queued for a batched write rather than saved, and
-            is where a Location queued earlier in the run is looked for.
+        writer: What writes the assignment, and where a Location queued earlier in the run is found.
 
     Returns:
         bool: Whether the assignment was written or queued.
@@ -1353,14 +1348,16 @@ def add_prefix_location(
         if logger:
             logger.error("Unable to find a Prefix of %s to record at the Location named %s", prefix, location_name)
         return False
-    location_obj = resolve_prefix_location(location_name, pending=pending)
+    location_obj = resolve_prefix_location(location_name, writer=writer)
     if location_obj is None:
         # Not reported here: one missing site would be named once for every Prefix seen at it. The
         # caller counts these and reports them once.
         return False
     allow_at_location_type(location_obj.location_type_id, Prefix)
-    if pending is not None:
-        pending.add_through(PrefixLocationAssignment(prefix=prefix_obj, location=location_obj))
+    if writer.batched:
+        # Saved immediately through `locations.add` instead, which leaves a row Nautobot already
+        # holds alone where saving the row itself would refuse it.
+        writer.assign(PrefixLocationAssignment(prefix=prefix_obj, location=location_obj))
         return True
     try:
         prefix_obj.locations.add(location_obj)
@@ -1531,7 +1528,7 @@ def queue_ip(  # pylint: disable=too-many-arguments
     address: str,
     status_obj: Status,
     interface: Optional[Interface],
-    pending: Any,
+    writer: "Writer",
     logger: Optional[logging.Logger] = None,
     tenant: Optional[Tenant] = None,
 ) -> Optional[IPAddress]:
@@ -1561,35 +1558,34 @@ def queue_ip(  # pylint: disable=too-many-arguments
         # address this run has already queued is reused even where IP Fabric reported the two with
         # different masks.
         key = (ip_obj.parent_id, str(ip_obj.host))
-        queued = pending.find(IPAddress, key)
+        queued = writer.find(IPAddress, key)
         if queued is not None:
             ip_obj = queued
         else:
             ip_obj.tenant = tenant
-            queue_new_object(pending, ip_obj, key=key)
+            writer.create(ip_obj, key=key)
     else:
         if claim_for_tenant(ip_obj, tenant):
-            pending.defer_update(ip_obj, {"tenant": tenant})
+            writer.set_later(ip_obj, {"tenant": tenant})
         if ip_obj.mask_length != mask_length_of(address):
-            pending.defer_update(ip_obj, {"mask_length": mask_length_of(address)})
+            writer.set_later(ip_obj, {"mask_length": mask_length_of(address)})
 
     if interface is not None:
-        pending.add_through(IPAddressToInterface(ip_address=ip_obj, interface_id=interface.pk))
+        writer.assign(IPAddressToInterface(ip_address=ip_obj, interface_id=interface.pk))
     return ip_obj
 
 
 # Not cached, as it is unhashable, but not useful to cache anyway
-def resolve_parent_interface(device_obj, parent_name: str, pending: Optional[Any] = None) -> Optional[Interface]:
+def resolve_parent_interface(device_obj, parent_name: str, *, writer: "Writer") -> Optional[Interface]:
     """Return the Interface a subinterface hangs off, from this run's queue or from Nautobot.
 
     The queue first, because a port this run has only queued has no row to be read back yet. It
     already carries its primary key, so a subinterface written in the same batch may point at it.
     """
-    if pending is not None:
-        queued = pending.find(Interface, (device_obj.pk, parent_name))
-        if queued is not None:
-            return queued
-    if pending is not None and device_obj._state.adding:  # pylint: disable=protected-access
+    queued = writer.find(Interface, (device_obj.pk, parent_name))
+    if queued is not None:
+        return queued
+    if writer.holds(device_obj):
         # The Device is queued and holds no rows, so nothing of its can be read back.
         return None
     return device_obj.interfaces.filter(name=parent_name).first()
@@ -1600,7 +1596,8 @@ def related_interfaces_of(  # pylint: disable=too-many-arguments
     interface_details: dict,
     interface_name: str,
     logger: Optional[logging.Logger] = None,
-    pending: Optional[Any] = None,
+    *,
+    writer: "Writer",
 ) -> dict:
     """Return the Interface fields naming another Interface on the same Device, resolved.
 
@@ -1613,7 +1610,7 @@ def related_interfaces_of(  # pylint: disable=too-many-arguments
         named = interface_details.get(field)
         if not named:
             continue
-        related = resolve_parent_interface(device_obj, named, pending=pending)
+        related = resolve_parent_interface(device_obj, named, writer=writer)
         if related is None:
             if logger:
                 logger.warning(
@@ -1631,7 +1628,8 @@ def create_interface(  # pylint: disable=too-many-arguments
     device_obj: Device,
     interface_details: dict,
     logger: Optional[logging.Logger] = None,
-    pending: Optional[Any] = None,
+    *,
+    writer: "Writer",
     create_statuses: bool = True,
 ) -> Optional[Interface]:
     """Verify interface exists on specified device. If not, creates interface.
@@ -1640,8 +1638,8 @@ def create_interface(  # pylint: disable=too-many-arguments
         device_obj: Device object to check interface against.
         interface_details: interface details.
         logger: Logger to use for messaging.
-        pending: When given, a new Interface is queued for a batched write rather than saved. The
-            returned Interface already has its primary key, so a caller may go on to reference it.
+        writer: What writes a new Interface. A queued one already has its primary key, so a caller may
+            go on to reference it.
         create_statuses: Whether the Interface's Status may be created when none of that name exists.
 
     Returns:
@@ -1677,15 +1675,13 @@ def create_interface(  # pylint: disable=too-many-arguments
         # configured default. The only place that default is still applied: an Interface already in
         # Nautobot has a type worth keeping, and this one has nothing to keep.
         defaults["type"] = DEFAULT_INTERFACE_TYPE
-    defaults.update(
-        related_interfaces_of(device_obj, interface_details, interface_name, logger=logger, pending=pending)
-    )
+    defaults.update(related_interfaces_of(device_obj, interface_details, interface_name, logger=logger, writer=writer))
     reported_state = {
         custom_field: interface_details.get(attribute) for attribute, custom_field in INTERFACE_STATE_FIELDS.items()
     }
     unable_to_create = f"Unable to create a new Interface named {interface_name} on Device named {device_obj.name}"
     try:
-        if pending is not None and device_obj._state.adding:  # pylint: disable=protected-access
+        if writer.holds(device_obj):
             # The Device is queued and has no rows of its own yet, so it can hold no Interface.
             interface_obj = None
         else:
@@ -1709,14 +1705,8 @@ def create_interface(  # pylint: disable=too-many-arguments
 
     interface_obj = Interface(device=device_obj, name=interface_name, status=status_obj, **defaults)
     interface_obj.cf.update(reported_state)
-    if pending is not None:
-        return queue_new_object(pending, interface_obj, key=(device_obj.pk, interface_name))
     try:
-        # Stamped before the one save a new Interface takes, so the Tag row that follows is the only
-        # further write.
-        stamp_synced(interface_obj, LAST_SYNCHRONIZED_CF_NAME)
-        interface_obj.validated_save()
-        interface_obj.tags.add(synced_tag_for(interface_obj))
+        writer.create(interface_obj, key=(device_obj.pk, interface_name))
     except (DjangoBaseDBError, ValidationError):
         if logger:
             logger.error(unable_to_create)
@@ -1809,7 +1799,8 @@ def create_vlan(  # pylint: disable=too-many-arguments,too-many-locals,too-many-
     location_obj: Location,
     description: str,
     logger: Optional[logging.Logger] = None,
-    pending: Optional[Any] = None,
+    *,
+    writer: "Writer",
     vlan_group: Optional[Any] = None,
     tenant: Optional[Tenant] = None,
 ) -> Optional[VLAN]:
@@ -1822,8 +1813,7 @@ def create_vlan(  # pylint: disable=too-many-arguments,too-many-locals,too-many-
         location_obj (Location): Location Django Model
         description (str): VLAN Description
         logger: Logger to use for messaging.
-        pending: When given, a new VLAN and its location assignment are queued for a batched write
-            rather than saved.
+        writer: What writes a new VLAN and its location assignment.
         vlan_group: The VLAN Group the Location's VLANs belong in, or None to leave them ungrouped.
         tenant: The run's Tenant, given to a new VLAN and to an existing one that has none.
 
@@ -1881,14 +1871,16 @@ def create_vlan(  # pylint: disable=too-many-arguments,too-many-locals,too-many-
         # actually in the group.
         vlan_obj.vlan_group = vlan_group
 
-    if is_new and pending is not None:
+    if is_new and writer.batched:
+        # Saved immediately through `tag_object` below instead, since `VLAN.save()` makes the location
+        # assignment itself and a queued VLAN is never saved.
         assignments = (
             (VLANLocationAssignment(vlan=vlan_obj, location_id=location_obj.pk),) if location_obj is not None else ()
         )
         # Keyed the way `resolve_interface_vlans` looks it up, so an Interface written later in
         # the same run can point at a VLAN this run has only queued.
         key = (vlan_id, location_obj.pk) if location_obj is not None else None
-        return queue_new_object(pending, vlan_obj, key=key, through_rows=assignments)
+        return writer.create(vlan_obj, key=key, through_rows=assignments)
 
     try:
         if is_new or adopted or claimed:
@@ -1957,7 +1949,8 @@ def set_route_targets(  # pylint: disable=too-many-arguments
     import_targets: Iterable[str],
     export_targets: Iterable[str],
     logger: Optional[logging.Logger] = None,
-    pending: Optional[Any] = None,
+    *,
+    writer: "Writer",
 ):
     """Point a VRF at the Route Targets it imports and exports.
 
@@ -1970,9 +1963,9 @@ def set_route_targets(  # pylint: disable=too-many-arguments
         import_targets: Route target values the VRF imports.
         export_targets: Route target values the VRF exports.
         logger: Logger to use for messaging.
-        pending: When given and the VRF is itself queued, the join rows are queued behind it. A VRF
-            Nautobot already holds is assigned normally even in bulk mode, since `set()` reads the
-            rows it has to remove and a queued VRF has none.
+        writer: Where the join rows of a VRF the writer has queued go, behind it. A VRF Nautobot
+            already holds is assigned directly even in bulk mode, since `set()` reads the rows it has
+            to remove and a queued VRF has none.
     """
     import_targets, export_targets = list(import_targets), list(export_targets)
     wanted = set(import_targets) | set(export_targets)
@@ -1987,11 +1980,11 @@ def set_route_targets(  # pylint: disable=too-many-arguments
     resolved_imports = [by_name[name] for name in import_targets if name in by_name]
     resolved_exports = [by_name[name] for name in export_targets if name in by_name]
 
-    if pending is not None and vrf_obj._state.adding:  # pylint: disable=protected-access
+    if writer.holds(vrf_obj):
         for route_target in resolved_imports:
-            pending.add_through(VRF.import_targets.through(vrf_id=vrf_obj.pk, routetarget_id=route_target.pk))
+            writer.assign(VRF.import_targets.through(vrf_id=vrf_obj.pk, routetarget_id=route_target.pk))
         for route_target in resolved_exports:
-            pending.add_through(VRF.export_targets.through(vrf_id=vrf_obj.pk, routetarget_id=route_target.pk))
+            writer.assign(VRF.export_targets.through(vrf_id=vrf_obj.pk, routetarget_id=route_target.pk))
         return
 
     vrf_obj.import_targets.set(resolved_imports)
@@ -2012,7 +2005,8 @@ def resolve_interface_vlans(  # pylint: disable=too-many-arguments
     interface_obj: Interface,
     untagged_vid: Optional[int],
     tagged_vids: Iterable[int],
-    pending: Optional[Any] = None,
+    *,
+    writer: "Writer",
     logger: Optional[logging.Logger] = None,
 ) -> tuple:
     """Return the `(untagged, tagged)` VLAN objects for an Interface, given the IDs it carries.
@@ -2025,8 +2019,7 @@ def resolve_interface_vlans(  # pylint: disable=too-many-arguments
     location_id = interface_obj.device.location_id
 
     def one(vid):
-        queued = pending.find(VLAN, (vid, location_id)) if pending is not None else None
-        return queued or get_vlan_at_location(vid, location_id)
+        return writer.find(VLAN, (vid, location_id)) or get_vlan_at_location(vid, location_id)
 
     untagged = one(untagged_vid) if untagged_vid is not None else None
     if untagged_vid is not None and untagged is None and logger:
@@ -2061,7 +2054,8 @@ def set_interface_vlans(  # pylint: disable=too-many-arguments,too-many-locals
     tagged_vids: Iterable[int],
     scope: DeviceScope,
     logger: Optional[logging.Logger] = None,
-    pending: Optional[Any] = None,
+    *,
+    writer: "Writer",
 ) -> bool:
     """Set an Interface's 802.1Q mode and the VLANs it carries, or clear them.
 
@@ -2077,40 +2071,39 @@ def set_interface_vlans(  # pylint: disable=too-many-arguments,too-many-locals
         tagged_vids: VLAN IDs to carry tagged.
         scope: The Devices this run covers; see `DeviceScope`.
         logger: Logger to use for messaging.
-        pending: When given, the write is queued rather than saved.
+        writer: What writes the Interface and its VLANs, and where queued objects are found.
 
     Returns:
         bool: Whether the Interface now holds what was asked for.
     """
-    device_obj = (pending.find(Device, device_name) if pending is not None else None) or get_syncable_device(
-        device_name, scope=scope
-    )
-    interface_obj = None
-    if pending is not None and device_obj is not None:
-        interface_obj = pending.find(Interface, (device_obj.pk, interface_name))
+    device_obj = writer.find(Device, device_name) or get_syncable_device(device_name, scope=scope)
+    interface_obj = writer.find(Interface, (device_obj.pk, interface_name)) if device_obj is not None else None
     if interface_obj is None:
         interface_obj = get_tagged_interface(device_name, interface_name, scope=scope, logger=logger)
     if interface_obj is None:
         return False
 
-    untagged, tagged = resolve_interface_vlans(interface_obj, untagged_vid, tagged_vids, pending=pending, logger=logger)
+    untagged, tagged = resolve_interface_vlans(interface_obj, untagged_vid, tagged_vids, writer=writer, logger=logger)
     interface_obj.mode = mode
     interface_obj.untagged_vlan = untagged
 
-    if pending is not None:
+    if writer.batched:
+        # Its own path, since a queued Interface and one Nautobot already holds are written
+        # differently in a batch, and the tagged VLANs of the second are reconciled against the
+        # join table rather than replaced through it.
         rows = [Interface.tagged_vlans.through(interface_id=interface_obj.pk, vlan_id=vlan.pk) for vlan in tagged]
-        if interface_obj._state.adding:  # pylint: disable=protected-access
+        if writer.holds(interface_obj):
             # Interfaces are written before VLANs, so an Interface inserted now cannot carry a VLAN
             # this run has only queued: the insert would name a row that does not exist yet. The
             # mode goes on the insert, and the untagged VLAN follows as an update once both are
             # written. The tagged ones are join rows, written once both ends are there.
-            if untagged is not None and untagged._state.adding:  # pylint: disable=protected-access
+            if untagged is not None and writer.holds(untagged):
                 interface_obj.untagged_vlan = None
-                pending.defer_update(interface_obj, {"untagged_vlan": untagged})
+                writer.set_later(interface_obj, {"untagged_vlan": untagged})
             for row in rows:
-                pending.add_through(row)
+                writer.assign(row)
             return True
-        pending.defer_update(interface_obj, {"mode": mode, "untagged_vlan": untagged})
+        writer.set_later(interface_obj, {"mode": mode, "untagged_vlan": untagged})
         # An Interface Nautobot already holds carries a set of tagged VLANs to be replaced, not
         # added to. The collector only inserts, so the rows this run no longer reports are removed
         # here, and the ones it still reports are left alone rather than queued a second time
@@ -2123,7 +2116,7 @@ def set_interface_vlans(  # pylint: disable=too-many-arguments,too-many-locals
             ).delete()
         for row in rows:
             if row.vlan_id not in held:
-                pending.add_through(row)
+                writer.assign(row)
         return True
     try:
         interface_obj.validated_save()
@@ -2146,7 +2139,8 @@ def set_interface_vrf(  # pylint: disable=too-many-arguments
     vrf_name: Optional[str],
     scope: DeviceScope,
     logger: Optional[logging.Logger] = None,
-    pending: Optional[Any] = None,
+    *,
+    writer: "Writer",
 ) -> bool:
     """Put an Interface in a VRF, or take it out of the one it is in.
 
@@ -2159,40 +2153,34 @@ def set_interface_vrf(  # pylint: disable=too-many-arguments
         vrf_name: Name of the VRF in the run's Namespace, or None to take the Interface out of one.
         scope: The Devices this run covers; see `DeviceScope`.
         logger: Logger to use for messaging.
-        pending: When given, the write is queued rather than saved.
+        writer: What writes the Interface, and where queued objects are found.
 
     Returns:
         bool: Whether the Interface now holds what was asked for.
     """
     vrf_obj = None
     if vrf_name is not None:
-        vrf_obj = (pending.find(VRF, vrf_name) if pending is not None else None) or get_vrf(vrf_name, logger=logger)
+        vrf_obj = writer.find(VRF, vrf_name) or get_vrf(vrf_name, logger=logger)
         if vrf_obj is None:
             if logger:
                 logger.error("Unable to find a VRF named %s to put %s:%s in", vrf_name, device_name, interface_name)
             return False
 
-    device_obj = (pending.find(Device, device_name) if pending is not None else None) or get_syncable_device(
-        device_name, scope=scope
-    )
-    interface_obj = None
-    if pending is not None and device_obj is not None:
-        interface_obj = pending.find(Interface, (device_obj.pk, interface_name))
+    device_obj = writer.find(Device, device_name) or get_syncable_device(device_name, scope=scope)
+    interface_obj = writer.find(Interface, (device_obj.pk, interface_name)) if device_obj is not None else None
     if interface_obj is None:
         interface_obj = get_tagged_interface(device_name, interface_name, scope=scope, logger=logger)
     if interface_obj is None:
         return False
 
-    interface_obj.vrf = vrf_obj
-    if pending is not None:
-        # A queued Interface is inserted carrying the foreign key; one already written is updated
-        # after everything else is, since the VRF assignment it depends on may itself be queued.
-        if interface_obj._state.adding:  # pylint: disable=protected-access
-            return True
-        pending.defer_update(interface_obj, {"vrf": vrf_obj})
+    if writer.holds(interface_obj):
+        # A queued Interface is inserted carrying the foreign key.
+        interface_obj.vrf = vrf_obj
         return True
     try:
-        interface_obj.validated_save()
+        # One already written is updated: at once, or in a batch once everything else is written,
+        # since the VRF assignment it depends on may itself be queued.
+        writer.set_later(interface_obj, {"vrf": vrf_obj})
     except (DjangoBaseDBError, ValidationError) as err:
         if logger:
             logger.error(
@@ -2216,7 +2204,8 @@ def create_vrf_device_assignment(  # pylint: disable=too-many-arguments
     device_name: str,
     scope: DeviceScope,
     logger: Optional[logging.Logger] = None,
-    pending: Optional[Any] = None,
+    *,
+    writer: "Writer",
 ) -> Optional[VRFDeviceAssignment]:
     """Record that a Device carries a VRF.
 
@@ -2229,8 +2218,8 @@ def create_vrf_device_assignment(  # pylint: disable=too-many-arguments
         device_name: Name of the Device carrying it.
         scope: The Devices this run covers; see `DeviceScope`.
         logger: Logger to use for messaging.
-        pending: When given, the assignment is queued for a batched write rather than saved, and
-            is where a VRF or Device queued earlier in the run is looked for.
+        writer: What writes the assignment, and where a VRF or Device queued earlier in the run is
+            found.
 
     Returns:
         VRFDeviceAssignment: When the assignment is created or queued.
@@ -2239,14 +2228,12 @@ def create_vrf_device_assignment(  # pylint: disable=too-many-arguments
     # Either end may have been queued earlier in this run and so have no row yet, which is where a
     # bulk mode sync finds both of them. Looked for there first, since the lookups below are cached
     # and would otherwise remember that a queued object could not be found.
-    vrf_obj = pending.find(VRF, vrf_name) if pending is not None else None
-    vrf_obj = vrf_obj or get_vrf(vrf_name, logger=logger)
+    vrf_obj = writer.find(VRF, vrf_name) or get_vrf(vrf_name, logger=logger)
     if vrf_obj is None:
         if logger:
             logger.error("Unable to find a VRF named %s to assign to the Device named %s", vrf_name, device_name)
         return None
-    device_obj = pending.find(Device, device_name) if pending is not None else None
-    device_obj = device_obj or get_syncable_device(device_name, scope=scope)
+    device_obj = writer.find(Device, device_name) or get_syncable_device(device_name, scope=scope)
     if device_obj is None:
         if logger:
             logger.error("Unable to find a Device named %s to assign the VRF named %s to", device_name, vrf_name)
@@ -2258,10 +2245,8 @@ def create_vrf_device_assignment(  # pylint: disable=too-many-arguments
         rd=vrf_obj.rd,
         name=vrf_obj.name,
     )
-    if pending is not None:
-        return queue_new_object(pending, assignment)
     try:
-        assignment.validated_save()
+        writer.create(assignment)
     except (DjangoBaseDBError, ValidationError) as err:
         if logger:
             logger.error(
@@ -2309,7 +2294,8 @@ def create_vrf(  # pylint: disable=too-many-arguments
     vrf_status: str,
     conflict: str,
     logger: Optional[logging.Logger] = None,
-    pending: Optional[Any] = None,
+    *,
+    writer: "Writer",
     tenant: Optional[Tenant] = None,
 ) -> Optional[VRF]:
     """Create a VRF in the run's Namespace.
@@ -2324,8 +2310,8 @@ def create_vrf(  # pylint: disable=too-many-arguments
         vrf_status: Status name to set.
         conflict: What IP Fabric reported inconsistently for this VRF, or an empty string.
         logger: Logger to use for messaging.
-        pending: When given, the VRF is queued for a batched write rather than saved. The returned
-            VRF already has its primary key, so its join rows may be queued behind it.
+        writer: What writes a new VRF. A queued one already has its primary key, so its join rows may
+            be queued behind it.
 
     Returns:
         VRF: When the VRF is created or queued.
@@ -2363,20 +2349,16 @@ def create_vrf(  # pylint: disable=too-many-arguments
         tenant=tenant,
     )
     vrf_obj.cf[VRF_CONFLICT_CF_NAME] = conflict
-    if pending is not None:
-        # A route distinguisher that collides is refused by the database rather than by `clean()`,
-        # so the collector's narrowing finds and reports it in the same way as any other bad row.
-        return queue_new_object(pending, vrf_obj, key=name)
-    stamp_synced(vrf_obj, LAST_SYNCHRONIZED_CF_NAME)
     try:
-        vrf_obj.validated_save()
+        # Queued, a route distinguisher that collides is refused by the database rather than by
+        # `clean()`, so the collector's narrowing finds and reports it like any other bad row.
+        writer.create(vrf_obj, key=name)
     except (DjangoBaseDBError, ValidationError) as err:
         # A route distinguisher is unique within a Namespace, so a network reporting one RD on two
         # VRF names reaches here for the second of them.
         if logger:
             logger.error("Unable to create a VRF named %s with a route distinguisher of %s. Error: %s", name, rd, err)
         return None
-    vrf_obj.tags.add(synced_tag_for(vrf_obj))
     return vrf_obj
 
 

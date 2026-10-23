@@ -1,0 +1,1 @@
+Fixed Bulk Write Mode in the IP Fabric integration failing to move a Device already in Nautobot to a Location created in the same run, and missing the port or port channel created in the same run for an Interface already in Nautobot.

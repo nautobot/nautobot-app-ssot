@@ -17,6 +17,7 @@ from nautobot_ssot.integrations.ipfabric.signals import nautobot_database_ready_
 from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import DeviceScope
+from nautobot_ssot.integrations.ipfabric.writers import BatchedWriter, ImmediateWriter
 from nautobot_ssot.tests.ipfabric.job_log import job_log_text
 from nautobot_ssot.tests.ipfabric.supporting_objects import SupportingObjectTestCase
 
@@ -114,18 +115,22 @@ class TestTheOtherObjectsTheSyncCreates(SupportingObjectTestCase):
 
     def vlan(self, vid=10):
         """Create a VLAN through the helper the sync uses."""
-        return nbutils.create_vlan(f"vlan{vid}", vid, "Active", self.location, "", tenant=self.tenant)
+        return nbutils.create_vlan(
+            f"vlan{vid}", vid, "Active", self.location, "", tenant=self.tenant, writer=ImmediateWriter()
+        )
 
     def test_a_new_vlan_is_given_the_tenant(self):
         self.assertEqual(self.vlan().tenant, self.tenant)
 
     def test_an_existing_vlan_with_no_tenant_is_adopted(self):
-        nbutils.create_vlan("vlan10", 10, "Active", self.location, "")
+        nbutils.create_vlan("vlan10", 10, "Active", self.location, "", writer=ImmediateWriter())
         self.vlan()
         self.assertEqual(VLAN.objects.get(vid=10).tenant, self.tenant)
 
     def test_an_existing_vlan_of_another_tenant_is_refused(self):
-        nbutils.create_vlan("vlan10", 10, "Active", self.location, "", tenant=self.other_tenant)
+        nbutils.create_vlan(
+            "vlan10", 10, "Active", self.location, "", tenant=self.other_tenant, writer=ImmediateWriter()
+        )
         with self.assertRaises(nbutils.BelongsToAnotherTenant):
             self.vlan()
 
@@ -139,13 +144,13 @@ class TestTheOtherObjectsTheSyncCreates(SupportingObjectTestCase):
             nbutils.create_route_target("65000:3", tenant=self.tenant)
 
     def test_a_new_vrf_is_given_the_tenant(self):
-        vrf = nbutils.create_vrf("BLUE", "65000:1", "Active", "", tenant=self.tenant)
+        vrf = nbutils.create_vrf("BLUE", "65000:1", "Active", "", tenant=self.tenant, writer=ImmediateWriter())
         self.assertEqual(vrf.tenant, self.tenant)
 
     def test_an_existing_vrf_with_no_tenant_is_adopted_rather_than_duplicated(self):
         """The run reads only its Tenant's VRFs, so it never loaded this one to match it by name."""
         VRF.objects.create(name="BLUE", namespace=get_default_namespace(), status=self.active_status)
-        vrf = nbutils.create_vrf("BLUE", "65000:1", "Active", "", tenant=self.tenant)
+        vrf = nbutils.create_vrf("BLUE", "65000:1", "Active", "", tenant=self.tenant, writer=ImmediateWriter())
         self.assertEqual(VRF.objects.filter(name="BLUE").count(), 1)
         vrf.refresh_from_db()
         self.assertEqual((vrf.tenant, vrf.rd), (self.tenant, "65000:1"))
@@ -154,7 +159,11 @@ class TestTheOtherObjectsTheSyncCreates(SupportingObjectTestCase):
         VRF.objects.create(name="BLUE", namespace=get_default_namespace(), status=self.active_status)
         logger = mock.MagicMock()
         with mock.patch.object(nbutils, "tag_object", side_effect=ValidationError("refused")):
-            self.assertIsNone(nbutils.create_vrf("BLUE", None, "Active", "", logger=logger, tenant=self.tenant))
+            self.assertIsNone(
+                nbutils.create_vrf(
+                    "BLUE", None, "Active", "", logger=logger, tenant=self.tenant, writer=ImmediateWriter()
+                )
+            )
         self.assertIn("Unable to adopt the VRF named BLUE", job_log_text(logger, "error"))
 
     def test_an_existing_vrf_of_another_tenant_is_refused(self):
@@ -162,18 +171,20 @@ class TestTheOtherObjectsTheSyncCreates(SupportingObjectTestCase):
             name="BLUE", namespace=get_default_namespace(), status=self.active_status, tenant=self.other_tenant
         )
         with self.assertRaises(nbutils.BelongsToAnotherTenant):
-            nbutils.create_vrf("BLUE", None, "Active", "", tenant=self.tenant)
+            nbutils.create_vrf("BLUE", None, "Active", "", tenant=self.tenant, writer=ImmediateWriter())
 
     def test_a_vrf_name_held_twice_is_refused(self):
         for rd in ("65000:1", "65000:2"):
             VRF.objects.create(name="BLUE", rd=rd, namespace=get_default_namespace(), status=self.active_status)
         logger = mock.MagicMock()
-        self.assertIsNone(nbutils.create_vrf("BLUE", None, "Active", "", logger=logger, tenant=self.tenant))
+        self.assertIsNone(
+            nbutils.create_vrf("BLUE", None, "Active", "", logger=logger, tenant=self.tenant, writer=ImmediateWriter())
+        )
         self.assertIn("more than one", job_log_text(logger, "error"))
 
     def test_without_a_tenant_a_vrf_is_created_as_before(self):
         VRF.objects.create(name="BLUE", namespace=get_default_namespace(), status=self.active_status)
-        nbutils.create_vrf("BLUE", "65000:9", "Active", "")
+        nbutils.create_vrf("BLUE", "65000:9", "Active", "", writer=ImmediateWriter())
         self.assertEqual(VRF.objects.filter(name="BLUE").count(), 2)
 
     def address_setup(self):
@@ -182,26 +193,28 @@ class TestTheOtherObjectsTheSyncCreates(SupportingObjectTestCase):
 
     def test_a_new_address_is_given_the_tenant(self):
         self.address_setup()
-        self.assertEqual(nbutils.create_ip("10.0.0.1", 24, tenant=self.tenant).tenant, self.tenant)
+        self.assertEqual(
+            nbutils.create_ip("10.0.0.1", 24, tenant=self.tenant, writer=ImmediateWriter()).tenant, self.tenant
+        )
 
     def test_an_existing_address_with_no_tenant_is_adopted(self):
         self.address_setup()
-        nbutils.create_ip("10.0.0.1", 24)
-        nbutils.create_ip("10.0.0.1", 24, tenant=self.tenant)
+        nbutils.create_ip("10.0.0.1", 24, writer=ImmediateWriter())
+        nbutils.create_ip("10.0.0.1", 24, tenant=self.tenant, writer=ImmediateWriter())
         self.assertEqual(IPAddress.objects.get(host="10.0.0.1").tenant, self.tenant)
 
     def test_an_existing_address_of_another_tenant_is_refused(self):
         self.address_setup()
-        nbutils.create_ip("10.0.0.1", 24, tenant=self.other_tenant)
+        nbutils.create_ip("10.0.0.1", 24, tenant=self.other_tenant, writer=ImmediateWriter())
         with self.assertRaises(nbutils.BelongsToAnotherTenant):
-            nbutils.create_ip("10.0.0.1", 24, tenant=self.tenant)
+            nbutils.create_ip("10.0.0.1", 24, tenant=self.tenant, writer=ImmediateWriter())
 
     def test_a_queued_address_is_given_the_tenant_and_an_existing_one_adopted(self):
         self.address_setup()
-        nbutils.create_ip("10.0.0.2", 24)
+        nbutils.create_ip("10.0.0.2", 24, writer=ImmediateWriter())
         pending = PendingWrites(mock.MagicMock())
-        nbutils.create_ip("10.0.0.1", 24, pending=pending, tenant=self.tenant)
-        nbutils.create_ip("10.0.0.2", 24, pending=pending, tenant=self.tenant)
+        nbutils.create_ip("10.0.0.1", 24, writer=BatchedWriter(pending), tenant=self.tenant)
+        nbutils.create_ip("10.0.0.2", 24, writer=BatchedWriter(pending), tenant=self.tenant)
         pending.flush()
         self.assertEqual(
             {str(host): tenant for host, tenant in IPAddress.objects.values_list("host", "tenant")},
@@ -249,19 +262,19 @@ class TestPrefixes(SupportingObjectTestCase):
         self.assertFalse(existing.tags.exists())
 
     def test_the_parent_prefix_made_for_an_address_is_given_the_tenant(self):
-        nbutils.create_ip("10.0.0.1", 24, tenant=self.tenant)
+        nbutils.create_ip("10.0.0.1", 24, tenant=self.tenant, writer=ImmediateWriter())
         self.assertEqual(Prefix.objects.get(prefix="10.0.0.0/24").tenant, self.tenant)
 
     def test_a_queued_addresss_parent_prefix_is_given_the_tenant(self):
         pending = PendingWrites(mock.MagicMock())
-        nbutils.create_ip("10.0.0.1", 24, pending=pending, tenant=self.tenant)
+        nbutils.create_ip("10.0.0.1", 24, writer=BatchedWriter(pending), tenant=self.tenant)
         pending.flush()
         self.assertEqual(Prefix.objects.get(prefix="10.0.0.0/24").tenant, self.tenant)
 
     def test_an_existing_parent_prefix_keeps_its_tenant(self):
         """An address only needs its parent to exist; it does not claim the network for the Tenant."""
         self.existing(tenant=self.other_tenant)
-        nbutils.create_ip("10.0.0.1", 24, tenant=self.tenant)
+        nbutils.create_ip("10.0.0.1", 24, tenant=self.tenant, writer=ImmediateWriter())
         self.assertEqual(Prefix.objects.get(prefix="10.0.0.0/24").tenant, self.other_tenant)
 
 
@@ -277,7 +290,9 @@ class TestEachModelReportsAnotherTenantsObject(SupportingObjectTestCase):
         self.assertEqual(dict(self.adapter.objects_of_another_tenant), {model_name: [name]})
 
     def test_a_vlan(self):
-        nbutils.create_vlan("vlan10", 10, "Active", self.location, "", tenant=self.other_tenant)
+        nbutils.create_vlan(
+            "vlan10", 10, "Active", self.location, "", tenant=self.other_tenant, writer=ImmediateWriter()
+        )
         created = diffsync_models.Vlan.create(
             self.adapter,
             {"vid": 10, "location": self.location.name},
@@ -301,7 +316,7 @@ class TestEachModelReportsAnotherTenantsObject(SupportingObjectTestCase):
 
     def test_an_address(self):
         Prefix.objects.create(prefix="10.0.0.0/24", namespace=get_default_namespace(), status=self.active_status)
-        nbutils.create_ip("10.0.0.1", 24, tenant=self.other_tenant)
+        nbutils.create_ip("10.0.0.1", 24, tenant=self.other_tenant, writer=ImmediateWriter())
         self.create_device(name="ours")
         Interface.objects.create(
             device=Device.objects.get(name="ours"), name="eth0", type="1000base-t", status=self.active_status
@@ -342,8 +357,10 @@ class TestReadingOnlyTheTenantsObjects(SupportingObjectTestCase):
         self.assertEqual(names, {"ours"})
 
     def test_only_the_tenants_vlans_vrfs_and_route_targets_are_loaded(self):
-        nbutils.create_vlan("ours", 10, "Active", self.location, "", tenant=self.tenant)
-        nbutils.create_vlan("theirs", 20, "Active", self.location, "", tenant=self.other_tenant)
+        nbutils.create_vlan("ours", 10, "Active", self.location, "", tenant=self.tenant, writer=ImmediateWriter())
+        nbutils.create_vlan(
+            "theirs", 20, "Active", self.location, "", tenant=self.other_tenant, writer=ImmediateWriter()
+        )
         for name, tenant in (("OURS", self.tenant), ("THEIRS", self.other_tenant)):
             VRF.objects.create(name=name, namespace=get_default_namespace(), status=self.active_status, tenant=tenant)
         nbutils.create_route_target("65000:1", tenant=self.tenant)

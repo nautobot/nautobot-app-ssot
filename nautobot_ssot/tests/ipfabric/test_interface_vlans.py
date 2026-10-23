@@ -27,6 +27,7 @@ from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
     set_interface_vlans,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache, parse_vlan_ranges
+from nautobot_ssot.integrations.ipfabric.writers import BatchedWriter, ImmediateWriter
 from nautobot_ssot.tests.ipfabric.job_log import job_log_text, job_logger
 from nautobot_ssot.tests.ipfabric.test_ipfabric_adapter import (
     INTERFACE_FIXTURE,
@@ -142,6 +143,7 @@ class TestWritingInterfaceVlans(_InterfaceVlanTestCase):
             tagged_vids=tagged_vids,
             scope=DeviceScope(),
             logger=logger,
+            writer=ImmediateWriter(),
         )
 
     def test_an_access_port_gets_its_mode_and_untagged_vlan(self):
@@ -456,7 +458,7 @@ class TestInterfaceVlansUnderBulkWriteMode(_InterfaceVlanTestCase):
         create_interface(
             device_obj=self.device,
             interface_details={"name": name, "type": "1000base-t"},
-            pending=pending,
+            writer=BatchedWriter(pending),
         )
         self.assertFalse(
             Interface.objects.filter(device=self.device, name=name).exists(),
@@ -505,7 +507,7 @@ class TestInterfaceVlansUnderBulkWriteMode(_InterfaceVlanTestCase):
             vlan_status="Active",
             location_obj=self.location,
             description="",
-            pending=pending,
+            writer=BatchedWriter(pending),
         )
         self.assertFalse(VLAN.objects.filter(vid=vid).exists(), "The VLAN is meant to be queued, not written.")
         return vlan
@@ -548,7 +550,7 @@ class TestInterfaceVlansUnderBulkWriteMode(_InterfaceVlanTestCase):
             untagged_vid=None,
             tagged_vids=[10],
             scope=DeviceScope(),
-            pending=adapter.pending,
+            writer=BatchedWriter(adapter.pending),
         )
         adapter.pending.flush()
 
@@ -573,7 +575,7 @@ class TestInterfaceVlansUnderBulkWriteMode(_InterfaceVlanTestCase):
             untagged_vid=None,
             tagged_vids=[10, 20],
             scope=DeviceScope(),
-            pending=adapter.pending,
+            writer=BatchedWriter(adapter.pending),
         )
         adapter.pending.flush()
 
@@ -592,7 +594,7 @@ class TestInterfaceVlansUnderBulkWriteMode(_InterfaceVlanTestCase):
             untagged_vid=10,
             tagged_vids=[],
             scope=DeviceScope(),
-            pending=None,
+            writer=ImmediateWriter(),
         )
 
         self.assertFalse(written, "Without the queue there is no Interface to find, which is the bug.")
@@ -606,6 +608,7 @@ class TestTheInterfaceVlanModel(_InterfaceVlanTestCase):
         adapter = MagicMock()
         adapter.sync_ipfabric_tagged_only = False
         adapter.device_scope = DeviceScope()
+        adapter.writer = ImmediateWriter()
         adapter.tenant = None
         adapter.pending = None
         model = InterfaceVlanModel(
@@ -645,6 +648,7 @@ class TestTheInterfaceVlanModel(_InterfaceVlanTestCase):
             untagged_vid=10,
             tagged_vids=[20],
             scope=DeviceScope(),
+            writer=ImmediateWriter(),
         )
 
         self.model(mode=InterfaceModeChoices.MODE_TAGGED, untagged_vid=10, tagged_vids=[20]).delete()
@@ -771,6 +775,7 @@ class TestLoadingInterfaceVlansThroughLoadData(_InterfaceVlanTestCase):
             untagged_vid=10,
             tagged_vids=[],
             scope=DeviceScope(),
+            writer=ImmediateWriter(),
         )
 
         adapter = self.nautobot_adapter(sync_interface_vlans=True)
@@ -799,6 +804,7 @@ class TestWritingInterfaceVlansThatNautobotRefuses(_InterfaceVlanTestCase):
                 tagged_vids=[],
                 scope=DeviceScope(),
                 logger=logger,
+                writer=ImmediateWriter(),
             )
 
         self.assertFalse(written, "The caller has to know the Interface does not hold what was asked.")

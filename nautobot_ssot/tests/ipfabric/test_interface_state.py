@@ -23,6 +23,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import admin_
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import DeviceScope, create_interface
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
+from nautobot_ssot.integrations.ipfabric.writers import ImmediateWriter
 from nautobot_ssot.tests.ipfabric.test_ipfabric_adapter import (
     INTERFACE_FIXTURE,
     build_adapter,
@@ -107,6 +108,7 @@ class InterfaceFixture(TestCase):
             device_obj=self.device,
             interface_details={"name": name, "type": "1000base-t", **details},
             logger=self.logger,
+            writer=ImmediateWriter(),
         )
 
 
@@ -209,6 +211,7 @@ class TestUpdatingInterfaceState(InterfaceFixture):
         adapter = unittest.mock.MagicMock()
         adapter.sync_ipfabric_tagged_only = False
         adapter.device_scope = DeviceScope()
+        adapter.writer = ImmediateWriter()
         adapter.tenant = None
         model = InterfaceModel(
             name=interface.name, device_name=self.device.name, status="Active", enabled=True, **attrs

@@ -31,6 +31,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
 )
 from nautobot_ssot.integrations.ipfabric.strict_mode import StrictObjects
 from nautobot_ssot.integrations.ipfabric.sync_scope import SYNCABLE_OBJECTS, SyncScope
+from nautobot_ssot.integrations.ipfabric.writers import BatchedWriter, ImmediateWriter
 
 # ============================================================
 # Shared helpers
@@ -67,6 +68,7 @@ def _make_adapter(scope=None, strict=None, bulk_write_mode=False):
     # Set explicitly because, left as a mock, it is truthy and every model here would queue its
     # writes instead of making them.
     adapter.pending = PendingWrites(mock.MagicMock()) if bulk_write_mode else None
+    adapter.writer = BatchedWriter(adapter.pending) if bulk_write_mode else ImmediateWriter()
     # None rather than a mock, which would read as a Tenant every lookup has to be narrowed to.
     adapter.tenant = None
     adapter.job = mock.MagicMock()
@@ -620,7 +622,11 @@ class TestDeviceModel(_ModelTestBase):  # pylint: disable=too-many-public-method
             diff_model.update({"location_name": "new-loc"})
 
         mock_loc_helper.assert_called_once_with(
-            location_name="new-loc", location_id=None, logger=self.adapter.job.logger, pending=None, tenant=None
+            location_name="new-loc",
+            location_id=None,
+            logger=self.adapter.job.logger,
+            writer=self.adapter.writer,
+            tenant=None,
         )
         self.assertIs(nb_device.location, new_location)
 
@@ -638,7 +644,11 @@ class TestResolveLocation(_ModelTestBase):
 
         self.assertEqual(resolved, "created")
         mock_helper.assert_called_once_with(
-            location_name="loc", location_id="site-id", logger=self.adapter.job.logger, pending=None, tenant=None
+            location_name="loc",
+            location_id="site-id",
+            logger=self.adapter.job.logger,
+            writer=self.adapter.writer,
+            tenant=None,
         )
 
     def test_only_looks_up_when_locations_are_out_of_scope(self):
@@ -955,6 +965,7 @@ class TestInterfaceAddressModel(_ModelTestBase):
         address_object.pk = "this-address"
         interface.ip_addresses.get.return_value = address_object
         self.adapter.pending = pending
+        self.adapter.writer = BatchedWriter(pending) if pending is not None else ImmediateWriter()
 
         with (
             _nb_patch("get_tagged_interface", return_value=interface),
@@ -1621,14 +1632,14 @@ class TestDeferredChangeLoggingCoverage(SimpleTestCase):
         adapter.pending = None
         self.assertEqual(Gadget.create(adapter, {"name": "b"}, {}), 2)
 
-    def test_cables_and_prefix_vlans_are_the_models_written_object_by_object(self):
+    def test_cables_prefix_vlans_and_host_addresses_are_written_object_by_object(self):
         self.assertEqual(
             sorted(
                 model.__name__
                 for model in DiffSyncExtras.__subclasses__()
                 if not model.batched and model.__module__ == diffsync_models.__name__
             ),
-            ["Cable", "PrefixVlan"],
+            ["Cable", "HostAddress", "PrefixVlan"],
         )
 
 

@@ -53,6 +53,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SYNC_IPF_DEV_TYPE_TO_ROLE,
     SYNCED_TAG_NAME,
 )
+from nautobot_ssot.integrations.ipfabric.writers import ImmediateWriter
 
 
 def record_other_tenant(adapter, error: tonb_nbutils.BelongsToAnotherTenant) -> None:
@@ -74,7 +75,7 @@ def resolve_location(adapter, location_name: str, location_id: Optional[str] = N
             location_name=location_name,
             location_id=location_id,
             logger=adapter.job.logger,
-            pending=adapter.pending,
+            writer=adapter.writer,
             tenant=adapter.tenant,
         )
     return tonb_nbutils.get_location_object(location_name, logger=adapter.job.logger)
@@ -494,7 +495,7 @@ class Device(DiffSyncExtras):
             )
 
         if device_type_object and location_object and device_role_object and device_status_object:
-            pending = adapter.pending
+            writer = adapter.writer
             lookup = {
                 "name": device_name,
                 # Empty rather than absent: `Device.serial` is not nullable, and a new Device has
@@ -506,7 +507,7 @@ class Device(DiffSyncExtras):
                 "location": location_object,
             }
             try:
-                if pending is None:
+                if not writer.batched:
                     # Deliberately a get-or-create, which inserts without `full_clean()`. A Platform
                     # owned by another system may name a different Manufacturer to the DeviceType,
                     # which `Device.clean()` rejects but this integration accepts; validating before
@@ -546,7 +547,7 @@ class Device(DiffSyncExtras):
                     # than needing a second statement to add it.
                     new_device.cf[DEVICE_UNIQUE_SERIAL_CF_NAME] = attrs["unique_serial"]
                 if queue_new:
-                    tonb_nbutils.queue_new_object(pending, new_device, key=device_name)
+                    writer.create(new_device, key=device_name)
                 # Before the validated save below, which accepts the image because it is mapped to the
                 # Device Type by the time it is set.
                 if attrs.get("software_image") and new_device.software_version:
@@ -554,7 +555,7 @@ class Device(DiffSyncExtras):
                         adapter, new_device.software_version, attrs["software_image"], device_type_object
                     )
                     if image:
-                        tonb_nbutils.assign_software_image(new_device, image, pending=pending)
+                        tonb_nbutils.assign_software_image(new_device, image, writer=writer)
                 if not queue_new:
                     try:
                         # Validated save happens inside of tag_objet
@@ -579,7 +580,7 @@ class Device(DiffSyncExtras):
                                 master=attrs.get("vc_master", False),
                                 position=attrs.get("vc_position"),
                                 priority=attrs.get("vc_priority"),
-                                pending=pending,
+                                writer=writer,
                             )
                     except (DjangoBaseDBError, ValidationError):
                         adapter.job.logger.error(f"Unable to update Device {device_name} with VirtualChassis data")
@@ -662,7 +663,7 @@ class Device(DiffSyncExtras):
                     self.adapter, _device.software_version, software_image, _device.device_type
                 )
                 if image:
-                    tonb_nbutils.assign_software_image(_device, image)
+                    tonb_nbutils.assign_software_image(_device, image, writer=self.adapter.writer)
                 else:
                     return_super = False
             elif version_moved and self.adapter.scope.software_images and _device.software_version:
@@ -675,7 +676,11 @@ class Device(DiffSyncExtras):
             location_name = attrs.get("location_name")
             if location_name:
                 location = resolve_location(self.adapter, location_name)
-                if location:
+                if location and self.adapter.writer.holds(location):
+                    # A Location this run only queued has no row for the save below to point at, so
+                    # the Device is moved to it once it is written.
+                    self.adapter.writer.set_later(_device, {"location": location})
+                elif location:
                     _device.location = location
                 else:
                     self.adapter.job.logger.warning(
@@ -718,6 +723,7 @@ class Device(DiffSyncExtras):
                             master=attrs.get("vc_master", False),
                             position=attrs.get("vc_position"),
                             priority=attrs.get("vc_priority"),
+                            writer=self.adapter.writer,
                         )
                 except (DjangoBaseDBError, ValidationError):
                     self.adapter.job.logger.error(f"Unable to update VirtualChassis {vc_name} for Device {self.name}")
@@ -780,10 +786,9 @@ class Interface(DiffSyncExtras):
         # A Device queued earlier in this run is not in the database yet, so it is looked for there
         # first. `get_syncable_device` is cached, so it is asked second rather than taught about the
         # queue.
-        device_obj = None
-        if adapter.pending is not None:
-            device_obj = adapter.pending.find(NautobotDevice, device_name)
-        device_obj = device_obj or tonb_nbutils.get_syncable_device(device_name, scope=adapter.device_scope)
+        device_obj = adapter.writer.find(NautobotDevice, device_name) or tonb_nbutils.get_syncable_device(
+            device_name, scope=adapter.device_scope
+        )
         if not device_obj:
             adapter.job.logger.warning(
                 f"Unable to create an Interface with the name {interface_name} because of a failure "
@@ -799,7 +804,7 @@ class Interface(DiffSyncExtras):
             device_obj=device_obj,
             interface_details={**ids, **attrs},
             logger=adapter.job.logger,
-            pending=adapter.pending,
+            writer=adapter.writer,
         )
         if not interface_obj:
             adapter.job.logger.warning(
@@ -869,20 +874,22 @@ class Interface(DiffSyncExtras):
                     interface.mode = attrs["mode"]
                 if attrs.get("type"):
                     interface.type = attrs["type"]
-                if "lag" in attrs:
-                    # Set even where this run reports none, so an Interface taken out of a port
-                    # channel stops claiming membership of it.
-                    interface.lag = (
-                        tonb_nbutils.resolve_parent_interface(device, attrs["lag"]) if attrs["lag"] else None
-                    )
-                if "parent_interface" in attrs:
-                    # Set even where this run reports none, so a subinterface whose port stops
-                    # being reported is taken out from under it rather than left pointing at it.
-                    interface.parent_interface = (
-                        tonb_nbutils.resolve_parent_interface(device, attrs["parent_interface"])
-                        if attrs["parent_interface"]
+                # Each is set even where this run reports none, so an Interface taken out of a port
+                # channel stops claiming membership of it, and a subinterface whose port stops being
+                # reported is taken out from under it rather than left pointing at it.
+                for field in ("lag", "parent_interface"):
+                    if field not in attrs:
+                        continue
+                    related = (
+                        tonb_nbutils.resolve_parent_interface(device, attrs[field], writer=self.adapter.writer)
+                        if attrs[field]
                         else None
                     )
+                    if related is not None and self.adapter.writer.holds(related):
+                        # Queued this run, so it has no row for the save below to point at yet.
+                        self.adapter.writer.set_later(interface, {field: related})
+                    else:
+                        setattr(interface, field, related)
                 if attrs.get("mgmt_only"):
                     interface.mgmt_only = attrs["mgmt_only"]
                 # Set even where IP Fabric now reports nothing, so a state that stops being
@@ -988,12 +995,13 @@ class InterfaceAddress(DiffSyncExtras):
         Otherwise it is read afresh. The by Device lookup a delete uses is cached, so it would see
         neither an Interface this run created nor an address written onto one it did.
         """
-        if adapter.pending is not None:
-            device = adapter.pending.find(NautobotDevice, device_name) or tonb_nbutils.get_syncable_device(
+        if adapter.writer.batched:
+            # Only when batched, since resolving the Device first costs a query nothing is queued for.
+            device = adapter.writer.find(NautobotDevice, device_name) or tonb_nbutils.get_syncable_device(
                 device_name, scope=adapter.device_scope
             )
             if device is not None:
-                queued = adapter.pending.find(NautobotInterface, (device.pk, interface_name))
+                queued = adapter.writer.find(NautobotInterface, (device.pk, interface_name))
                 if queued is not None:
                     return device, queued
         interface = tonb_nbutils.get_tagged_interface(
@@ -1024,17 +1032,12 @@ class InterfaceAddress(DiffSyncExtras):
         field = cls.primary_field(address_object)
         if getattr(device, f"{field}_id") != address_object.pk:
             return
-        if adapter.pending is None:
-            setattr(device, field, None)
-            try:
-                device.validated_save()
-            except (DjangoBaseDBError, ValidationError):
-                adapter.job.logger.error(
-                    f"Unable to stop recording {address_object.address} as the {field} of Device "
-                    f"named {device.name}"
-                )
-            return
-        adapter.pending.defer_update(device, {field: None})
+        try:
+            adapter.writer.set_later(device, {field: None})
+        except (DjangoBaseDBError, ValidationError):
+            adapter.job.logger.error(
+                f"Unable to stop recording {address_object.address} as the {field} of Device named {device.name}"
+            )
 
     @classmethod
     def assign_primary(cls, adapter, device, address_object) -> None:
@@ -1046,18 +1049,15 @@ class InterfaceAddress(DiffSyncExtras):
         that has nothing to do with the address, and keeps whatever primary it had.
         """
         field = cls.primary_field(address_object)
-        if adapter.pending is None:
-            setattr(device, field, address_object)
-            try:
-                device.validated_save()
-            except (DjangoBaseDBError, ValidationError):
-                adapter.job.logger.error(
-                    f"Unable to record {address_object.address} as the {field} of Device named {device.name}"
-                )
-            return
-        # Deferred for the same reason `Interface.create` defers it: the address is only queued, and
-        # the Device may be too, so its insert would carry a foreign key to a row not yet written.
-        adapter.pending.defer_update(device, {field: address_object})
+        try:
+            # Batched, deferred for the same reason `Interface.create` defers it: the address is only
+            # queued, and the Device may be too, so its insert would carry a foreign key to a row not
+            # yet written.
+            adapter.writer.set_later(device, {field: address_object})
+        except (DjangoBaseDBError, ValidationError):
+            adapter.job.logger.error(
+                f"Unable to record {address_object.address} as the {field} of Device named {device.name}"
+            )
 
     @classmethod
     def create(cls, adapter, ids, attrs):
@@ -1077,7 +1077,7 @@ class InterfaceAddress(DiffSyncExtras):
                 status=attrs.get("status", "Active"),
                 object_pk=interface,
                 logger=adapter.job.logger,
-                pending=adapter.pending,
+                writer=adapter.writer,
                 tenant=adapter.tenant,
             )
         except tonb_nbutils.BelongsToAnotherTenant as error:
@@ -1183,16 +1183,14 @@ class Vlan(DiffSyncExtras):
         vlan_name = attrs["name"]
         # A Location queued earlier in this run is not in the database yet, so it is looked for
         # there first. Falls through to the database, which is where it is on any other run.
-        location = None
-        if adapter.pending is not None:
-            location = adapter.pending.find(NautobotLocation, location_name)
-            if location is not None and attrs.get("in_vlan_group") and location._state.adding:  # pylint: disable=protected-access
-                # A VLAN Group points at a Location, so the Location has to exist before the group
-                # can. Under Bulk Write Mode it is still queued at this point, so the queue is
-                # written out first. That costs one batch boundary on the run's first VLAN and
-                # nothing afterwards, since the Location is in the database from then on.
-                adapter.flush_pending_writes()
-                location = None
+        location = adapter.writer.find(NautobotLocation, location_name)
+        if location is not None and attrs.get("in_vlan_group") and adapter.writer.holds(location):
+            # A VLAN Group points at a Location, so the Location has to exist before the group can.
+            # Under Bulk Write Mode it is still queued at this point, so the queue is written out
+            # first. That costs one batch boundary on the run's first VLAN and nothing afterwards,
+            # since the Location is in the database from then on.
+            adapter.flush_pending_writes()
+            location = None
         # Cached for the run, since every VLAN at a site asks the same question. The lookup reports
         # an ambiguous or missing Location itself, leaving only the consequence to say here.
         location = location or tonb_nbutils.get_location_object(location_name, logger=adapter.job.logger)
@@ -1220,7 +1218,7 @@ class Vlan(DiffSyncExtras):
                     location_obj=location,
                     description=description,
                     logger=adapter.job.logger,
-                    pending=adapter.pending,
+                    writer=adapter.writer,
                     vlan_group=vlan_group,
                     tenant=adapter.tenant,
                 )
@@ -1398,7 +1396,7 @@ class Vrf(DiffSyncExtras):
                 vrf_status=attrs["status"],
                 conflict=attrs.get("conflict", ""),
                 logger=adapter.job.logger,
-                pending=adapter.pending,
+                writer=adapter.writer,
                 tenant=adapter.tenant,
             )
         except tonb_nbutils.BelongsToAnotherTenant as error:
@@ -1411,7 +1409,7 @@ class Vrf(DiffSyncExtras):
             attrs.get("import_targets") or (),
             attrs.get("export_targets") or (),
             logger=adapter.job.logger,
-            pending=adapter.pending,
+            writer=adapter.writer,
         )
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
@@ -1448,6 +1446,7 @@ class Vrf(DiffSyncExtras):
                 attrs.get("import_targets", self.import_targets),
                 attrs.get("export_targets", self.export_targets),
                 logger=self.adapter.job.logger,
+                writer=self.adapter.writer,
             )
         return super().update(attrs)
 
@@ -1494,7 +1493,7 @@ class VrfDeviceAssignment(DiffSyncExtras):
             device_name=ids["device_name"],
             scope=adapter.device_scope,
             logger=adapter.job.logger,
-            pending=adapter.pending,
+            writer=adapter.writer,
         )
         if assignment is None:
             return None
@@ -1552,7 +1551,7 @@ class InterfaceVlan(DiffSyncExtras):
             tagged_vids=attrs.get("tagged_vids") or [],
             scope=adapter.device_scope,
             logger=adapter.job.logger,
-            pending=adapter.pending,
+            writer=adapter.writer,
         ):
             return None
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
@@ -1567,7 +1566,7 @@ class InterfaceVlan(DiffSyncExtras):
             tagged_vids=attrs["tagged_vids"] if "tagged_vids" in attrs else self.tagged_vids,
             scope=self.adapter.device_scope,
             logger=self.adapter.job.logger,
-            pending=self.adapter.pending,
+            writer=self.adapter.writer,
         ):
             return None
         return super().update(attrs)
@@ -1586,7 +1585,7 @@ class InterfaceVlan(DiffSyncExtras):
             tagged_vids=[],
             scope=self.adapter.device_scope,
             logger=self.adapter.job.logger,
-            pending=self.adapter.pending,
+            writer=self.adapter.writer,
         ):
             return None
         return super().delete()
@@ -1623,7 +1622,7 @@ class InterfaceVrf(DiffSyncExtras):
             vrf_name=attrs["vrf_name"],
             scope=adapter.device_scope,
             logger=adapter.job.logger,
-            pending=adapter.pending,
+            writer=adapter.writer,
         ):
             return None
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
@@ -1636,7 +1635,7 @@ class InterfaceVrf(DiffSyncExtras):
             vrf_name=attrs["vrf_name"],
             scope=self.adapter.device_scope,
             logger=self.adapter.job.logger,
-            pending=self.adapter.pending,
+            writer=self.adapter.writer,
         ):
             return None
         return super().update(attrs)
@@ -1653,7 +1652,7 @@ class InterfaceVrf(DiffSyncExtras):
             vrf_name=None,
             scope=self.adapter.device_scope,
             logger=self.adapter.job.logger,
-            pending=self.adapter.pending,
+            writer=self.adapter.writer,
         ):
             return None
         return super().delete()
@@ -1758,7 +1757,7 @@ class PrefixLocation(DiffSyncExtras):
         if prefix_was_skipped(adapter, ids["prefix"]):
             return None
         if not tonb_nbutils.add_prefix_location(
-            ids["prefix"], ids["location_name"], logger=adapter.job.logger, pending=adapter.pending
+            ids["prefix"], ids["location_name"], logger=adapter.job.logger, writer=adapter.writer
         ):
             adapter.prefix_locations_not_found[ids["location_name"]] += 1
             return None
@@ -1843,6 +1842,8 @@ class HostAddress(DiffSyncExtras):
     """
 
     _modelname = "host_address"
+    # Written object by object, since a host's details are saved onto its address; see `DiffSyncExtras.batched`.
+    batched: ClassVar[bool] = False
     _identifiers = ("host",)
     _attributes = ("mask_length", "dns_name", "mac_address", "status")
 
@@ -1861,8 +1862,13 @@ class HostAddress(DiffSyncExtras):
             adapter.addresses_outside_every_prefix.append(f"{address} (host)")
             return None
         try:
+            # Written at once, since the host's details are saved onto it straight after.
             ip_obj = tonb_nbutils.create_ip(
-                ids["host"], attrs["mask_length"], logger=adapter.job.logger, tenant=adapter.tenant
+                ids["host"],
+                attrs["mask_length"],
+                logger=adapter.job.logger,
+                writer=ImmediateWriter(),
+                tenant=adapter.tenant,
             )
         except tonb_nbutils.BelongsToAnotherTenant as error:
             record_other_tenant(adapter, error)
