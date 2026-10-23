@@ -131,6 +131,15 @@ class TestNautobotDevice(CiscoSdwanModelTestCase):
         self.device.refresh_from_db()
         self.assertEqual(self.device.location, self.location)
 
+    def test_update_location_only_does_not_write(self):
+        """Validate a Device whose only reported change is its Location is not saved at all."""
+        device = self.load_diffsync_object("device", "sdwan-edge-01")
+        self.device.refresh_from_db()
+        last_updated = self.device.last_updated
+        device.update({"location__name": "Somewhere Else"})
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.last_updated, last_updated)
+
     def test_update_software_version_platform_fallback(self):
         """Validate the SoftwareVersion platform falls back to the Job's device platform."""
         device = self.load_diffsync_object("device", "sdwan-edge-01")
@@ -213,7 +222,7 @@ class TestNautobotIPAddressToInterface(CiscoSdwanModelTestCase):
         self.assertIsNone(result)
 
     def test_update_vrf(self):
-        """Validate the Interface VRF is updated."""
+        """Validate a changed VRF replaces the previous one on the Interface and the Device."""
         self._create_assignment("GigabitEthernet1", "192.0.2.10", 24, vrf_name="10")
         assignment = self.load_diffsync_object(
             "ip_address_to_interface", "sdwan-edge-01__GigabitEthernet1__192.0.2.10__24"
@@ -221,6 +230,35 @@ class TestNautobotIPAddressToInterface(CiscoSdwanModelTestCase):
         assignment.update({"interface__vrf__name": "20"})
         self.interface.refresh_from_db()
         self.assertEqual(self.interface.vrf.name, "20")
+        device_vrfs = set(self.device.vrfs.values_list("name", flat=True))
+        self.assertIn("20", device_vrfs)
+        self.assertNotIn("10", device_vrfs)
+        self.assertFalse(VRF.objects.filter(name="10").exists())
+
+    def test_update_clears_vrf(self):
+        """Validate a cleared VRF is removed from the Interface and the Device."""
+        self._create_assignment("GigabitEthernet1", "192.0.2.10", 24, vrf_name="10")
+        assignment = self.load_diffsync_object(
+            "ip_address_to_interface", "sdwan-edge-01__GigabitEthernet1__192.0.2.10__24"
+        )
+        assignment.update({"interface__vrf__name": None})
+        self.interface.refresh_from_db()
+        self.assertIsNone(self.interface.vrf)
+        self.assertNotIn("10", self.device.vrfs.values_list("name", flat=True))
+        self.assertFalse(VRF.objects.filter(name="10").exists())
+
+    def test_update_vrf_kept_when_another_interface_uses_it(self):
+        """Validate a VRF still used by another Interface on the Device is not released."""
+        self._create_assignment("GigabitEthernet1", "192.0.2.10", 24, vrf_name="10")
+        self._create_assignment("sdwan-system-intf", "10.255.1.1", 32, vrf_name="10")
+        assignment = self.load_diffsync_object(
+            "ip_address_to_interface", "sdwan-edge-01__GigabitEthernet1__192.0.2.10__24"
+        )
+        assignment.update({"interface__vrf__name": "20"})
+        self.interface.refresh_from_db()
+        self.assertEqual(self.interface.vrf.name, "20")
+        self.assertIn("10", self.device.vrfs.values_list("name", flat=True))
+        self.assertTrue(VRF.objects.filter(name="10").exists())
 
     def test_delete_cleans_up_vrf(self):
         """Validate deletion removes the VRF associations and unused VRFs."""
