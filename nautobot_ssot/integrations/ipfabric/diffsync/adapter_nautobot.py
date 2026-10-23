@@ -249,32 +249,30 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             self.job.logger.warning("%d %s objects %s.", count, model_name, outcome)
         self.safe_delete_tally.clear()
 
-    def flush_pending_writes_if_full(self) -> int:
+    def flush_pending_writes_if_full(self) -> None:
         """Write the queue if it has grown past what is worth holding in memory.
 
         Called once a model has finished its own work, which is the only safe point: a queue flushed
         part way through an operation would miss whatever that operation went on to set, such as a
         Device's virtual chassis fields.
         """
-        if len(self.pending) < PENDING_WRITE_HIGH_WATER:
-            return 0
-        return self.flush_pending_writes()
+        if len(self.pending) >= PENDING_WRITE_HIGH_WATER:
+            self.flush_pending_writes()
 
-    def flush_pending_writes(self) -> int:
-        """Write whatever bulk mode has queued, and report what was written.
+    def flush_pending_writes(self) -> None:
+        """Write whatever bulk mode has queued, and log what was written.
 
         Called before anything that reads those objects back from the database, and at the end of
         the sync. A no-op when nothing is queued, so callers need not check the mode first.
         """
         if not self.pending:
-            return 0
+            return
         counts = self.pending.counts()
         written = self.pending.flush()
         # Rows exist now that did not when these lookups last ran, and one of them caching that a
         # Device could not be found is enough to lose every Cable terminating on it.
         job_scoped_cache.clear_group(tonb_utils.BULK_WRITTEN_LOOKUPS)
         self.job.logger.info("Wrote %d queued rows in bulk mode: %s", written, counts)
-        return written
 
     def load_interfaces(self, device_record: Device, diffsync_device):
         """Import a single Nautobot Interface object as a DiffSync Interface model."""
@@ -409,18 +407,13 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             except ObjectAlreadyExists:
                 self.job.logger.warning(f"Duplicate Cable discovered, {cable.get_unique_id()}")
 
-    def get_in_scope_devices(self, location_objects):
-        """Return the Devices at the given Locations that this sync covers.
+    def get_in_scope_devices(self):
+        """Return the Devices this sync covers, through the scope every write finds its Device in.
 
         Shared by Device loading and Cable loading, so that Cables cannot load for Devices whose
         Interfaces did not.
         """
-        devices = Device.objects.filter(location__in=location_objects)
-        if self.sync_ipfabric_tagged_only:
-            devices = devices.filter(tags=self.ssot_tag)
-        if self.tenant is not None:
-            devices = devices.filter(tenant=self.tenant)
-        return devices
+        return self.device_scope.devices()
 
     def software_of(self, device_record: Device) -> Tuple[Optional[str], Optional[str]]:
         """Return the software version and images to report for a Device.
@@ -841,6 +834,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             self.load_host_addresses()
 
         location_objects = self.get_initial_location(self.ssot_tag)
+        # Narrowed only when the run is, so that a run covering every Location does not carry them all.
+        if self.sync_ipfabric_tagged_only or self.location_filter:
+            self.device_location_pks = frozenset(location_objects.values_list("pk", flat=True))
         # The parent object that stores all children, is the Location.
         if self.job.debug:
             self.job.logger.debug("Found %s Nautobot Location objects to start sync from", len(location_objects))
@@ -867,21 +863,21 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
 
         # Children are loaded once for every Location rather than once per Location, so that the
         # number of queries a load takes does not grow with the number of Locations in scope.
-        self.load_devices(self.get_in_scope_devices(location_objects), locations_by_name)
+        self.load_devices(self.get_in_scope_devices(), locations_by_name)
         if self.scope.vlans:
             self.load_vlans(location_objects, locations_by_name)
 
         # Loaded after every Location, as a link may terminate on Devices in two of them.
         if self.scope.cables:
-            self.load_cables(self.get_in_scope_devices(location_objects))
+            self.load_cables(self.get_in_scope_devices())
 
         # Loaded last, as it needs the Devices above and the VRFs loaded before them.
         if self.scope.device_vrfs:
-            self.load_vrf_device_assignments(self.get_in_scope_devices(location_objects))
+            self.load_vrf_device_assignments(self.get_in_scope_devices())
         if self.scope.interface_vrfs:
-            self.load_interface_vrfs(self.get_in_scope_devices(location_objects))
+            self.load_interface_vrfs(self.get_in_scope_devices())
         if self.scope.interface_vlans:
-            self.load_interface_vlans(self.get_in_scope_devices(location_objects))
+            self.load_interface_vlans(self.get_in_scope_devices())
 
         if self.placeholder_interfaces:
             self.job.logger.warning(

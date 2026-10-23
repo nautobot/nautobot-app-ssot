@@ -4,7 +4,8 @@
 # One module holds every synced model #  pylint:disable=too-many-lines
 """DiffSyncModel subclasses for Nautobot-to-IPFabric data sync."""
 
-from typing import Any, List, Optional
+import functools
+from typing import Any, ClassVar, List, Optional
 from uuid import UUID
 
 from diffsync import DiffSyncModel
@@ -170,8 +171,59 @@ def resolve_platform(adapter, platform_name: str, manufacturer_object):
 
 
 # pylint: disable=too-many-branches,too-many-statements
+WRITE_OPERATIONS = ("create", "update", "delete")
+
+
+def model_operation(operation, *, flush_first: bool):
+    """Return a model operation that runs inside `deferred_change_logging`.
+
+    With `flush_first`, anything Bulk Write Mode has queued is written before the operation runs, for
+    a model that writes object by object and reads back what the run has written so far.
+    """
+
+    @functools.wraps(operation)
+    def wrapped_operation(*args, **kwargs):
+        with tonb_nbutils.deferred_change_logging():
+            if flush_first:
+                # `create` is a classmethod given the adapter; `update` and `delete` run on a model bound to one.
+                first = args[0]
+                if isinstance(first, type):
+                    # Looked up by key rather than truth: an adapter holding no models yet is falsy.
+                    adapter = kwargs["adapter"] if "adapter" in kwargs else args[1]
+                else:
+                    adapter = first.adapter
+                if adapter.pending is not None:
+                    adapter.flush_pending_writes()
+            return operation(*args, **kwargs)
+
+    wrapped_operation.defers_change_logging = True
+    return wrapped_operation
+
+
 class DiffSyncExtras(DiffSyncModel):
     """Additional components to mix and subclass from with `DiffSyncModel`."""
+
+    # Whether the model's writes go through Bulk Write Mode's queue. One that writes object by object
+    # reads back from the database what the run has written, so the queue is written first.
+    batched: ClassVar[bool] = True
+
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs):
+        """Defer the change logging of every write operation a model defines.
+
+        Applied here rather than by hand, so that a new model, or a renamed operation, cannot write
+        without it. Run once pydantic has built the class, so replacing the operations cannot affect
+        how its fields are collected. The deferral does nothing inside a scope that already defers,
+        so it composes with an operation that calls another. A model that is not `batched` has the
+        queue written before each of its operations too.
+        """
+        super().__pydantic_init_subclass__(**kwargs)
+        for name in WRITE_OPERATIONS:
+            operation = cls.__dict__.get(name)
+            if isinstance(operation, classmethod):
+                setattr(cls, name, classmethod(model_operation(operation.__func__, flush_first=not cls.batched)))
+            elif operation is not None:
+                setattr(cls, name, model_operation(operation, flush_first=not cls.batched))
 
     @classmethod
     def create(cls, adapter, ids, attrs):
@@ -263,7 +315,6 @@ class Location(DiffSyncExtras):
     vlans: List["Vlan"] = []
 
     @classmethod
-    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create Location in Nautobot, or find it when Locations are out of scope.
 
@@ -282,7 +333,6 @@ class Location(DiffSyncExtras):
             )
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete Location in Nautobot."""
         try:
@@ -302,7 +352,6 @@ class Location(DiffSyncExtras):
             return super().delete()
         return None
 
-    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update Location Object in Nautobot."""
         try:
@@ -378,7 +427,6 @@ class Device(DiffSyncExtras):
     interfaces: List["Interface"] = []
 
     @classmethod
-    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create Device in Nautobot under its parent location."""
         # Get DeviceType
@@ -538,7 +586,6 @@ class Device(DiffSyncExtras):
                 return super().create(ids=ids, adapter=adapter, attrs=attrs)
         return None
 
-    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete device in Nautobot."""
         try:
@@ -558,7 +605,6 @@ class Device(DiffSyncExtras):
             return super().delete()
         return None
 
-    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update devices in Nautobot based on Source."""
         try:
@@ -727,7 +773,6 @@ class Interface(DiffSyncExtras):
     addresses: List["InterfaceAddress"] = []
 
     @classmethod
-    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create interface in Nautobot under its parent device."""
         device_name = ids["device_name"]
@@ -738,9 +783,7 @@ class Interface(DiffSyncExtras):
         device_obj = None
         if adapter.pending is not None:
             device_obj = adapter.pending.find(NautobotDevice, device_name)
-        device_obj = device_obj or tonb_nbutils.get_syncable_device(
-            device_name, tagged_only=adapter.sync_ipfabric_tagged_only, tenant=adapter.tenant
-        )
+        device_obj = device_obj or tonb_nbutils.get_syncable_device(device_name, scope=adapter.device_scope)
         if not device_obj:
             adapter.job.logger.warning(
                 f"Unable to create an Interface with the name {interface_name} because of a failure "
@@ -765,12 +808,9 @@ class Interface(DiffSyncExtras):
             return None
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete Interface Object."""
-        device = tonb_nbutils.get_syncable_device(
-            self.device_name, tagged_only=self.adapter.sync_ipfabric_tagged_only, tenant=self.adapter.tenant
-        )
+        device = tonb_nbutils.get_syncable_device(self.device_name, scope=self.adapter.device_scope)
         if device:
             return_super = True
             # Every Interface of the Device at once, so removing many of them costs one lookup
@@ -799,12 +839,9 @@ class Interface(DiffSyncExtras):
 
         return None
 
-    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update Interface object in Nautobot."""
-        device = tonb_nbutils.get_syncable_device(
-            self.device_name, tagged_only=self.adapter.sync_ipfabric_tagged_only, tenant=self.adapter.tenant
-        )
+        device = tonb_nbutils.get_syncable_device(self.device_name, scope=self.adapter.device_scope)
         if device:
             return_super = True
             # Every Interface of the Device at once, so a Device with many of them changing costs
@@ -953,7 +990,7 @@ class InterfaceAddress(DiffSyncExtras):
         """
         if adapter.pending is not None:
             device = adapter.pending.find(NautobotDevice, device_name) or tonb_nbutils.get_syncable_device(
-                device_name, tagged_only=adapter.sync_ipfabric_tagged_only, tenant=adapter.tenant
+                device_name, scope=adapter.device_scope
             )
             if device is not None:
                 queued = adapter.pending.find(NautobotInterface, (device.pk, interface_name))
@@ -962,8 +999,7 @@ class InterfaceAddress(DiffSyncExtras):
         interface = tonb_nbutils.get_tagged_interface(
             device_name,
             interface_name,
-            tagged_only=adapter.sync_ipfabric_tagged_only,
-            tenant=adapter.tenant,
+            scope=adapter.device_scope,
             logger=adapter.job.logger,
         )
         if interface is None:
@@ -1024,7 +1060,6 @@ class InterfaceAddress(DiffSyncExtras):
         adapter.pending.defer_update(device, {field: address_object})
 
     @classmethod
-    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create the address in Nautobot and assign it to its Interface."""
         device, interface = cls.find_interface(adapter, ids["device_name"], ids["interface_name"])
@@ -1058,7 +1093,6 @@ class InterfaceAddress(DiffSyncExtras):
             cls.assign_primary(adapter, device, address_object)
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Correct the mask IP Fabric reports for the address, and whether it is the Device's primary."""
         device, interface = self.find_interface(self.adapter, self.device_name, self.interface_name)
@@ -1097,7 +1131,6 @@ class InterfaceAddress(DiffSyncExtras):
                 self.clear_primary(self.adapter, device, address_object)
         return super().update(attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Remove the address IP Fabric no longer reports for the Interface.
 
@@ -1142,7 +1175,6 @@ class Vlan(DiffSyncExtras):
     vlan_pk: Optional[UUID] = None
 
     @classmethod
-    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create VLANs in Nautobot under the site."""
         status = attrs["status"].lower().capitalize()
@@ -1203,7 +1235,6 @@ class Vlan(DiffSyncExtras):
                 )
         return None
 
-    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete."""
         try:
@@ -1221,7 +1252,6 @@ class Vlan(DiffSyncExtras):
             return super().delete()
         return None
 
-    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update VLAN object in Nautobot."""
         try:
@@ -1305,7 +1335,6 @@ class RouteTarget(DiffSyncExtras):
     name: str
 
     @classmethod
-    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create a Route Target in Nautobot."""
         try:
@@ -1319,7 +1348,6 @@ class RouteTarget(DiffSyncExtras):
             return None
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete a Route Target in Nautobot."""
         route_target = NautobotRouteTarget.objects.filter(name=self.name).first()
@@ -1352,7 +1380,6 @@ class Vrf(DiffSyncExtras):
     conflict: str = ""
 
     @classmethod
-    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create a VRF in the run's Namespace."""
         name = ids["name"]
@@ -1388,7 +1415,6 @@ class Vrf(DiffSyncExtras):
         )
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update a VRF in Nautobot."""
         vrf_obj = tonb_nbutils.get_vrf(self.name, logger=self.adapter.job.logger)
@@ -1425,7 +1451,6 @@ class Vrf(DiffSyncExtras):
             )
         return super().update(attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete a VRF in Nautobot."""
         vrf_obj = tonb_nbutils.get_vrf(self.name, logger=self.adapter.job.logger)
@@ -1462,14 +1487,12 @@ class VrfDeviceAssignment(DiffSyncExtras):
     device_name: str
 
     @classmethod
-    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Assign a VRF to a Device in Nautobot."""
         assignment = tonb_nbutils.create_vrf_device_assignment(
             vrf_name=ids["vrf_name"],
             device_name=ids["device_name"],
-            tagged_only=adapter.sync_ipfabric_tagged_only,
-            tenant=adapter.tenant,
+            scope=adapter.device_scope,
             logger=adapter.job.logger,
             pending=adapter.pending,
         )
@@ -1477,7 +1500,6 @@ class VrfDeviceAssignment(DiffSyncExtras):
             return None
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Remove a VRF from a Device in Nautobot."""
         assignment = tonb_nbutils.get_vrf_device_assignment(self.vrf_name, self.device_name)
@@ -1520,7 +1542,6 @@ class InterfaceVlan(DiffSyncExtras):
     tagged_vids: List[int] = []
 
     @classmethod
-    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Set an Interface's 802.1Q mode and VLANs in Nautobot."""
         if not tonb_nbutils.set_interface_vlans(
@@ -1529,15 +1550,13 @@ class InterfaceVlan(DiffSyncExtras):
             mode=attrs["mode"],
             untagged_vid=attrs.get("untagged_vid"),
             tagged_vids=attrs.get("tagged_vids") or [],
-            tagged_only=adapter.sync_ipfabric_tagged_only,
-            tenant=adapter.tenant,
+            scope=adapter.device_scope,
             logger=adapter.job.logger,
             pending=adapter.pending,
         ):
             return None
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Change an Interface's 802.1Q mode or the VLANs it carries."""
         if not tonb_nbutils.set_interface_vlans(
@@ -1546,15 +1565,13 @@ class InterfaceVlan(DiffSyncExtras):
             mode=attrs.get("mode", self.mode),
             untagged_vid=attrs["untagged_vid"] if "untagged_vid" in attrs else self.untagged_vid,
             tagged_vids=attrs["tagged_vids"] if "tagged_vids" in attrs else self.tagged_vids,
-            tagged_only=self.adapter.sync_ipfabric_tagged_only,
-            tenant=self.adapter.tenant,
+            scope=self.adapter.device_scope,
             logger=self.adapter.job.logger,
             pending=self.adapter.pending,
         ):
             return None
         return super().update(attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Take an Interface out of 802.1Q mode in Nautobot.
 
@@ -1567,8 +1584,7 @@ class InterfaceVlan(DiffSyncExtras):
             mode="",
             untagged_vid=None,
             tagged_vids=[],
-            tagged_only=self.adapter.sync_ipfabric_tagged_only,
-            tenant=self.adapter.tenant,
+            scope=self.adapter.device_scope,
             logger=self.adapter.job.logger,
             pending=self.adapter.pending,
         ):
@@ -1599,37 +1615,32 @@ class InterfaceVrf(DiffSyncExtras):
     vrf_name: str
 
     @classmethod
-    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Put an Interface in a VRF in Nautobot."""
         if not tonb_nbutils.set_interface_vrf(
             device_name=ids["device_name"],
             interface_name=ids["interface_name"],
             vrf_name=attrs["vrf_name"],
-            tagged_only=adapter.sync_ipfabric_tagged_only,
-            tenant=adapter.tenant,
+            scope=adapter.device_scope,
             logger=adapter.job.logger,
             pending=adapter.pending,
         ):
             return None
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Move an Interface from one VRF to another in Nautobot."""
         if not tonb_nbutils.set_interface_vrf(
             device_name=self.device_name,
             interface_name=self.interface_name,
             vrf_name=attrs["vrf_name"],
-            tagged_only=self.adapter.sync_ipfabric_tagged_only,
-            tenant=self.adapter.tenant,
+            scope=self.adapter.device_scope,
             logger=self.adapter.job.logger,
             pending=self.adapter.pending,
         ):
             return None
         return super().update(attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Take an Interface out of its VRF in Nautobot.
 
@@ -1640,8 +1651,7 @@ class InterfaceVrf(DiffSyncExtras):
             device_name=self.device_name,
             interface_name=self.interface_name,
             vrf_name=None,
-            tagged_only=self.adapter.sync_ipfabric_tagged_only,
-            tenant=self.adapter.tenant,
+            scope=self.adapter.device_scope,
             logger=self.adapter.job.logger,
             pending=self.adapter.pending,
         ):
@@ -1669,7 +1679,6 @@ class Prefix(DiffSyncExtras):
     status: str = "Active"
 
     @classmethod
-    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create a Prefix in the run's Namespace, or adopt the one already there.
 
@@ -1690,7 +1699,6 @@ class Prefix(DiffSyncExtras):
             return None
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Restore a Prefix Safe Delete Mode marked, now that IP Fabric reports it again.
 
@@ -1711,7 +1719,6 @@ class Prefix(DiffSyncExtras):
             return None
         return super().update(attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete a Prefix IP Fabric no longer reports.
 
@@ -1746,7 +1753,6 @@ class PrefixLocation(DiffSyncExtras):
     location_name: str
 
     @classmethod
-    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Record a Prefix at a Location in Nautobot."""
         if prefix_was_skipped(adapter, ids["prefix"]):
@@ -1758,7 +1764,6 @@ class PrefixLocation(DiffSyncExtras):
             return None
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Stop recording a Prefix at a Location IP Fabric no longer sees it at."""
         if not tonb_nbutils.remove_prefix_location(self.prefix, self.location_name, logger=self.adapter.job.logger):
@@ -1780,6 +1785,8 @@ class PrefixVlan(DiffSyncExtras):
     """
 
     _modelname = "prefix_vlan"
+    # Written object by object, after what it terminates on or points at; see `DiffSyncExtras.batched`.
+    batched: ClassVar[bool] = False
     _identifiers = ("prefix",)
     _attributes = ("vid", "location_name", "conflict")
 
@@ -1797,9 +1804,6 @@ class PrefixVlan(DiffSyncExtras):
         """
         vlan_obj = None
         if attrs["vid"] is not None:
-            if adapter.pending is not None:
-                # A VLAN created earlier in this run may only be queued.
-                adapter.flush_pending_writes()
             vlan_obj = tonb_nbutils.get_vlan_at_location_name(attrs["vid"], attrs["location_name"])
             if vlan_obj is None:
                 adapter.prefix_vlans_not_found[(attrs["location_name"], attrs["vid"])] += 1
@@ -1807,7 +1811,6 @@ class PrefixVlan(DiffSyncExtras):
         return tonb_nbutils.set_prefix_vlan(prefix, vlan_obj, attrs["conflict"], logger=adapter.job.logger)
 
     @classmethod
-    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Record the VLAN IP Fabric reports a Prefix in."""
         if prefix_was_skipped(adapter, ids["prefix"]):
@@ -1816,7 +1819,6 @@ class PrefixVlan(DiffSyncExtras):
             return None
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Move a Prefix to the VLAN IP Fabric now reports, or record that it reports more than one."""
         merged = {"vid": self.vid, "location_name": self.location_name, "conflict": self.conflict, **attrs}
@@ -1824,7 +1826,6 @@ class PrefixVlan(DiffSyncExtras):
             return None
         return super().update(attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Take a Prefix out of the VLAN IP Fabric no longer reports it in."""
         if not tonb_nbutils.set_prefix_vlan(self.prefix, None, "", logger=self.adapter.job.logger):
@@ -1852,7 +1853,6 @@ class HostAddress(DiffSyncExtras):
     status: str = "Active"
 
     @classmethod
-    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create, or adopt, the IP Address of a host IP Fabric discovered."""
         address = f"{ids['host']}/{attrs['mask_length']}"
@@ -1873,7 +1873,6 @@ class HostAddress(DiffSyncExtras):
             return None
         return super().create(ids=ids, adapter=adapter, attrs=attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Correct a host's mask, DNS name or MAC address, or restore one Safe Delete Mode marked."""
         ip_obj = tonb_nbutils.get_host_address(self.host)
@@ -1894,7 +1893,6 @@ class HostAddress(DiffSyncExtras):
             return None
         return super().update(attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Remove a host IP Fabric no longer reports, through Safe Delete Mode like any other object.
 
@@ -1918,6 +1916,8 @@ class Cable(DiffSyncExtras):
     """
 
     _modelname = "cable"
+    # Written object by object, after what it terminates on or points at; see `DiffSyncExtras.batched`.
+    batched: ClassVar[bool] = False
     _identifiers = (
         "termination_a_device",
         "termination_a_name",
@@ -1945,34 +1945,27 @@ class Cable(DiffSyncExtras):
     def resolve_interfaces(adapter, ids):
         """Return the two Nautobot Interfaces a link terminates on, or (None, None) if either is missing.
 
-        Cables keep the per-object write path, so this reads its Interfaces back from the database.
-        The Devices and Interfaces a link terminates on are created earlier in the same sync, and in
-        bulk mode that means queued rather than written, so anything still queued is written first.
+        Cables keep the per-object write path, so this reads its Interfaces back from the database,
+        where the Devices and Interfaces created earlier in the sync are by now: a Cable is not
+        `batched`, so anything Bulk Write Mode queued is written before its operations run.
         """
-        if adapter.pending is not None:
-            adapter.flush_pending_writes()
-        job_logger = adapter.job.logger
-        tagged_only = adapter.sync_ipfabric_tagged_only
         interface_a = tonb_nbutils.get_tagged_interface(
             ids["termination_a_device"],
             ids["termination_a_name"],
-            logger=job_logger,
-            tagged_only=tagged_only,
-            tenant=adapter.tenant,
+            scope=adapter.device_scope,
+            logger=adapter.job.logger,
         )
         interface_b = tonb_nbutils.get_tagged_interface(
             ids["termination_b_device"],
             ids["termination_b_name"],
-            logger=job_logger,
-            tagged_only=tagged_only,
-            tenant=adapter.tenant,
+            scope=adapter.device_scope,
+            logger=adapter.job.logger,
         )
         if not interface_a or not interface_b:
             return None, None
         return interface_a, interface_b
 
     @classmethod
-    @tonb_nbutils.deferred_change_logging()
     def create(cls, adapter, ids, attrs):
         """Create a Cable in Nautobot between the two Interfaces it terminates on."""
         job_logger = adapter.job.logger
@@ -2059,7 +2052,6 @@ class Cable(DiffSyncExtras):
             return cable
         return None
 
-    @tonb_nbutils.deferred_change_logging()
     def update(self, attrs):
         """Update a Cable's Status in Nautobot."""
         link = self.describe(self.get_identifiers())
@@ -2080,7 +2072,6 @@ class Cable(DiffSyncExtras):
                 cable.tags.remove(self.adapter.safe_delete_tag)
         return super().update(attrs)
 
-    @tonb_nbutils.deferred_change_logging()
     def delete(self) -> Optional["DiffSyncModel"]:
         """Delete a Cable in Nautobot."""
         link = self.describe(self.get_identifiers())

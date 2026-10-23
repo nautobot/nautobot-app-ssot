@@ -22,7 +22,11 @@ from nautobot.extras.models import Role, Status
 from nautobot_ssot.integrations.ipfabric.bulk_writes import PendingWrites
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
-from nautobot_ssot.integrations.ipfabric.utilities.nbutils import create_interface, resolve_parent_interface
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
+    DeviceScope,
+    create_interface,
+    resolve_parent_interface,
+)
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache, parent_interface_name
 from nautobot_ssot.tests.ipfabric.job_log import job_log_text, job_logger
 from nautobot_ssot.tests.ipfabric.test_ipfabric_adapter import (
@@ -189,6 +193,7 @@ class TestATunnelUnitThatWasCabledUnderTheDefaultType(TestCase):
         """Drive the update a re-sync makes to the unit, and return the adapter it reported to."""
         adapter = MagicMock()
         adapter.sync_ipfabric_tagged_only = False
+        adapter.device_scope = DeviceScope()
         adapter.tenant = None
         adapter.safe_delete_tally = Counter()
         # Held per run on the adapter, so two syncs in one worker cannot share it.
@@ -395,6 +400,7 @@ class TestWhenNautobotRefusesTheWrite(TestATunnelUnitThatWasCabledUnderTheDefaul
         """What a manual run needed to tell a refused type from a refused relation."""
         adapter = MagicMock()
         adapter.sync_ipfabric_tagged_only = False
+        adapter.device_scope = DeviceScope()
         adapter.tenant = None
         model = InterfaceModel(name=self.port.name, device_name=self.device.name, status="Active")
         model.adapter = adapter

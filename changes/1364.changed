@@ -1,0 +1,1 @@
+Changed the IP Fabric integration to write Interfaces, addresses, VLANs, VRFs and Cables only to the Devices a run reads, so that under a Site Filter, or with Sync Tagged Only at an untagged Location, a Device of the same name outside the run is no longer changed.
