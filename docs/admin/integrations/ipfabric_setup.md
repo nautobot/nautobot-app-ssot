@@ -78,6 +78,8 @@ PLUGINS_CONFIG = {
 | `ipfabric_safe_delete_prefix_status`    | The status that is set for a Prefix when the `Safe Delete Mode` flag is set in the Job.                                                                                                       | `Deprecated`        |
 | `ipfabric_synced_tag`                   | The Tag the sync marks the objects it writes with, and that **Sync Tagged Only** scopes to. See [Tags the sync applies](../../user/integrations/ipfabric.md#tags-the-sync-applies).                                       | `SSoT Synced from IPFabric` |
 | `ipfabric_safe_delete_tag`              | The Tag `Safe Delete Mode` marks objects with instead of deleting them.                                                                                                                       | `SSoT Safe Delete`  |
+| `ipfabric_stack_member_name`            | How each member of a stack other than the master is named. See [Stack members](../../user/integrations/ipfabric.md#stack-members).                                                            | `{hostname}-member{member}`|
+| `ipfabric_stack_master_name`            | How the master of a stack is named.                                                                                                                                                           | `{hostname}`        |
 | `ipfabric_use_canonical_interface_name` | Whether to attempt to elongate interface names as found in IP Fabric.                                                                                                                         | `False`             |
 | `ipfabric_sync_<object type>`           | Pre-selects an object type on the Job form. See [Choosing what to sync](#choosing-what-to-sync).                                                                                              | Varies by type      |
 | `ipfabric_disabled_sync_objects`        | Object types that may not be selected on the Job form at all. See [Choosing what to sync](#choosing-what-to-sync).                                                                            | `[]`                |
@@ -115,6 +117,8 @@ PLUGINS_CONFIG = {
         "ipfabric_safe_delete_prefix_status": os.getenv("NAUTOBOT_SSOT_IPFABRIC_PREFIX_DELETE_STATUS"),
         "ipfabric_synced_tag": os.getenv("NAUTOBOT_SSOT_IPFABRIC_SYNCED_TAG", "SSoT Synced from IPFabric"),
         "ipfabric_safe_delete_tag": os.getenv("NAUTOBOT_SSOT_IPFABRIC_SAFE_DELETE_TAG", "SSoT Safe Delete"),
+        "ipfabric_stack_member_name": os.getenv("NAUTOBOT_SSOT_IPFABRIC_STACK_MEMBER_NAME", "{hostname}-member{member}"),
+        "ipfabric_stack_master_name": os.getenv("NAUTOBOT_SSOT_IPFABRIC_STACK_MASTER_NAME", "{hostname}"),
         "ipfabric_use_canonical_interface_name": is_truthy(
             os.getenv("NAUTOBOT_SSOT_USE_CANONICAL_INTERFACE_NAME", "true")
         ),
