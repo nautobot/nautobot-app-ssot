@@ -1,0 +1,1 @@
+Fixed the Infoblox Nautobot adapter adding the integration's built-in custom field names to the configured `cf_fields_ignore` list on every object it loaded, which made loading slow down quadratically with the number of objects.

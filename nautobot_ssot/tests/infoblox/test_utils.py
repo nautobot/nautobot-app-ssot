@@ -178,6 +178,19 @@ class TestUtils(unittest.TestCase):
         result = get_default_custom_fields(cf_contenttype=content_type, excluded_cfs=excluded_cfs)
         self.assertEqual(expected, result)
 
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.infoblox.utils.diffsync.CustomField",
+        autospec=True,
+    )
+    def test_custom_field_helpers_do_not_modify_excluded_list(self, custom_field):
+        """The caller's exclusion list (the config's `cf_fields_ignore` list) must not grow with every call."""
+        custom_field.objects.filter.return_value = []
+        excluded_cfs = ["snow_synced"]
+        for _ in range(3):
+            get_valid_custom_fields(cfs={"tenant": "NTC"}, excluded_cfs=excluded_cfs)
+            get_default_custom_fields(cf_contenttype=unittest.mock.Mock(), excluded_cfs=excluded_cfs)
+        self.assertEqual(excluded_cfs, ["snow_synced"])
+
 
 class TestNautobotUtils(TestCase):
     """Test infoblox.utils.nautobot.py."""
