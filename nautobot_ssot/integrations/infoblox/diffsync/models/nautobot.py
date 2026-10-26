@@ -2,9 +2,8 @@
 
 import functools
 
-from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import ValidationError
+from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.db import transaction
 from django.utils.text import slugify
 from nautobot.extras.choices import CustomFieldTypeChoices
@@ -16,7 +15,6 @@ from nautobot.ipam.models import IPAddress as OrmIPAddress
 from nautobot.ipam.models import Namespace as OrmNamespace
 from nautobot.ipam.models import Prefix as OrmPrefix
 from nautobot.ipam.models import VLANGroup as OrmVlanGroup
-from packaging import version
 
 from nautobot_ssot.integrations.infoblox.choices import (
     DNSRecordTypeChoices,
@@ -40,8 +38,19 @@ from nautobot_ssot.integrations.infoblox.utils.diffsync import (
 from nautobot_ssot.integrations.infoblox.utils.nautobot import get_prefix_vlans
 
 
+def _is_many_to_many(obj: object, field_name: str) -> bool:
+    """Return True if the model of `obj` has a many-to-many field named `field_name`."""
+    try:
+        return obj._meta.get_field(field_name).many_to_many
+    except FieldDoesNotExist:
+        return False
+
+
 def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=too-many-branches,too-many-statements
     """Process Extensibility Attributes into Custom Fields or link to found objects.
+
+    Location many-to-many assignments are deferred with `transaction.on_commit`, so a caller creating a new object must
+    call this inside the same `transaction.atomic()` block as the object's save.
 
     Args:
         adapter (object): DiffSync Adapter
@@ -72,12 +81,24 @@ def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=
                             f"permitted to contain {obj._meta.verbose_name} objects; skipping location assignment "
                             f"for {obj} found in Extensibility Attributes '{attr}'."
                         )
-                    elif version.parse(settings.VERSION) < version.parse("2.2.0"):
+                    elif _is_many_to_many(obj, "locations"):
+                        transaction.on_commit(functools.partial(obj.locations.add, location_entry["id"]))
+                    elif hasattr(obj, "location_id"):
                         obj.location_id = location_entry["id"]
                     else:
-                        transaction.on_commit(functools.partial(obj.locations.add, location_entry["id"]))
+                        # Defensive: every model passed here today has a Location field, and the LocationType
+                        # content-type check above already rejects models that can't have a Location.
+                        adapter.job.logger.warning(
+                            f"Cannot assign Location {attr_value} to {obj} found in Extensibility Attributes '{attr}'; "
+                            f"{obj._meta.verbose_name} objects do not support Location assignment."
+                        )
             if attr.lower() == "vrf":
-                if isinstance(attr_value, list):
+                if not _is_many_to_many(obj, "vrfs"):
+                    adapter.job.logger.warning(
+                        f"Cannot assign VRF {attr_value} to {obj} found in Extensibility Attributes '{attr}'; "
+                        f"{obj._meta.verbose_name} objects do not support VRF assignment."
+                    )
+                elif isinstance(attr_value, list):
                     for vrf in attr_value:
                         try:
                             obj.vrfs.add(adapter.vrf_map[vrf])
@@ -407,9 +428,16 @@ class NautobotVlanGroup(VlanView):
     def update(self, attrs):
         """Update VLANGroup object in Nautobot."""
         _vg = OrmVlanGroup.objects.get(id=self.pk)
+        if "description" in attrs:
+            _vg.description = attrs["description"] or ""
         if "ext_attrs" in attrs:
             process_ext_attrs(adapter=self.adapter, obj=_vg, extattrs=attrs["ext_attrs"])
-        return super().update(attrs)
+        try:
+            _vg.validated_save()
+            return super().update(attrs)
+        except ValidationError as err:
+            self.adapter.job.logger.warning(f"Unable to update VLAN Group {_vg.name}. {err}")
+            return None
 
     def delete(self):
         """Delete VLANGroup object in Nautobot."""
@@ -443,11 +471,16 @@ class NautobotVlan(Vlan):
             vlan_group_id=adapter.vlangroup_map[ids["vlangroup"]],
             description=attrs["description"],
         )
-        if "ext_attrs" in attrs:
-            process_ext_attrs(adapter=adapter, obj=_vlan, extattrs=attrs["ext_attrs"])
         try:
-            _vlan.tags.add(create_tag_sync_from_infoblox())
-            _vlan.validated_save()
+            # One transaction, so deferred many-to-many writes from `process_ext_attrs` run after the VLAN row exists
+            # and are discarded if the save fails. This can't be `@transaction.atomic` on the method (as on
+            # `NautobotNetwork.create`): the `ValidationError` is caught below, so the method would return normally and
+            # commit, running the deferred writes for a VLAN that was never saved.
+            with transaction.atomic():
+                if "ext_attrs" in attrs:
+                    process_ext_attrs(adapter=adapter, obj=_vlan, extattrs=attrs["ext_attrs"])
+                _vlan.tags.add(create_tag_sync_from_infoblox())
+                _vlan.validated_save()
             if ids["vlangroup"] not in adapter.vlan_map:
                 adapter.vlan_map[ids["vlangroup"]] = {}
             adapter.vlan_map[ids["vlangroup"]][_vlan.vid] = _vlan.id
