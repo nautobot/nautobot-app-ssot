@@ -869,9 +869,7 @@ class TestNautobotAdapter(TestCase):
 
     def test_get_in_scope_devices_honours_tagged_only(self):
         """`sync_ipfabric_tagged_only` narrows Device scope to tagged Devices."""
-        self.nb_adapter.device_location_pks = frozenset(
-            Location.objects.filter(name="stack").values_list("pk", flat=True)
-        )
+        self.nb_adapter.location_filter = Location.objects.get(name="stack")
         self.nb_adapter.sync_ipfabric_tagged_only = False
         self.assertEqual(self.nb_adapter.get_in_scope_devices().count(), 3)
 

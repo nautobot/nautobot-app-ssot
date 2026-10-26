@@ -645,7 +645,7 @@ The selection stops new placeholders rather than removing those an earlier run c
 
 ## Sync Tagged Only
 
-With **Sync Tagged Only** selected, which is the default, the sync reads and writes only Devices carrying the `SSoT Synced from IPFabric` Tag. Deselecting it brings every Device in the selected Locations into scope, including Devices another process created, and the sync then updates their Interfaces as well as those of the Devices it created itself.
+With **Sync Tagged Only** selected, which is the default, the sync reads and writes only Devices that carry the `SSoT Synced from IPFabric` Tag at Locations that carry it too. A site IP Fabric reports is tagged as it is synced, whether the run creates it or finds it already in Nautobot, so the Devices written there are covered in the same run. Deselecting it brings every Device in the selected Locations into scope, including Devices another process created, and the sync then updates their Interfaces as well as those of the Devices it created itself.
 
 The option governs reading and writing together. It has to: a Device loaded from Nautobot but excluded from writing would have every difference IP Fabric reports about it reported again on every run and never applied.
 

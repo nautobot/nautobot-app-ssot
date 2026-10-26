@@ -842,9 +842,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             self.load_host_addresses()
 
         location_objects = self.get_initial_location(self.ssot_tag)
-        # Narrowed only when the run is, so that a run covering every Location does not carry them all.
-        if self.sync_ipfabric_tagged_only or self.location_filter:
-            self.device_location_pks = frozenset(location_objects.values_list("pk", flat=True))
         # The parent object that stores all children, is the Location.
         if self.job.debug:
             self.job.logger.debug("Found %s Nautobot Location objects to start sync from", len(location_objects))

@@ -940,23 +940,30 @@ class DeviceScope:
     every run and never apply them; one that wrote to a Device it did not read would change what it
     never compared.
 
+    The Locations covered are the ones `NautobotDiffSync.get_initial_location` reads, expressed as the
+    same rules rather than as the Locations it found. A Location this run creates, or tags when it
+    re-stamps one it adopts, is covered as soon as it is, so the Devices written there in the same run
+    take their Interfaces, addresses and Cables too.
+
     Attributes:
-        tagged_only: Whether only Devices carrying the synced Tag are covered, as **Sync Tagged Only**.
+        tagged_only: Whether only Devices carrying the synced Tag, at Locations carrying it, are
+            covered, as **Sync Tagged Only**.
         tenant: The run's Tenant, when only its Devices are covered.
-        location_pks: The Locations covered, or None for every Location.
+        location_name: The name of the Location a Site Filter narrows the run to, or None for all.
     """
 
     tagged_only: bool = False
     tenant: Optional[Tenant] = None
-    location_pks: Optional[frozenset] = None
+    location_name: Optional[str] = None
 
     def devices(self):
         """Return the Devices this scope covers."""
         devices = Device.objects.all()
-        if self.location_pks is not None:
-            devices = devices.filter(location__in=self.location_pks)
+        if self.location_name is not None:
+            devices = devices.filter(location__name=self.location_name)
         if self.tagged_only:
-            devices = devices.filter(tags=get_or_create_tag_object(tag_name=SYNCED_TAG_NAME))
+            tag = get_or_create_tag_object(tag_name=SYNCED_TAG_NAME)
+            devices = devices.filter(tags=tag).filter(location__tags=tag)
         if self.tenant is not None:
             devices = devices.filter(tenant=self.tenant)
         return devices

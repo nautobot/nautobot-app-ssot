@@ -170,7 +170,6 @@ def resolve_platform(adapter, platform_name: str, manufacturer_object):
     )
 
 
-# pylint: disable=too-many-branches,too-many-statements
 WRITE_OPERATIONS = ("create", "update", "delete")
 
 
@@ -200,6 +199,7 @@ def model_operation(operation, *, flush_first: bool):
     return wrapped_operation
 
 
+# pylint: disable=too-many-branches,too-many-statements
 class DiffSyncExtras(DiffSyncModel):
     """Additional components to mix and subclass from with `DiffSyncModel`."""
 

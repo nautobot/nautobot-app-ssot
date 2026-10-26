@@ -1006,13 +1006,18 @@ class TestNautobotUtils(TestCase):
 
     # ===== get_syncable_device =====
 
-    def test_get_syncable_device_match(self):
-        """Test returns the device when name and SSoT tag match."""
+    def _tag_test_device(self):
+        """Tag `self.device` and its Location as synced from IPFabric, as the tagged lookups require."""
         ssot_tag, _ = Tag.objects.get_or_create(
             name="SSoT Synced from IPFabric", defaults={"color": ColorChoices.COLOR_LIGHT_GREEN}
         )
-        ssot_tag.content_types.add(self.content_type)
+        ssot_tag.content_types.add(self.content_type, ContentType.objects.get_for_model(Location))
         self.device.tags.add(ssot_tag)
+        self.device.location.tags.add(ssot_tag)
+
+    def test_get_syncable_device_match(self):
+        """Test returns the device when name and SSoT tag match."""
+        self._tag_test_device()
         result = get_syncable_device(self.device.name, scope=DeviceScope(tagged_only=True))
         self.assertEqual(result.id, self.device.id)
 
@@ -1028,11 +1033,7 @@ class TestNautobotUtils(TestCase):
 
     def test_get_syncable_device_cache_reuse(self):
         """Test second call hits the cache and skips DB."""
-        ssot_tag, _ = Tag.objects.get_or_create(
-            name="SSoT Synced from IPFabric", defaults={"color": ColorChoices.COLOR_LIGHT_GREEN}
-        )
-        ssot_tag.content_types.add(self.content_type)
-        self.device.tags.add(ssot_tag)
+        self._tag_test_device()
         first = get_syncable_device(self.device.name, scope=DeviceScope(tagged_only=True))
         with mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Device.objects.filter") as mock_filter:
             second = get_syncable_device(self.device.name, scope=DeviceScope(tagged_only=True))
@@ -1040,14 +1041,6 @@ class TestNautobotUtils(TestCase):
         self.assertIs(first, second)
 
     # ===== get_tagged_interface =====
-
-    def _tag_test_device(self):
-        """Tag `self.device` as synced from IPFabric so it is visible to the tagged lookups."""
-        ssot_tag, _ = Tag.objects.get_or_create(
-            name="SSoT Synced from IPFabric", defaults={"color": ColorChoices.COLOR_LIGHT_GREEN}
-        )
-        ssot_tag.content_types.add(self.content_type)
-        self.device.tags.add(ssot_tag)
 
     def test_get_tagged_interface_match(self):
         """Test returns the Interface when the Device is tagged and the Interface exists."""

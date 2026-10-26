@@ -165,7 +165,6 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         # Overridden by the Nautobot adapter, which is the side that writes. Every Device is covered
         # until it narrows them: see `device_scope`.
         self.sync_ipfabric_tagged_only = False
-        self.device_location_pks = None
         # Objects IP Fabric reported that already belong to another Tenant and so were not touched,
         # by model, reported once the sync is over.
         self.objects_of_another_tenant = defaultdict(list)
@@ -206,7 +205,11 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
     def device_scope(self) -> DeviceScope:
         """Return the Devices this run covers, which the Nautobot side reads and every write finds its Device in."""
         return DeviceScope(
-            tagged_only=self.sync_ipfabric_tagged_only, tenant=self.tenant, location_pks=self.device_location_pks
+            tagged_only=self.sync_ipfabric_tagged_only,
+            tenant=self.tenant,
+            # The Nautobot adapter holds the Site Filter as a Location; the IP Fabric adapter, which never
+            # writes, holds only its name.
+            location_name=getattr(self.location_filter, "name", None),
         )
 
     def may_create(self, key: str) -> bool:

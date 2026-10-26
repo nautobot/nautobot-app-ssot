@@ -170,7 +170,7 @@ class LocationDiffTestCase(LocationScopeTestCase):
     def test_a_run_over_every_location_carries_none_of_them(self):
         adapter = self._adapter(tagged_only=False)
         adapter.load()
-        self.assertIsNone(adapter.device_scope.location_pks)
+        self.assertIsNone(adapter.device_scope.location_name)
 
     def test_locations_in_scope_are_created_updated_and_deleted(self):
         """The default behaviour, recorded here so the out of scope case is a visible contrast."""
@@ -263,3 +263,39 @@ class LocationSyncTestCase(LocationScopeTestCase):
 
         location = Location.objects.get(name=KNOWN_TO_BOTH)
         self.assertIsNone(location.custom_field_data.get("ipfabric_site_id"))
+
+
+class NewLocationScopeTestCase(LocationScopeTestCase):
+    """A tagged-only run writes in full to a site it creates, not only to the sites it loaded."""
+
+    def _sync_new_site(self, bulk_write_mode):
+        """Sync a site Nautobot lacks, with a Device and an Interface, in a tagged-only run."""
+        adapter = NautobotDiffSync(
+            job=unittest.mock.Mock(),
+            sync=unittest.mock.Mock(),
+            sync_ipfabric_tagged_only=True,
+            location_filter=None,
+            bulk_write_mode=bulk_write_mode,
+        )
+        adapter.scope = SyncScope.from_job_kwargs({"sync_vlans": False})
+        adapter.load_data()
+        source = self._source(locations_in_scope=True, with_device_at=(UNLOADED_FROM_NAUTOBOT,))
+        device = source.get("device", {"name": f"{UNLOADED_FROM_NAUTOBOT}-newdev"})
+        interface = source.interface(name="eth0", device_name=device.name, status="Active")
+        source.add(interface)
+        device.add_child(interface)
+        adapter.sync_from(source)
+        return adapter
+
+    def assert_new_site_written_in_full(self, adapter):
+        """Assert the new site is tagged and its Device, which the run covers, took its Interface."""
+        device = Device.objects.get(name=f"{UNLOADED_FROM_NAUTOBOT}-newdev")
+        self.assertTrue(device.location.tags.filter(pk=self.ssot_tag.pk).exists())
+        self.assertEqual(nbutils.get_syncable_device(device.name, scope=adapter.device_scope), device)
+        self.assertTrue(device.interfaces.filter(name="eth0").exists())
+
+    def test_a_site_created_in_the_run_takes_its_devices_interfaces(self):
+        self.assert_new_site_written_in_full(self._sync_new_site(bulk_write_mode=False))
+
+    def test_a_site_created_in_a_bulk_run_takes_its_devices_interfaces(self):
+        self.assert_new_site_written_in_full(self._sync_new_site(bulk_write_mode=True))
