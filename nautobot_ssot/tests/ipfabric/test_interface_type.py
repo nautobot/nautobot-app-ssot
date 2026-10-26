@@ -21,6 +21,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
 )
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import create_interface
 from nautobot_ssot.integrations.ipfabric.utilities.utils import interface_name_kind, job_scoped_cache
+from nautobot_ssot.integrations.ipfabric.writers import ImmediateWriter
 from nautobot_ssot.tests.ipfabric.test_ipfabric_adapter import (
     INTERFACE_FIXTURE,
     build_adapter,
@@ -152,6 +153,7 @@ class TestWritingAnInterfaceWithNoResolvedType(TestCase):
             device_obj=self.device,
             interface_details={"name": name, **details},
             logger=self.logger,
+            writer=ImmediateWriter(),
         )
 
     def test_a_new_interface_with_no_type_takes_the_configured_default(self):

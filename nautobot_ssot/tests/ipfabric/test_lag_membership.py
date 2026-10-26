@@ -18,6 +18,7 @@ from nautobot.extras.models import Role, Status
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interface as InterfaceModel
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import DeviceScope
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache, lag_member_names
+from nautobot_ssot.integrations.ipfabric.writers import ImmediateWriter
 from nautobot_ssot.tests.ipfabric.job_log import job_log_text, job_logger
 from nautobot_ssot.tests.ipfabric.test_ipfabric_adapter import (
     INTERFACE_FIXTURE,
@@ -182,6 +183,7 @@ class TestUpdatingTheRelationsOnAnInterfaceNautobotHolds(TestCase):
         adapter = MagicMock()
         adapter.sync_ipfabric_tagged_only = False
         adapter.device_scope = DeviceScope()
+        adapter.writer = ImmediateWriter()
         adapter.tenant = None
         model = InterfaceModel(name=interface.name, device_name=self.device.name, status="Active")
         model.adapter = adapter
