@@ -10,6 +10,7 @@ from nautobot.extras.models import Role
 from nautobot.ipam.models import IPAddress, Namespace, Prefix
 from nautobot.tenancy.models import Tenant
 
+from nautobot_ssot.integrations.ipfabric.bulk_writes import PendingWrites
 from nautobot_ssot.integrations.ipfabric.constants import SAFE_DELETE_IPADDRESS_STATUS
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_ipfabric import (
     IPFabricDiffSync,
@@ -178,6 +179,16 @@ class HostAddressWriteTestCase(HostAddressTestCase):  # pylint: disable=too-many
         existing = IPAddress.objects.create(address="10.0.0.5/24", status=self.active)
         self.assertIsNotNone(self.create())
         self.assertEqual(self.address().pk, existing.pk)
+        self.assertEqual(self.address().dns_name, "web01")
+
+    def test_an_address_queued_on_an_interface_in_a_bulk_run_is_adopted(self):
+        self.adapter.pending = PendingWrites(MagicMock())
+        queued = nbutils.create_ip(
+            "10.0.0.5", 24, object_pk=self.make_interface(), logger=MagicMock(), writer=self.adapter.writer
+        )
+        self.assertIsNotNone(self.create())
+        self.adapter.pending.flush()
+        self.assertEqual(self.address().pk, queued.pk)
         self.assertEqual(self.address().dns_name, "web01")
 
     def test_a_dns_name_nautobot_refuses_is_reported(self):

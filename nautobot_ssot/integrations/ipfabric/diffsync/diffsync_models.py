@@ -678,9 +678,10 @@ class Device(DiffSyncExtras):
                 location = resolve_location(self.adapter, location_name)
                 if location and self.adapter.writer.holds(location):
                     # A Location this run only queued has no row for the save below to point at, so
-                    # the Device is moved to it once it is written.
-                    self.adapter.writer.set_later(_device, {"location": location})
-                elif location:
+                    # the queue is written first and the move is validated and saved with the rest
+                    # of the update, or refused with it.
+                    self.adapter.flush_pending_writes()
+                if location and not self.adapter.writer.holds(location):
                     _device.location = location
                 else:
                     self.adapter.job.logger.warning(
@@ -886,8 +887,16 @@ class Interface(DiffSyncExtras):
                         else None
                     )
                     if related is not None and self.adapter.writer.holds(related):
-                        # Queued this run, so it has no row for the save below to point at yet.
-                        self.adapter.writer.set_later(interface, {field: related})
+                        # Queued this run, so it has no row for the save below to point at until the
+                        # queue is written. Set before the save, it stands or falls with the update.
+                        self.adapter.flush_pending_writes()
+                    if related is not None and self.adapter.writer.holds(related):
+                        # Its insert was refused when the queue was written.
+                        self.adapter.job.logger.warning(
+                            f"Unable to set {field} on Interface {self.name} on Device {device.name}: "
+                            f"{attrs[field]} could not be written"
+                        )
+                        return_super = False
                     else:
                         setattr(interface, field, related)
                 if attrs.get("mgmt_only"):

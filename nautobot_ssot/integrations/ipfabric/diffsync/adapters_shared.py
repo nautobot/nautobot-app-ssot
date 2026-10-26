@@ -14,7 +14,8 @@ from nautobot_ssot.integrations.ipfabric.sync_scope import (
     UNSYNCED_LOCATION_FLAGS,
     SyncScope,
 )
-from nautobot_ssot.integrations.ipfabric.utilities.nbutils import DeviceScope
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import BULK_WRITTEN_LOOKUPS, DeviceScope
+from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 from nautobot_ssot.integrations.ipfabric.writers import BatchedWriter, ImmediateWriter
 
 
@@ -211,6 +212,21 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
     def pending(self, pending):
         """Write through a queue for Bulk Write Mode, or one object at a time when given None."""
         self.writer = BatchedWriter(pending) if pending is not None else ImmediateWriter()
+
+    def flush_pending_writes(self) -> None:
+        """Write whatever bulk mode has queued, and log what was written.
+
+        Called before anything that reads those objects back from the database, and at the end of
+        the sync. A no-op when nothing is queued, so callers need not check the mode first.
+        """
+        if not self.pending:
+            return
+        counts = self.pending.counts()
+        written = self.pending.flush()
+        # Rows exist now that did not when these lookups last ran, and one of them caching that a
+        # Device could not be found is enough to lose every Cable terminating on it.
+        job_scoped_cache.clear_group(BULK_WRITTEN_LOOKUPS)
+        self.job.logger.info("Wrote %d queued rows in bulk mode: %s", written, counts)
 
     @property
     def tagged_locations_only(self) -> bool:

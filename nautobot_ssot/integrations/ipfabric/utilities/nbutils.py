@@ -1367,8 +1367,8 @@ def add_prefix_location(
         return False
     allow_at_location_type(location_obj.location_type_id, Prefix)
     if writer.batched:
-        # Saved immediately through `locations.add` instead, which leaves a row Nautobot already
-        # holds alone where saving the row itself would refuse it.
+        # Queued as a row of its own. The per-object path below goes through `locations.add` instead,
+        # which leaves a row Nautobot already holds alone where saving the row itself would refuse it.
         writer.assign(PrefixLocationAssignment(prefix=prefix_obj, location=location_obj))
         return True
     try:
@@ -1884,8 +1884,8 @@ def create_vlan(  # pylint: disable=too-many-arguments,too-many-locals,too-many-
         vlan_obj.vlan_group = vlan_group
 
     if is_new and writer.batched:
-        # Saved immediately through `tag_object` below instead, since `VLAN.save()` makes the location
-        # assignment itself and a queued VLAN is never saved.
+        # Queued with the VLAN as a row of its own, since a queued VLAN is never saved and `VLAN.save()`
+        # is what makes the location assignment on the per-object path through `tag_object` below.
         assignments = (
             (VLANLocationAssignment(vlan=vlan_obj, location_id=location_obj.pk),) if location_obj is not None else ()
         )

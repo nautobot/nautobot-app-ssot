@@ -268,21 +268,6 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         if len(self.pending) >= PENDING_WRITE_HIGH_WATER:
             self.flush_pending_writes()
 
-    def flush_pending_writes(self) -> None:
-        """Write whatever bulk mode has queued, and log what was written.
-
-        Called before anything that reads those objects back from the database, and at the end of
-        the sync. A no-op when nothing is queued, so callers need not check the mode first.
-        """
-        if not self.pending:
-            return
-        counts = self.pending.counts()
-        written = self.pending.flush()
-        # Rows exist now that did not when these lookups last ran, and one of them caching that a
-        # Device could not be found is enough to lose every Cable terminating on it.
-        job_scoped_cache.clear_group(tonb_utils.BULK_WRITTEN_LOOKUPS)
-        self.job.logger.info("Wrote %d queued rows in bulk mode: %s", written, counts)
-
     def load_interfaces(self, device_record: Device, diffsync_device):
         """Import a single Nautobot Interface object as a DiffSync Interface model."""
         for interface_record in device_record.interfaces.all():

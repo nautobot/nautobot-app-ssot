@@ -3,6 +3,7 @@
 from unittest import mock
 
 from django.apps import apps as global_apps
+from django.core.exceptions import ValidationError
 from nautobot.dcim.models import Device, Interface, Location, VirtualChassis
 from nautobot.ipam.models import VRF, VRFDeviceAssignment
 
@@ -46,6 +47,17 @@ class WriterTestCase(SupportingObjectTestCase):
         self.assertTrue(self.synced(location))
         self.assertIsNone(writer.find(Location, "new-site"))
         self.assertFalse(writer.holds(self.new_location("other")))
+
+    def test_the_immediate_writer_saves_join_rows_after_the_object(self):
+        row = mock.MagicMock()
+        location = ImmediateWriter().create(self.new_location(), through_rows=[row])
+        self.assertFalse(location._state.adding)  # pylint: disable=protected-access
+        row.validated_save.assert_called_once_with()
+
+    def test_the_immediate_writer_saves_a_join_row_at_once(self):
+        row = mock.MagicMock()
+        self.assertIs(ImmediateWriter().assign(row), row)
+        row.validated_save.assert_called_once_with()
 
     def test_the_immediate_writer_saves_later_values_at_once(self):
         ImmediateWriter().set_later(self.location, {"description": "now"})
@@ -107,9 +119,10 @@ class BatchedWritesToObjectsAlreadyWrittenTestCase(SupportingObjectTestCase):
         self.device.refresh_from_db()
         self.assertEqual((self.device.virtual_chassis, self.device.vc_position), (stack, 2))
 
-    def test_a_device_moved_to_a_location_this_run_queued_is_moved_once_it_is_written(self):
+    def device_model(self):
+        """Return the DiffSync model of the existing Device, on an adapter writing in bulk."""
         self.adapter.pending = PendingWrites(mock.MagicMock())
-        model = DeviceModel(
+        return DeviceModel(
             adapter=self.adapter,
             name="member",
             location_name=self.location.name,
@@ -120,12 +133,19 @@ class BatchedWritesToObjectsAlreadyWrittenTestCase(SupportingObjectTestCase):
             platform=KNOWN_PLATFORM,
             serial_number="abc123",
         )
-        model.update({"location_name": "queued-site"})
-        self.device.refresh_from_db()
-        self.assertEqual(self.device.location, self.location, "Saved pointing at a row that is not written yet.")
-        self.adapter.pending.flush()
+
+    def test_a_device_moved_to_a_location_this_run_queued_is_moved_with_its_update(self):
+        self.device_model().update({"location_name": "queued-site"})
         self.device.refresh_from_db()
         self.assertEqual(self.device.location.name, "queued-site")
+
+    def test_a_refused_device_update_leaves_no_move_behind(self):
+        model = self.device_model()
+        with mock.patch.object(nbutils, "tag_object", side_effect=ValidationError("refused")):
+            self.assertIsNone(model.update({"location_name": "queued-site"}))
+        self.adapter.pending.flush()
+        self.device.refresh_from_db()
+        self.assertEqual(self.device.location, self.location)
 
     def queued_port_channel(self):
         """Queue a port channel on the Device, as an Interface created earlier in a bulk run."""
@@ -134,18 +154,37 @@ class BatchedWritesToObjectsAlreadyWrittenTestCase(SupportingObjectTestCase):
             key=(self.device.pk, "Port-Channel1"),
         )
 
-    def test_an_existing_interface_joins_a_port_channel_this_run_queued_once_it_is_written(self):
+    def interface_model(self):
+        """Return an existing member Interface, and its DiffSync model on an adapter writing in bulk."""
         member = Interface.objects.create(device=self.device, name="eth0", type="1000base-t", status=self.active_status)
         self.adapter.pending = self.writer.pending
+        return member, InterfaceModel(adapter=self.adapter, name="eth0", device_name="member", status="Active")
+
+    def test_an_existing_interface_joins_a_port_channel_this_run_queued_with_its_update(self):
+        member, model = self.interface_model()
         port_channel = self.queued_port_channel()
-        InterfaceModel(adapter=self.adapter, name="eth0", device_name="member", status="Active").update(
-            {"lag": "Port-Channel1"}
-        )
-        member.refresh_from_db()
-        self.assertIsNone(member.lag)
-        self.writer.pending.flush()
+        model.update({"lag": "Port-Channel1"})
         member.refresh_from_db()
         self.assertEqual(member.lag, port_channel)
+
+    def test_a_refused_interface_update_leaves_no_port_channel_behind(self):
+        member, model = self.interface_model()
+        self.queued_port_channel()
+        with mock.patch.object(nbutils, "tag_object", side_effect=ValidationError("refused")):
+            self.assertIsNone(model.update({"lag": "Port-Channel1"}))
+        self.writer.pending.flush()
+        member.refresh_from_db()
+        self.assertIsNone(member.lag)
+
+    def test_a_port_channel_whose_insert_was_refused_is_reported_rather_than_set(self):
+        member, model = self.interface_model()
+        port_channel = self.queued_port_channel()
+        # Longer than the column holds, so the database refuses the insert; it is still found by its key.
+        port_channel.name = "x" * 300
+        model.update({"lag": "Port-Channel1"})
+        member.refresh_from_db()
+        self.assertIsNone(member.lag)
+        self.assertIn("Port-Channel1 could not be written", str(self.adapter.job.logger.warning.call_args_list))
 
     def test_a_queued_interface_carries_its_vrf_into_its_insert(self):
         vrf = VRF.objects.create(name="BLUE", status=self.active_status)
