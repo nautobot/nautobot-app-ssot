@@ -251,8 +251,7 @@ These consequences follow, all of them intended:
   another App never carries it. The Locations read are those holding a Device or VLAN this sync
   tagged, and those Devices are synced in full, Interfaces, addresses and Cables included. Only the
   VLANs this sync tagged are read at them; one it reports and did not tag is adopted rather than
-  duplicated. Nautobot allows two Locations of one name under different parents, but the sync knows a
-  site by name alone, so the Devices and VLANs at both are loaded under one and the Job log says so.
+  duplicated.
 - **A Device whose Location does not exist yet is reported, not skipped silently.** The Job log names
   the Location that could not be found and each Device that could not be placed, so a sync run before
   the App that owns Locations shows up as work to retry rather than as missing data.
@@ -262,6 +261,10 @@ These consequences follow, all of them intended:
   the sync holds no opinion about which sites exist, so it cannot treat a missing site as evidence that
   what is at it is gone. With Locations in scope, that same site and its Devices are deleted, subject
   to Safe Delete Mode.
+
+Whether Locations are in scope or not, the sync knows a site by name alone, while Nautobot allows two
+Locations of one name under different parents. Where two such Locations are read, the Devices and
+VLANs at both are loaded under the first, and the Job log names the Location.
 
 The `ipfabric_site_id` custom field is only ever written while Locations are in scope; out of scope it
 belongs to whichever system owns the Location.

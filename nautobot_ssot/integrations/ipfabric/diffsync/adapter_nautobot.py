@@ -6,10 +6,9 @@
 
 import ipaddress
 from collections import defaultdict
-from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from diffsync import Adapter
-from diffsync.enum import DiffSyncModelFlags
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
@@ -39,6 +38,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SYNCED_TAG_NAME,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
+from nautobot_ssot.integrations.ipfabric.diffsync.unreported_sites import shield_unreported_sites
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 # How many objects to delete per statement. Django walks the relations of a whole batch once, so
@@ -71,14 +71,6 @@ DELETE_ORDER = (
 # How many rows bulk mode will hold before writing them. Without a ceiling a sync of a hundred
 # thousand Interfaces would keep every one of them, and their addresses, in memory until the end.
 PENDING_WRITE_HIGH_WATER = 5000
-
-# The top-level models that belong to a Device, by the fields naming it. See `shield_unreported_sites`.
-UNREPORTED_SITE_DEPENDENTS = {
-    "cable": ("termination_a_device", "termination_b_device"),
-    "vrf_device_assignment": ("device_name",),
-    "interface_vrf": ("device_name",),
-    "interface_vlan": ("device_name",),
-}
 
 
 def network_order(prefix: str):
@@ -824,23 +816,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         `sync_from` diffs through here too, so the shield holds for a sync as well as for its preview.
         """
         if not self.scope.locations:
-            self.shield_unreported_sites({location.name for location in source.get_all("location")})
+            shield_unreported_sites(self, {location.name for location in source.get_all("location")})
         return super().diff_from(source, *args, **kwargs)
-
-    def shield_unreported_sites(self, reported: Set[str]) -> None:
-        """Leave the Cables and assignments of the Devices at a site the source does not report alone.
-
-        With Locations out of scope, a Location the source does not report is skipped along with the
-        Devices and Interfaces under it, since the sync holds no opinion on which sites exist. Cables,
-        VRF assignments and the VRFs and VLANs set on Interfaces are top level rather than under it,
-        so each is flagged the same way here: absent from the source because its site is, not because
-        it is gone. A Cable is shielded when either end is at such a site.
-        """
-        unreported = {device.name for device in self.get_all("device") if device.location_name not in reported}
-        for model_name, device_fields in UNREPORTED_SITE_DEPENDENTS.items():
-            for instance in self.get_all(model_name):
-                if any(getattr(instance, field) in unreported for field in device_fields):
-                    instance.model_flags |= DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
     def get_initial_location(self, ssot_tag: Tag):
         """Identify the location objects based on user defined job inputs.
@@ -861,9 +838,14 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             # The Locations are another App's and never tagged, so the ones read are those holding what
             # this sync tagged, rather than every Location in Nautobot. One IP Fabric reports that is not
             # read is still found by name when a Device is placed at it.
-            location_objects = Location.objects.filter(
-                Q(devices__in=self.device_scope.devices()) | Q(vlans__tags=ssot_tag)
-            ).distinct()
+            holding = Q(devices__in=self.device_scope.devices())
+            if self.scope.vlans:
+                # The same VLANs `load_vlans` reads at these Locations.
+                vlans = Q(vlans__tags=ssot_tag)
+                if self.tenant is not None:
+                    vlans &= Q(vlans__tenant=self.tenant)
+                holding |= vlans
+            location_objects = Location.objects.filter(holding).distinct()
             if self.location_filter:
                 location_objects = location_objects.filter(name=self.location_filter.name)
         elif self.location_filter:

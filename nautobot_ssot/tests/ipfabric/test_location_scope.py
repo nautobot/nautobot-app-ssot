@@ -16,6 +16,7 @@ from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import CustomField, Role, Status, Tag
 from nautobot.ipam.models import VLAN
+from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
@@ -364,9 +365,9 @@ class VlansAtAnotherAppsSitesTestCase(LocationScopeTestCase):
 class LocationReadTestCase(LocationScopeTestCase):
     """Which Locations a tagged-only run reads when Locations are another App's."""
 
-    def _load_with_locations_out_of_scope(self):
+    def _load_with_locations_out_of_scope(self, vlans=False):
         self.nb_adapter.scope = SyncScope.from_job_kwargs(
-            {"sync_locations": False, "sync_interfaces": False, "sync_vlans": False}
+            {"sync_locations": False, "sync_interfaces": False, "sync_vlans": vlans}
         )
         self.nb_adapter.load_data()
         return {location.name for location in self.nb_adapter.get_all("location")}
@@ -379,6 +380,33 @@ class LocationReadTestCase(LocationScopeTestCase):
             self._load_with_locations_out_of_scope(),
             {KNOWN_TO_BOTH, UNKNOWN_TO_IPFABRIC, "other-app-site-with-a-device"},
         )
+
+    def _vlan_site(self, name, vid, tagged=True, tenant=None):
+        """Create an untagged Location holding only a VLAN."""
+        location = self._location(name, tagged=False)
+        vlan = VLAN.objects.create(vid=vid, name=f"vlan{vid}", status=self.active_status, tenant=tenant)
+        vlan.locations.add(location)
+        if tagged:
+            vlan.tags.add(self.ssot_tag)
+
+    def test_a_location_holding_a_vlan_the_sync_tagged_is_read_with_vlans_in_scope(self):
+        self.ssot_tag.content_types.add(ContentType.objects.get_for_model(VLAN))
+        self._vlan_site("tagged-vlan-site", 10)
+        self._vlan_site("untagged-vlan-site", 20, tagged=False)
+        self.assertIn("tagged-vlan-site", self._load_with_locations_out_of_scope(vlans=True))
+        self.assertNotIn("untagged-vlan-site", self._load_with_locations_out_of_scope(vlans=True))
+
+    def test_a_location_holding_only_a_vlan_is_not_read_with_vlans_out_of_scope(self):
+        self.ssot_tag.content_types.add(ContentType.objects.get_for_model(VLAN))
+        self._vlan_site("tagged-vlan-site", 10)
+        self.assertNotIn("tagged-vlan-site", self._load_with_locations_out_of_scope())
+
+    def test_a_location_holding_another_tenants_vlan_is_not_read(self):
+        self.ssot_tag.content_types.add(ContentType.objects.get_for_model(VLAN))
+        self.nb_adapter.tenant = Tenant.objects.create(name="customer-a")
+        self._vlan_site("own-vlan-site", 10, tenant=self.nb_adapter.tenant)
+        self._vlan_site("other-vlan-site", 20, tenant=Tenant.objects.create(name="customer-b"))
+        self.assertEqual(self._load_with_locations_out_of_scope(vlans=True), {"own-vlan-site"})
 
     def test_a_site_filter_narrows_them_to_its_location(self):
         self.nb_adapter.location_filter = Location.objects.get(name=KNOWN_TO_BOTH)
@@ -411,7 +439,21 @@ class LocationReadTestCase(LocationScopeTestCase):
 class UnreportedSiteDependentsTestCase(LocationScopeTestCase):
     """With Locations out of scope, what belongs to a Device at a site the source does not report is kept."""
 
-    def _diff(self, locations_in_scope):
+    DEPENDENTS = ("vrf_device_assignment", "interface_vrf", "interface_vlan", "cable")
+
+    def _cable(self, end_a, end_b):
+        self.nb_adapter.add(
+            self.nb_adapter.cable(
+                termination_a_device=end_a[0],
+                termination_a_name=end_a[1],
+                termination_b_device=end_b[0],
+                termination_b_name=end_b[1],
+                status="Connected",
+            )
+        )
+
+    def _removed(self, locations_in_scope):
+        """Diff a source reporting only the shared site, and return what it would remove, by model."""
         self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_locations": locations_in_scope})
         for site_name in (KNOWN_TO_BOTH, UNKNOWN_TO_IPFABRIC):
             device_name = f"{site_name}-dev"
@@ -427,30 +469,33 @@ class UnreportedSiteDependentsTestCase(LocationScopeTestCase):
                 )
             )
             self.nb_adapter.add(self.nb_adapter.vrf_device_assignment(vrf_name="BLUE", device_name=device_name))
-        self.nb_adapter.add(
-            self.nb_adapter.cable(
-                termination_a_device=f"{KNOWN_TO_BOTH}-dev",
-                termination_a_name="eth0",
-                termination_b_device=f"{UNKNOWN_TO_IPFABRIC}-dev",
-                termination_b_name="eth0",
-                status="Connected",
+            self.nb_adapter.add(
+                self.nb_adapter.interface_vrf(device_name=device_name, interface_name="eth0", vrf_name="BLUE")
             )
-        )
+            self.nb_adapter.add(
+                self.nb_adapter.interface_vlan(device_name=device_name, interface_name="eth0", mode="access")
+            )
+        known, unknown = f"{KNOWN_TO_BOTH}-dev", f"{UNKNOWN_TO_IPFABRIC}-dev"
+        # One with each end at the unreported site, and one with both ends at the shared site.
+        self._cable((known, "eth0"), (unknown, "eth0"))
+        self._cable((unknown, "eth1"), (known, "eth1"))
+        self._cable((known, "eth2"), (known, "eth3"))
         diff = self.nb_adapter.diff_from(self._source(locations_in_scope))
         return {
-            model_name: {name for name, change in changes.items() if change.get("-") is not None}
-            for model_name, changes in diff.dict().items()
-            if model_name in ("vrf_device_assignment", "cable")
+            # A removal has a "-" side and no "+" side, and an empty one when the model has no attributes.
+            model_name: {name for name, change in diff.dict().get(model_name, {}).items() if "+" not in change}
+            for model_name in self.DEPENDENTS
         }
 
     def test_a_device_at_an_unreported_site_keeps_its_assignments_and_cables(self):
-        removed = self._diff(locations_in_scope=False)
-        self.assertEqual(removed.get("vrf_device_assignment"), {f"BLUE__{KNOWN_TO_BOTH}-dev"})
-        self.assertFalse(removed.get("cable"))
+        removed = self._removed(locations_in_scope=False)
+        for model_name in self.DEPENDENTS:
+            with self.subTest(model_name):
+                self.assertEqual(len(removed[model_name]), 1)
+                self.assertNotIn(UNKNOWN_TO_IPFABRIC, next(iter(removed[model_name])))
 
     def test_with_locations_in_scope_they_are_removed_with_the_site(self):
-        removed = self._diff(locations_in_scope=True)
-        self.assertEqual(
-            removed.get("vrf_device_assignment"), {f"BLUE__{KNOWN_TO_BOTH}-dev", f"BLUE__{UNKNOWN_TO_IPFABRIC}-dev"}
-        )
-        self.assertEqual(len(removed.get("cable", ())), 1)
+        removed = self._removed(locations_in_scope=True)
+        for model_name in self.DEPENDENTS:
+            with self.subTest(model_name):
+                self.assertEqual(len(removed[model_name]), 3 if model_name == "cable" else 2)
