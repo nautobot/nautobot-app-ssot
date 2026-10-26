@@ -248,6 +248,25 @@ than truncated: a serial is an identity, and a prefix of one names no chassis.
 Each member of a stack keeps its own serial, since each member is its own chassis. The stack's
 `snHw` describes the master alone.
 
+## Stack members
+
+IP Fabric reports a stack as one device with several members. The sync makes a Device of each member, in a Virtual Chassis named after the stack's IP Fabric hostname, with each member's number as its position and priority. The member with the lowest number is the master.
+
+By default the master takes the stack's hostname, and every other member is named `<hostname>-member<number>`. Two settings change that, each a format using `{hostname}` and `{member}`:
+
+| Setting | Default | Example | Gives |
+| ------- | ------- | ------- | ----- |
+| `ipfabric_stack_member_name` | `{hostname}-member{member}` | `{hostname}-{member:02d}` | `HWLAB-C3750-STACK-02` |
+| `ipfabric_stack_master_name` | `{hostname}` | `{hostname}-{member:02d}` | `HWLAB-C3750-STACK-01` |
+
+`{member:02d}` pads the number to two digits. The member format must use `{member}`, so that members get different names, and a format naming anything else stops the run with an error naming the setting.
+
+IP Fabric names the stack by its hostname everywhere else, in its Interface, address, VLAN, VRF and connectivity tables, and the Interfaces of every member are reported against the master. A master given a name of its own is found under that name in all of them, so its Interfaces, addresses and Cables attach to it.
+
+Changing a format on an install that has already synced renames the Devices rather than replacing them. At the start of each run, before the Nautobot side is read, each stack Device carrying the synced Tag is renamed to the name its Virtual Chassis and position now give it, so it keeps its Interfaces, addresses, Cables and history. The Job log lists the renames. A dry run lists them without renaming, so its diff shows the old names removed and the new ones created, which is not what a real run does. A Device whose new name another Device already holds is left as it is and reported.
+
+Keep in mind that anything outside Nautobot that refers to a stack Device by name, such as configuration backups or monitoring, follows the new name only once it is updated too.
+
 ## Software versions
 
 With **Sync Software Versions** selected, each Device gets the OS version IP Fabric reports for it. Nautobot files a Software Version under a Platform, so the version is looked up, or created, under the Platform the sync gives the Device from IP Fabric's `family`. A version Nautobot already holds for that Platform is used as it is; one the sync creates is marked `Active` and tagged `SSoT Synced from IPFabric`. Software Versions are never deleted by the sync.
