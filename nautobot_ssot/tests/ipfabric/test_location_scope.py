@@ -58,7 +58,8 @@ class LocationScopeTestCase(TestCase):
         self.role.validated_save()
         # Named "Site" so `get_or_create_location_object` would reuse it if it were ever reached.
         self.site_type, _ = LocationType.objects.get_or_create(name="Site")
-        self.site_type.content_types.add(device_ct)
+        vlan_ct = ContentType.objects.get_for_model(VLAN)
+        self.site_type.content_types.add(device_ct, vlan_ct)
         manufacturer = Manufacturer.objects.create(name="man1")
         self.device_type = DeviceType.objects.create(model="dev_type1", manufacturer=manufacturer)
         self.ssot_tag, _ = Tag.objects.get_or_create(
@@ -67,6 +68,7 @@ class LocationScopeTestCase(TestCase):
         )
         self.ssot_tag.content_types.add(device_ct)
         self.ssot_tag.content_types.add(ContentType.objects.get_for_model(Location))
+        self.ssot_tag.content_types.add(vlan_ct)
 
         for site_name in (KNOWN_TO_BOTH, UNKNOWN_TO_IPFABRIC):
             self._location(site_name, tagged=True)
@@ -356,7 +358,6 @@ class VlansAtAnotherAppsSitesTestCase(LocationScopeTestCase):
             vlan.locations.add(location)
             if tagged:
                 vlan.tags.add(self.ssot_tag)
-        self.ssot_tag.content_types.add(ContentType.objects.get_for_model(VLAN))
         self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_locations": False, "sync_interfaces": False})
         self.nb_adapter.load_data()
         self.assertEqual({vlan.vid for vlan in self.nb_adapter.get_all("vlan")}, {10})
@@ -397,7 +398,6 @@ class LocationReadTestCase(LocationScopeTestCase):
 
     def test_a_location_holding_a_vlan_the_sync_tagged_is_read_with_vlans_in_scope(self):
         """With VLANs in scope, a Location is read for a VLAN the sync tagged, not for an untagged one."""
-        self.ssot_tag.content_types.add(ContentType.objects.get_for_model(VLAN))
         self._vlan_site("tagged-vlan-site", 10)
         self._vlan_site("untagged-vlan-site", 20, tagged=False)
         read = self._load_with_locations_out_of_scope(vlans=True)
@@ -406,13 +406,11 @@ class LocationReadTestCase(LocationScopeTestCase):
 
     def test_a_location_holding_only_a_vlan_is_not_read_with_vlans_out_of_scope(self):
         """With VLANs out of scope, a tagged VLAN does not make the sync read its Location."""
-        self.ssot_tag.content_types.add(ContentType.objects.get_for_model(VLAN))
         self._vlan_site("tagged-vlan-site", 10)
         self.assertNotIn("tagged-vlan-site", self._load_with_locations_out_of_scope())
 
     def test_a_location_holding_another_tenants_vlan_is_not_read(self):
         """A Location is read only for a VLAN that both carries the Tag and belongs to the run's Tenant."""
-        self.ssot_tag.content_types.add(ContentType.objects.get_for_model(VLAN))
         self.nb_adapter.tenant = Tenant.objects.create(name="customer-a")
         self._vlan_site("own-vlan-site", 10, tenant=self.nb_adapter.tenant)
         other_tenant = Tenant.objects.create(name="customer-b")
