@@ -1,2 +1,2 @@
 Changed the IP Fabric integration to write Interfaces, addresses, Interface VLAN assignments, VRF assignments and Cables only to the Devices a run reads.
-Changed the IP Fabric integration to read the Devices it tagged at Locations another App owns when Locations are deselected under Sync Tagged Only, so that they are updated rather than created again on every run.
+Changed the IP Fabric integration to read the Devices and VLANs it tagged at Locations another App owns when Locations are deselected under Sync Tagged Only, so that they are updated rather than created again on every run, and removed, subject to Safe Delete Mode, when IP Fabric stops reporting them at a site it still reports.

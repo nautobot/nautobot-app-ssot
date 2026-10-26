@@ -6,14 +6,15 @@
 
 import ipaddress
 from collections import defaultdict
-from typing import Any, ClassVar, Dict, List, Optional, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple
 
 from diffsync import Adapter
+from diffsync.enum import DiffSyncModelFlags
 from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
 from django.db import IntegrityError, transaction
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, Q
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Cable, Device, Location
 from nautobot.extras.models import Tag
@@ -70,6 +71,14 @@ DELETE_ORDER = (
 # How many rows bulk mode will hold before writing them. Without a ceiling a sync of a hundred
 # thousand Interfaces would keep every one of them, and their addresses, in memory until the end.
 PENDING_WRITE_HIGH_WATER = 5000
+
+# The top-level models that belong to a Device, by the fields naming it. See `shield_unreported_sites`.
+UNREPORTED_SITE_DEPENDENTS = {
+    "cable": ("termination_a_device", "termination_b_device"),
+    "vrf_device_assignment": ("device_name",),
+    "interface_vrf": ("device_name",),
+    "interface_vlan": ("device_name",),
+}
 
 
 def network_order(prefix: str):
@@ -809,6 +818,30 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             self.network_wide(self.prefix_vlan, prefix=prefix, vid=vid, location_name=location_name, conflict=conflict)
         )
 
+    def diff_from(self, source, *args, **kwargs):
+        """Diff against `source`, first shielding what hangs off a site it does not report.
+
+        `sync_from` diffs through here too, so the shield holds for a sync as well as for its preview.
+        """
+        if not self.scope.locations:
+            self.shield_unreported_sites({location.name for location in source.get_all("location")})
+        return super().diff_from(source, *args, **kwargs)
+
+    def shield_unreported_sites(self, reported: Set[str]) -> None:
+        """Leave the Cables and assignments of the Devices at a site the source does not report alone.
+
+        With Locations out of scope, a Location the source does not report is skipped along with the
+        Devices and Interfaces under it, since the sync holds no opinion on which sites exist. Cables,
+        VRF assignments and the VRFs and VLANs set on Interfaces are top level rather than under it,
+        so each is flagged the same way here: absent from the source because its site is, not because
+        it is gone. A Cable is shielded when either end is at such a site.
+        """
+        unreported = {device.name for device in self.get_all("device") if device.location_name not in reported}
+        for model_name, device_fields in UNREPORTED_SITE_DEPENDENTS.items():
+            for instance in self.get_all(model_name):
+                if any(getattr(instance, field) in unreported for field in device_fields):
+                    instance.model_flags |= DiffSyncModelFlags.SKIP_UNMATCHED_DST
+
     def get_initial_location(self, ssot_tag: Tag):
         """Identify the location objects based on user defined job inputs.
 
@@ -824,6 +857,15 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
                     self.job.logger.warning(
                         f"{self.location_filter.name} was used to filter, alongside SSoT Tag. {self.location_filter.name} is not tagged."
                     )
+        elif self.sync_ipfabric_tagged_only:
+            # The Locations are another App's and never tagged, so the ones read are those holding what
+            # this sync tagged, rather than every Location in Nautobot. One IP Fabric reports that is not
+            # read is still found by name when a Device is placed at it.
+            location_objects = Location.objects.filter(
+                Q(devices__in=self.device_scope.devices()) | Q(vlans__tags=ssot_tag)
+            ).distinct()
+            if self.location_filter:
+                location_objects = location_objects.filter(name=self.location_filter.name)
         elif self.location_filter:
             location_objects = Location.objects.filter(name=self.location_filter.name)
         else:
@@ -866,7 +908,16 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
                     "Error loading %s, invalid or missing attributes on object. Skipping...", location_record
                 )
                 continue
-            self.add(location)
+            try:
+                self.add(location)
+            except ObjectAlreadyExists:
+                # Nautobot makes a Location's name unique only under its parent, while the sync knows a
+                # site by name alone. The first is kept, and the Devices and VLANs at both load under it.
+                self.job.logger.warning(
+                    "More than one Location is named %s; loading the Devices and VLANs at each under one",
+                    location_record.name,
+                )
+                continue
             locations_by_name[location_record.name] = location
 
         # Children are loaded once for every Location rather than once per Location, so that the

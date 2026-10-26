@@ -1,0 +1,1 @@
+Fixed the IP Fabric integration removing the Cables, VRF assignments, and Interface VRFs and VLANs of the Devices at a site IP Fabric does not report when Locations are deselected.

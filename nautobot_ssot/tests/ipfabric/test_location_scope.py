@@ -22,6 +22,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyn
 from nautobot_ssot.integrations.ipfabric.sync_scope import SyncScope
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
+from nautobot_ssot.tests.ipfabric.job_log import job_log_text
 
 # A site IP Fabric reports that this sync did not load from Nautobot.
 UNLOADED_FROM_NAUTOBOT = "site-discovered"
@@ -239,8 +240,9 @@ class LocationSyncTestCase(LocationScopeTestCase):
     def test_a_device_lands_at_a_location_another_sync_already_created(self):
         """The case this is for: the Location exists but was not loaded, and the Device still lands.
 
-        Another SSoT App owns Locations, so the one it created carries no IP Fabric tag and a
-        tagged-only run does not load it. Looking it up by name is what lets the Device be placed.
+        Another SSoT App owns Locations, so the one it created carries no IP Fabric tag, and holding
+        nothing this sync tagged yet, it is not read. Looking it up by name is what lets the Device be
+        placed.
         """
         self._location(UNLOADED_FROM_NAUTOBOT, tagged=False)
 
@@ -276,8 +278,8 @@ class SiteWrittenInFullTestCase(LocationScopeTestCase):
 
     NEW_DEVICE = f"{UNLOADED_FROM_NAUTOBOT}-newdev"
 
-    def _sync_site(self, *, locations_in_scope, bulk_write_mode, description=None):
-        """Sync the site, with a Device and an Interface on it, in a tagged-only run."""
+    def _sync_site(self, *, locations_in_scope, bulk_write_mode, description=None, sync=True):
+        """Sync the site, with a Device and an Interface on it, in a tagged-only run, or only diff it."""
         adapter = NautobotDiffSync(
             job=unittest.mock.Mock(),
             sync=unittest.mock.Mock(),
@@ -289,9 +291,22 @@ class SiteWrittenInFullTestCase(LocationScopeTestCase):
         adapter.load_data()
         source = self._source(locations_in_scope=locations_in_scope, with_device_at=(UNLOADED_FROM_NAUTOBOT,))
         device = source.get("device", {"name": self.NEW_DEVICE})
-        interface = source.interface(name="eth0", device_name=device.name, status="Active", description=description)
+        interface = source.interface(
+            name="eth0",
+            device_name=device.name,
+            status="Active",
+            description=description,
+            # What the sync writes where IP Fabric reports nothing, so that a run over unchanged data is empty.
+            enabled=True,
+            mac_address="00:00:00:00:00:01",
+            mtu=1500,
+            type="1000base-t",
+            mgmt_only=False,
+        )
         source.add(interface)
         device.add_child(interface)
+        if not sync:
+            return adapter.diff_from(source)
         adapter.sync_from(source)
         adapter.flush_pending_writes()
         return adapter
@@ -305,6 +320,12 @@ class SiteWrittenInFullTestCase(LocationScopeTestCase):
         device = Device.objects.get(name=self.NEW_DEVICE)
         self.assertEqual(nbutils.get_syncable_device(device.name, scope=adapter.device_scope), device)
         self.assertEqual(device.interfaces.get(name="eth0").description, "uplink")
+        job_scoped_cache.clear_all()
+        unchanged = self._sync_site(
+            locations_in_scope=locations_in_scope, bulk_write_mode=bulk_write_mode, description="uplink", sync=False
+        )
+        # Only the site under test: the fixture's other Devices are not reported by this source.
+        self.assertNotIn(UNLOADED_FROM_NAUTOBOT, unchanged.dict().get("location", {}), unchanged.str())
         return device
 
     def test_a_site_created_in_the_run_takes_its_devices_interfaces(self):
@@ -338,3 +359,98 @@ class VlansAtAnotherAppsSitesTestCase(LocationScopeTestCase):
         self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_locations": False, "sync_interfaces": False})
         self.nb_adapter.load_data()
         self.assertEqual({vlan.vid for vlan in self.nb_adapter.get_all("vlan")}, {10})
+
+
+class LocationReadTestCase(LocationScopeTestCase):
+    """Which Locations a tagged-only run reads when Locations are another App's."""
+
+    def _load_with_locations_out_of_scope(self):
+        self.nb_adapter.scope = SyncScope.from_job_kwargs(
+            {"sync_locations": False, "sync_interfaces": False, "sync_vlans": False}
+        )
+        self.nb_adapter.load_data()
+        return {location.name for location in self.nb_adapter.get_all("location")}
+
+    def test_only_the_locations_holding_what_the_sync_tagged_are_read(self):
+        self._location("other-app-site", tagged=False)
+        holding = self._location("other-app-site-with-a-device", tagged=False)
+        self._device("synced-dev", holding.name)
+        self.assertEqual(
+            self._load_with_locations_out_of_scope(),
+            {KNOWN_TO_BOTH, UNKNOWN_TO_IPFABRIC, "other-app-site-with-a-device"},
+        )
+
+    def test_a_site_filter_narrows_them_to_its_location(self):
+        self.nb_adapter.location_filter = Location.objects.get(name=KNOWN_TO_BOTH)
+        self.assertEqual(self._load_with_locations_out_of_scope(), {KNOWN_TO_BOTH})
+
+    def test_two_locations_of_one_name_load_as_one(self):
+        floor_type = LocationType.objects.create(name="Floor", parent=self.site_type)
+        floor_type.content_types.add(ContentType.objects.get_for_model(Device))
+        for site_name in (KNOWN_TO_BOTH, UNKNOWN_TO_IPFABRIC):
+            floor = Location.objects.create(
+                name="Floor 1",
+                location_type=floor_type,
+                status=self.active_status,
+                parent=Location.objects.get(name=site_name),
+            )
+            Device.objects.create(
+                name=f"{site_name}-floor-dev",
+                serial=f"{site_name}-floor-dev",
+                status=self.active_status,
+                role=self.role,
+                location=floor,
+                device_type=self.device_type,
+            ).tags.add(self.ssot_tag)
+        self.assertIn("Floor 1", self._load_with_locations_out_of_scope())
+        floor = self.nb_adapter.get("location", "Floor 1")
+        self.assertEqual(set(floor.devices), {f"{KNOWN_TO_BOTH}-floor-dev", f"{UNKNOWN_TO_IPFABRIC}-floor-dev"})
+        self.assertIn("More than one Location is named Floor 1", job_log_text(self.nb_adapter.job.logger, "warning"))
+
+
+class UnreportedSiteDependentsTestCase(LocationScopeTestCase):
+    """With Locations out of scope, what belongs to a Device at a site the source does not report is kept."""
+
+    def _diff(self, locations_in_scope):
+        self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_locations": locations_in_scope})
+        for site_name in (KNOWN_TO_BOTH, UNKNOWN_TO_IPFABRIC):
+            device_name = f"{site_name}-dev"
+            self.nb_adapter.add(
+                self.nb_adapter.device(
+                    name=device_name,
+                    location_name=site_name,
+                    model="dev_type1",
+                    vendor="man1",
+                    serial_number=device_name,
+                    role="test",
+                    status="Active",
+                )
+            )
+            self.nb_adapter.add(self.nb_adapter.vrf_device_assignment(vrf_name="BLUE", device_name=device_name))
+        self.nb_adapter.add(
+            self.nb_adapter.cable(
+                termination_a_device=f"{KNOWN_TO_BOTH}-dev",
+                termination_a_name="eth0",
+                termination_b_device=f"{UNKNOWN_TO_IPFABRIC}-dev",
+                termination_b_name="eth0",
+                status="Connected",
+            )
+        )
+        diff = self.nb_adapter.diff_from(self._source(locations_in_scope))
+        return {
+            model_name: {name for name, change in changes.items() if change.get("-") is not None}
+            for model_name, changes in diff.dict().items()
+            if model_name in ("vrf_device_assignment", "cable")
+        }
+
+    def test_a_device_at_an_unreported_site_keeps_its_assignments_and_cables(self):
+        removed = self._diff(locations_in_scope=False)
+        self.assertEqual(removed.get("vrf_device_assignment"), {f"BLUE__{KNOWN_TO_BOTH}-dev"})
+        self.assertFalse(removed.get("cable"))
+
+    def test_with_locations_in_scope_they_are_removed_with_the_site(self):
+        removed = self._diff(locations_in_scope=True)
+        self.assertEqual(
+            removed.get("vrf_device_assignment"), {f"BLUE__{KNOWN_TO_BOTH}-dev", f"BLUE__{UNKNOWN_TO_IPFABRIC}-dev"}
+        )
+        self.assertEqual(len(removed.get("cable", ())), 1)
