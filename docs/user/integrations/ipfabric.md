@@ -59,7 +59,7 @@ There are several options available.
 - **Sync Interface VRFs**: Put each Interface in the VRF IP Fabric reports for it. Disabled by default; requires **Sync Interfaces** and **Sync Device VRFs**.
 - **Sync Cables**: Sync the device connections in IP Fabric's connectivity matrix to Nautobot Cables. Disabled by default; requires **Sync Interfaces**. See [Cables](#cables).
 - **Dry run**: This will only report the difference between the source and destination without synchronization.
-- **Site Filter**: Filter the data loaded into DiffSync by a top level location of a specified Site.
+- **Site Filter**: Filter the data loaded into DiffSync by a top level location of a specified Site. The sync then writes only to Devices at that Location, the Devices it read, so a Device of the same name elsewhere is left alone.
 
 Deselecting an object type keeps it out of the sync in both directions, so existing Nautobot records of that type are left untouched rather than removed as absent from IP Fabric. An object type whose requirement is not selected is skipped, and the Job log names the unmet requirement. Devices are always synced, since every other object type is either a Device or hangs off one.
 
@@ -645,7 +645,7 @@ The selection stops new placeholders rather than removing those an earlier run c
 
 ## Sync Tagged Only
 
-With **Sync Tagged Only** selected, which is the default, the sync reads and writes only Devices carrying the `SSoT Synced from IPFabric` Tag. Deselecting it brings every Device in the selected Locations into scope, including Devices another process created, and the sync then updates their Interfaces as well as those of the Devices it created itself.
+With **Sync Tagged Only** selected, which is the default, the sync reads and writes only Devices that carry the `SSoT Synced from IPFabric` Tag, at Locations that carry it too. A site IP Fabric reports is tagged as it is synced, whether the run creates it or finds it already in Nautobot, so the Devices written there are covered in the same run. With **Sync Locations** deselected the sync never tags a Location, so the Location's Tag is not required; see [Locations](../../admin/integrations/ipfabric_setup.md#locations). Deselecting **Sync Tagged Only** brings every Device in the selected Locations into scope, including Devices another process created, and the sync then updates their Interfaces as well as those of the Devices it created itself.
 
 The option governs reading and writing together. It has to: a Device loaded from Nautobot but excluded from writing would have every difference IP Fabric reports about it reported again on every run and never applied.
 

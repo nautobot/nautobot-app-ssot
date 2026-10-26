@@ -35,6 +35,7 @@ from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
     InterfaceAddress as InterfaceAddressModel,
 )
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import DeviceScope
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 from nautobot_ssot.tests.ipfabric.job_log import job_log_text, job_logger
 
@@ -691,11 +692,11 @@ class BulkModeDeviceTestCase(TestCase):
         """A lookup that ran before the flush cached an answer the flush has invalidated."""
         adapter = self.adapter(bulk_write_mode=True)
         DeviceModel.create(adapter, ids={"name": "stale-dev"}, attrs=self.device_attrs())
-        self.assertIsNone(nbutils.get_syncable_device("stale-dev", tagged_only=True, tenant=None))
+        self.assertIsNone(nbutils.get_syncable_device("stale-dev", scope=DeviceScope(tagged_only=True)))
 
         adapter.flush_pending_writes()
 
-        self.assertIsNotNone(nbutils.get_syncable_device("stale-dev", tagged_only=True, tenant=None))
+        self.assertIsNotNone(nbutils.get_syncable_device("stale-dev", scope=DeviceScope(tagged_only=True)))
 
     def test_a_virtual_chassis_master_is_applied_after_its_device(self):
         """The master points back at the Device, so it cannot be set until the Device exists."""

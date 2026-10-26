@@ -13,7 +13,7 @@ from diffsync.exceptions import ObjectAlreadyExists, ObjectNotFound
 from django.core.exceptions import ValidationError
 from django.db import Error as DjangoBaseDBError
 from django.db import IntegrityError, transaction
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, Q
 from nautobot.core.choices import ColorChoices
 from nautobot.dcim.models import Cable, Device, Location
 from nautobot.extras.models import Tag
@@ -38,6 +38,7 @@ from nautobot_ssot.integrations.ipfabric.constants import (
     SYNCED_TAG_NAME,
 )
 from nautobot_ssot.integrations.ipfabric.diffsync import DiffSyncModelAdapters
+from nautobot_ssot.integrations.ipfabric.diffsync.unreported_sites import shield_unreported_sites
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
 
 # How many objects to delete per statement. Django walks the relations of a whole batch once, so
@@ -257,32 +258,30 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             self.job.logger.warning("%d %s objects %s.", count, model_name, outcome)
         self.safe_delete_tally.clear()
 
-    def flush_pending_writes_if_full(self) -> int:
+    def flush_pending_writes_if_full(self) -> None:
         """Write the queue if it has grown past what is worth holding in memory.
 
         Called once a model has finished its own work, which is the only safe point: a queue flushed
         part way through an operation would miss whatever that operation went on to set, such as a
         Device's virtual chassis fields.
         """
-        if len(self.pending) < PENDING_WRITE_HIGH_WATER:
-            return 0
-        return self.flush_pending_writes()
+        if len(self.pending) >= PENDING_WRITE_HIGH_WATER:
+            self.flush_pending_writes()
 
-    def flush_pending_writes(self) -> int:
-        """Write whatever bulk mode has queued, and report what was written.
+    def flush_pending_writes(self) -> None:
+        """Write whatever bulk mode has queued, and log what was written.
 
         Called before anything that reads those objects back from the database, and at the end of
         the sync. A no-op when nothing is queued, so callers need not check the mode first.
         """
         if not self.pending:
-            return 0
+            return
         counts = self.pending.counts()
         written = self.pending.flush()
         # Rows exist now that did not when these lookups last ran, and one of them caching that a
         # Device could not be found is enough to lose every Cable terminating on it.
         job_scoped_cache.clear_group(tonb_utils.BULK_WRITTEN_LOOKUPS)
         self.job.logger.info("Wrote %d queued rows in bulk mode: %s", written, counts)
-        return written
 
     def load_interfaces(self, device_record: Device, diffsync_device):
         """Import a single Nautobot Interface object as a DiffSync Interface model."""
@@ -417,18 +416,13 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             except ObjectAlreadyExists:
                 self.job.logger.warning(f"Duplicate Cable discovered, {cable.get_unique_id()}")
 
-    def get_in_scope_devices(self, location_objects):
-        """Return the Devices at the given Locations that this sync covers.
+    def get_in_scope_devices(self):
+        """Return the Devices this sync covers, through the scope every write finds its Device in.
 
         Shared by Device loading and Cable loading, so that Cables cannot load for Devices whose
         Interfaces did not.
         """
-        devices = Device.objects.filter(location__in=location_objects)
-        if self.sync_ipfabric_tagged_only:
-            devices = devices.filter(tags=self.ssot_tag)
-        if self.tenant is not None:
-            devices = devices.filter(tenant=self.tenant)
-        return devices
+        return self.device_scope.devices()
 
     def software_of(self, device_record: Device) -> Tuple[Optional[str], Optional[str]]:
         """Return the software version and images to report for a Device.
@@ -548,6 +542,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         Location, as each is a separate DiffSync VLAN, matching how IP Fabric reports VLANs per site.
         """
         vlans = VLAN.objects.filter(locations__in=location_objects)
+        if self.sync_ipfabric_tagged_only and not self.tagged_locations_only:
+            # The Locations are another App's and untagged, so a VLAN there is read only if this sync
+            # tagged it. One it reports and did not tag is found and adopted when it is created.
+            vlans = vlans.filter(tags=self.ssot_tag)
         if self.tenant is not None:
             vlans = vlans.filter(tenant=self.tenant)
         filtered_vlans = vlans.select_related("status").prefetch_related("locations").distinct()
@@ -812,6 +810,16 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             self.network_wide(self.prefix_vlan, prefix=prefix, vid=vid, location_name=location_name, conflict=conflict)
         )
 
+    def diff_from(self, source, *args, **kwargs):
+        """Flag the Cables and assignments at sites `source` does not report, then diff against `source`.
+
+        `sync_from` calls this method too, so a sync leaves those Cables and assignments in place just as
+        its preview does.
+        """
+        if not self.scope.locations:
+            shield_unreported_sites(self, {location.name for location in source.get_all("location")})
+        return super().diff_from(source, *args, **kwargs)
+
     def get_initial_location(self, ssot_tag: Tag):
         """Identify the location objects based on user defined job inputs.
 
@@ -819,7 +827,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             ssot_tag (Tag): Tag used for filtering
         """
         # Simple check / validate Tag is present.
-        if self.sync_ipfabric_tagged_only:
+        if self.tagged_locations_only:
             location_objects = Location.objects.filter(tags__name=ssot_tag.name)
             if self.location_filter:
                 location_objects = location_objects.filter(name=self.location_filter.name)
@@ -827,11 +835,25 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
                     self.job.logger.warning(
                         f"{self.location_filter.name} was used to filter, alongside SSoT Tag. {self.location_filter.name} is not tagged."
                     )
-        elif not self.sync_ipfabric_tagged_only:
+        elif self.sync_ipfabric_tagged_only:
+            # Another App owns these Locations, so they are never tagged. Read only the Locations that hold
+            # a Device or VLAN this sync tagged, not every Location in Nautobot. If IP Fabric reports a
+            # site that holds neither, the sync does not read it. It looks the site up by name when it
+            # places a Device there.
+            holding = Q(devices__in=self.device_scope.devices())
+            if self.scope.vlans:
+                # Count a VLAN only if `load_vlans` would read it at these Locations.
+                vlans = Q(vlans__tags=ssot_tag)
+                if self.tenant is not None:
+                    vlans &= Q(vlans__tenant=self.tenant)
+                holding |= vlans
+            location_objects = Location.objects.filter(holding).distinct()
             if self.location_filter:
-                location_objects = Location.objects.filter(name=self.location_filter.name)
-            else:
-                location_objects = Location.objects.all()
+                location_objects = location_objects.filter(name=self.location_filter.name)
+        elif self.location_filter:
+            location_objects = Location.objects.filter(name=self.location_filter.name)
+        else:
+            location_objects = Location.objects.all()
         return location_objects.select_related("status")
 
     @transaction.atomic
@@ -870,26 +892,37 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
                     "Error loading %s, invalid or missing attributes on object. Skipping...", location_record
                 )
                 continue
-            self.add(location)
+            try:
+                self.add(location)
+            except ObjectAlreadyExists:
+                # Nautobot requires a Location name to be unique only within its parent, but the sync
+                # identifies a site by name alone. Keep the first Location read, and load the Devices and
+                # VLANs of every Location with that name under it.
+                self.job.logger.warning(
+                    "More than one Location is named %s; "
+                    "loading the Devices and VLANs from all of them under the first",
+                    location_record.name,
+                )
+                continue
             locations_by_name[location_record.name] = location
 
         # Children are loaded once for every Location rather than once per Location, so that the
         # number of queries a load takes does not grow with the number of Locations in scope.
-        self.load_devices(self.get_in_scope_devices(location_objects), locations_by_name)
+        self.load_devices(self.get_in_scope_devices(), locations_by_name)
         if self.scope.vlans:
             self.load_vlans(location_objects, locations_by_name)
 
         # Loaded after every Location, as a link may terminate on Devices in two of them.
         if self.scope.cables:
-            self.load_cables(self.get_in_scope_devices(location_objects))
+            self.load_cables(self.get_in_scope_devices())
 
         # Loaded last, as it needs the Devices above and the VRFs loaded before them.
         if self.scope.device_vrfs:
-            self.load_vrf_device_assignments(self.get_in_scope_devices(location_objects))
+            self.load_vrf_device_assignments(self.get_in_scope_devices())
         if self.scope.interface_vrfs:
-            self.load_interface_vrfs(self.get_in_scope_devices(location_objects))
+            self.load_interface_vrfs(self.get_in_scope_devices())
         if self.scope.interface_vlans:
-            self.load_interface_vlans(self.get_in_scope_devices(location_objects))
+            self.load_interface_vlans(self.get_in_scope_devices())
 
         if self.placeholder_interfaces:
             self.job.logger.warning(

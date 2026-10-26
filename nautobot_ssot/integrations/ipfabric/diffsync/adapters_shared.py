@@ -14,6 +14,7 @@ from nautobot_ssot.integrations.ipfabric.sync_scope import (
     UNSYNCED_LOCATION_FLAGS,
     SyncScope,
 )
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import DeviceScope
 
 
 # One register per value a run reports absent on both sides, which is how the two adapters agree.
@@ -161,6 +162,9 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         )
         self.interfaces_without_a_type = set() if interfaces_without_a_type is None else interfaces_without_a_type
         self.tenant = tenant
+        # Overridden by the Nautobot adapter, which is the side that writes. Every Device is covered
+        # until it narrows them: see `device_scope`.
+        self.sync_ipfabric_tagged_only = False
         # Objects IP Fabric reported that already belong to another Tenant and so were not touched,
         # by model, reported once the sync is over.
         self.objects_of_another_tenant = defaultdict(list)
@@ -196,6 +200,28 @@ class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attri
         a pairing broken on one side alone reads as absent from the source and deletes the record.
         """
         return self.scope.ip_addresses and not self.strict.interfaces
+
+    @property
+    def tagged_locations_only(self) -> bool:
+        """Return whether a Location has to carry the synced Tag for the run to cover it.
+
+        Only under **Sync Tagged Only**, and only when the run writes Locations. One it may not write
+        belongs to another App, which never tags it, so requiring the Tag would leave out every Device
+        the run places there.
+        """
+        return self.sync_ipfabric_tagged_only and self.scope.locations
+
+    @property
+    def device_scope(self) -> DeviceScope:
+        """Return the Devices this run covers, which the Nautobot side reads and every write finds its Device in."""
+        return DeviceScope(
+            tagged_only=self.sync_ipfabric_tagged_only,
+            tagged_locations_only=self.tagged_locations_only,
+            tenant=self.tenant,
+            # The Nautobot adapter holds the Site Filter as a Location; the IP Fabric adapter, which never
+            # writes, holds only its name.
+            location_name=getattr(self.location_filter, "name", None),
+        )
 
     def may_create(self, key: str) -> bool:
         """Return whether this run may create a supporting object of the named type.

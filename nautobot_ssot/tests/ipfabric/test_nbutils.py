@@ -42,6 +42,7 @@ from nautobot_ssot.integrations.ipfabric.utilities import (
     get_virtual_chassis_object,
 )
 from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
+    DeviceScope,
     IPAddressToInterface,
     create_parent_prefix,
     deferred_change_logging,
@@ -1005,55 +1006,47 @@ class TestNautobotUtils(TestCase):
 
     # ===== get_syncable_device =====
 
-    def test_get_syncable_device_match(self):
-        """Test returns the device when name and SSoT tag match."""
+    def _tag_test_device(self):
+        """Tag `self.device` and its Location as synced from IPFabric, as the tagged lookups require."""
         ssot_tag, _ = Tag.objects.get_or_create(
             name="SSoT Synced from IPFabric", defaults={"color": ColorChoices.COLOR_LIGHT_GREEN}
         )
-        ssot_tag.content_types.add(self.content_type)
+        ssot_tag.content_types.add(self.content_type, ContentType.objects.get_for_model(Location))
         self.device.tags.add(ssot_tag)
-        result = get_syncable_device(self.device.name, tagged_only=True, tenant=None)
+        self.device.location.tags.add(ssot_tag)
+
+    def test_get_syncable_device_match(self):
+        """Test returns the device when name and SSoT tag match."""
+        self._tag_test_device()
+        result = get_syncable_device(self.device.name, scope=DeviceScope(tagged_only=True))
         self.assertEqual(result.id, self.device.id)
 
     def test_get_syncable_device_no_match(self):
         """Test returns None when device has no SSoT tag."""
-        result = get_syncable_device("Test-Device", tagged_only=True, tenant=None)
+        result = get_syncable_device("Test-Device", scope=DeviceScope(tagged_only=True))
         self.assertIsNone(result)
 
     def test_get_syncable_device_finds_an_untagged_device_when_the_run_is_not_tagged_only(self):
         """The Nautobot adapter loads every Device then, so every Device has to be writable."""
-        result = get_syncable_device(self.device.name, tagged_only=False, tenant=None)
+        result = get_syncable_device(self.device.name, scope=DeviceScope())
         self.assertEqual(result.id, self.device.id)
 
     def test_get_syncable_device_cache_reuse(self):
         """Test second call hits the cache and skips DB."""
-        ssot_tag, _ = Tag.objects.get_or_create(
-            name="SSoT Synced from IPFabric", defaults={"color": ColorChoices.COLOR_LIGHT_GREEN}
-        )
-        ssot_tag.content_types.add(self.content_type)
-        self.device.tags.add(ssot_tag)
-        first = get_syncable_device(self.device.name, tagged_only=True, tenant=None)
-        with mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Device.objects.filter") as mock_filter:
-            second = get_syncable_device(self.device.name, tagged_only=True, tenant=None)
-            mock_filter.assert_not_called()
+        self._tag_test_device()
+        first = get_syncable_device(self.device.name, scope=DeviceScope(tagged_only=True))
+        with self.assertNumQueries(0):
+            second = get_syncable_device(self.device.name, scope=DeviceScope(tagged_only=True))
         self.assertIs(first, second)
 
     # ===== get_tagged_interface =====
-
-    def _tag_test_device(self):
-        """Tag `self.device` as synced from IPFabric so it is visible to the tagged lookups."""
-        ssot_tag, _ = Tag.objects.get_or_create(
-            name="SSoT Synced from IPFabric", defaults={"color": ColorChoices.COLOR_LIGHT_GREEN}
-        )
-        ssot_tag.content_types.add(self.content_type)
-        self.device.tags.add(ssot_tag)
 
     def test_get_tagged_interface_match(self):
         """Test returns the Interface when the Device is tagged and the Interface exists."""
         self._tag_test_device()
         interface = self.device.interfaces.get(name="Test-Interface")
 
-        result = get_tagged_interface(self.device.name, "Test-Interface", tagged_only=True, tenant=None)
+        result = get_tagged_interface(self.device.name, "Test-Interface", scope=DeviceScope(tagged_only=True))
 
         self.assertEqual(result.id, interface.id)
 
@@ -1062,7 +1055,7 @@ class TestNautobotUtils(TestCase):
         mock_logger = mock.MagicMock()
 
         result = get_tagged_interface(
-            self.device.name, "Test-Interface", tagged_only=True, tenant=None, logger=mock_logger
+            self.device.name, "Test-Interface", scope=DeviceScope(tagged_only=True), logger=mock_logger
         )
 
         self.assertIsNone(result)
@@ -1074,7 +1067,7 @@ class TestNautobotUtils(TestCase):
         mock_logger = mock.MagicMock()
 
         result = get_tagged_interface(
-            self.device.name, "Ethernet9/9", tagged_only=True, tenant=None, logger=mock_logger
+            self.device.name, "Ethernet9/9", scope=DeviceScope(tagged_only=True), logger=mock_logger
         )
 
         self.assertIsNone(result)
@@ -1088,7 +1081,7 @@ class TestNautobotUtils(TestCase):
         with mock.patch.object(Device, "interfaces", new_callable=mock.PropertyMock) as mock_interfaces:
             mock_interfaces.return_value.get.side_effect = Interface.MultipleObjectsReturned
             result = get_tagged_interface(
-                self.device.name, "Test-Interface", tagged_only=True, tenant=None, logger=mock_logger
+                self.device.name, "Test-Interface", scope=DeviceScope(tagged_only=True), logger=mock_logger
             )
 
         self.assertIsNone(result)
@@ -1096,9 +1089,9 @@ class TestNautobotUtils(TestCase):
 
     def test_get_tagged_interface_no_logger(self):
         """Test the logger is optional on every failure path."""
-        self.assertIsNone(get_tagged_interface(self.device.name, "Test-Interface", tagged_only=True, tenant=None))
+        self.assertIsNone(get_tagged_interface(self.device.name, "Test-Interface", scope=DeviceScope(tagged_only=True)))
         self._tag_test_device()
-        self.assertIsNone(get_tagged_interface(self.device.name, "Ethernet9/9", tagged_only=True, tenant=None))
+        self.assertIsNone(get_tagged_interface(self.device.name, "Ethernet9/9", scope=DeviceScope(tagged_only=True)))
 
     # ===== tag_object (direct) =====
 
@@ -1219,6 +1212,16 @@ class TestNautobotUtils(TestCase):
         result = create_interface(mock_device, {"name": "DB-Iface"}, logger=logger)
         self.assertIsNone(result)
         logger.error.assert_called_with("Unable to create a new Interface named DB-Iface on Device named Mock-Device")
+
+    @unittest.mock.patch("logging.Logger", autospec=True)
+    def test_create_interface_reports_a_new_interface_nautobot_refuses(self, mock_logger):
+        logger = mock_logger("nb_job")
+        with mock.patch.object(Interface, "validated_save", side_effect=ValidationError("refused")):
+            result = create_interface(self.device, {"name": "Refused-Iface"}, logger=logger)
+        self.assertIsNone(result)
+        logger.error.assert_called_with(
+            f"Unable to create a new Interface named Refused-Iface on Device named {self.device.name}"
+        )
 
     @unittest.mock.patch("logging.Logger", autospec=True)
     def test_create_interface_validation_error(self, mock_logger):
