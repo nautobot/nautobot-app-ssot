@@ -811,9 +811,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         )
 
     def diff_from(self, source, *args, **kwargs):
-        """Diff against `source`, first shielding what hangs off a site it does not report.
+        """Flag the Cables and assignments at sites `source` does not report, then diff against `source`.
 
-        `sync_from` diffs through here too, so the shield holds for a sync as well as for its preview.
+        `sync_from` also calls this method, so a sync keeps them the same way its preview does.
         """
         if not self.scope.locations:
             shield_unreported_sites(self, {location.name for location in source.get_all("location")})
@@ -835,12 +835,12 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
                         f"{self.location_filter.name} was used to filter, alongside SSoT Tag. {self.location_filter.name} is not tagged."
                     )
         elif self.sync_ipfabric_tagged_only:
-            # The Locations are another App's and never tagged, so the ones read are those holding what
-            # this sync tagged, rather than every Location in Nautobot. One IP Fabric reports that is not
-            # read is still found by name when a Device is placed at it.
+            # Another App owns these Locations, so they are never tagged. Read only the Locations that hold
+            # a Device or VLAN this sync tagged, not every Location in Nautobot. A site IP Fabric reports
+            # that holds neither is not read, and is looked up by name when a Device is placed there.
             holding = Q(devices__in=self.device_scope.devices())
             if self.scope.vlans:
-                # The same VLANs `load_vlans` reads at these Locations.
+                # Count a VLAN only if `load_vlans` would read it at these Locations.
                 vlans = Q(vlans__tags=ssot_tag)
                 if self.tenant is not None:
                     vlans &= Q(vlans__tenant=self.tenant)
@@ -893,10 +893,11 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             try:
                 self.add(location)
             except ObjectAlreadyExists:
-                # Nautobot makes a Location's name unique only under its parent, while the sync knows a
-                # site by name alone. The first is kept, and the Devices and VLANs at both load under it.
+                # Nautobot requires a Location name to be unique only within its parent, but the sync
+                # identifies a site by name alone. Keep the first Location read, and load the Devices and
+                # VLANs of every Location with that name under it.
                 self.job.logger.warning(
-                    "More than one Location is named %s; loading the Devices and VLANs at each under one",
+                    "More than one Location is named %s; loading the Devices and VLANs from all of them under the first",
                     location_record.name,
                 )
                 continue

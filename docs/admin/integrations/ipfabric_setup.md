@@ -248,9 +248,9 @@ These consequences follow, all of them intended:
   still attempted. The Location is looked up by name, so a Location that another SSoT App has already
   created is found and the Devices land at it.
 - **`Sync Tagged Only` does not require a Location to carry the IP Fabric tag.** A Location owned by
-  another App never carries it. The Locations read are those holding a Device or VLAN this sync
-  tagged, and those Devices are synced in full, Interfaces, addresses and Cables included. Only the
-  VLANs this sync tagged are read at them; one it reports and did not tag is adopted rather than
+  another App never carries it. The sync reads a Location only if it holds a Device or VLAN this sync
+  tagged, and syncs those Devices in full, including their Interfaces, addresses and Cables. At those
+  Locations it reads only the VLANs it tagged; one it reports and did not tag is adopted rather than
   duplicated.
 - **A Device whose Location does not exist yet is reported, not skipped silently.** The Job log names
   the Location that could not be found and each Device that could not be placed, so a sync run before
@@ -259,12 +259,13 @@ These consequences follow, all of them intended:
   Devices at it and their Interfaces, addresses, Cables, VRF assignments, and the VRFs and VLANs set
   on their Interfaces. A Cable is kept when either end is at such a site. With Locations out of scope
   the sync holds no opinion about which sites exist, so it cannot treat a missing site as evidence that
-  what is at it is gone. With Locations in scope, that same site and its Devices are deleted, subject
+  its Devices, Cables and assignments were removed. With Locations in scope, that same site and its Devices are deleted, subject
   to Safe Delete Mode.
 
-Whether Locations are in scope or not, the sync knows a site by name alone, while Nautobot allows two
-Locations of one name under different parents. Where two such Locations are read, the Devices and
-VLANs at both are loaded under the first, and the Job log names the Location.
+Whether Locations are in scope or not, the sync identifies a site by name alone, while Nautobot allows
+two Locations with the same name under different parents. When the sync reads two such Locations, it
+loads the Devices and VLANs at both under whichever it read first, and the Job log warns that the name
+is not unique.
 
 The `ipfabric_site_id` custom field is only ever written while Locations are in scope; out of scope it
 belongs to whichever system owns the Location.
