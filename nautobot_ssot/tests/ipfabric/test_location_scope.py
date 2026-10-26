@@ -373,6 +373,7 @@ class LocationReadTestCase(LocationScopeTestCase):
         return {location.name for location in self.nb_adapter.get_all("location")}
 
     def test_only_the_locations_holding_what_the_sync_tagged_are_read(self):
+        """An untagged Location is read only when it holds a Device the sync tagged."""
         self._location("other-app-site", tagged=False)
         holding = self._location("other-app-site-with-a-device", tagged=False)
         self._device("synced-dev", holding.name)
@@ -395,6 +396,7 @@ class LocationReadTestCase(LocationScopeTestCase):
         return location
 
     def test_a_location_holding_a_vlan_the_sync_tagged_is_read_with_vlans_in_scope(self):
+        """With VLANs in scope, a Location is read for a VLAN the sync tagged, not for an untagged one."""
         self.ssot_tag.content_types.add(ContentType.objects.get_for_model(VLAN))
         self._vlan_site("tagged-vlan-site", 10)
         self._vlan_site("untagged-vlan-site", 20, tagged=False)
@@ -403,6 +405,7 @@ class LocationReadTestCase(LocationScopeTestCase):
         self.assertNotIn("untagged-vlan-site", read)
 
     def test_a_location_holding_only_a_vlan_is_not_read_with_vlans_out_of_scope(self):
+        """With VLANs out of scope, a tagged VLAN does not make the sync read its Location."""
         self.ssot_tag.content_types.add(ContentType.objects.get_for_model(VLAN))
         self._vlan_site("tagged-vlan-site", 10)
         self.assertNotIn("tagged-vlan-site", self._load_with_locations_out_of_scope())
@@ -420,10 +423,12 @@ class LocationReadTestCase(LocationScopeTestCase):
         self.assertEqual(self._load_with_locations_out_of_scope(vlans=True), {"own-vlan-site"})
 
     def test_a_site_filter_narrows_them_to_its_location(self):
+        """A Site Filter limits the Locations read to the one it names."""
         self.nb_adapter.location_filter = Location.objects.get(name=KNOWN_TO_BOTH)
         self.assertEqual(self._load_with_locations_out_of_scope(), {KNOWN_TO_BOTH})
 
     def test_two_locations_of_one_name_load_as_one(self):
+        """Two Locations of one name under different parents load as one, with a warning."""
         floor_type = LocationType.objects.create(name="Floor", parent=self.site_type)
         floor_type.content_types.add(ContentType.objects.get_for_model(Device))
         for site_name in (KNOWN_TO_BOTH, UNKNOWN_TO_IPFABRIC):
@@ -451,7 +456,7 @@ class UnreportedSiteDependentsTestCase(LocationScopeTestCase):
     """With Locations out of scope, what belongs to a Device at a site the source does not report is kept."""
 
     DEPENDENTS = ("vrf_device_assignment", "interface_vrf", "interface_vlan", "cable")
-    # How many removals `_removed` reports per model when every one is removed: one per Device, and one per Cable.
+    # Per model, how many records `_removed` returns with Locations in scope: one per Device, and one per Cable.
     EXPECTED_REMOVED = {"vrf_device_assignment": 2, "interface_vrf": 2, "interface_vlan": 2, "cable": 3}
 
     def _cable(self, end_a, end_b):
@@ -502,6 +507,7 @@ class UnreportedSiteDependentsTestCase(LocationScopeTestCase):
         }
 
     def test_a_device_at_an_unreported_site_keeps_its_assignments_and_cables(self):
+        """With Locations out of scope, only what belongs to the Device at the reported site is removed."""
         removed = self._removed(locations_in_scope=False)
         for model_name in self.DEPENDENTS:
             with self.subTest(model_name):
@@ -509,6 +515,7 @@ class UnreportedSiteDependentsTestCase(LocationScopeTestCase):
                 self.assertNotIn(UNKNOWN_TO_IPFABRIC, next(iter(removed[model_name])))
 
     def test_with_locations_in_scope_they_are_removed_with_the_site(self):
+        """With Locations in scope, everything at the unreported site is removed along with it."""
         removed = self._removed(locations_in_scope=True)
         for model_name in self.DEPENDENTS:
             with self.subTest(model_name):
