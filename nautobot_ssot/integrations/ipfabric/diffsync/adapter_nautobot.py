@@ -813,7 +813,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
     def diff_from(self, source, *args, **kwargs):
         """Flag the Cables and assignments at sites `source` does not report, then diff against `source`.
 
-        `sync_from` also calls this method, so a sync keeps them the same way its preview does.
+        `sync_from` calls this method too, so a sync leaves those Cables and assignments in place just as
+        its preview does.
         """
         if not self.scope.locations:
             shield_unreported_sites(self, {location.name for location in source.get_all("location")})
@@ -836,8 +837,9 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
                     )
         elif self.sync_ipfabric_tagged_only:
             # Another App owns these Locations, so they are never tagged. Read only the Locations that hold
-            # a Device or VLAN this sync tagged, not every Location in Nautobot. A site IP Fabric reports
-            # that holds neither is not read, and is looked up by name when a Device is placed there.
+            # a Device or VLAN this sync tagged, not every Location in Nautobot. If IP Fabric reports a
+            # site that holds neither, the sync does not read it. It looks the site up by name when it
+            # places a Device there.
             holding = Q(devices__in=self.device_scope.devices())
             if self.scope.vlans:
                 # Count a VLAN only if `load_vlans` would read it at these Locations.
@@ -897,7 +899,8 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
                 # identifies a site by name alone. Keep the first Location read, and load the Devices and
                 # VLANs of every Location with that name under it.
                 self.job.logger.warning(
-                    "More than one Location is named %s; loading the Devices and VLANs from all of them under the first",
+                    "More than one Location is named %s; "
+                    "loading the Devices and VLANs from all of them under the first",
                     location_record.name,
                 )
                 continue

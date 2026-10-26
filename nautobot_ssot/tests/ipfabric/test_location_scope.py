@@ -382,7 +382,7 @@ class LocationReadTestCase(LocationScopeTestCase):
         )
 
     def _add_vlan(self, location, vid, tagged=True, tenant=None):
-        """Assign a new VLAN to the Location, tagged as synced unless told otherwise."""
+        """Create a VLAN at the Location. It gets the synced Tag unless `tagged` is False."""
         vlan = VLAN.objects.create(vid=vid, name=f"vlan{vid}", status=self.active_status, tenant=tenant)
         vlan.locations.add(location)
         if tagged:
@@ -408,6 +408,7 @@ class LocationReadTestCase(LocationScopeTestCase):
         self.assertNotIn("tagged-vlan-site", self._load_with_locations_out_of_scope())
 
     def test_a_location_holding_another_tenants_vlan_is_not_read(self):
+        """A Location is read only for a VLAN that both carries the Tag and belongs to the run's Tenant."""
         self.ssot_tag.content_types.add(ContentType.objects.get_for_model(VLAN))
         self.nb_adapter.tenant = Tenant.objects.create(name="customer-a")
         self._vlan_site("own-vlan-site", 10, tenant=self.nb_adapter.tenant)
@@ -450,8 +451,8 @@ class UnreportedSiteDependentsTestCase(LocationScopeTestCase):
     """With Locations out of scope, what belongs to a Device at a site the source does not report is kept."""
 
     DEPENDENTS = ("vrf_device_assignment", "interface_vrf", "interface_vlan", "cable")
-    # How many of each `_removed` adds: one per Device, and the three Cables.
-    ADDED = {"vrf_device_assignment": 2, "interface_vrf": 2, "interface_vlan": 2, "cable": 3}
+    # How many removals `_removed` reports per model when every one is removed: one per Device, and one per Cable.
+    EXPECTED_REMOVED = {"vrf_device_assignment": 2, "interface_vrf": 2, "interface_vlan": 2, "cable": 3}
 
     def _cable(self, end_a, end_b):
         self.nb_adapter.add(
@@ -488,7 +489,8 @@ class UnreportedSiteDependentsTestCase(LocationScopeTestCase):
                 self.nb_adapter.interface_vlan(device_name=device_name, interface_name="eth0", mode="access")
             )
         known, unknown = f"{KNOWN_TO_BOTH}-dev", f"{UNKNOWN_TO_IPFABRIC}-dev"
-        # Two Cables with one end each at the unreported site, A and B, and one with both ends at the shared site.
+        # Two Cables with one end at the unreported site, on the A side and then the B side, and one Cable
+        # with both ends at the shared site.
         self._cable((known, "eth0"), (unknown, "eth0"))
         self._cable((unknown, "eth1"), (known, "eth1"))
         self._cable((known, "eth2"), (known, "eth3"))
@@ -510,4 +512,4 @@ class UnreportedSiteDependentsTestCase(LocationScopeTestCase):
         removed = self._removed(locations_in_scope=True)
         for model_name in self.DEPENDENTS:
             with self.subTest(model_name):
-                self.assertEqual(len(removed[model_name]), self.ADDED[model_name])
+                self.assertEqual(len(removed[model_name]), self.EXPECTED_REMOVED[model_name])

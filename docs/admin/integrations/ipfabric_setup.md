@@ -258,9 +258,9 @@ These consequences follow, all of them intended:
 - **A Nautobot Location that IP Fabric does not report is left completely alone**, including the
   Devices at it and their Interfaces, addresses, Cables, VRF assignments, and the VRFs and VLANs set
   on their Interfaces. A Cable is kept when either end is at such a site. With Locations out of scope
-  the sync holds no opinion about which sites exist, so it cannot treat a missing site as evidence that
-  its Devices, Cables and assignments were removed. With Locations in scope, that same site and its Devices are deleted, subject
-  to Safe Delete Mode.
+  the sync holds no opinion about which sites exist, so it cannot treat a missing site as evidence
+  that its Devices, Cables and assignments were deleted in IP Fabric. With Locations in scope, that
+  same site and its Devices are deleted, subject to Safe Delete Mode.
 
 Whether Locations are in scope or not, the sync identifies a site by name alone, while Nautobot allows
 two Locations with the same name under different parents. When the sync reads two such Locations, it

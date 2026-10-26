@@ -20,8 +20,9 @@ def shield_unreported_sites(adapter: Adapter, reported: Set[str]) -> None:
     With Locations out of scope, a Location the source does not report is skipped along with the
     Devices and Interfaces under it, since the sync holds no opinion on which sites exist. Cables,
     VRF assignments and the VRFs and VLANs set on Interfaces are top level rather than under it,
-    so they are flagged here instead. They are missing from the source because their site is
-    missing, not because they were deleted. A Cable is flagged when either end is at such a site.
+    so this function flags each one with `SKIP_UNMATCHED_DST` as well. The source lacks them only
+    because it lacks their site, not because they were deleted. A Cable is flagged when either end
+    is at such a site.
 
     Calling this twice on the same adapter has the same effect as calling it once.
 
