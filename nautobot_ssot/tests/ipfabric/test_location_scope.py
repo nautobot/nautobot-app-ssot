@@ -15,6 +15,7 @@ from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Man
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import CustomField, Role, Status, Tag
+from nautobot.ipam.models import VLAN
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import NautobotDiffSync
 from nautobot_ssot.integrations.ipfabric.diffsync.adapters_shared import DiffSyncModelAdapters
@@ -167,7 +168,7 @@ class LocationDiffTestCase(LocationScopeTestCase):
         self.assertIsNone(nbutils.get_syncable_device("untagged-dev", scope=self.nb_adapter.device_scope))
         self.assertIsNotNone(nbutils.get_syncable_device(f"{KNOWN_TO_BOTH}-dev", scope=self.nb_adapter.device_scope))
 
-    def test_a_run_over_every_location_carries_none_of_them(self):
+    def test_a_run_over_every_location_names_none(self):
         adapter = self._adapter(tagged_only=False)
         adapter.load()
         self.assertIsNone(adapter.device_scope.location_name)
@@ -265,11 +266,18 @@ class LocationSyncTestCase(LocationScopeTestCase):
         self.assertIsNone(location.custom_field_data.get("ipfabric_site_id"))
 
 
-class NewLocationScopeTestCase(LocationScopeTestCase):
-    """A tagged-only run writes in full to a site it creates, not only to the sites it loaded."""
+class SiteWrittenInFullTestCase(LocationScopeTestCase):
+    """A tagged-only run writes in full to the Devices it places at a site it did not load.
 
-    def _sync_new_site(self, bulk_write_mode):
-        """Sync a site Nautobot lacks, with a Device and an Interface, in a tagged-only run."""
+    Either a site it creates, or, with Locations out of scope, a site another App owns and never tags.
+    The second run reads what the first wrote and updates it, so it goes through the scope rather than
+    finding the Device in Bulk Write Mode's queue.
+    """
+
+    NEW_DEVICE = f"{UNLOADED_FROM_NAUTOBOT}-newdev"
+
+    def _sync_site(self, *, locations_in_scope, bulk_write_mode, description=None):
+        """Sync the site, with a Device and an Interface on it, in a tagged-only run."""
         adapter = NautobotDiffSync(
             job=unittest.mock.Mock(),
             sync=unittest.mock.Mock(),
@@ -277,25 +285,56 @@ class NewLocationScopeTestCase(LocationScopeTestCase):
             location_filter=None,
             bulk_write_mode=bulk_write_mode,
         )
-        adapter.scope = SyncScope.from_job_kwargs({"sync_vlans": False})
+        adapter.scope = SyncScope.from_job_kwargs({"sync_locations": locations_in_scope, "sync_vlans": False})
         adapter.load_data()
-        source = self._source(locations_in_scope=True, with_device_at=(UNLOADED_FROM_NAUTOBOT,))
-        device = source.get("device", {"name": f"{UNLOADED_FROM_NAUTOBOT}-newdev"})
-        interface = source.interface(name="eth0", device_name=device.name, status="Active")
+        source = self._source(locations_in_scope=locations_in_scope, with_device_at=(UNLOADED_FROM_NAUTOBOT,))
+        device = source.get("device", {"name": self.NEW_DEVICE})
+        interface = source.interface(name="eth0", device_name=device.name, status="Active", description=description)
         source.add(interface)
         device.add_child(interface)
         adapter.sync_from(source)
+        adapter.flush_pending_writes()
         return adapter
 
-    def assert_new_site_written_in_full(self, adapter):
-        """Assert the new site is tagged and its Device, which the run covers, took its Interface."""
-        device = Device.objects.get(name=f"{UNLOADED_FROM_NAUTOBOT}-newdev")
-        self.assertTrue(device.location.tags.filter(pk=self.ssot_tag.pk).exists())
+    def _assert_written_in_full(self, *, locations_in_scope, bulk_write_mode):
+        self._sync_site(locations_in_scope=locations_in_scope, bulk_write_mode=bulk_write_mode)
+        job_scoped_cache.clear_all()
+        adapter = self._sync_site(
+            locations_in_scope=locations_in_scope, bulk_write_mode=bulk_write_mode, description="uplink"
+        )
+        device = Device.objects.get(name=self.NEW_DEVICE)
         self.assertEqual(nbutils.get_syncable_device(device.name, scope=adapter.device_scope), device)
-        self.assertTrue(device.interfaces.filter(name="eth0").exists())
+        self.assertEqual(device.interfaces.get(name="eth0").description, "uplink")
+        return device
 
     def test_a_site_created_in_the_run_takes_its_devices_interfaces(self):
-        self.assert_new_site_written_in_full(self._sync_new_site(bulk_write_mode=False))
+        device = self._assert_written_in_full(locations_in_scope=True, bulk_write_mode=False)
+        self.assertTrue(device.location.tags.filter(pk=self.ssot_tag.pk).exists())
 
     def test_a_site_created_in_a_bulk_run_takes_its_devices_interfaces(self):
-        self.assert_new_site_written_in_full(self._sync_new_site(bulk_write_mode=True))
+        self._assert_written_in_full(locations_in_scope=True, bulk_write_mode=True)
+
+    def test_another_apps_site_takes_its_devices_interfaces(self):
+        self._location(UNLOADED_FROM_NAUTOBOT, tagged=False)
+        device = self._assert_written_in_full(locations_in_scope=False, bulk_write_mode=False)
+        self.assertFalse(device.location.tags.exists())
+
+    def test_another_apps_site_takes_its_devices_interfaces_in_a_bulk_run(self):
+        self._location(UNLOADED_FROM_NAUTOBOT, tagged=False)
+        self._assert_written_in_full(locations_in_scope=False, bulk_write_mode=True)
+
+
+class VlansAtAnotherAppsSitesTestCase(LocationScopeTestCase):
+    """With Locations out of scope, a tagged-only run reads only the VLANs it tagged at the sites it reads."""
+
+    def test_only_a_tagged_vlan_at_an_untagged_site_is_read(self):
+        location = self._location("other-app-site", tagged=False)
+        for vid, tagged in ((10, True), (20, False)):
+            vlan = VLAN.objects.create(vid=vid, name=f"vlan{vid}", status=self.active_status)
+            vlan.locations.add(location)
+            if tagged:
+                vlan.tags.add(self.ssot_tag)
+        self.ssot_tag.content_types.add(ContentType.objects.get_for_model(VLAN))
+        self.nb_adapter.scope = SyncScope.from_job_kwargs({"sync_locations": False, "sync_interfaces": False})
+        self.nb_adapter.load_data()
+        self.assertEqual({vlan.vid for vlan in self.nb_adapter.get_all("vlan")}, {10})

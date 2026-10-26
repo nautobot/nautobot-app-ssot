@@ -541,6 +541,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
         Location, as each is a separate DiffSync VLAN, matching how IP Fabric reports VLANs per site.
         """
         vlans = VLAN.objects.filter(locations__in=location_objects)
+        if self.sync_ipfabric_tagged_only and not self.tagged_locations_only:
+            # The Locations are another App's and untagged, so a VLAN there is read only if this sync
+            # tagged it. One it reports and did not tag is found and adopted when it is created.
+            vlans = vlans.filter(tags=self.ssot_tag)
         if self.tenant is not None:
             vlans = vlans.filter(tenant=self.tenant)
         filtered_vlans = vlans.select_related("status").prefetch_related("locations").distinct()
@@ -812,7 +816,7 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
             ssot_tag (Tag): Tag used for filtering
         """
         # Simple check / validate Tag is present.
-        if self.sync_ipfabric_tagged_only:
+        if self.tagged_locations_only:
             location_objects = Location.objects.filter(tags__name=ssot_tag.name)
             if self.location_filter:
                 location_objects = location_objects.filter(name=self.location_filter.name)
@@ -820,11 +824,10 @@ class NautobotDiffSync(DiffSyncModelAdapters):  # pylint: disable=too-many-publi
                     self.job.logger.warning(
                         f"{self.location_filter.name} was used to filter, alongside SSoT Tag. {self.location_filter.name} is not tagged."
                     )
-        elif not self.sync_ipfabric_tagged_only:
-            if self.location_filter:
-                location_objects = Location.objects.filter(name=self.location_filter.name)
-            else:
-                location_objects = Location.objects.all()
+        elif self.location_filter:
+            location_objects = Location.objects.filter(name=self.location_filter.name)
+        else:
+            location_objects = Location.objects.all()
         return location_objects.select_related("status")
 
     @transaction.atomic

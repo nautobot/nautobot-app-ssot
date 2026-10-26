@@ -244,11 +244,13 @@ Locations that already exist in Nautobot still sync normally.
 
 Three consequences follow, all of them intended:
 
-- **A site IP Fabric reports that this sync did not load is not created**, but the Devices at it are
-  still attempted. The Location is looked up by name first, so a Location that another SSoT App has
-  already created is found and the Devices land at it. This matters most with `Sync Tagged Only`
-  enabled: a Location owned by another App carries no IP Fabric tag, so this sync never loads it, and
-  the name lookup is what connects the two.
+- **A site IP Fabric reports that Nautobot does not hold is not created**, but the Devices at it are
+  still attempted. The Location is looked up by name, so a Location that another SSoT App has already
+  created is found and the Devices land at it.
+- **`Sync Tagged Only` does not require a Location to carry the IP Fabric tag.** A Location owned by
+  another App never carries it, so every Location is read, and the Devices this sync tagged there are
+  synced in full, Interfaces, addresses and Cables included. Only the VLANs this sync tagged are read
+  at them; one it reports and did not tag is adopted rather than duplicated.
 - **A Device whose Location does not exist yet is reported, not skipped silently.** The Job log names
   the Location that could not be found and each Device that could not be placed, so a sync run before
   the App that owns Locations shows up as work to retry rather than as missing data.

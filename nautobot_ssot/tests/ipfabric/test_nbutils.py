@@ -1035,9 +1035,8 @@ class TestNautobotUtils(TestCase):
         """Test second call hits the cache and skips DB."""
         self._tag_test_device()
         first = get_syncable_device(self.device.name, scope=DeviceScope(tagged_only=True))
-        with mock.patch("nautobot_ssot.integrations.ipfabric.utilities.nbutils.Device.objects.filter") as mock_filter:
+        with self.assertNumQueries(0):
             second = get_syncable_device(self.device.name, scope=DeviceScope(tagged_only=True))
-            mock_filter.assert_not_called()
         self.assertIs(first, second)
 
     # ===== get_tagged_interface =====
