@@ -4,8 +4,19 @@ This document describes all new features and changes in the release. The format 
 
 ## Release Overview
 
-- Major features or milestones
-- Changes to compatibility with Nautobot and/or other apps, libraries etc.
+**Existing IP Fabric syncs change on upgrade.**
+    - VLANs are matched by VLAN ID at a Location rather than by name: the first sync renames any VLAN whose name has drifted and moves VLANs into a new per-Location VLAN Group.
+    - A Device's Serial now holds the chassis serial, with IP Fabric's own identifier in a custom field.
+    - An Interface's Enabled follows the state IP Fabric reports.
+    - Objects the sync finds unchanged no longer get a change log entry on every run.
+
+- The IP Fabric integration syncs much more of what IP Fabric reports: Prefixes with the Locations and VLAN they are seen in, an IP Address for each discovered host, FHRP virtual addresses, Software Versions and Software Image Files, switchport VLAN modes and tagged VLANs, port channel membership, subinterface parents, and Interfaces that only the managed address table names. Each new object type is opt-in on the Job form.
+- New Tenant and Namespace options on the IP Fabric job scope a sync to one Tenant's objects and put its IP Addresses, Prefixes and VRFs in a chosen Namespace.
+- The synced and safe-delete Tag names are now settings, so two IP Fabric instances can sync into one Nautobot.
+- Several IP Fabric correctness fixes. Safe Delete Mode is no longer shared between concurrent syncs, which could delete objects in a run that had it selected. Warnings now reach the Job log instead of only the worker log. Deselecting Locations no longer removes the Cables and VRF and VLAN assignments at sites IP Fabric does not report. Bulk Write Mode now handles moves to Locations and ports created in the same run.
+- The Infoblox integration fixes VLANs in a VLAN Range, Extensible Attributes mapped to a Location or VRF, VLAN Group updates that were never saved, and a load time that grew quadratically with the number of objects.
+- The Cisco SD-WAN integration now releases VRFs a Device no longer uses and stops saving every Device on every sync.
+- The optional `ipfabric` dependency now allows SDK 8, for IP Fabric 8 servers. A new install gets SDK 8, which cannot connect to IP Fabric 7; installs against IP Fabric 7 need to pin `ipfabric<8`.
 
 <!-- towncrier release notes start -->
 
@@ -18,19 +29,19 @@ This document describes all new features and changes in the release. The format 
 - [#890](https://github.com/nautobot/nautobot-app-ssot/issues/890) - Added an opt-in "Sync Interface VLANs" option to the IP Fabric integration that records each switchport's 802.1Q mode and the VLANs it carries, and puts an addressed Interface such as an SVI in the VLAN its address reports. The modes, the precedence between the two tables and the cases where a VLAN is left off are documented in the IP Fabric integration.
 - [#891](https://github.com/nautobot/nautobot-app-ssot/issues/891) - Added Prefix synchronization to the IP Fabric integration, behind a new **Sync Prefixes** job option that is off by default. Each network in IP Fabric's IPv4 and IPv6 managed IP summary becomes a Prefix in the Global Namespace, recorded at the Locations it is seen at. A Prefix Nautobot already holds is adopted rather than duplicated, and only Prefixes the sync has tagged are ever removed. The job reports networks that overlap a network seen only at other sites.
 - [#892](https://github.com/nautobot/nautobot-app-ssot/issues/892) - Added the VLAN a network is reported in to the Prefixes the IP Fabric integration syncs. A network whose addresses are in different VLANs is left without one, and the VLANs are recorded in a custom field.
-- [#893](https://github.com/nautobot/nautobot-app-ssot/issues/893) - Added the `ipfabric_stack_member_name` and `ipfabric_stack_master_name` settings to the IP Fabric integration, which named the Devices of a stack, and renamed the stack Devices already synced when either changed.
+- [#893](https://github.com/nautobot/nautobot-app-ssot/issues/893) - Added the `ipfabric_stack_member_name` and `ipfabric_stack_master_name` settings to the IP Fabric integration, which names the Devices of a stack, and renames the stack Devices already synced when either changed.
 - [#895](https://github.com/nautobot/nautobot-app-ssot/issues/895) - Added a **Sync Software Versions** option to the IP Fabric integration, off by default. It sets each Device's Software Version from the OS version IP Fabric reports, creating the version under the Device's Platform where Nautobot has none.
 - [#896](https://github.com/nautobot/nautobot-app-ssot/issues/896) - Added a **Sync Software Images** option to the IP Fabric integration, off by default. It sets the image file each Device booted from, creating the Software Image File under the Device's Software Version and mapping it to the Device's Device Type.
 - [#897](https://github.com/nautobot/nautobot-app-ssot/issues/897) - The IP Fabric sync now records which port channel an Interface is a member of, read from IP Fabric's port channel member status table.
-- [#898](https://github.com/nautobot/nautobot-app-ssot/issues/898) - Added a Sync Host Addresses option to the IP Fabric integration, which created an IP Address for each host IP Fabric discovered, with its DNS name and MAC address, under the synced Prefix that covered it.
-- [#1234](https://github.com/nautobot/nautobot-app-ssot/issues/1234) - Added new documentation for contrib moudule.
+- [#898](https://github.com/nautobot/nautobot-app-ssot/issues/898) - Added a Sync Host Addresses option to the IP Fabric integration, which creates an IP Address for each host IP Fabric discovered, with its DNS name and MAC address, under the synced Prefix that covered it.
+- [#1234](https://github.com/nautobot/nautobot-app-ssot/issues/1234) - Added new documentation for contrib module.
 - [#1301](https://github.com/nautobot/nautobot-app-ssot/issues/1301) - Added grouping and descriptions to Infoblox-managed custom fields so they're clearly identified.
 - [#1342](https://github.com/nautobot/nautobot-app-ssot/issues/1342) - Added a VLAN Group per Location to the IP Fabric integration, named after the Location, so that Nautobot constrains a VLAN ID to one VLAN there. VLANs that predate the group are moved into it on the first sync after upgrading, whether or not anything else about them changed. The cases where a VLAN is left outside the group are documented in the IP Fabric integration.
 - [#1343](https://github.com/nautobot/nautobot-app-ssot/issues/1343) - The IP Fabric sync now syncs Interfaces that IP Fabric's interface inventory does not return but that its managed address table names, such as an SVI, a loopback or a tunnel. The job reports what the inventory omitted, once per naming scheme.
 - [#1345](https://github.com/nautobot/nautobot-app-ssot/issues/1345) - A subinterface synced from IP Fabric is now put under the port it is configured on, through Nautobot's Parent Interface. Nautobot accepts a parent only on a virtual Interface, so a subinterface given one is synced as virtual.
 - [#1347](https://github.com/nautobot/nautobot-app-ssot/issues/1347) - Added **Prefixes** to the IP Fabric integration's Strict Objects. Selected, the sync creates no Prefixes: an interface address that no existing Prefix covers is left unwritten and reported at the end of the sync, and a network IP Fabric reports is only adopted where Nautobot already holds it, so address space in use that an externally governed IPAM does not account for is surfaced instead of absorbed.
 - [#1348](https://github.com/nautobot/nautobot-app-ssot/issues/1348) - Added a Tenant option to the IP Fabric job. When set, the sync only reads that Tenant's Devices, VLANs, VRFs, Route Targets and Prefixes from Nautobot, gives the Tenant to the objects it creates and to existing ones that have none, and leaves objects of other Tenants untouched.
-- [#1363](https://github.com/nautobot/nautobot-app-ssot/issues/1363) - Added a Namespace option to the IP Fabric job, which put the sync's IP Addresses, Prefixes and VRFs in the chosen Namespace instead of always in the Global Namespace.
+- [#1363](https://github.com/nautobot/nautobot-app-ssot/issues/1363) - Added a Namespace option to the IP Fabric job, which puts the sync's IP Addresses, Prefixes and VRFs in the chosen Namespace instead of always in the Global Namespace.
 - [#1376](https://github.com/nautobot/nautobot-app-ssot/issues/1376) - Added aruba-instant and clearpass platforms to manufacturer Aruba Networks for LibreNMS integration
 
 ### Changed
