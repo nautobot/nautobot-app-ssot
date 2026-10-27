@@ -1,1 +1,0 @@
-Added a **Sync Software Versions** option to the IP Fabric integration, off by default. It sets each Device's Software Version from the OS version IP Fabric reports, creating the version under the Device's Platform where Nautobot has none.

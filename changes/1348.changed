@@ -1,1 +1,0 @@
-Changed the IP Fabric integration's Sync Tagged Only option to cover Cables, so a Cable that does not carry the synced Tag is neither removed for being absent from IP Fabric nor displaced by a link IP Fabric reports.

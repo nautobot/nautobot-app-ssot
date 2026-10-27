@@ -1,1 +1,0 @@
-Reduced Infoblox API client log noise: per-page progress and IPv6 DHCP Range messages are now logged at debug level, and API errors are no longer logged a second time before being raised.
