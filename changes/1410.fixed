@@ -1,1 +1,0 @@
-Fixed the IP Fabric integration never syncing FHRP virtual addresses. They are now read from IP Fabric's FHRP group state table, which names the Interface each address is on, and IPv6 and secondary virtual addresses are included.

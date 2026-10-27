@@ -1,1 +1,0 @@
-Added a **Sync Software Images** option to the IP Fabric integration, off by default. It sets the image file each Device booted from, creating the Software Image File under the Device's Software Version and mapping it to the Device's Device Type.

@@ -1,1 +1,0 @@
-Fixed the IP Fabric job hiding why its IP Fabric client could not be created; the Job log now includes the reason, such as an SDK and server major version mismatch or a connection failure. The Nautobot server log now records the reason too when the Job form cannot list snapshots, and the form recovers once IP Fabric is reachable again instead of failing until the worker restarts.

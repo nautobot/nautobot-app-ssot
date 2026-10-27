@@ -1,2 +1,0 @@
-Fixed the Cisco SD-WAN integration leaving a VRF assigned to a Device after the SD-WAN Manager reported a different VRF, or no VRF, on that Device's interfaces. Unused VRFs are now released from the Device, and deleted when no interface anywhere still uses them.
-Fixed the Cisco SD-WAN integration saving every Device on every sync, which recorded a change log entry for a Location the sync deliberately leaves untouched. A Device whose only difference is its Location is no longer written.

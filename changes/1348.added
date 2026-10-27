@@ -1,1 +1,0 @@
-Added a Tenant option to the IP Fabric job. When set, the sync only reads that Tenant's Devices, VLANs, VRFs, Route Targets and Prefixes from Nautobot, gives the Tenant to the objects it creates and to existing ones that have none, and leaves objects of other Tenants untouched.

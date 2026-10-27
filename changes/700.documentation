@@ -1,1 +1,0 @@
-Documented that a default Infoblox configuration, External Integration and Secrets Group are created at startup when no Infoblox configuration exists.

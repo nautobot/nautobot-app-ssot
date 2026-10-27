@@ -1,1 +1,0 @@
-Added the `ipfabric_stack_member_name` and `ipfabric_stack_master_name` settings to the IP Fabric integration, which named the Devices of a stack, and renamed the stack Devices already synced when either changed.
