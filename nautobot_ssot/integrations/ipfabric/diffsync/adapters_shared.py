@@ -1,9 +1,11 @@
 """Diff sync shared adapter class attritbutes to synchronize applications."""
 
-from typing import ClassVar, Optional, Set, Tuple
+from collections import Counter, defaultdict
+from typing import Optional, Set, Tuple
 
 from diffsync import Adapter
 from diffsync.enum import DiffSyncModelFlags
+from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.ipfabric.diffsync import diffsync_models
 from nautobot_ssot.integrations.ipfabric.strict_mode import StrictObjects
@@ -12,16 +14,18 @@ from nautobot_ssot.integrations.ipfabric.sync_scope import (
     UNSYNCED_LOCATION_FLAGS,
     SyncScope,
 )
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import BULK_WRITTEN_LOOKUPS, DeviceScope
+from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
+from nautobot_ssot.integrations.ipfabric.writers import BatchedWriter, ImmediateWriter
 
 
-class DiffSyncModelAdapters(Adapter):
+# One register per value a run reports absent on both sides, which is how the two adapters agree.
+class DiffSyncModelAdapters(Adapter):  # pylint: disable=too-many-instance-attributes
     """Nautobot adapter for DiffSync."""
 
-    safe_delete_mode: ClassVar[bool] = True
-
-    # The collector to queue writes into, or None when they go one at a time. Declared here so that
-    # a model may ask any adapter; only the destination adapter ever sets it.
-    pending = None
+    # What every model writes through; see `pending`. Declared here so that a model may ask any
+    # adapter, and only the destination adapter is ever given a queue. Holds no state, so one serves.
+    writer = ImmediateWriter()
 
     # The Location a run is narrowed to, or None. Declared here for the same reason, since what is
     # network wide has to know whether the run can see the whole network.
@@ -37,6 +41,11 @@ class DiffSyncModelAdapters(Adapter):
     route_target = diffsync_models.RouteTarget
     vrf_device_assignment = diffsync_models.VrfDeviceAssignment
     interface_vrf = diffsync_models.InterfaceVrf
+    interface_vlan = diffsync_models.InterfaceVlan
+    prefix = diffsync_models.Prefix
+    prefix_location = diffsync_models.PrefixLocation
+    prefix_vlan = diffsync_models.PrefixVlan
+    host_address = diffsync_models.HostAddress
 
     # Cables are top level because a link may span two Locations, and come after "location" so the
     # Devices and Interfaces they terminate on exist by the time they are created.
@@ -46,8 +55,17 @@ class DiffSyncModelAdapters(Adapter):
     # by the time it is written.
     # A VRF device assignment comes last of all, since it needs both the VRF and the Device, and
     # Devices are written as children of their Location.
+    #
+    # Prefixes come first, since the addresses written under each Interface below a Location need
+    # one to sit in. The Locations a Prefix is seen at, and its VLAN, follow the Location tree, which
+    # is what creates the Locations and the VLANs under them.
     top_level = [
+        "prefix",
         "location",
+        "prefix_location",
+        "prefix_vlan",
+        # After the Prefixes, which a host's address takes its mask from and is filed under.
+        "host_address",
         "cable",
         "route_target",
         "vrf",
@@ -55,14 +73,24 @@ class DiffSyncModelAdapters(Adapter):
         # Last of all: Nautobot refuses an Interface a VRF its Device does not carry, so the
         # assignments above have to be in place first.
         "interface_vrf",
+        # Likewise, Nautobot refuses an Interface a VLAN that is not available at its Device's
+        # Location, and VLANs are written as children of their Location.
+        "interface_vlan",
     ]
 
-    def __init__(
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         *args,
         scope: Optional[SyncScope] = None,
         strict: Optional[StrictObjects] = None,
         addresses_without_a_subnet: Optional[Set[Tuple[str, str, str]]] = None,
+        interfaces_without_admin_state: Optional[Set[Tuple[str, str]]] = None,
+        safe_delete_mode: bool = True,
+        devices_without_a_hardware_serial: Optional[Set[str]] = None,
+        interfaces_without_a_type: Optional[Set[Tuple[str, str]]] = None,
+        tenant: Optional[Tenant] = None,
+        devices_without_a_software_version: Optional[Set[str]] = None,
+        devices_without_a_software_image: Optional[Set[str]] = None,
         **kwargs,
     ):
         """Initialize the adapter with the object types this run covers.
@@ -75,6 +103,42 @@ class DiffSyncModelAdapters(Adapter):
         covers; strictness is a further check, on the types it does cover, that what IP Fabric
         reported about them can be taken on trust.
 
+        `interfaces_without_admin_state` holds the `(device name, interface name)` of every Interface
+        IP Fabric reported a physical state this integration cannot read as an admin state. Both
+        adapters report no `enabled` for those, so the value Nautobot holds is left alone rather than
+        diffed against a guess on every run.
+
+        `safe_delete_mode` is whether an object IP Fabric stops reporting is marked and tagged
+        rather than deleted. Per adapter rather than per class, so two runs in one worker cannot see
+        each other's choice: a run with it selected would otherwise delete because a concurrent run
+        without it started later. Models read it from the adapter they are bound to, and both
+        adapters are given the run's choice although only the destination writes, so that a run has
+        one answer rather than two.
+
+        `devices_without_a_hardware_serial` holds the name of every Device IP Fabric reports no
+        chassis serial for, or one too long for Nautobot to hold. Both adapters report no serial for
+        those, so the one Nautobot has is left alone rather than driven to empty every run. A Device
+        with no chassis, such as a virtual one, genuinely has none, which is why this is an absence
+        rather than a failure.
+
+        `interfaces_without_a_type` holds the `(device name, interface name)` of every Interface
+        whose media type neither IP Fabric's value nor the Interface's name resolves. Both adapters
+        report no `type` for those, so the type Nautobot holds is kept rather than overwritten with
+        a configured default that would be indistinguishable from a real one.
+
+        `tenant` is the Tenant the IP Fabric instance belongs to, or None. When set, the Nautobot
+        adapter reads only that Tenant's objects, and the sync gives it to the objects it creates and
+        to existing ones it adopts that have none. Both adapters are given it, as with the other
+        controls, so that a run has one answer.
+
+        `devices_without_a_software_version` holds the name of every Device IP Fabric reports no
+        OS version for, or no family to file one under. A Software Version belongs to a Platform,
+        so without one there is nothing to point the Device at. Both adapters report no version
+        for those, leaving the one Nautobot holds alone.
+
+        `devices_without_a_software_image` holds the name of every Device IP Fabric reports no image
+        file for, or no version to file one under. Both adapters report no image for those.
+
         `addresses_without_a_subnet` holds the `(device name, interface name, host)` of every address
         IP Fabric reports no usable subnet for. The IP Fabric adapter fills it while loading and
         reports none of those addresses; the Nautobot adapter is handed it afterwards so that it
@@ -84,14 +148,50 @@ class DiffSyncModelAdapters(Adapter):
         second address that is fine still reports that one.
         """
         super().__init__(*args, **kwargs)
+        self.safe_delete_mode = safe_delete_mode
+        # What Safe Delete Mode did, counted by object type and outcome and reported once the sync
+        # is over. A job log entry is a database write, so naming every object would turn a teardown
+        # of a large estate into one write per object, for a list nobody reads.
+        self.safe_delete_tally = Counter()
         self.scope = scope if scope is not None else SyncScope.from_job_kwargs({})
         self.strict = strict if strict is not None else StrictObjects.from_job_kwargs({})
         self.addresses_without_a_subnet = set() if addresses_without_a_subnet is None else addresses_without_a_subnet
-        # VRF names the Global Namespace holds more than one of, which the Nautobot adapter declines
+        self.interfaces_without_admin_state = (
+            set() if interfaces_without_admin_state is None else interfaces_without_admin_state
+        )
+        self.devices_without_a_hardware_serial = (
+            set() if devices_without_a_hardware_serial is None else devices_without_a_hardware_serial
+        )
+        self.interfaces_without_a_type = set() if interfaces_without_a_type is None else interfaces_without_a_type
+        self.tenant = tenant
+        # Overridden by the Nautobot adapter, which is the side that writes. Every Device is covered
+        # until it narrows them: see `device_scope`.
+        self.sync_ipfabric_tagged_only = False
+        # Objects IP Fabric reported that already belong to another Tenant and so were not touched,
+        # by model, reported once the sync is over.
+        self.objects_of_another_tenant = defaultdict(list)
+        self.devices_without_a_software_version = (
+            set() if devices_without_a_software_version is None else devices_without_a_software_version
+        )
+        self.devices_without_a_software_image = (
+            set() if devices_without_a_software_image is None else devices_without_a_software_image
+        )
+        # VRF names the run's Namespace holds more than one of, which the Nautobot adapter declines
         # to load. Recorded so that `Vrf.create` can decline them because the name is ambiguous,
         # rather than inferring it from the loader having skipped them. Per adapter rather than per
         # class, so that two runs in one worker cannot see each other's.
         self.ambiguous_vrf_names = set()
+        # Addresses left unwritten because no Prefix covers them, as `address on device:interface`,
+        # and networks left uncreated, both under strict Prefixes. Each list is reported once at the
+        # end of the sync.
+        self.addresses_outside_every_prefix = []
+        self.prefixes_not_created = set()
+        # Locations a Prefix is seen at that Nautobot does not hold, counted by name and reported
+        # once, rather than once for every Prefix seen at each.
+        self.prefix_locations_not_found = Counter()
+        # VLANs a Prefix is reported in that Nautobot does not hold, as (Location name, VLAN ID),
+        # counted and reported once.
+        self.prefix_vlans_not_found = Counter()
 
     def carries_pseudo_management_interface(self) -> bool:
         """Return whether this run reports the Interface fabricated for a NAT management address.
@@ -103,6 +203,53 @@ class DiffSyncModelAdapters(Adapter):
         """
         return self.scope.ip_addresses and not self.strict.interfaces
 
+    @property
+    def pending(self):
+        """Return Bulk Write Mode's queue, or None when every write is made at once."""
+        return self.writer.pending
+
+    @pending.setter
+    def pending(self, pending):
+        """Write through a queue for Bulk Write Mode, or one object at a time when given None."""
+        self.writer = BatchedWriter(pending) if pending is not None else ImmediateWriter()
+
+    def flush_pending_writes(self) -> None:
+        """Write whatever bulk mode has queued, and log what was written.
+
+        Called before anything that reads those objects back from the database, and at the end of
+        the sync. A no-op when nothing is queued, so callers need not check the mode first.
+        """
+        if not self.pending:
+            return
+        counts = self.pending.counts()
+        written = self.pending.flush()
+        # Rows exist now that did not when these lookups last ran, and one of them caching that a
+        # Device could not be found is enough to lose every Cable terminating on it.
+        job_scoped_cache.clear_group(BULK_WRITTEN_LOOKUPS)
+        self.job.logger.info("Wrote %d queued rows in bulk mode: %s", written, counts)
+
+    @property
+    def tagged_locations_only(self) -> bool:
+        """Return whether a Location has to carry the synced Tag for the run to cover it.
+
+        Only under **Sync Tagged Only**, and only when the run writes Locations. One it may not write
+        belongs to another App, which never tags it, so requiring the Tag would leave out every Device
+        the run places there.
+        """
+        return self.sync_ipfabric_tagged_only and self.scope.locations
+
+    @property
+    def device_scope(self) -> DeviceScope:
+        """Return the Devices this run covers, which the Nautobot side reads and every write finds its Device in."""
+        return DeviceScope(
+            tagged_only=self.sync_ipfabric_tagged_only,
+            tagged_locations_only=self.tagged_locations_only,
+            tenant=self.tenant,
+            # The Nautobot adapter holds the Site Filter as a Location; the IP Fabric adapter, which never
+            # writes, holds only its name.
+            location_name=getattr(self.location_filter, "name", None),
+        )
+
     def may_create(self, key: str) -> bool:
         """Return whether this run may create a supporting object of the named type.
 
@@ -112,10 +259,10 @@ class DiffSyncModelAdapters(Adapter):
         taken on trust. Strict, a name that resolves to nothing is bad data rather than a record
         to add.
 
-        For the supporting object types only. `interfaces` and `ip_addresses` are also registered as
-        strict, but neither is a creation gate: those two ask whether IP Fabric reported an Interface
-        and whether it reported a subnet mask, and both are read at their own load sites rather than
-        through here.
+        For the supporting object types only. `interfaces`, `ip_addresses` and `prefixes` are also
+        registered as strict, but none is a creation gate: those ask whether IP Fabric reported an
+        Interface, whether it reported a subnet mask, and whether a Prefix covers an address, each
+        read where it applies rather than through here.
         """
         if not self.scope.covers(key):
             return False

@@ -1,7 +1,5 @@
 """Infoblox Adapter for Infoblox integration with SSoT app."""
 
-import re
-
 import requests
 from diffsync import Adapter
 from diffsync.enum import DiffSyncFlags
@@ -24,6 +22,7 @@ from nautobot_ssot.integrations.infoblox.utils.client import get_default_ext_att
 from nautobot_ssot.integrations.infoblox.utils.diffsync import (
     build_vlan_map,
     get_ext_attr_dict,
+    get_vlan_view_name,
     map_network_view_to_namespace,
 )
 
@@ -441,12 +440,11 @@ class InfobloxAdapter(Adapter):
         default_ext_attrs = get_default_ext_attrs(review_list=vlans, excluded_attrs=self.excluded_attrs)
         for _vlan in vlans:
             vlan_ext_attrs = get_ext_attr_dict(extattrs=_vlan.get("extattrs", {}), excluded_attrs=self.excluded_attrs)
-            vlan_group = re.search(r"(?:.+\:)(\S+)(?:\/\S+\/.+)", _vlan["_ref"])
             new_vlan = self.vlan(
                 name=_vlan["name"],
                 vid=_vlan["id"],
                 status=_vlan["status"],
-                vlangroup=vlan_group.group(1) if vlan_group else "",
+                vlangroup=get_vlan_view_name(_vlan["_ref"]),
                 description=_vlan["comment"] if _vlan.get("comment") else "",
                 ext_attrs={**default_ext_attrs, **vlan_ext_attrs},
             )

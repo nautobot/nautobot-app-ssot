@@ -5,8 +5,9 @@ import re
 import threading
 from collections import defaultdict
 from functools import wraps
-
-from nautobot_ssot.integrations.ipfabric.constants import DEFAULT_INTERFACE_TYPE
+from itertools import takewhile
+from string import Formatter
+from typing import Optional
 
 VIRTUAL = "virtual"
 BRIDGE = "bridge"
@@ -41,19 +42,151 @@ FOUR_HUNDRED_GIG = "400g"
 EIGHT_HUNDRED_GIG = "800g"
 
 
-def convert_media_type(  # pylint: disable=too-many-return-statements,too-many-branches,too-many-statements
-    media_type: str,
-    interface_name: str,
-) -> str:
-    """Convert provided `media_type` to value used by Nautobot.
+INTERFACE_NAME_TYPES = (
+    (r"po(rt-?channel)?\d", "lag"),
+    (r"vl(an)?\d", "virtual"),
+    (r"lo(opback)?\d", "virtual"),
+    (r"tu(nnel)?\d", "virtual"),
+    (r"vx(lan)?\d", "virtual"),
+    # Logical interfaces in forms the patterns above miss: Junos tunnel and service interfaces
+    # (`gr-0/0/0`), Junos pseudo-interfaces (`st0`, `irb`), `Null0` and Linux `tun0`. Bare names are
+    # matched whole so a port that merely starts with those letters isn't caught.
+    (r"(gr|ip|lt|mt|sp|lsq|vt)-\d", "virtual"),
+    (r"(st|fti|ppd?|ppe|null|tun)\d", "virtual"),
+    (r"(gre|ipip|irb|lsi|dsc|mtun|pim[de]|tap|vlan|lo|loopback|tunnel)(\.\d+)?$", "virtual"),
+    (r"fa(stethernet)?\d", "100base-tx"),
+    (r"gi(gabitethernet)?\d", "1000base-t"),
+    (r"te(ngigabitethernet)?\d", "10gbase-x-sfpp"),
+    (r"twentyfivegigabitethernet\d", "25gbase-x-sfp28"),
+    (r"fo(rtygigabitethernet)?\d", "40gbase-x-qsfpp"),
+    (r"fi(ftygigabitethernet)?\d", "50gbase-x-sfp56"),
+    (r"hu(ndredgigabitethernet)?\d", "100gbase-x-qsfp28"),
+    (r"twohundredgigabitethernet\d", "200gbase-x-qsfp56"),
+)
+
+
+def convert_media_type(media_type: str, interface_name: str) -> Optional[str]:
+    """Return the Nautobot Interface type for a reported media type, or None if nothing resolves.
+
+    Read from the media type IP Fabric reports, and failing that from the Interface's name, which is
+    the only other thing that names what a port is. None where neither answers: a type standing for
+    "not resolved" would be indistinguishable from one genuinely resolved to that value, and would
+    overwrite whatever Nautobot holds with a guess on every run.
 
     Args:
-        media_type: The media type of an inteface (i.e. SFP-10GBase)
+        media_type: The media type of an interface (i.e. SFP-10GBase).
         interface_name: The name of the interface with `media_type`.
 
     Returns:
-        str: The corresponding represention of `media_type` in Nautobot.
+        The corresponding representation of `media_type` in Nautobot, or None.
     """
+    return type_of_media(media_type) or type_of_interface_name(interface_name)
+
+
+def software_image_name(reported: Optional[str]) -> Optional[str]:
+    """Return the file name of a software image IP Fabric reports with its location, lowercased.
+
+    IOS reports `flash:/c3750e-universalk9-mz.150-2.SE10a.bin`, or `flash:c3750e-...bin` with no
+    slash at all, so the name is what follows the last `/` or `:`.
+    """
+    if not reported:
+        return None
+    return re.split(r"[/:]", reported.strip())[-1].lower() or None
+
+
+STACK_NAME_FIELDS = ("hostname", "member")
+
+
+def check_stack_name_formats(member_format: str, master_format: str) -> None:
+    """Raise `ValueError` naming what is wrong with the formats stack Devices are named by.
+
+    Each may use only `{hostname}`, the stack's IP Fabric hostname, and `{member}`, the member's
+    number, with an optional format spec such as `{member:02d}`. The member format must use
+    `{member}`, or every member of a stack would get one name.
+    """
+    for setting, template in (
+        ("ipfabric_stack_member_name", member_format),
+        ("ipfabric_stack_master_name", master_format),
+    ):
+        try:
+            fields = {field for _, field, _, _ in Formatter().parse(template) if field is not None}
+            unknown = fields - set(STACK_NAME_FIELDS)
+            if unknown:
+                raise ValueError(f"it names {', '.join(sorted(unknown))}; only hostname and member may be used")
+            template.format(hostname="stack", member=1)
+        except (ValueError, IndexError, KeyError) as error:
+            raise ValueError(f"The {setting} setting, {template!r}, is not a usable name format: {error}") from error
+    if "member" not in {field for _, field, _, _ in Formatter().parse(member_format) if field}:
+        raise ValueError(
+            f"The ipfabric_stack_member_name setting, {member_format!r}, does not use {{member}}, so every "
+            "member of a stack would get the same name"
+        )
+
+
+def stack_device_name(name_format: str, hostname: str, member) -> str:
+    """Return the name of one Device of a stack, from a format checked by `check_stack_name_formats`.
+
+    IP Fabric reports a member's number as a string, so it is made a number first, for a format such
+    as `{member:02d}` to pad it.
+    """
+    return name_format.format(hostname=hostname, member=int(member))
+
+
+def lag_member_names(reported: str) -> list:
+    """Return the Interface names a port channel's member column lists.
+
+    IP Fabric reports members as one string, each name followed by its state in brackets:
+    `Et35(DOWN), Et36(DOWN)`. The state is taken off the end rather than the name read from the
+    front, because a name may carry brackets of its own, and only the last pair is the state.
+    """
+    members = []
+    for part in (reported or "").split(","):
+        name = part.strip().rsplit("(", 1)[0].strip()
+        if name:
+            members.append(name)
+    return members
+
+
+def parent_interface_name(interface_name: str) -> Optional[str]:
+    """Return the Interface a subinterface hangs off, or None where the name names no parent.
+
+    A dot separates a physical port from the logical interface configured on it, on every platform
+    this sync has met: `GigabitEthernet0/1.100` on IOS, `ge-0/0/0.0` on Junos. The part before the
+    last dot is the port, which is what Nautobot wants `parent_interface` pointed at.
+
+    The name is the only evidence available. IP Fabric's interface inventory reports no relation
+    between a subinterface and its port, so the caller confirms the parent is a port the same Device
+    reported before using it.
+    """
+    port, separator, unit = interface_name.rpartition(".")
+    if not separator or not port or not unit:
+        return None
+    return port
+
+
+def interface_name_kind(interface_name: str) -> str:
+    """Return the leading letters of an Interface's name, which is what names the kind of port.
+
+    `Ethernet1/1` and `Ethernet49` are one kind reported twice, so counting Interfaces by this rather
+    than by name says which pattern is missing from `INTERFACE_NAME_TYPES` instead of listing every
+    port that matched none of them.
+    """
+    return "".join(takewhile(str.isalpha, interface_name))
+
+
+def type_of_interface_name(interface_name: str) -> Optional[str]:
+    """Return the Nautobot Interface type an Interface's name implies, or None if none does."""
+    interface_name = interface_name.lower()
+    for regex, iface_type in INTERFACE_NAME_TYPES:
+        if re.match(regex, interface_name):
+            return iface_type
+    return None
+
+
+def type_of_media(  # pylint: disable=too-many-return-statements,too-many-branches,too-many-statements
+    media_type: str,
+) -> Optional[str]:
+    """Return the Nautobot Interface type the reported media type names, or None if none does."""
     if media_type:
         media_type = media_type.lower().replace("-", "")
         if VIRTUAL in media_type:
@@ -140,28 +273,7 @@ def convert_media_type(  # pylint: disable=too-many-return-statements,too-many-b
             else:
                 nautobot_media_type += "osfp"
             return nautobot_media_type
-    else:
-        interface_name = interface_name.lower()
-        regex_to_type = (
-            (r"po(rt-?channel)?\d", "lag"),
-            (r"vl(an)?\d", "virtual"),
-            (r"lo(opback)?\d", "virtual"),
-            (r"tu(nnel)?\d", "virtual"),
-            (r"vx(lan)?\d", "virtual"),
-            (r"fa(stethernet)?\d", "100base-tx"),
-            (r"gi(gabitethernet)?\d", "1000base-t"),
-            (r"te(ngigabitethernet)?\d", "10gbase-x-sfpp"),
-            (r"twentyfivegigabitethernet\d", "25gbase-x-sfp28"),
-            (r"fo(rtygigabitethernet)?\d", "40gbase-x-qsfpp"),
-            (r"fi(ftygigabitethernet)?\d", "50gbase-x-sfp56"),
-            (r"hu(ndredgigabitethernet)?\d", "100gbase-x-qsfp28"),
-            (r"twohundredgigabitethernet\d", "200gbase-x-qsfp56"),
-        )
-        for regex, iface_type in regex_to_type:
-            if re.match(regex, interface_name):
-                return iface_type
-
-    return DEFAULT_INTERFACE_TYPE
+    return None
 
 
 class job_scoped_cache:  # pylint: disable=invalid-name
@@ -222,7 +334,7 @@ class job_scoped_cache:  # pylint: disable=invalid-name
     def __call__(self, *args, **kwargs):
         """Handle call to function, checks cache, calls function if missing and caches result."""
         if not hasattr(self, "_fn"):
-            # Called as @job_scoped_cache(group="...") — receives the function
+            # Called as @job_scoped_cache(group="..."), so this receives the function
             self._init_fn(args[0])
             return self
         state = self._get_state()
@@ -276,6 +388,30 @@ class job_scoped_cache:  # pylint: disable=invalid-name
         """Clears all cache info on all instances and groups."""
         for instance in cls._all_instances:
             instance.cache_clear()
+
+
+def parse_vlan_ranges(value):
+    """Return the VLAN IDs a switchport range names, as a sorted list.
+
+    IP Fabric reports a trunk's VLANs the way the device's configuration does, as a comma separated
+    mix of single IDs and inclusive ranges: `110-119,999`. A part that is not a number or a range,
+    or a range that counts backwards, is skipped rather than guessed at.
+    """
+    vlan_ids = set()
+    for part in str(value or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        bounds = part.split("-")
+        try:
+            numbers = [int(bound) for bound in bounds]
+        except ValueError:
+            continue
+        if len(numbers) == 1:
+            vlan_ids.add(numbers[0])
+        elif len(numbers) == 2 and numbers[0] <= numbers[1]:
+            vlan_ids.update(range(numbers[0], numbers[1] + 1))
+    return sorted(vlan_id for vlan_id in vlan_ids if 1 <= vlan_id <= 4094)
 
 
 def host_route_length(host):

@@ -9,6 +9,19 @@ from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix
 
 from nautobot_ssot.integrations.infoblox.constant import TAG_COLOR
 
+# Custom fields managed by the integration itself; never compared as Extensibility Attributes.
+DEFAULT_EXCLUDED_CFS = frozenset(
+    {
+        "dhcp_ranges",
+        "dns_a_record_comment",
+        "dns_host_record_comment",
+        "dns_ptr_record_comment",
+        "fixed_address_comment",
+        "mac_address",
+        "ssot_synced_to_infoblox",
+    }
+)
+
 
 def create_tag_sync_from_infoblox():
     """Create tag for tagging objects that have been created by Infoblox."""
@@ -59,18 +72,21 @@ def get_ext_attr_dict(extattrs: dict, excluded_attrs: Optional[list] = None):
 
     Args:
         extattrs (dict): Extensibility Attributes dict for object.
-        excluded_attrs (list): List of Extensibility Attributes to exclude.
+        excluded_attrs (list): Extensibility Attributes to exclude, by Infoblox name (`Site Code`) or by the
+            Nautobot custom field key derived from it (`site_code`). Both forms must match exactly; the
+            custom field key is lowercase.
 
     Returns:
         dict: Standardized dictionary for Extensibility Attributes.
     """
-    if excluded_attrs is None:
-        excluded_attrs = []
+    excluded = set(excluded_attrs or [])
     fixed_dict = {}
     for key, value in extattrs.items():
-        if key in excluded_attrs:
+        cf_key = slugify(key).replace("-", "_")
+        # Accept either the Infoblox EA name or the Nautobot custom field key derived from it.
+        if key in excluded or cf_key in excluded:
             continue
-        fixed_dict[slugify(key).replace("-", "_")] = value["value"]
+        fixed_dict[cf_key] = value["value"]
     return fixed_dict
 
 
@@ -96,25 +112,8 @@ def get_valid_custom_fields(cfs: dict, excluded_cfs: Optional[list] = None):
         cfs: custom fields
         excluded_cfs: list of excluded custom fields
     """
-    if excluded_cfs is None:
-        excluded_cfs = []
-    default_excluded_cfs = [
-        "dhcp_ranges",
-        "dns_a_record_comment",
-        "dns_host_record_comment",
-        "dns_ptr_record_comment",
-        "fixed_address_comment",
-        "mac_address",
-        "ssot_synced_to_infoblox",
-    ]
-    excluded_cfs.extend(default_excluded_cfs)
-    valid_cfs = {}
-    for cf_name, val in cfs.items():
-        if cf_name in excluded_cfs:
-            continue
-        valid_cfs[cf_name] = val
-
-    return valid_cfs
+    excluded = DEFAULT_EXCLUDED_CFS.union(excluded_cfs or [])
+    return {cf_name: val for cf_name, val in cfs.items() if cf_name not in excluded}
 
 
 def get_default_custom_fields(cf_contenttype: ContentType, excluded_cfs: Optional[list] = None) -> dict:
@@ -126,28 +125,9 @@ def get_default_custom_fields(cf_contenttype: ContentType, excluded_cfs: Optiona
     Returns:
         dict: Dictionary of all Custom Fields for a specific object type.
     """
-    if excluded_cfs is None:
-        excluded_cfs = []
+    excluded = DEFAULT_EXCLUDED_CFS.union(excluded_cfs or [])
     customfields = CustomField.objects.filter(content_types=cf_contenttype)
-    # These cfs are always excluded
-    default_excluded_cfs = [
-        "dhcp_ranges",
-        "dns_a_record_comment",
-        "dns_host_record_comment",
-        "dns_ptr_record_comment",
-        "fixed_address_comment",
-        "mac_address",
-        "ssot_synced_to_infoblox",
-    ]
-    # User defined excluded cfs
-    excluded_cfs.extend(default_excluded_cfs)
-    default_cfs = {}
-    for customfield in customfields:
-        if customfield.key in excluded_cfs:
-            continue
-        if customfield.key not in default_cfs:
-            default_cfs[customfield.key] = None
-    return default_cfs
+    return {customfield.key: None for customfield in customfields if customfield.key not in excluded}
 
 
 def map_network_view_to_namespace(value: str, network_view_to_namespace_map: dict, direction: str) -> str:

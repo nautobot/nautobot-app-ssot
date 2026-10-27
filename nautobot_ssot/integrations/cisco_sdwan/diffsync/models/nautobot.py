@@ -79,7 +79,7 @@ class NautobotDevice(Device):
                 self.adapter.job.logger.info(
                     f"Location of {self.name} will not be updated to avoid overriding the location data in Nautobot."
                 )
-            attrs["location__name"] = self.location__name
+            attrs.pop("location__name")
         # SoftwareVersion is resolved by (version, platform) so both attributes must be present together.
         if ("software_version__version" in attrs) and ("software_version__platform__name" not in attrs):
             attrs["software_version__platform__name"] = (
@@ -92,6 +92,12 @@ class NautobotDevice(Device):
                 attrs["software_version__version"] = obj.software_version.version
             else:
                 attrs.pop("software_version__platform__name")
+
+        # Nothing left to write once the ignored attributes are removed. Returning here avoids
+        # a save, and the change log entry it would create, on every sync for every Device.
+        if not attrs:
+            return self
+
         return super().update(attrs)
 
     def delete(self):
@@ -219,15 +225,29 @@ class NautobotIPAddressToInterface(IPAddressToInterface):
         """Update IPAddressToInterface in Nautobot."""
         obj = self.get_from_db()
 
-        # Create VRF associations
-        vrf_name = attrs.get("interface__vrf__name")
-        if vrf_name:
-            vrf_obj = get_or_create_vrf(adapter=self.adapter, vrf_name=vrf_name)
-            if not obj.interface.vrf or vrf_name != obj.interface.vrf.name:
-                if vrf_obj not in obj.interface.device.vrfs.all():
-                    obj.interface.device.vrfs.add(vrf_obj)
-                obj.interface.vrf = vrf_obj
+        if "interface__vrf__name" in attrs:
+            new_vrf_name = attrs.get("interface__vrf__name")
+            old_vrf = obj.interface.vrf
+
+            if new_vrf_name:
+                vrf_obj = get_or_create_vrf(adapter=self.adapter, vrf_name=new_vrf_name)
+                if old_vrf != vrf_obj:
+                    if vrf_obj not in obj.interface.device.vrfs.all():
+                        obj.interface.device.vrfs.add(vrf_obj)
+                    obj.interface.vrf = vrf_obj
+                    obj.interface.validated_save()
+            elif old_vrf:
+                # The SD-WAN Manager no longer reports a VRF for this Interface.
+                obj.interface.vrf = None
                 obj.interface.validated_save()
+
+            # Release the previous VRF once nothing references it any more, matching delete().
+            if old_vrf and old_vrf.name != new_vrf_name:
+                if not old_vrf.interfaces.filter(device=obj.interface.device).exists():
+                    obj.interface.device.vrfs.remove(old_vrf)
+                if not old_vrf.interfaces.exists():
+                    old_vrf.delete()
+
         return super().update_base(attrs)
 
     def delete(self):

@@ -108,10 +108,11 @@ class TestCableUtilities(TestCase):
     def test_create_cable_warns_when_tagging_fails(self):
         """A tagging failure is a warning; the Cable itself is still returned."""
         logger = mock.MagicMock()
-        with mock.patch(f"{_CABLES}.tag_object", side_effect=ValidationError("tag boom")):
+        with mock.patch(f"{_CABLES}.synced_tag_for", side_effect=ValidationError("tag boom")):
             cable = cables.create_cable(self.int_a, self.int_b, "Connected", logger=logger)
 
         self.assertIsNotNone(cable)
+        self.assertEqual(Cable.objects.count(), 1)
         logger.warning.assert_called_once()
 
     # ------------------------------------------------------------------
@@ -165,7 +166,7 @@ class TestCableUtilities(TestCase):
         logger = mock.MagicMock()
         cable = self._cable()
 
-        with mock.patch(f"{_CABLES}.tag_object", side_effect=DjangoBaseDBError("save boom")):
+        with mock.patch(f"{_CABLES}.restamp_synced", side_effect=DjangoBaseDBError("save boom")):
             self.assertFalse(cables.update_cable_status(cable, "Connected", logger=logger))
 
         logger.error.assert_called_once()

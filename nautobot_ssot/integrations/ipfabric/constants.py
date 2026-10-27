@@ -20,12 +20,39 @@ DEFAULT_INTERFACE_MAC = CONFIG.get("ipfabric_default_interface_mac", "00:00:00:0
 DEFAULT_INTERFACE_MTU = int(CONFIG.get("ipfabric_default_interface_mtu", 1500))
 DEFAULT_INTERFACE_TYPE = CONFIG.get("ipfabric_default_interface_type", "1000base-t")
 DEFAULT_CABLE_STATUS = CONFIG.get("ipfabric_default_cable_status", "Connected")
+
+# What IP Fabric observed of an Interface at the last discovery. Custom fields rather than Nautobot
+# fields, because Nautobot's own fields hold the state an Interface is meant to be in.
+INTERFACE_L1_CF_NAME = "ipfabric_state_l1"
+INTERFACE_L2_CF_NAME = "ipfabric_state_l2"
+INTERFACE_REASON_CF_NAME = "ipfabric_state_reason"
+
+INTERFACE_STATE_FIELDS = {
+    "state_l1": INTERFACE_L1_CF_NAME,
+    "state_l2": INTERFACE_L2_CF_NAME,
+    "state_reason": INTERFACE_REASON_CF_NAME,
+}
 SAFE_DELETE_DEVICE_STATUS = CONFIG.get("ipfabric_safe_delete_device_status", "Offline")
 SAFE_DELETE_LOCATION_STATUS = CONFIG.get("ipfabric_safe_delete_location_status", "Decommissioning")
 SAFE_DELETE_VLAN_STATUS = CONFIG.get("ipfabric_safe_delete_vlan_status", "Deprecated")
 SAFE_DELETE_IPADDRESS_STATUS = CONFIG.get("ipfabric_safe_delete_ipaddress_status", "Deprecated")
 SAFE_DELETE_CABLE_STATUS = CONFIG.get("ipfabric_safe_delete_cable_status", "Decommissioning")
 SAFE_DELETE_VRF_STATUS = CONFIG.get("ipfabric_safe_delete_vrf_status", "Deprecated")
+SAFE_DELETE_PREFIX_STATUS = CONFIG.get("ipfabric_safe_delete_prefix_status", "Deprecated")
+# The Tags marking what this sync wrote and what Safe Delete Mode set aside. Configurable so that two
+# IP Fabric instances, or another system, can each mark their own objects in one Nautobot.
+DEFAULT_SYNCED_TAG_NAME = "SSoT Synced from IPFabric"
+SYNCED_TAG_NAME = CONFIG.get("ipfabric_synced_tag", DEFAULT_SYNCED_TAG_NAME)
+SAFE_DELETE_TAG_NAME = CONFIG.get("ipfabric_safe_delete_tag", "SSoT Safe Delete")
+# How the Devices of a stack are named, from the stack's IP Fabric hostname and each member's number.
+# See `utilities.utils.stack_device_name`.
+STACK_MEMBER_NAME = CONFIG.get("ipfabric_stack_member_name", "{hostname}-member{member}")
+STACK_MASTER_NAME = CONFIG.get("ipfabric_stack_master_name", "{hostname}")
+# The serial IP Fabric keys a Device on, which is not what Nautobot's `serial` means. Nautobot
+# documents that field as the chassis serial, which IP Fabric reports separately as `snHw`. Recorded
+# beside the Device so the two are not confused, and so the key a run matched on stays visible.
+DEVICE_UNIQUE_SERIAL_CF_NAME = "ipfabric_unique_serial"
+
 LAST_SYNCHRONIZED_CF_NAME = "last_synced_from_sor"
 # Name of the Interface the IP Fabric adapter fabricates to carry a NAT management address. Both
 # adapters need it: one to invent it, the other to recognise one an earlier run left behind.

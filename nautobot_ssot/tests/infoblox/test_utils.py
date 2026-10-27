@@ -57,6 +57,12 @@ class TestUtils(unittest.TestCase):
         standardized_dict = get_ext_attr_dict(extattrs=test_dict, excluded_attrs=excluded_attrs)
         self.assertEqual(standardized_dict, expected)
 
+    def test_get_ext_attr_dict_exclusion_list_accepts_custom_field_key(self):
+        """An attribute is excluded when listed by the Nautobot custom field key it maps to."""
+        test_dict = {"Site Code": {"value": "HQ"}, "Region": {"value": "Central"}}
+        standardized_dict = get_ext_attr_dict(extattrs=test_dict, excluded_attrs=["site_code"])
+        self.assertEqual(standardized_dict, {"region": "Central"})
+
     def test_validate_dns_name(self):
         """Test validate_dns_name."""
         client = unittest.mock.Mock()
@@ -171,6 +177,19 @@ class TestUtils(unittest.TestCase):
 
         result = get_default_custom_fields(cf_contenttype=content_type, excluded_cfs=excluded_cfs)
         self.assertEqual(expected, result)
+
+    @unittest.mock.patch(
+        "nautobot_ssot.integrations.infoblox.utils.diffsync.CustomField",
+        autospec=True,
+    )
+    def test_custom_field_helpers_do_not_modify_excluded_list(self, custom_field):
+        """The caller's exclusion list (the config's `cf_fields_ignore` list) must not grow with every call."""
+        custom_field.objects.filter.return_value = []
+        excluded_cfs = ["snow_synced"]
+        for _ in range(3):
+            get_valid_custom_fields(cfs={"tenant": "NTC"}, excluded_cfs=excluded_cfs)
+            get_default_custom_fields(cf_contenttype=unittest.mock.Mock(), excluded_cfs=excluded_cfs)
+        self.assertEqual(excluded_cfs, ["snow_synced"])
 
 
 class TestNautobotUtils(TestCase):

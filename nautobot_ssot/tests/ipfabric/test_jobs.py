@@ -6,10 +6,13 @@ from unittest import mock
 from django.conf import settings
 from django.urls import reverse
 from nautobot.apps.testing import TestCase
+from nautobot.ipam.models import Namespace
+from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.ipfabric import jobs, strict_mode, sync_scope
 from nautobot_ssot.integrations.ipfabric.strict_mode import StrictObjects
 from nautobot_ssot.integrations.ipfabric.sync_scope import SYNCABLE_OBJECTS, SyncScope
+from nautobot_ssot.integrations.ipfabric.utilities import nbutils
 
 CONFIG = settings.PLUGINS_CONFIG.get("nautobot_ssot", {})
 BACKUP_CONFIG = deepcopy(CONFIG)
@@ -29,9 +32,12 @@ class IPFabricJobTest(TestCase):
         """Verify correctness of the data_mappings() API."""
         expected = [
             ("Device", "Device", reverse("dcim:device_list")),
+            ("Device OS Version", "Software Version", reverse("dcim:softwareversion_list")),
+            ("Device Image", "Software Image File", reverse("dcim:softwareimagefile_list")),
             ("Location", "Location", reverse("dcim:location_list")),
             ("Interfaces", "Interfaces", reverse("dcim:interface_list")),
             ("IP Addresses", "IP Addresses", reverse("ipam:ipaddress_list")),
+            ("Managed IP Summary", "Prefixes", reverse("ipam:prefix_list")),
             ("VLANs", "VLANs", reverse("ipam:vlan_list")),
             ("Stack Members", "Virtual Chassis", reverse("dcim:virtualchassis_list")),
             ("Connectivity Matrix", "Cables", reverse("dcim:cable_list")),
@@ -69,15 +75,58 @@ class IPFabricJobFormTestCase(TestCase):
 
     def test_get_vars_includes_a_field_per_selectable_object_type(self):
         """The checkboxes are generated, so a missing one means the registry never reached the form."""
-        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=None):
+        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=(None, None)):
             got_vars = jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
 
         for syncable in SYNCABLE_OBJECTS:
             self.assertIn(syncable.field_name, got_vars)
 
+    def test_the_reason_the_form_has_no_client_is_logged(self):
+        with (
+            mock.patch.object(jobs.IpFabricDataSource, "client", None),
+            mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=(None, "major version")),
+            self.assertLogs("nautobot.ssot.ipfabric", "ERROR") as logged,
+        ):
+            jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
+        self.assertIn("lists no snapshots: major version", logged.output[0])
+
+    def test_the_form_logs_nothing_when_the_client_builds_and_keeps_it(self):
+        client = mock.MagicMock(loaded_snapshots={})
+        with (
+            mock.patch.object(jobs.IpFabricDataSource, "client", None),
+            mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=(client, None)),
+            self.assertNoLogs("nautobot.ssot.ipfabric", "ERROR"),
+        ):
+            jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
+            self.assertIs(jobs.IpFabricDataSource.client, client)
+
+    def test_a_kept_client_is_refreshed_rather_than_rebuilt(self):
+        client = mock.MagicMock(loaded_snapshots={})
+        with (
+            mock.patch.object(jobs.IpFabricDataSource, "client", client),
+            mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client") as init,
+            self.assertNoLogs("nautobot.ssot.ipfabric", "ERROR"),
+        ):
+            jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
+            self.assertIs(jobs.IpFabricDataSource.client, client)
+        client.update.assert_called_once_with()
+        init.assert_not_called()
+
+    def test_a_kept_client_that_fails_to_refresh_is_dropped_and_its_reason_logged(self):
+        client = mock.MagicMock()
+        client.update.side_effect = OSError("connection refused")
+        with (
+            mock.patch.object(jobs.IpFabricDataSource, "client", client),
+            self.assertLogs("nautobot.ssot.ipfabric", "ERROR") as logged,
+        ):
+            got_vars = jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
+            self.assertIsNone(jobs.IpFabricDataSource.client)
+        self.assertIn("lists no snapshots: connection refused", logged.output[0])
+        self.assertEqual(got_vars["snapshot"].field_attrs["choices"], [])
+
     def test_bulk_write_mode_is_offered_and_defaults_off(self):
         """Trading validation and change logging for speed has to be a deliberate act."""
-        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=None):
+        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=(None, None)):
             got_vars = jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
 
         self.assertIn("bulk_write_mode", got_vars)
@@ -93,7 +142,7 @@ class IPFabricJobFormTestCase(TestCase):
     def test_get_vars_omits_an_administratively_disabled_object_type(self):
         """A disabled object type must be absent from the form, not merely unticked."""
         with (
-            mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=None),
+            mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=(None, None)),
             mock.patch.dict(sync_scope.CONFIG, {"ipfabric_disabled_sync_objects": ["vlans"]}, clear=False),
         ):
             got_vars = jobs.IpFabricDataSource._get_vars()  # pylint: disable=protected-access
@@ -105,6 +154,26 @@ class IPFabricJobFormTestCase(TestCase):
         """A generated field missing from `field_order` would be appended out of place."""
         for syncable in SYNCABLE_OBJECTS:
             self.assertIn(syncable.field_name, jobs.IpFabricDataSource.Meta.field_order)
+
+    def test_the_tenant_is_offered_after_sync_tagged_only(self):
+        order = jobs.IpFabricDataSource.Meta.field_order
+        self.assertEqual(order.index("tenant"), order.index("sync_ipfabric_tagged_only") + 1)
+
+    def test_the_namespace_is_offered_after_the_tenant(self):
+        order = jobs.IpFabricDataSource.Meta.field_order
+        self.assertEqual(order.index("namespace"), order.index("tenant") + 1)
+
+    def test_the_namespace_is_cleared_when_a_run_ends_even_if_it_fails(self):
+        def fail_after_choosing(*_args, **_kwargs):
+            nbutils.use_namespace(Namespace.objects.create(name="customer-a"))
+            raise RuntimeError("sync failed")
+
+        job = jobs.IpFabricDataSource()
+        job.logger = mock.MagicMock()
+        with mock.patch("nautobot_ssot.jobs.base.DataSource.run", side_effect=fail_after_choosing):
+            with self.assertRaises(RuntimeError):
+                job.run(dryrun=True)
+        self.assertFalse(nbutils.namespace_chosen())
 
     def test_run_resolves_the_submitted_selection_into_a_scope(self):
         """`run` is where the form's booleans become the one scope both adapters read."""
@@ -166,6 +235,8 @@ class IPFabricSyncDataTest(TestCase):
             "bulk_write_mode": False,
             "strict": StrictObjects(strict if strict is not None else strict_mode.default_keys()),
             "location_filter": None,
+            "tenant": None,
+            "namespace": None,
             "debug": False,
             "scope": SyncScope(scope) if scope is not None else SyncScope.from_job_kwargs({}),
             **overrides,
@@ -186,6 +257,38 @@ class IPFabricSyncDataTest(TestCase):
         job = self._job(bulk_write_mode=True)
         _source, dest = self._run(job)
         self.assertTrue(dest.call_args.kwargs["bulk_write_mode"])
+
+    def test_sync_data_passes_the_tenant_to_both_adapters(self):
+        tenant = Tenant.objects.create(name="customer-a")
+        source, dest = self._run(self._job(tenant=tenant.pk))
+        self.assertEqual(source.call_args.kwargs["tenant"], tenant)
+        self.assertEqual(dest.call_args.kwargs["tenant"], tenant)
+
+    def test_sync_data_sets_the_namespace_for_the_run(self):
+        self.addCleanup(nbutils.use_namespace, None)
+        namespace = Namespace.objects.create(name="customer-a")
+        self._run(self._job(namespace=namespace.pk))
+        self.assertEqual(nbutils.get_run_namespace(), namespace)
+
+    def test_the_namespace_is_named_in_the_options_logged(self):
+        self.addCleanup(nbutils.use_namespace, None)
+        namespace = Namespace.objects.create(name="customer-a")
+        job = self._job(namespace=namespace.pk)
+        self._run(job)
+        options = str(job.logger.info.call_args_list[0])
+        self.assertIn("`Namespace`: customer-a", options)
+
+    def test_a_run_with_no_namespace_does_not_inherit_the_last_ones(self):
+        self.addCleanup(nbutils.use_namespace, None)
+        nbutils.use_namespace(Namespace.objects.create(name="customer-a"))
+        self._run(self._job())
+        self.assertFalse(nbutils.namespace_chosen())
+        self.assertEqual(nbutils.get_run_namespace().name, "Global")
+
+    def test_sync_data_defaults_to_no_tenant(self):
+        source, dest = self._run(self._job())
+        self.assertIsNone(source.call_args.kwargs["tenant"])
+        self.assertIsNone(dest.call_args.kwargs["tenant"])
 
     def test_sync_data_defaults_bulk_write_mode_off(self):
         job = self._job()
@@ -248,7 +351,32 @@ class IPFabricSyncDataTest(TestCase):
         job = self._job()
         job.client = None
 
-        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=None):
+        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=(None, None)):
             job.sync_data()
 
         job.logger.error.assert_called_once()
+
+    def test_the_reason_a_client_could_not_be_built_is_logged(self):
+        """A major version mismatch and an unreachable server need different fixes."""
+        job = self._job()
+        job.client = None
+        reason = "OS Major Version `8` does not match SDK Major Version `7`."
+        with mock.patch.object(jobs.IpFabricDataSource, "_init_ipf_client", return_value=(None, reason)):
+            job.sync_data()
+        self.assertIn(reason, str(job.logger.error.call_args))
+
+    def test_a_client_failure_is_returned_as_its_reason(self):
+        for error in (
+            RuntimeError("OS Major Version `8` does not match SDK Major Version `7`."),
+            ConnectionError("refused"),
+        ):
+            with self.subTest(error=type(error).__name__):
+                with mock.patch.object(jobs, "IPFClient", side_effect=error):
+                    self.assertEqual(jobs.IpFabricDataSource._init_ipf_client(), (None, str(error)))  # pylint: disable=protected-access
+
+    def test_a_client_that_builds_is_returned_with_no_reason(self):
+        with mock.patch.object(jobs, "IPFClient") as client_class:
+            self.assertEqual(
+                jobs.IpFabricDataSource._init_ipf_client(),  # pylint: disable=protected-access
+                (client_class.return_value, None),
+            )

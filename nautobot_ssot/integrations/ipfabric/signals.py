@@ -7,6 +7,14 @@ from nautobot.core.choices import ColorChoices
 from nautobot.core.signals import nautobot_database_ready
 from nautobot.extras.choices import CustomFieldTypeChoices
 
+from nautobot_ssot.integrations.ipfabric.constants import (
+    INTERFACE_L1_CF_NAME,
+    INTERFACE_L2_CF_NAME,
+    INTERFACE_REASON_CF_NAME,
+    SAFE_DELETE_TAG_NAME,
+    SYNCED_TAG_NAME,
+)
+
 
 def register_signals(sender):
     """Register signals for IPFabric integration."""
@@ -54,21 +62,25 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     Manufacturer = apps.get_model("dcim", "Manufacturer")
     Location = apps.get_model("dcim", "Location")
     VLAN = apps.get_model("ipam", "VLAN")
+    VLANGroup = apps.get_model("ipam", "VLANGroup")
     VRF = apps.get_model("ipam", "VRF")
     RouteTarget = apps.get_model("ipam", "RouteTarget")
+    Prefix = apps.get_model("ipam", "Prefix")
+    SoftwareVersion = apps.get_model("dcim", "SoftwareVersion")
+    SoftwareImageFile = apps.get_model("dcim", "SoftwareImageFile")
     Tag = apps.get_model("extras", "Tag")
     ContentType = apps.get_model("contenttypes", "ContentType")
     location_type = apps.get_model("dcim", "LocationType")
 
     Tag.objects.get_or_create(
-        name="SSoT Synced from IPFabric",
+        name=SYNCED_TAG_NAME,
         defaults={
             "description": "Object synced at some point from IPFabric to Nautobot",
             "color": ColorChoices.COLOR_LIGHT_GREEN,
         },
     )
     Tag.objects.get_or_create(
-        name="SSoT Safe Delete",
+        name=SAFE_DELETE_TAG_NAME,
         defaults={
             "description": "Safe Delete Mode tag to flag an object, but not delete from Nautobot.",
             "color": ColorChoices.COLOR_RED,
@@ -76,7 +88,7 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
     )
     loc_type, _ = location_type.objects.update_or_create(name="Site")
     loc_type.content_types.add(ContentType.objects.get_for_model(Device))
-    loc_type.content_types.add(ContentType.objects.get_for_model(apps.get_model("ipam", "Prefix")))
+    loc_type.content_types.add(ContentType.objects.get_for_model(Prefix))
     loc_type.content_types.add(ContentType.objects.get_for_model(VLAN))
     synced_from_models = [
         Device,
@@ -85,17 +97,36 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         Manufacturer,
         Location,
         VLAN,
+        VLANGroup,
         Role,
         IPAddress,
         Cable,
         VRF,
         RouteTarget,
+        Prefix,
+        SoftwareVersion,
+        SoftwareImageFile,
     ]
     create_custom_field("system_of_record", "System of Record", synced_from_models, apps=apps, cf_type="type_text")
     create_custom_field("last_synced_from_sor", "Last sync from System of Record", synced_from_models, apps=apps)
     create_custom_field("ipfabric_site_id", "IPFabric Location ID", [Location], apps=apps, cf_type="type_text")
     create_custom_field("ipfabric_type", "IPFabric Type", [Role], apps=apps, cf_type="type_text")
+    create_custom_field(
+        "ipfabric_unique_serial",
+        "IPFabric Unique Serial Number",
+        [Device],
+        apps=apps,
+        cf_type="type_text",
+    )
+    create_custom_field(INTERFACE_L1_CF_NAME, "IPFabric L1 State", [Interface], apps=apps, cf_type="type_text")
+    create_custom_field(INTERFACE_L2_CF_NAME, "IPFabric L2 State", [Interface], apps=apps, cf_type="type_text")
+    create_custom_field(INTERFACE_REASON_CF_NAME, "IPFabric State Reason", [Interface], apps=apps, cf_type="type_text")
     # What IP Fabric reported for a VRF but could not be applied, rather than nothing at all: a VRF
     # with no route distinguisher is otherwise indistinguishable from one whose devices disagreed
     # about what it should be.
     create_custom_field("ipfabric_vrf_conflict", "IPFabric VRF Conflict", [VRF], apps=apps, cf_type="type_text")
+    create_custom_field("ipfabric_host_mac", "IPFabric Host MAC", [IPAddress], apps=apps, cf_type="type_text")
+    # Likewise for a Prefix IP Fabric reports in more than one VLAN.
+    create_custom_field(
+        "ipfabric_prefix_vlan_conflict", "IPFabric Prefix VLAN Conflict", [Prefix], apps=apps, cf_type="type_text"
+    )

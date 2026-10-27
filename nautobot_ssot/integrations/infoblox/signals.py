@@ -71,6 +71,8 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         key="ssot_synced_to_infoblox",
         defaults={
             "label": "Last synced to Infoblox on",
+            "description": "Date the object was last synchronized to Infoblox. Managed by the Infoblox SSoT integration.",
+            "grouping": "Infoblox",
         },
     )
     for model in [IPAddress, Prefix, VLAN, VLANGroup]:
@@ -80,6 +82,8 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         key="dhcp_ranges",
         defaults={
             "label": "DHCP Ranges",
+            "description": "DHCP ranges associated with a network. Managed by the Infoblox SSoT integration.",
+            "grouping": "Infoblox",
         },
     )
     range_custom_field.content_types.add(ContentType.objects.get_for_model(Prefix))
@@ -89,6 +93,8 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         key="mac_address",
         defaults={
             "label": "MAC Address",
+            "description": "MAC address used to create an Infoblox Fixed Address of type MAC. Managed by the Infoblox SSoT integration.",
+            "grouping": "Infoblox",
         },
     )
     mac_address_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
@@ -98,6 +104,8 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         key="fixed_address_comment",
         defaults={
             "label": "Fixed Address Comment",
+            "description": "Comment for the corresponding Infoblox Fixed Address record. Managed by the Infoblox SSoT integration.",
+            "grouping": "Infoblox",
         },
     )
     fixed_address_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
@@ -107,6 +115,8 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         key="dns_a_record_comment",
         defaults={
             "label": "DNS A Record Comment",
+            "description": "Comment for the corresponding Infoblox DNS A record. Managed by the Infoblox SSoT integration.",
+            "grouping": "Infoblox",
         },
     )
     dns_a_record_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
@@ -116,6 +126,8 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         key="dns_host_record_comment",
         defaults={
             "label": "DNS Host Record Comment",
+            "description": "Comment for the corresponding Infoblox DNS Host record. Managed by the Infoblox SSoT integration.",
+            "grouping": "Infoblox",
         },
     )
     dns_host_record_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))
@@ -125,6 +137,8 @@ def nautobot_database_ready_callback(sender, *, apps, **kwargs):  # pylint: disa
         key="dns_ptr_record_comment",
         defaults={
             "label": "DNS PTR Record Comment",
+            "description": "Comment for the corresponding Infoblox DNS PTR record. Managed by the Infoblox SSoT integration.",
+            "grouping": "Infoblox",
         },
     )
     dns_ptr_record_comment_custom_field.content_types.add(ContentType.objects.get_for_model(IPAddress))

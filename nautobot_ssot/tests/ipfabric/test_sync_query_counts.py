@@ -6,20 +6,22 @@ count the writes each object costs rather than the total queries, since the tota
 Nautobot's own validation while the repeated writes are what this integration controls.
 """
 
+import datetime
 import re
-import unittest.mock
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError, connection
+from django.db.models import QuerySet
 from django.test.utils import CaptureQueriesContext
 from nautobot.apps.change_logging import JobChangeContext, change_logging
 from nautobot.apps.testing import TestCase
 from nautobot.core.choices import ColorChoices
-from nautobot.dcim.models import Device, DeviceType, Interface, Location, LocationType, Manufacturer
+from nautobot.dcim.models import Cable, Device, DeviceType, Interface, Location, LocationType, Manufacturer
 from nautobot.extras.management import populate_status_choices
 from nautobot.extras.models import ObjectChange, Role, Status, Tag
-from nautobot.ipam.models import IPAddress, Prefix, get_default_namespace
+from nautobot.ipam.models import VLAN, IPAddress, Prefix, get_default_namespace
 
 from nautobot_ssot.integrations.ipfabric.diffsync.adapter_nautobot import (
     NautobotDiffSync,
@@ -30,8 +32,10 @@ from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import Interfa
 from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
     InterfaceAddress as InterfaceAddressModel,
 )
-from nautobot_ssot.integrations.ipfabric.utilities import nbutils
+from nautobot_ssot.integrations.ipfabric.utilities import cables, nbutils
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
+from nautobot_ssot.integrations.ipfabric.writers import ImmediateWriter
+from nautobot_ssot.tests.ipfabric.job_log import job_log_text, job_logger
 
 
 # The trailing boundary keeps these off tables whose names merely start with the one asked for,
@@ -47,6 +51,10 @@ def write_to(table):
 
 WRITE_TO_INTERFACE = write_to("dcim_interface")
 WRITE_TO_IP_ADDRESS = write_to("ipam_ipaddress")
+# `dcim_cable` alone: the boundary keeps this off `dcim_cabletermination`, which a Cable also writes.
+WRITE_TO_CABLE = write_to("dcim_cable")
+# Reads rather than writes, for counting how many times a lookup goes to the address table.
+READ_FROM_IP_ADDRESS = re.compile(r'\bFROM\s+[`"]?ipam_ipaddress[`"]?(\s|$)', re.IGNORECASE)
 
 
 class _CostTestCase(TestCase):
@@ -95,11 +103,11 @@ class _CostTestCase(TestCase):
     @staticmethod
     def make_adapter(location_filter=None):
         """Return an adapter with a mocked job, which is all these tests need of one."""
-        job = unittest.mock.MagicMock()
+        job = MagicMock()
         job.debug = False
         return NautobotDiffSync(
             job=job,
-            sync=unittest.mock.MagicMock(),
+            sync=MagicMock(),
             sync_ipfabric_tagged_only=False,
             location_filter=location_filter,
         )
@@ -112,6 +120,11 @@ class _CostTestCase(TestCase):
             )
             for index in range(count)
         ]
+
+    @staticmethod
+    def queued(*nautobot_objects):
+        """Return what the delete queue holds for the given objects: their model and primary key."""
+        return [(type(nautobot_object), nautobot_object.pk) for nautobot_object in nautobot_objects]
 
     def interface_model(self, name):
         """Return a DiffSync Interface bound to this test's adapter."""
@@ -236,7 +249,7 @@ class DeleteCostTestCase(_CostTestCase):
     def delete_query_count(self, nautobot_objects):
         """Return how many queries deleting the given objects takes."""
         with CaptureQueriesContext(connection) as queries:
-            delete_objects(nautobot_objects)
+            delete_objects(self.queued(*nautobot_objects), job_logger())
         return len(queries.captured_queries)
 
     def test_query_count_does_not_grow_with_the_number_of_objects(self):
@@ -253,7 +266,7 @@ class DeleteCostTestCase(_CostTestCase):
 
     def test_every_object_in_a_batch_is_deleted(self):
         deleted = self.interfaces(5, "gone")
-        delete_objects(deleted)
+        delete_objects(self.queued(*deleted), job_logger())
         self.assertFalse(Interface.objects.filter(pk__in=[interface.pk for interface in deleted]).exists())
 
     def test_objects_of_different_models_are_each_batched(self):
@@ -262,7 +275,7 @@ class DeleteCostTestCase(_CostTestCase):
         spare_location = Location.objects.create(
             name="delete-cost-spare", location_type=self.location_type, status=self.active_status
         )
-        delete_objects([*interfaces, spare_location])
+        delete_objects(self.queued(*interfaces, spare_location), job_logger())
         self.assertFalse(Interface.objects.filter(pk__in=[interface.pk for interface in interfaces]).exists())
         self.assertFalse(Location.objects.filter(pk=spare_location.pk).exists())
 
@@ -273,20 +286,19 @@ class DeleteCostTestCase(_CostTestCase):
         )
         protected_location = self.device.location
 
-        with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
-            delete_objects([protected_location, free_location])
+        logger = job_logger()
+
+        delete_objects(self.queued(protected_location, free_location), logger=logger)
 
         self.assertFalse(Location.objects.filter(pk=free_location.pk).exists())
         self.assertTrue(Location.objects.filter(pk=protected_location.pk).exists())
-        self.assertTrue(
-            any("protected" in message for message in logs.output),
-            f"Expected the protected Location to be reported: {logs.output}",
-        )
+        messages = job_log_text(logger, "warning")
+        self.assertIn("protected", messages, f"Expected the protected Location to be reported: {messages}")
 
     def test_safe_delete_mode_deletes_nothing(self):
         """Nothing is queued in safe delete mode, and `sync_complete` must not delete regardless."""
-        self.adapter.objects_to_delete["_interface"] = self.interfaces(3, "safe")
-        self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
+        self.adapter.objects_to_delete["_interface"] = self.queued(*self.interfaces(3, "safe"))
+        self.adapter.sync_complete(MagicMock(), MagicMock())
         self.assertEqual(Interface.objects.filter(device=self.device).count(), 3)
         self.assertEqual(self.adapter.objects_to_delete["_interface"], [])
 
@@ -301,10 +313,10 @@ class DeleteCostTestCase(_CostTestCase):
             prefix="10.60.0.0/24", namespace=get_default_namespace(), status=self.active_status
         )
         address = IPAddress.objects.create(address="10.60.0.5/24", status=self.active_status, parent=prefix)
-        self.adapter.objects_to_delete["_ipaddress"] = [address]
+        self.adapter.objects_to_delete["_ipaddress"] = self.queued(address)
         self.adapter.safe_delete_mode = False
 
-        self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
+        self.adapter.sync_complete(MagicMock(), MagicMock())
 
         self.assertFalse(IPAddress.objects.filter(pk=address.pk).exists())
         self.assertEqual(self.adapter.objects_to_delete["_ipaddress"], [])
@@ -315,26 +327,67 @@ class DeleteCostTestCase(_CostTestCase):
             name="unordered-spare", location_type=self.location_type, status=self.active_status
         )
         # A grouping `DELETE_ORDER` does not name, standing in for a model added later.
-        self.adapter.objects_to_delete["_somethingnew"] = [spare]
+        self.adapter.objects_to_delete["_somethingnew"] = self.queued(spare)
         self.adapter.safe_delete_mode = False
 
-        self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
+        self.adapter.sync_complete(MagicMock(), MagicMock())
 
         self.assertFalse(Location.objects.filter(pk=spare.pk).exists())
         self.assertIn("_somethingnew", str(self.adapter.job.logger.warning.call_args))
 
     def test_objects_to_delete_is_not_shared_between_adapters(self):
         """A run that fails before `sync_complete` must not leave work for the next run in the worker."""
-        self.adapter.objects_to_delete["_interface"].append(self.interfaces(1, "leak")[0])
-        job = unittest.mock.MagicMock()
+        self.adapter.objects_to_delete["_interface"].extend(self.queued(*self.interfaces(1, "leak")))
+        job = MagicMock()
         job.debug = False
         other = NautobotDiffSync(
             job=job,
-            sync=unittest.mock.MagicMock(),
+            sync=MagicMock(),
             sync_ipfabric_tagged_only=False,
             location_filter=None,
         )
         self.assertEqual(other.objects_to_delete["_interface"], [])
+
+    def another_adapter(self, safe_delete_mode):
+        """A second adapter, as a concurrent run in the same worker would hold."""
+        job = MagicMock()
+        job.debug = False
+        return NautobotDiffSync(
+            job=job,
+            sync=MagicMock(),
+            sync_ipfabric_tagged_only=False,
+            location_filter=None,
+            safe_delete_mode=safe_delete_mode,
+        )
+
+    def test_safe_delete_mode_is_not_shared_between_adapters(self):
+        """The reason it is per run: a run with it on must not delete because another had it off.
+
+        The careful run is constructed second on purpose. State shared between runs shows up as the
+        later construction deciding for both, so the ordering is what gives the assertion something
+        to catch.
+        """
+        lax = self.another_adapter(safe_delete_mode=False)
+        careful = self.another_adapter(safe_delete_mode=True)
+
+        self.assertFalse(lax.safe_delete_mode, "The second run's choice reached the first.")
+        self.assertTrue(careful.safe_delete_mode)
+
+    def test_a_model_reads_safe_delete_mode_from_the_adapter_it_is_bound_to(self):
+        """Two runs hold two adapters, so a model has to ask its own rather than its class."""
+        interface = self.interfaces(1, "bound")[0]
+        model = self.interface_model("bound0")
+        model.adapter = self.another_adapter(safe_delete_mode=False)
+        # Built second on purpose: shared state would show up as this one deciding for the model above.
+        self.another_adapter(safe_delete_mode=True)
+
+        model.delete()
+
+        self.assertEqual(
+            model.adapter.objects_to_delete["_interface"],
+            [(Interface, interface.pk)],
+            "The model read another run's Safe Delete Mode rather than its own.",
+        )
 
     def test_an_object_the_database_refuses_does_not_stop_the_rest_of_its_batch(self):
         """The retry a refused batch falls back to is per object, so one refusal must not end it.
@@ -343,23 +396,44 @@ class DeleteCostTestCase(_CostTestCase):
         This is the plain refusal, which carries no protecting object to name.
         """
         doomed, keeper = self.interfaces(2, "integrity")
+        real_delete = QuerySet.delete
 
-        with unittest.mock.patch.object(doomed, "delete", side_effect=IntegrityError("refused")):
-            with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
-                delete_objects_one_at_a_time([doomed, keeper])
+        def refuse_the_doomed(queryset):
+            """Refuse the one deletion, and carry the rest out for real."""
+            if queryset.filter(pk=doomed.pk).exists():
+                raise IntegrityError("refused")
+            return real_delete(queryset)
+
+        logger = job_logger()
+
+        with patch.object(QuerySet, "delete", refuse_the_doomed):
+            delete_objects_one_at_a_time(self.queued(doomed, keeper), logger=logger)
 
         self.assertTrue(Interface.objects.filter(pk=doomed.pk).exists())
         self.assertFalse(Interface.objects.filter(pk=keeper.pk).exists())
-        self.assertIn("IntegrityError", " ".join(logs.output))
+        self.assertIn("IntegrityError", job_log_text(logger, "warning"))
+
+    def test_the_queue_holds_no_orm_instances(self):
+        """A teardown of a whole estate would otherwise hold every object it passed through.
+
+        The instance drags whatever its queryset selected alongside it, so what would be retained
+        until `sync_complete` is a graph rather than a row, and deletion needs neither.
+        """
+        interface = self.interfaces(1, "retained")[0]
+        model = self.interface_model("retained0")
+
+        with patch.object(self.adapter, "safe_delete_mode", False):
+            model.delete()
+
+        self.assertEqual(self.adapter.objects_to_delete["_interface"], [(Interface, interface.pk)])
 
     def test_sync_complete_deletes_what_is_queued_when_safe_delete_mode_is_off(self):
         """The counterpart to safe delete mode: with it off, `sync_complete` is what does the deleting."""
         queued = self.interfaces(3, "swept")
-        self.adapter.objects_to_delete["_interface"] = list(queued)
-        # Set on the instance rather than the class, which every other adapter would otherwise read.
+        self.adapter.objects_to_delete["_interface"] = self.queued(*queued)
         self.adapter.safe_delete_mode = False
 
-        self.adapter.sync_complete(unittest.mock.MagicMock(), unittest.mock.MagicMock())
+        self.adapter.sync_complete(MagicMock(), MagicMock())
 
         self.assertFalse(Interface.objects.filter(pk__in=[interface.pk for interface in queued]).exists())
         self.assertEqual(self.adapter.objects_to_delete["_interface"], [])
@@ -392,6 +466,31 @@ class ChangeLogCostTestCase(_CostTestCase):
             self.assertEqual(changes.count(), 1, "Expected one change log entry for the created Interface.")
             # The single entry must describe the Interface as it ended up, not as first inserted.
             self.assertEqual(changes.get().object_data["custom_fields"]["system_of_record"], "IPFabric")
+
+    def test_an_unchanged_interface_records_no_change(self):
+        """The nightly run on a settled estate must not fill the change log with the stamp alone.
+
+        An object IP Fabric reports exactly as Nautobot holds it has nothing to record but the date,
+        and an entry saying only that the date moved buries the runs that changed something.
+        """
+        interface = self.interfaces(1, "quiet")[0]
+        # The run that first tags and stamps it does change it, and is recorded. The one after is
+        # the one under test.
+        nbutils.create_interface(self.device, {"name": interface.name, "type": "1000base-t"}, writer=ImmediateWriter())
+        job_scoped_cache.clear_all()
+
+        with change_logging(JobChangeContext(user=self.user)):
+            nbutils.create_interface(
+                self.device, {"name": interface.name, "type": "1000base-t"}, writer=ImmediateWriter()
+            )
+
+        changes = ObjectChange.objects.filter(
+            changed_object_type=ContentType.objects.get_for_model(Interface),
+            changed_object_id=interface.pk,
+        )
+        self.assertEqual(changes.count(), 0, "Expected no change log entry for an unchanged Interface.")
+        interface.refresh_from_db()
+        self.assertEqual(interface.cf["last_synced_from_sor"], datetime.date.today().isoformat())
 
     def test_safe_deleting_an_interface_records_one_change(self):
         """Marking an object tags it and saves it, which must still read as a single change."""
@@ -483,3 +582,188 @@ class SafeDeleteCostTestCase(_CostTestCase):
 
         interface.refresh_from_db()
         self.assertEqual(interface.last_updated, before, "An already marked Interface was written again.")
+
+
+class ResyncCostTestCase(_CostTestCase):
+    """Count what an object costs on a run that finds it exactly as IP Fabric last reported it.
+
+    This is the run an estate makes every night, and the one almost all of the work goes into: on an
+    estate of a hundred thousand addresses, nothing has changed and the only thing left to write is
+    the stamp recording that the sync saw each one.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.interface = self.interfaces(1, "eth")[0]
+        self.prefix, _ = Prefix.objects.get_or_create(
+            prefix="10.70.0.0/24", namespace=get_default_namespace(), status=self.active_status
+        )
+        self.address = IPAddress.objects.create(address="10.70.0.5/24", status=self.active_status, parent=self.prefix)
+
+    def test_an_unchanged_address_is_stamped_without_being_revalidated(self):
+        """`validated_save()` costs about eleven queries, since `IPAddress.save()` calls `clean()`.
+
+        Nothing about the address changed, so there is nothing to validate and nothing to write but
+        the custom field data.
+        """
+        with patch.object(IPAddress, "validated_save", autospec=True) as mock_save:
+            nbutils.create_ip("10.70.0.5", 24, writer=ImmediateWriter())
+
+        mock_save.assert_not_called()
+        self.address.refresh_from_db()
+        self.assertEqual(self.address.cf["system_of_record"], "IPFabric")
+        self.assertEqual(self.address.cf["last_synced_from_sor"], datetime.date.today().isoformat())
+        self.assertTrue(self.address.tags.filter(name="SSoT Synced from IPFabric").exists())
+
+    def test_a_changed_mask_is_still_written_through_validation(self):
+        """Validation is what settles which Prefix an address hangs under, so a change still needs it."""
+        with patch.object(IPAddress, "validated_save", autospec=True) as mock_save:
+            nbutils.create_ip("10.70.0.5", 25, writer=ImmediateWriter())
+
+        mock_save.assert_called_once()
+
+    def test_an_unchanged_interface_is_stamped_without_being_revalidated(self):
+        """An Interface Nautobot already holds has no field set on it, so the stamp is the whole write."""
+        with patch.object(Interface, "validated_save", autospec=True) as mock_save:
+            nbutils.create_interface(
+                self.device, {"name": self.interface.name, "type": "1000base-t"}, writer=ImmediateWriter()
+            )
+
+        mock_save.assert_not_called()
+        self.interface.refresh_from_db()
+        self.assertEqual(self.interface.cf["last_synced_from_sor"], datetime.date.today().isoformat())
+        self.assertTrue(self.interface.tags.filter(name="SSoT Synced from IPFabric").exists())
+
+    def test_an_object_already_tagged_is_not_tagged_again(self):
+        """The Tag is two statements of its own, so it is asked for only where it is missing."""
+        nbutils.create_interface(
+            self.device, {"name": self.interface.name, "type": "1000base-t"}, writer=ImmediateWriter()
+        )
+        job_scoped_cache.clear_all()
+
+        with CaptureQueriesContext(connection) as queries:
+            nbutils.create_interface(
+                self.device, {"name": self.interface.name, "type": "1000base-t"}, writer=ImmediateWriter()
+            )
+
+        tag_writes = [
+            query["sql"]
+            for query in queries.captured_queries
+            if write_to("extras_taggeditem").match(query["sql"].strip())
+        ]
+        self.assertEqual(tag_writes, [], f"Expected no second tagging of the Interface, got {tag_writes}")
+        self.assertEqual(self.interface.tags.count(), 1)
+
+
+class CableWriteCostTestCase(_CostTestCase):
+    """Count the writes creating one Cable makes to the Cable table."""
+
+    def setUp(self):
+        super().setUp()
+        self.int_a, self.int_b = self.interfaces(2, "cabled")
+
+    def test_creating_a_cable_writes_it_once(self):
+        """The stamp rides the INSERT rather than a second save applying it afterwards.
+
+        A Cable's `validated_save()` runs the termination checks, so a redundant one is among the
+        more expensive repeats in the sync.
+        """
+        with CaptureQueriesContext(connection) as queries:
+            cable = cables.create_cable(self.int_a, self.int_b, "Connected")
+
+        writes = [
+            query["sql"].split(None, 3)[0].upper()
+            for query in queries.captured_queries
+            if WRITE_TO_CABLE.match(query["sql"].strip())
+        ]
+        self.assertEqual(writes, ["INSERT"], f"Expected one write to the Cable table, got {writes}")
+        self.assertIsNotNone(cable)
+        self.assertTrue(cable.tags.filter(name="SSoT Synced from IPFabric").exists())
+        self.assertEqual(cable.cf["system_of_record"], "IPFabric")
+        self.assertEqual(cable.cf["last_synced_from_sor"], datetime.date.today().isoformat())
+
+    def test_a_cable_still_at_its_reported_status_is_not_rewritten(self):
+        """Every Cable on a re-sync that changes nothing, so it is worth not revalidating."""
+        cable = cables.create_cable(self.int_a, self.int_b, "Connected")
+
+        with patch.object(Cable, "validated_save", autospec=True) as mock_save:
+            self.assertTrue(cables.update_cable_status(cable, "Connected"))
+
+        mock_save.assert_not_called()
+        cable.refresh_from_db()
+        self.assertEqual(cable.cf["last_synced_from_sor"], datetime.date.today().isoformat())
+
+
+class AddressLookupCostTestCase(_CostTestCase):
+    """Count how many times resolving one address reads the address table."""
+
+    def setUp(self):
+        super().setUp()
+        self.prefix, _ = Prefix.objects.get_or_create(
+            prefix="10.80.0.0/24", namespace=get_default_namespace(), status=self.active_status
+        )
+        self.address = IPAddress.objects.create(address="10.80.0.5/24", status=self.active_status, parent=self.prefix)
+
+    def address_reads(self, operation):
+        """Return how many of `operation`'s queries read the address table."""
+        with CaptureQueriesContext(connection) as queries:
+            operation()
+        return len([query for query in queries.captured_queries if READ_FROM_IP_ADDRESS.search(query["sql"])])
+
+    def test_an_address_nautobot_does_not_hold_is_looked_for_once(self):
+        """The case a first import is made of: both candidates miss, for every address in the estate."""
+        with patch.object(nbutils, "resolve_new_ip", return_value=None) as mock_new:
+            reads = self.address_reads(lambda: nbutils.resolve_ip("10.80.9.9/24", self.active_status))
+
+        mock_new.assert_called_once()
+        self.assertEqual(reads, 1, f"Expected one read of the address table, got {reads}")
+
+    def test_an_address_held_under_another_mask_is_found_in_one_read(self):
+        """Both candidates are keyed on the same host, so one read answers for both."""
+        reads = self.address_reads(lambda: nbutils.resolve_ip("10.80.0.5/25", self.active_status))
+
+        self.assertEqual(reads, 1, f"Expected one read of the address table, got {reads}")
+        self.assertEqual(nbutils.resolve_ip("10.80.0.5/25", self.active_status), self.address)
+
+
+class VlanLookupCostTestCase(_CostTestCase):
+    """Count the lookups every VLAN at one Location repeats."""
+
+    def create_vlans(self, count):
+        """Create `count` VLANs at this test's Location."""
+        for index in range(count):
+            nbutils.create_vlan(f"vlan{index}", 100 + index, "Active", self.location, "", writer=ImmediateWriter())
+
+    def assert_asked_once(self, lookup, vlan_count):
+        """Assert the lookup went to the database once and answered the remaining VLANs from memory.
+
+        Counted through the cache rather than by matching SQL, because Nautobot's own validation
+        reads both of these tables per VLAN as well, and that is not what this integration controls.
+        """
+        self.create_vlans(vlan_count)
+        info = lookup.cache_info()
+        self.assertEqual(
+            (info.misses, info.hits),
+            (1, vlan_count - 1),
+            f"Expected {vlan_count} VLANs to resolve {lookup.__name__} once and reuse it, got {info}",
+        )
+
+    def test_the_status_is_resolved_once_for_every_vlan(self):
+        """A site can carry hundreds of VLANs, and the Status is the same answer for all of them."""
+        self.assert_asked_once(nbutils.get_status_by_name, 3)
+
+    def test_the_location_type_is_checked_once_for_every_vlan(self):
+        """Whether the LocationType permits VLANs does not change between one VLAN and the next."""
+        self.assert_asked_once(nbutils.allow_at_location_type, 3)
+
+    def test_the_location_type_is_still_granted_vlans_when_it_has_none(self):
+        """Caching the check must not skip the grant a site that has never held a VLAN needs."""
+        location_type = LocationType.objects.create(name="vlan-less")
+        location = Location.objects.create(
+            name="vlan-less-site", location_type=location_type, status=self.active_status
+        )
+
+        nbutils.create_vlan("granted", 200, "Active", location, "", writer=ImmediateWriter())
+
+        self.assertTrue(location_type.content_types.filter(app_label="ipam", model="vlan").exists())
+        self.assertEqual(VLAN.objects.get(vid=200).locations.get(), location)

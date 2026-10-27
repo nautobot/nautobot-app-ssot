@@ -35,7 +35,10 @@ from nautobot_ssot.integrations.ipfabric.diffsync.diffsync_models import (
     InterfaceAddress as InterfaceAddressModel,
 )
 from nautobot_ssot.integrations.ipfabric.utilities import nbutils
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import DeviceScope
 from nautobot_ssot.integrations.ipfabric.utilities.utils import job_scoped_cache
+from nautobot_ssot.integrations.ipfabric.writers import BatchedWriter, ImmediateWriter
+from nautobot_ssot.tests.ipfabric.job_log import job_log_text, job_logger
 
 
 class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-methods
@@ -62,7 +65,7 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
             defaults={"color": ColorChoices.COLOR_LIGHT_GREEN, "description": "Synced"},
         )
         self.tag.content_types.add(device_ct, ContentType.objects.get_for_model(Interface))
-        self.pending = PendingWrites()
+        self.pending = PendingWrites(job_logger())
 
     def build_location(self, name):
         """Return an unsaved Location, primary key already assigned."""
@@ -227,12 +230,11 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
         _first, duplicate = self._duplicate_addresses()
         self.pending.add_through(IPAddressToInterface(ip_address=duplicate, interface_id=interface.pk))
 
-        with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
-            self.pending.flush()
+        self.pending.flush()
 
         self.assertEqual(IPAddress.objects.filter(host="10.0.0.7").count(), 1)
         self.assertFalse(IPAddressToInterface.objects.filter(ip_address_id=duplicate.pk).exists())
-        self.assertIn("could not be written", " ".join(logs.output))
+        self.assertIn("could not be written", job_log_text(self.pending.logger, "warning"))
 
     def test_a_deferred_update_is_dropped_when_the_value_it_sets_is_refused(self):
         location = self.pending.add(self.build_location("orphan-update"))
@@ -240,11 +242,10 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
         _first, duplicate = self._duplicate_addresses()
         self.pending.defer_update(device, {"primary_ip4": duplicate})
 
-        with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
-            self.pending.flush()
+        self.pending.flush()
 
         self.assertIsNone(Device.objects.get(pk=device.pk).primary_ip4)
-        self.assertIn("primary_ip4", " ".join(logs.output))
+        self.assertIn("primary_ip4", job_log_text(self.pending.logger, "warning"))
 
     # --- bookkeeping ---
 
@@ -273,8 +274,7 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
         self.pending.add(self.build_address("10.0.0.12/24"))  # the same address a second time
         another = self.pending.add(self.build_address("10.0.0.13/24"))
 
-        with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
-            self.pending.flush()
+        self.pending.flush()
 
         # The three distinct addresses survive the retry, and the duplicate is named.
         queued = ["10.0.0.11", "10.0.0.12", "10.0.0.13"]
@@ -284,7 +284,7 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
         )
         self.assertTrue(IPAddress.objects.filter(pk=good.pk).exists())
         self.assertTrue(IPAddress.objects.filter(pk=another.pk).exists())
-        self.assertTrue(any("10.0.0.12" in line for line in logs.output), logs.output)
+        self.assertIn("10.0.0.12", job_log_text(self.pending.logger, "warning"))
 
     def test_a_refused_batch_is_narrowed_rather_than_retried_row_by_row(self):
         """One bad row costs a handful of inserts, not a validated save for every row beside it.
@@ -301,8 +301,7 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
         with unittest.mock.patch.object(
             IPAddress, "validated_save", autospec=True, side_effect=IPAddress.validated_save
         ) as validated_save:
-            with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
-                written = self.pending.flush()
+            written = self.pending.flush()
 
         # Only the duplicate the narrowing isolated is validated; the other eight go in as batches.
         self.assertEqual(validated_save.call_count, 1)
@@ -311,10 +310,10 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
             sorted(str(each.host) for each in IPAddress.objects.filter(host__in=queued)),
             sorted(queued),
         )
-        self.assertTrue(any("10.0.1.4" in line for line in logs.output), logs.output)
+        self.assertIn("10.0.1.4", job_log_text(self.pending.logger, "warning"))
 
     def test_a_batch_is_split_by_batch_size(self):
-        pending = PendingWrites(batch_size=2)
+        pending = PendingWrites(job_logger(), batch_size=2)
         for index in range(5):
             pending.add(self.build_location(f"batched{index}"))
         self.assertEqual(pending.flush(), 5)
@@ -323,14 +322,14 @@ class PendingWritesTestCase(TestCase):  # pylint: disable=too-many-public-method
     def test_the_batch_size_comes_from_the_setting(self):
         """An operator tunes the batch for their estate, so the collector reads it rather than a constant."""
         with unittest.mock.patch("nautobot_ssot.integrations.ipfabric.bulk_writes.BULK_WRITE_BATCH_SIZE", 7):
-            self.assertEqual(PendingWrites().batch_size, 7)
+            self.assertEqual(PendingWrites(job_logger()).batch_size, 7)
 
     def test_a_batch_size_below_one_is_refused(self):
         """`range` takes no step of zero, and a batch of none would insert nothing for ever."""
         with unittest.mock.patch("nautobot_ssot.integrations.ipfabric.bulk_writes.BULK_WRITE_BATCH_SIZE", 500):
-            self.assertEqual(PendingWrites().batch_size, 500)
-        self.assertEqual(PendingWrites(batch_size=0).batch_size, 1)
-        self.assertEqual(PendingWrites(batch_size=-5).batch_size, 1)
+            self.assertEqual(PendingWrites(job_logger()).batch_size, 500)
+        self.assertEqual(PendingWrites(job_logger(), batch_size=0).batch_size, 1)
+        self.assertEqual(PendingWrites(job_logger(), batch_size=-5).batch_size, 1)
 
 
 class BulkModeInterfaceTestCase(TestCase):
@@ -497,7 +496,7 @@ class BulkModeLocationAndVlanTestCase(TestCase):
         ssot_tag.content_types.add(
             device_ct, ContentType.objects.get_for_model(Location), ContentType.objects.get_for_model(VLAN)
         )
-        self.pending = PendingWrites()
+        self.pending = PendingWrites(job_logger())
 
     def test_a_queued_location_is_found_rather_than_queued_twice(self):
         """Two callers asking for the same Location must not each build one.
@@ -505,8 +504,12 @@ class BulkModeLocationAndVlanTestCase(TestCase):
         `Location.create` asks with the site id and `Device.create` without it, so relying on the
         lookup cache alone would build two and write both.
         """
-        first = nbutils.get_or_create_location_object(location_name="dup", location_id="site-9", pending=self.pending)
-        second = nbutils.get_or_create_location_object(location_name="dup", location_id=None, pending=self.pending)
+        first = nbutils.get_or_create_location_object(
+            location_name="dup", location_id="site-9", writer=BatchedWriter(self.pending)
+        )
+        second = nbutils.get_or_create_location_object(
+            location_name="dup", location_id=None, writer=BatchedWriter(self.pending)
+        )
 
         self.assertIs(second, first, "The second caller should have been given the queued Location.")
         self.pending.flush()
@@ -514,7 +517,7 @@ class BulkModeLocationAndVlanTestCase(TestCase):
 
     def test_a_queued_location_carries_its_site_id_and_tag(self):
         location = nbutils.get_or_create_location_object(
-            location_name="stamped", location_id="site-7", pending=self.pending
+            location_name="stamped", location_id="site-7", writer=BatchedWriter(self.pending)
         )
         self.pending.flush()
 
@@ -525,14 +528,14 @@ class BulkModeLocationAndVlanTestCase(TestCase):
 
     def test_a_queued_vlan_gets_its_location_and_tag(self):
         """`VLAN.save()` makes the location assignment, and a batched insert never calls it."""
-        location = nbutils.get_or_create_location_object(location_name="vlan-home", pending=self.pending)
+        location = nbutils.get_or_create_location_object(location_name="vlan-home", writer=BatchedWriter(self.pending))
         vlan = nbutils.create_vlan(
             vlan_name="bulk-vlan",
             vlan_id=42,
             vlan_status="Active",
             location_obj=location,
             description="queued",
-            pending=self.pending,
+            writer=BatchedWriter(self.pending),
         )
         self.pending.flush()
 
@@ -544,7 +547,7 @@ class BulkModeLocationAndVlanTestCase(TestCase):
 
     def test_a_vlan_and_its_location_land_in_one_flush(self):
         """The VLAN references a Location that has not been written when the VLAN is built."""
-        location = nbutils.get_or_create_location_object(location_name="same-flush", pending=self.pending)
+        location = nbutils.get_or_create_location_object(location_name="same-flush", writer=BatchedWriter(self.pending))
         self.assertFalse(Location.objects.filter(name="same-flush").exists())
         vlan = nbutils.create_vlan(
             vlan_name="same-flush-vlan",
@@ -552,7 +555,7 @@ class BulkModeLocationAndVlanTestCase(TestCase):
             vlan_status="Active",
             location_obj=location,
             description="",
-            pending=self.pending,
+            writer=BatchedWriter(self.pending),
         )
 
         self.pending.flush()
@@ -564,7 +567,7 @@ class BulkModeLocationAndVlanTestCase(TestCase):
         existing = Location.objects.create(
             name="already-there", location_type=LocationType.objects.get(name="Site"), status=self.active
         )
-        found = nbutils.get_or_create_location_object(location_name="already-there", pending=self.pending)
+        found = nbutils.get_or_create_location_object(location_name="already-there", writer=BatchedWriter(self.pending))
 
         self.assertEqual(found.pk, existing.pk)
         self.assertEqual(self.pending.counts(), {}, "Nothing should have been queued for an existing Location.")
@@ -694,11 +697,11 @@ class BulkModeDeviceTestCase(TestCase):
         """A lookup that ran before the flush cached an answer the flush has invalidated."""
         adapter = self.adapter(bulk_write_mode=True)
         DeviceModel.create(adapter, ids={"name": "stale-dev"}, attrs=self.device_attrs())
-        self.assertIsNone(nbutils.get_syncable_device("stale-dev", tagged_only=True))
+        self.assertIsNone(nbutils.get_syncable_device("stale-dev", scope=DeviceScope(tagged_only=True)))
 
         adapter.flush_pending_writes()
 
-        self.assertIsNotNone(nbutils.get_syncable_device("stale-dev", tagged_only=True))
+        self.assertIsNotNone(nbutils.get_syncable_device("stale-dev", scope=DeviceScope(tagged_only=True)))
 
     def test_a_virtual_chassis_master_is_applied_after_its_device(self):
         """The master points back at the Device, so it cannot be set until the Device exists."""
@@ -757,16 +760,15 @@ class BulkModeDeviceTestCase(TestCase):
         DeviceModel.create(adapter, ids={"name": "refused-update"}, attrs=self.device_attrs())
         adapter.flush_pending_writes()
         device = Device.objects.get(name="refused-update")
-        pending = PendingWrites()
+        pending = PendingWrites(job_logger())
         pending.defer_update(device, {"serial": "changed"})
 
         with unittest.mock.patch.object(Device.objects, "bulk_update", side_effect=DjangoBaseDBError("refused")):
-            with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
-                written = pending.flush()
+            written = pending.flush()
 
         self.assertEqual(written, 0)
         self.assertEqual(Device.objects.get(pk=device.pk).serial, "abc123")
-        logged = " ".join(logs.output)
+        logged = job_log_text(pending.logger, "warning")
         self.assertIn("Unable to update serial", logged)
         self.assertIn("Device", logged)
 
@@ -1054,10 +1056,10 @@ class NewAddressResolutionTestCase(TestCase):
         """
         self.make_prefix("2001:db8:beef::/64")
 
-        per_object = nbutils.create_ip("2001:db8:beef::1", 64, logger=self.logger)
+        per_object = nbutils.create_ip("2001:db8:beef::1", 64, logger=self.logger, writer=ImmediateWriter())
 
-        pending = PendingWrites()
-        queued = nbutils.create_ip("2001:db8:beef::2", 64, logger=self.logger, pending=pending)
+        pending = PendingWrites(job_logger())
+        queued = nbutils.create_ip("2001:db8:beef::2", 64, logger=self.logger, writer=BatchedWriter(pending))
         pending.flush()
 
         self.assertEqual(self.errors(), [])
@@ -1077,11 +1079,13 @@ class NewAddressResolutionTestCase(TestCase):
         """
         self.make_prefix("10.0.0.0/25")
 
-        for label, pending in (("per object", None), ("bulk", PendingWrites())):
+        for label, pending in (("per object", None), ("bulk", PendingWrites(job_logger()))):
             with self.subTest(mode=label):
                 address = f"10.0.{0 if pending is None else 1}.1"
                 self.make_prefix(f"10.0.{0 if pending is None else 1}.0/25")
-                result = nbutils.create_ip(address, 24, logger=self.logger, pending=pending)
+                result = nbutils.create_ip(
+                    address, 24, logger=self.logger, writer=BatchedWriter(pending) if pending else ImmediateWriter()
+                )
                 if pending is not None:
                     pending.flush()
 
@@ -1094,7 +1098,7 @@ class NewAddressResolutionTestCase(TestCase):
         """A wider Prefix does not help, since the address parents to the most specific one."""
         self.make_prefix("10.5.0.0/25")
 
-        nbutils.create_ip("10.5.0.1", 24, logger=self.logger)
+        nbutils.create_ip("10.5.0.1", 24, logger=self.logger, writer=ImmediateWriter())
 
         self.assertFalse(
             Prefix.objects.filter(prefix="10.5.0.0/24").exists(),
@@ -1104,10 +1108,15 @@ class NewAddressResolutionTestCase(TestCase):
     # --- the ordinary paths ---
 
     def test_the_parent_prefix_is_created_when_nothing_covers_the_address(self):
-        for label, pending in (("per object", None), ("bulk", PendingWrites())):
+        for label, pending in (("per object", None), ("bulk", PendingWrites(job_logger()))):
             with self.subTest(mode=label):
                 octet = 10 if pending is None else 11
-                result = nbutils.create_ip(f"10.{octet}.0.1", 24, logger=self.logger, pending=pending)
+                result = nbutils.create_ip(
+                    f"10.{octet}.0.1",
+                    24,
+                    logger=self.logger,
+                    writer=BatchedWriter(pending) if pending else ImmediateWriter(),
+                )
                 if pending is not None:
                     pending.flush()
 
@@ -1120,7 +1129,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing = IPAddress(address="10.20.0.1/24", namespace=self.namespace, status=self.active)
         existing.validated_save()
 
-        result = nbutils.create_ip("10.20.0.1", 24, logger=self.logger)
+        result = nbutils.create_ip("10.20.0.1", 24, logger=self.logger, writer=ImmediateWriter())
 
         self.assertEqual(result.pk, existing.pk)
         self.assertEqual(IPAddress.objects.filter(host="10.20.0.1").count(), 1)
@@ -1130,13 +1139,15 @@ class NewAddressResolutionTestCase(TestCase):
         with unittest.mock.patch.object(
             nbutils.Prefix.objects, "get_or_create", side_effect=nbutils.ValidationError("refused")
         ):
-            result = nbutils.create_ip("10.30.0.1", 24, logger=self.logger)
+            result = nbutils.create_ip("10.30.0.1", 24, logger=self.logger, writer=ImmediateWriter())
 
         self.assertIsNone(result)
         self.assertTrue(any("Unable to create a missing Prefix" in line for line in self.errors()), self.errors())
 
     def test_a_status_that_does_not_exist_is_reported(self):
-        result = nbutils.create_ip("10.40.0.1", 24, status="No-Such-Status", logger=self.logger)
+        result = nbutils.create_ip(
+            "10.40.0.1", 24, status="No-Such-Status", logger=self.logger, writer=ImmediateWriter()
+        )
 
         self.assertIsNone(result)
         self.assertTrue(any("No-Such-Status" in line for line in self.errors()), self.errors())
@@ -1151,7 +1162,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing = IPAddress(address="10.50.0.1/25", namespace=self.namespace, status=self.active)
         existing.validated_save()
 
-        result = nbutils.create_ip("10.50.0.1", 24, logger=self.logger)
+        result = nbutils.create_ip("10.50.0.1", 24, logger=self.logger, writer=ImmediateWriter())
 
         self.assertEqual(result.pk, existing.pk)
         self.assertEqual(IPAddress.objects.filter(host="10.50.0.1").count(), 1)
@@ -1161,9 +1172,9 @@ class NewAddressResolutionTestCase(TestCase):
         self.make_prefix("10.52.0.0/25")
         existing = IPAddress(address="10.52.0.1/25", namespace=self.namespace, status=self.active)
         existing.validated_save()
-        pending = PendingWrites()
+        pending = PendingWrites(job_logger())
 
-        result = nbutils.create_ip("10.52.0.1", 24, logger=self.logger, pending=pending)
+        result = nbutils.create_ip("10.52.0.1", 24, logger=self.logger, writer=BatchedWriter(pending))
         pending.flush()
 
         self.assertEqual(result.pk, existing.pk)
@@ -1173,10 +1184,10 @@ class NewAddressResolutionTestCase(TestCase):
     def test_one_host_reported_with_two_masks_is_written_once(self):
         """Both reports resolve to the same parent, so the second would be refused as a duplicate."""
         self.make_prefix("10.53.0.0/25")
-        pending = PendingWrites()
+        pending = PendingWrites(job_logger())
 
-        first = nbutils.create_ip("10.53.0.1", 25, logger=self.logger, pending=pending)
-        second = nbutils.create_ip("10.53.0.1", 24, logger=self.logger, pending=pending)
+        first = nbutils.create_ip("10.53.0.1", 25, logger=self.logger, writer=BatchedWriter(pending))
+        second = nbutils.create_ip("10.53.0.1", 24, logger=self.logger, writer=BatchedWriter(pending))
         pending.flush()
 
         self.assertEqual(first.pk, second.pk)
@@ -1193,7 +1204,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing = IPAddress(address="10.54.0.1/25", namespace=self.namespace, status=self.active)
         existing.validated_save()
 
-        nbutils.create_ip("10.54.0.1", 24, logger=self.logger)
+        nbutils.create_ip("10.54.0.1", 24, logger=self.logger, writer=ImmediateWriter())
 
         self.assertEqual(
             sorted(str(prefix.prefix) for prefix in Prefix.objects.filter(network="10.54.0.0")),
@@ -1209,7 +1220,7 @@ class NewAddressResolutionTestCase(TestCase):
         existing = IPAddress(address="10.55.0.1/25", namespace=self.namespace, status=self.active)
         existing.validated_save()
 
-        nbutils.create_ip("10.55.0.1", 24, logger=self.logger)
+        nbutils.create_ip("10.55.0.1", 24, logger=self.logger, writer=ImmediateWriter())
 
         self.assertEqual(IPAddress.objects.get(pk=existing.pk).mask_length, 24)
         self.assertEqual(self.errors(), [])
@@ -1218,9 +1229,9 @@ class NewAddressResolutionTestCase(TestCase):
         self.make_prefix("10.56.0.0/25")
         existing = IPAddress(address="10.56.0.1/25", namespace=self.namespace, status=self.active)
         existing.validated_save()
-        pending = PendingWrites()
+        pending = PendingWrites(job_logger())
 
-        nbutils.create_ip("10.56.0.1", 24, logger=self.logger, pending=pending)
+        nbutils.create_ip("10.56.0.1", 24, logger=self.logger, writer=BatchedWriter(pending))
         pending.flush()
 
         self.assertEqual(IPAddress.objects.get(pk=existing.pk).mask_length, 24)
@@ -1246,7 +1257,7 @@ class CommitTimeRefusalTestCase(TransactionTestCase):
         self.location_type.content_types.add(device_ct)
         manufacturer = Manufacturer.objects.create(name="commit-vendor")
         self.device_type = DeviceType.objects.create(model="commit-model", manufacturer=manufacturer)
-        self.pending = PendingWrites()
+        self.pending = PendingWrites(job_logger())
 
     def build_location(self, name):
         """Return an unsaved Location, primary key already assigned."""
@@ -1294,9 +1305,8 @@ class CommitTimeRefusalTestCase(TransactionTestCase):
         # foreign key that is only checked at `COMMIT`, by which time the batch looks written.
         bad = self.pending.add(self.build_device("retried-bad", self.build_location("never-written")))
 
-        with self.assertLogs("nautobot.ssot.ipfabric", level="WARNING") as logs:
-            self.pending.flush()
+        self.pending.flush()
 
         self.assertTrue(Device.objects.filter(pk=good.pk).exists())
         self.assertFalse(Device.objects.filter(pk=bad.pk).exists())
-        self.assertIn("retried-bad", " ".join(logs.output))
+        self.assertIn("retried-bad", job_log_text(self.pending.logger, "warning"))

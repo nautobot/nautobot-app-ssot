@@ -191,6 +191,7 @@ class StrictSupportingObjectTestCase(SupportingObjectTestCase):
         what a Device create reads.
         """
         self.adapter.sync_ipfabric_tagged_only = False
+        self.adapter.tenant = None
         return InterfaceModel.create(
             self.adapter,
             ids={"name": name, "device_name": "dev1"},

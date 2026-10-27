@@ -14,7 +14,13 @@ from django.db import Error as DjangoBaseDBError
 from nautobot.dcim.models import Cable, Interface
 
 from nautobot_ssot.integrations.ipfabric.constants import LAST_SYNCHRONIZED_CF_NAME
-from nautobot_ssot.integrations.ipfabric.utilities.nbutils import get_or_create_status_object, tag_object
+from nautobot_ssot.integrations.ipfabric.utilities.nbutils import (
+    get_or_create_status_object,
+    restamp_synced,
+    stamp_synced,
+    synced_tag_for,
+    tag_object,
+)
 
 # The join table layout replaces the concrete `cable` field with a reverse relation to
 # `CableToCableTermination`, which is what decides the query path in `cabled_interfaces`.
@@ -42,6 +48,16 @@ def cabled_interfaces(device_queryset):
     interfaces = Interface.objects.filter(device__in=device_queryset).select_related("device")
     if CABLE_TERMINATIONS_ARE_JOINED:
         return interfaces.filter(cable_termination__isnull=False).select_related("cable_termination__cable__status")
+    # Nautobot 3.2 deprecated both of these lookups in favour of the `cable_termination` path taken
+    # above, and the checker flags them wherever they appear. This arm runs only on 3.0 and 3.1,
+    # where `cable_termination` does not exist and `cable` is the only way to ask, so the warning is
+    # suppressed rather than the query rewritten. It goes when those versions are no longer served.
+    #
+    # `unknown-option-value` goes first because the suppression has to hold on both Nautobot
+    # versions: the checker below ships with the `pylint-nautobot` a 3.2 environment resolves, and
+    # not with the one a 3.1 environment resolves, where naming it is an unknown message.
+    # pylint: disable=unknown-option-value
+    # pylint: disable-next=nb-deprecated-cable-lookup
     return interfaces.filter(cable__isnull=False).select_related("cable__status")
 
 
@@ -84,6 +100,10 @@ def create_cable(  # pylint: disable=too-many-arguments
             )
         return None
     cable = Cable(termination_a=interface_a, termination_b=interface_b, status=status_obj)
+    # Stamped before the one save a new Cable takes, so the Tag row that follows is the only further
+    # write. Saving it and then stamping it costs a second `validated_save()`, which for a Cable runs
+    # the termination checks over again.
+    stamp_synced(cable, LAST_SYNCHRONIZED_CF_NAME)
     try:
         cable.validated_save()
     except (DjangoBaseDBError, ValidationError) as err:
@@ -94,11 +114,12 @@ def create_cable(  # pylint: disable=too-many-arguments
             )
         return None
     try:
-        # tag_object performs validated_save()
-        tag_object(nautobot_object=cable, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        cable.tags.add(synced_tag_for(cable))
     except (DjangoBaseDBError, ValidationError):
+        # The Cable is written either way, so a Tag that will not attach is reported rather than
+        # taken as a reason to withhold it.
         if logger:
-            logger.warning(f"Unable to perform a validated_save() on Cable with an ID of {cable.id}")
+            logger.warning(f"Unable to tag Cable with an ID of {cable.id} as synced from IP Fabric")
     return cable
 
 
@@ -119,7 +140,8 @@ def update_cable_status(
     Returns:
         True when the Cable was saved, False when it could not be.
     """
-    if cable.status.name != status:
+    status_changed = cable.status.name != status
+    if status_changed:
         status_obj = get_or_create_status_object(
             status, app_label="dcim", model="cable", create=create_statuses, logger=logger
         )
@@ -132,8 +154,13 @@ def update_cable_status(
             return False
         cable.status = status_obj
     try:
-        # tag_object performs validated_save()
-        tag_object(nautobot_object=cable, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        if status_changed:
+            # tag_object performs validated_save()
+            tag_object(nautobot_object=cable, custom_field=LAST_SYNCHRONIZED_CF_NAME)
+        else:
+            # A Cable IP Fabric still reports at the Status Nautobot holds it at, which is every
+            # Cable on a re-sync that changes nothing.
+            restamp_synced(cable, LAST_SYNCHRONIZED_CF_NAME)
     except (DjangoBaseDBError, ValidationError) as err:
         if logger:
             logger.error(f"Unable to update Cable with an ID of {cable.id} to a Status of {status}. Error: {err}")

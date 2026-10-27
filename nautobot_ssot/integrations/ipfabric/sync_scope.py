@@ -53,8 +53,9 @@ class SyncableObject:
         """Return the job form field for this object type."""
         description = self.description
         if self.requires:
-            required = ", ".join(f"'{key}'" for key in self.requires)
-            description = f"{description} Skipped unless {required} is also selected."
+            required = " and ".join(f"'{key}'" for key in self.requires)
+            verb = "is" if len(self.requires) == 1 else "are"
+            description = f"{description} Skipped unless {required} {verb} also selected."
         return BooleanVar(default=self.default_selection(), label=self.label, description=description)
 
 
@@ -119,6 +120,27 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
         default=True,
     ),
     SyncableObject(
+        key="software_versions",
+        label="Sync Software Versions",
+        description=(
+            "Record the OS version IP Fabric reports for each Device, creating the Software Version "
+            "under the Device's Platform. Off by default, for deployments where another system owns "
+            "software versions. A Device with no Platform, or no version reported, is left alone."
+        ),
+        default=False,
+    ),
+    SyncableObject(
+        key="software_images",
+        label="Sync Software Images",
+        description=(
+            "Record the image file IP Fabric reports each Device booted from, creating the Software "
+            "Image File under the Device's Software Version and mapping it to the Device Type. Off "
+            "by default. A Device with no image reported is left alone."
+        ),
+        default=False,
+        requires=("software_versions",),
+    ),
+    SyncableObject(
         key="interfaces",
         label="Sync Interfaces",
         description="Sync each Device's Interfaces.",
@@ -142,6 +164,28 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
         requires=("ip_addresses",),
     ),
     SyncableObject(
+        key="prefixes",
+        label="Sync Prefixes",
+        description=(
+            "Create Nautobot Prefixes from the networks IP Fabric's managed IP summary reports, in "
+            "the job's Namespace (Global unless one is chosen), and record the Locations each is "
+            "seen at. Off by default: select only where nothing else owns IPAM. With Prefixes among "
+            "the Strict Objects, only Prefixes Nautobot already holds are adopted and none is created."
+        ),
+        default=False,
+    ),
+    SyncableObject(
+        key="host_addresses",
+        label="Sync Host Addresses",
+        description=(
+            "Create an IP Address for each host IP Fabric discovers, such as a server or virtual machine "
+            "seen in ARP, with its DNS name and MAC address, under the synced Prefix that covers it. Off "
+            "by default: in an estate of routers, switches and firewalls these are addresses nobody manages."
+        ),
+        default=False,
+        requires=("prefixes", "ip_addresses"),
+    ),
+    SyncableObject(
         key="vlans",
         label="Sync VLANs",
         description="Sync each Location's VLANs.",
@@ -151,8 +195,8 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
         key="vrfs",
         label="Sync VRFs",
         description=(
-            "Create Nautobot VRFs from the routing instances IP Fabric reports, in the Global "
-            "Namespace. Deselect where another system owns the VRF list. Off by default, as a "
+            "Create Nautobot VRFs from the routing instances IP Fabric reports, in the job's "
+            "Namespace (Global unless one is chosen). Deselect where another system owns the VRF list. Off by default, as a "
             "network whose VRFs are modelled elsewhere should not have them introduced by a sync."
         ),
         default=False,
@@ -188,6 +232,17 @@ SYNCABLE_OBJECTS: Tuple[SyncableObject, ...] = (
         ),
         default=False,
         requires=("interfaces", "device_vrfs"),
+    ),
+    SyncableObject(
+        key="interface_vlans",
+        label="Sync Interface VLANs",
+        description=(
+            "Record each switchport's 802.1Q mode and the VLANs it carries, from the switchport "
+            "table IP Fabric reports. Needs the VLANs themselves, since Nautobot refuses an "
+            "Interface a VLAN that is not available at its Device's Location."
+        ),
+        default=False,
+        requires=("interfaces", "vlans"),
     ),
     SyncableObject(
         key="cables",
