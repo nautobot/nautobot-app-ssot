@@ -4,6 +4,7 @@ from inspect import signature
 from unittest.mock import MagicMock, patch
 
 from diffsync import Adapter
+from diffsync.exceptions import ObjectNotCreated
 from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Device as ORMDevice
@@ -17,6 +18,7 @@ from nautobot.tenancy.models import Tenant
 from nautobot_ssot.integrations.librenms.diffsync.models.nautobot import (
     NautobotDevice,
     ensure_ip_address,
+    ensure_location,
     ensure_platform,
 )
 from nautobot_ssot.integrations.librenms.jobs import LibrenmsDataSource, LibrenmsDataTarget
@@ -92,30 +94,6 @@ class TestNautobotDeviceLocationSync(TestCase):
 
         self.orm_device.refresh_from_db()
         self.assertEqual(self.orm_device.location, self.catch_all)
-
-    def test_create_assigns_location_regardless_of_sync_locations(self):
-        """A brand-new device must still get a location even when sync_locations is False."""
-        self.adapter.job.sync_locations = False
-
-        ids = {"name": "new-device"}
-        attrs = {
-            "location": "Catch-All",
-            "parent_location": None,
-            "status": "Active",
-            "device_type": "Test Device Type",
-            "manufacturer": "Linux",
-            "platform": "linux",
-            "role": "Test Role",
-            "serial_no": "SN123",
-            "os_version": "1.0",
-            "device_id": 1,
-            "system_of_record": "LibreNMS",
-        }
-
-        NautobotDevice.create(self.adapter, ids, attrs)
-
-        new_orm_device = ORMDevice.objects.get(name="new-device")
-        self.assertEqual(new_orm_device.location, self.catch_all)
 
 
 class TestNautobotDeviceUpdatePlatform(TestCase):
@@ -570,3 +548,64 @@ class TestEnsurePlatformConsolidatedMode(EnsurePlatformTestCase):
 
         self.assertEqual(platform.pk, existing.pk)
         self.assertEqual(ORMPlatform.objects.count(), 1)
+
+
+class TestEnsureLocation(TestCase):
+    """Test that Locations are never created invalid, nor created at all when sync_locations is False."""
+
+    databases = ("default", "job_logs")
+
+    def setUp(self):
+        """Set up a Region -> Site hierarchy, where every Site requires a parent."""
+        super().setUp()
+        self.active_status, _ = Status.objects.get_or_create(name="Active")
+        self.active_status.content_types.add(ContentType.objects.get_for_model(ORMLocation))
+
+        region_type, _ = LocationType.objects.get_or_create(name="Region")
+        self.site_type, _ = LocationType.objects.get_or_create(name="Site")
+        self.site_type.parent = region_type
+        self.site_type.validated_save()
+
+        self.adapter = MagicMock(spec=Adapter)
+        self.adapter.job = MagicMock()
+        self.adapter.job.location_type = self.site_type
+        self.adapter.job.debug = False
+        self.adapter.job.device_secrets_group = None
+        self.adapter.tenant = None
+
+    def test_create_skips_device_when_location_unresolvable_and_sync_locations_false(self):
+        """With sync_locations False, an unresolvable location skips the device instead of creating a Location."""
+        self.adapter.job.sync_locations = False
+        location_count = ORMLocation.objects.count()
+
+        with self.assertRaises(ObjectNotCreated):
+            NautobotDevice.create(
+                self.adapter,
+                {"name": "new-device"},
+                {
+                    "location": "Nowhere",
+                    "parent_location": None,
+                    "status": "Active",
+                    "device_type": "Test Device Type",
+                    "manufacturer": "Linux",
+                    "platform": "linux",
+                    "role": "Test Role",
+                    "serial_no": "SN123",
+                    "os_version": "1.0",
+                    "device_id": 1,
+                    "system_of_record": "LibreNMS",
+                },
+            )
+
+        self.assertEqual(ORMLocation.objects.count(), location_count)
+        self.assertFalse(ORMDevice.objects.filter(name="new-device").exists())
+        self.adapter.job.logger.error.assert_called_once()
+
+    def test_ensure_location_returns_none_for_parentless_site(self):
+        """A Site with no parent fails validation, so nothing is written."""
+        location_count = ORMLocation.objects.count()
+
+        result = ensure_location(location_data={"name": "Nowhere", "parent": None}, location_type=self.site_type)
+
+        self.assertIsNone(result)
+        self.assertEqual(ORMLocation.objects.count(), location_count)
