@@ -1,0 +1,1 @@
+Fixed LibreNMS integration creating Locations that fail Nautobot model validation, and creating Locations at all when sync_locations is disabled.
