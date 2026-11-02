@@ -561,9 +561,9 @@ class TestEnsureLocation(TestCase):
         self.active_status, _ = Status.objects.get_or_create(name="Active")
         self.active_status.content_types.add(ContentType.objects.get_for_model(ORMLocation))
 
-        region_type, _ = LocationType.objects.get_or_create(name="Region")
+        self.region_type, _ = LocationType.objects.get_or_create(name="Region")
         self.site_type, _ = LocationType.objects.get_or_create(name="Site")
-        self.site_type.parent = region_type
+        self.site_type.parent = self.region_type
         self.site_type.validated_save()
 
         self.adapter = MagicMock(spec=Adapter)
@@ -609,3 +609,56 @@ class TestEnsureLocation(TestCase):
 
         self.assertIsNone(result)
         self.assertEqual(ORMLocation.objects.count(), location_count)
+
+    def test_ensure_location_creates_site_under_existing_parent(self):
+        """A missing Site whose parent exists is created under that parent."""
+        region = ORMLocation.objects.create(name="Region 1", location_type=self.region_type, status=self.active_status)
+
+        result = ensure_location(location_data={"name": "Site 1", "parent": "Region 1"}, location_type=self.site_type)
+
+        self.assertEqual(result.parent, region)
+
+    def test_ensure_location_returns_none_when_parent_cannot_be_created(self):
+        """If the missing parent would itself be invalid, nothing is written."""
+        self.region_type.parent, _ = LocationType.objects.get_or_create(name="Country")
+        self.region_type.validated_save()
+        location_count = ORMLocation.objects.count()
+
+        result = ensure_location(location_data={"name": "Site 1", "parent": "Region 1"}, location_type=self.site_type)
+
+        self.assertIsNone(result)
+        self.assertEqual(ORMLocation.objects.count(), location_count)
+
+    def test_update_leaves_location_unchanged_when_unresolvable(self):
+        """If the new location can't be resolved, update() logs a warning and keeps the current location."""
+        self.adapter.job.sync_locations = True
+        self.active_status.content_types.add(ContentType.objects.get_for_model(ORMDevice))
+        self.site_type.content_types.add(ContentType.objects.get_for_model(ORMDevice))
+        manufacturer, _ = Manufacturer.objects.get_or_create(name="Generic")
+        device_type, _ = DeviceType.objects.get_or_create(model="Test Device Type", manufacturer=manufacturer)
+        role, _ = Role.objects.get_or_create(name="Test Role")
+        role.content_types.add(ContentType.objects.get_for_model(ORMDevice))
+
+        region = ORMLocation.objects.create(name="Region 1", location_type=self.region_type, status=self.active_status)
+        site = ORMLocation.objects.create(
+            name="Site 1", location_type=self.site_type, parent=region, status=self.active_status
+        )
+        orm_device = ORMDevice.objects.create(
+            name="test-device", device_type=device_type, status=self.active_status, role=role, location=site
+        )
+        diffsync_device = NautobotDevice(
+            name="test-device",
+            location="Site 1",
+            status="Active",
+            device_type="Test Device Type",
+            manufacturer="Generic",
+            system_of_record="LibreNMS",
+            uuid=orm_device.id,
+        )
+        diffsync_device.adapter = self.adapter
+
+        diffsync_device.update(attrs={"location": "Nowhere", "parent_location": None})
+
+        orm_device.refresh_from_db()
+        self.assertEqual(orm_device.location, site)
+        self.adapter.job.logger.warning.assert_called_once()
