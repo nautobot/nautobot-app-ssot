@@ -3,6 +3,7 @@
 import os
 from datetime import datetime
 
+from diffsync.exceptions import ObjectNotCreated
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from nautobot.dcim.models import Device as ORMDevice
@@ -214,10 +215,12 @@ def ensure_location(
     location_type: LocationType,
     parent_location_name: str = None,
     parent_location_type: LocationType = None,
+    create_if_missing: bool = True,
 ):
-    """Safely returns a Location."""
+    """Safely returns a Location, or None if a valid one could not be produced."""
     # Get or create an Active status for locations
     status, _ = Status.objects.get_or_create(name="Active")
+    parent_location = None
 
     # Extract location name and parent from location_data
     location_name = location_data.get("name")
@@ -274,22 +277,29 @@ def ensure_location(
             ).first()
             return existing_location
 
-    # If no existing location found, create a new one
+    # If no existing location found, create a new one (unless sync_locations is disabled)
+    if not create_if_missing:
+        return None
+
     if parent_location_name:
         # Use the parent_location we found earlier, or create it if it doesn't exist
-        if "parent_location" not in locals() or parent_location is None:
+        if parent_location is None:
             # Recursively ensure the parent location exists
             parent_location_data = {
                 "name": parent_location_name,
                 "parent": None,  # Parent locations don't have parents in this context
             }
             parent_location = ensure_location(location_data=parent_location_data, location_type=parent_location_type)
+            if parent_location is None:
+                return None
 
-        _location = ORMLocation.objects.create(
-            name=location_name, parent=parent_location, location_type=location_type, status=status
-        )
+        _location = ORMLocation(name=location_name, parent=parent_location, location_type=location_type, status=status)
     else:
-        _location = ORMLocation.objects.create(name=location_name, location_type=location_type, status=status)
+        _location = ORMLocation(name=location_name, location_type=location_type, status=status)
+    try:
+        _location.validated_save()
+    except ValidationError:
+        return None
     return _location
 
 
@@ -418,7 +428,19 @@ class NautobotDevice(Device):
             _ipaddress = ensure_ip_address(ip_address=ip_address, ip_prefix=ip_prefix, adapter=adapter)
 
         location_data = {"name": location_name, "parent": parent_location_name}
-        _location = ensure_location(location_data=location_data, location_type=adapter.job.location_type)
+        _location = ensure_location(
+            location_data=location_data,
+            location_type=adapter.job.location_type,
+            create_if_missing=adapter.job.sync_locations,
+        )
+        if _location is None:
+            _message = (
+                f'Device {ids["name"]}: could not resolve location "{location_name}" '
+                f"(parent: {parent_location_name}, location type: {adapter.job.location_type}, "
+                f"sync_locations: {adapter.job.sync_locations}). Skipping device."
+            )
+            adapter.job.logger.error(_message)
+            raise ObjectNotCreated(_message)
         if adapter.job.debug:
             adapter.job.logger.debug(f'Device Location {attrs["location"]}')
 
@@ -499,7 +521,14 @@ class NautobotDevice(Device):
             # Ensure the location exists with proper parent
             location_data = {"name": location_name, "parent": parent_location_name}
             _location = ensure_location(location_data=location_data, location_type=self.adapter.job.location_type)
-            device.location = _location
+            if _location is None:
+                self.adapter.job.logger.warning(
+                    f'Device {self.name}: could not resolve location "{location_name}" '
+                    f"(parent: {parent_location_name}) for location type "
+                    f"{self.adapter.job.location_type}. Leaving the existing location unchanged."
+                )
+            else:
+                device.location = _location
         if "serial_no" in attrs:
             device.serial = attrs["serial_no"]
         _platform_changed = False
