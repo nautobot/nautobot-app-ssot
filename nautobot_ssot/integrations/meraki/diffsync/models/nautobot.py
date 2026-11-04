@@ -230,6 +230,7 @@ class NautobotPort(Port):
         new_port = Interface(
             name=ids["name"],
             device_id=adapter.device_map[ids["device"]],
+            description=attrs.get("description") or "",
             enabled=attrs["enabled"],
             mode="access" if not attrs["tagging"] else "tagged",
             mgmt_only=attrs["management"],
@@ -245,6 +246,9 @@ class NautobotPort(Port):
     def update(self, attrs):
         """Update Interface in Nautobot from NautobotDevice object."""
         port = Interface.objects.get(id=self.uuid)
+        if "description" in attrs:
+            # Interface.description is non-nullable, so coerce None to "" as the Port model allows a null description.
+            port.description = attrs["description"] or ""
         if "enabled" in attrs:
             port.enabled = attrs["enabled"]
         if "tagging" in attrs:
