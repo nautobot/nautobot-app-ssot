@@ -31,13 +31,16 @@ class ProxmoxSyncTestMixin:
             job=MagicMock(), sync=MagicMock(), client=MagicMock(), config=self.config, cluster_filters=None
         )
 
-    def _nb_adapter(self):
+    def _nb_adapter(self, **kwargs):
         """Build a Nautobot adapter loaded from the current database state.
+
+        Args:
+            **kwargs: Extra NBAdapter arguments, such as ``cluster_name`` or ``skipped_vm_names``.
 
         Returns:
             NBAdapter: Loaded target adapter.
         """
-        nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
+        nb_adapter = NBAdapter(config=self.config, cluster_filters=None, **kwargs)
         nb_adapter.job = MagicMock()
         nb_adapter.load()
         return nb_adapter

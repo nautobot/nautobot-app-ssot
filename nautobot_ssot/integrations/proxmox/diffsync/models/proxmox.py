@@ -101,15 +101,14 @@ class IPAddressModel(ProxmoxModelDiffSync):
     interfaces: List[InterfaceDict] = []
 
     @classmethod
-    def get_queryset(cls, config, cluster_filters):  # pylint: disable=unused-argument
+    def get_queryset(cls, adapter):  # pylint: disable=unused-argument
         """Only load IP addresses previously synced from Proxmox VE.
 
         Scoped by the ``last_synced_from_proxmox_on`` custom field rather than the SSoT tag, which
         other integrations may delete.
 
         Args:
-            config (SSOTProxmoxConfig): The integration configuration object.
-            cluster_filters (QuerySet): Clusters the sync is scoped to, or an empty value for all.
+            adapter (NBAdapter): The Nautobot adapter loading the model.
 
         Returns:
             QuerySet: The IPAddress queryset to load.
@@ -194,26 +193,19 @@ class DeviceInterfaceModel(ProxmoxModelDiffSync):
             attrs (dict[str, Any]): The attributes being created/updated; link keys are popped from it.
         """
         link_keys = ("bridge__name", "lag__name", "parent_interface__name")
-        if any(key in attrs for key in link_keys):
-            adapter._interface_links.append(
-                {
-                    "device__name": ids["device__name"],
-                    "name": ids["name"],
-                    "bridge__name": attrs.pop("bridge__name", None),
-                    "lag__name": attrs.pop("lag__name", None),
-                    "parent_interface__name": attrs.pop("parent_interface__name", None),
-                }
-            )
+        # Only queue the keys in this diff; absent keys keep their current link.
+        links = {key: attrs.pop(key) for key in link_keys if key in attrs}
+        if links:
+            adapter._interface_links.append({"device__name": ids["device__name"], "name": ids["name"], **links})
 
     @classmethod
-    def get_queryset(cls, config, cluster_filters):  # pylint: disable=unused-argument
+    def get_queryset(cls, adapter):  # pylint: disable=unused-argument
         """Only load Interfaces on Devices previously synced from Proxmox VE.
 
         Scoped by the host Device's ``last_synced_from_proxmox_on`` custom field; Interfaces are not stamped.
 
         Args:
-            config (SSOTProxmoxConfig): The integration configuration object.
-            cluster_filters (QuerySet): Clusters the sync is scoped to, or an empty value for all.
+            adapter (NBAdapter): The Nautobot adapter loading the model.
 
         Returns:
             QuerySet: The Interface queryset to load.
@@ -258,6 +250,25 @@ class DeviceModel(ProxmoxModelDiffSync):
     interfaces: List[DeviceInterfaceModel] = []
 
     @classmethod
+    def _update_obj_with_parameters(cls, obj, parameters, adapter):
+        """Set the location and device type from the config's objects, then apply the other parameters.
+
+        Location names are unique only per parent and DeviceType models only per manufacturer, so the
+        config's exact objects are used instead of a lookup by name.
+
+        Args:
+            obj (Device): The Nautobot Device to update.
+            parameters (dict[str, Any]): The parameters to set on the Device.
+            adapter (Adapter): The adapter used to look up related objects in the cache.
+        """
+        parameters = dict(parameters)
+        if parameters.pop("location__name", None) is not None:
+            obj.location = adapter.config.default_location
+        if parameters.pop("device_type__model", None) is not None:
+            obj.device_type = adapter.config.default_device_type
+        super()._update_obj_with_parameters(obj, parameters, adapter)
+
+    @classmethod
     def create(cls, adapter, ids, attrs):
         """Create the node Device, deferring primary IP assignment until its IP exists.
 
@@ -282,20 +293,20 @@ class DeviceModel(ProxmoxModelDiffSync):
         Returns:
             DeviceModel: The updated Device model.
         """
-        if attrs.get("primary_ip4__host"):
+        # A None value is queued too, so a removed primary IP is cleared.
+        if "primary_ip4__host" in attrs:
             self.adapter._device_primary_ips.append({"name": self.name, "primary_ip4": attrs.pop("primary_ip4__host")})
         return super().update(attrs)
 
     @classmethod
-    def get_queryset(cls, config, cluster_filters):  # pylint: disable=unused-argument
+    def get_queryset(cls, adapter):  # pylint: disable=unused-argument
         """Only load Devices previously synced from Proxmox VE.
 
         Scoped by the ``last_synced_from_proxmox_on`` custom field rather than the SSoT tag, which
         other integrations may delete.
 
         Args:
-            config (SSOTProxmoxConfig): The integration configuration object.
-            cluster_filters (QuerySet): Clusters the sync is scoped to, or an empty value for all.
+            adapter (NBAdapter): The Nautobot adapter loading the model.
 
         Returns:
             QuerySet: The Device queryset to load.
@@ -352,14 +363,11 @@ class VirtualMachineModel(ProxmoxModelDiffSync):
         Returns:
             VirtualMachineModel: The created VM model.
         """
-        if attrs.get("primary_ip4__host") or attrs.get("primary_ip6__host"):
-            adapter._primary_ips.append(
-                {
-                    "device": {**ids},
-                    "primary_ip4": attrs.pop("primary_ip4__host", None),
-                    "primary_ip6": attrs.pop("primary_ip6__host", None),
-                }
-            )
+        primary_ips = cls._pop_primary_ips(attrs)
+        # A new VM has nothing to clear, so only queue set values.
+        primary_ips = {key: value for key, value in primary_ips.items() if value}
+        if primary_ips:
+            adapter._primary_ips.append({"device": {**ids}, **primary_ips})
         # Drop a None host_device so contrib doesn't build a relationship from a missing value.
         if attrs.get("host_device") is None:
             attrs.pop("host_device", None)
@@ -374,37 +382,52 @@ class VirtualMachineModel(ProxmoxModelDiffSync):
         Returns:
             VirtualMachineModel: The updated VM model.
         """
-        if attrs.get("primary_ip4__host") or attrs.get("primary_ip6__host"):
+        # A None value is queued too, so a removed primary IP is cleared.
+        primary_ips = self._pop_primary_ips(attrs)
+        if primary_ips:
             self.adapter._primary_ips.append(
-                {
-                    "device": {"name": self.name, "cluster__name": self.cluster__name},
-                    "primary_ip4": attrs.pop("primary_ip4__host", None),
-                    "primary_ip6": attrs.pop("primary_ip6__host", None),
-                }
+                {"device": {"name": self.name, "cluster__name": self.cluster__name}, **primary_ips}
             )
         if "host_device" in attrs and attrs["host_device"] is None:
             attrs.pop("host_device")
         return super().update(attrs)
 
-    @classmethod
-    def get_queryset(cls, config, cluster_filters):  # pylint: disable=unused-argument
-        """Load existing Proxmox-synced VMs, optionally scoped to selected clusters.
-
-        Scoped by the ``last_synced_from_proxmox_on`` custom field rather than the SSoT tag, which
-        other integrations may delete.
+    @staticmethod
+    def _pop_primary_ips(attrs):
+        """Pop the primary IP attributes present in ``attrs``.
 
         Args:
-            config (SSOTProxmoxConfig): The integration configuration object.
-            cluster_filters (QuerySet): Clusters the sync is scoped to, or an empty value for all.
+            attrs (dict[str, Any]): The attributes being created/updated; primary IP keys are popped from it.
+
+        Returns:
+            dict[str, Optional[str]]: ``primary_ip4``/``primary_ip6`` mapped to their host, for keys in ``attrs``.
+        """
+        return {
+            field: attrs.pop(f"{field}__host") for field in ("primary_ip4", "primary_ip6") if f"{field}__host" in attrs
+        }
+
+    @classmethod
+    def get_queryset(cls, adapter):
+        """Load existing Proxmox-synced VMs in the cluster this sync reads from Proxmox VE.
+
+        Scoped by the ``last_synced_from_proxmox_on`` custom field rather than the SSoT tag, which
+        other integrations may delete. Limiting to the source cluster keeps VMs from other Proxmox VE
+        configs out of the diff, and VMs the source adapter skipped are left out so they stay unchanged.
+
+        Args:
+            adapter (NBAdapter): The Nautobot adapter loading the model.
 
         Returns:
             QuerySet: The VirtualMachine queryset to load.
         """
-        if cluster_filters:
-            return cls._model.objects.filter(
-                _custom_field_data__has_key=SSOT_CUSTOM_FIELD_KEY, cluster__in=cluster_filters
-            )
-        return cls._model.objects.filter(_custom_field_data__has_key=SSOT_CUSTOM_FIELD_KEY)
+        queryset = cls._model.objects.filter(_custom_field_data__has_key=SSOT_CUSTOM_FIELD_KEY)
+        if adapter.cluster_name is not None:
+            queryset = queryset.filter(cluster__name=adapter.cluster_name)
+        if adapter.cluster_filters:
+            queryset = queryset.filter(cluster__in=adapter.cluster_filters)
+        if adapter.skipped_vm_names:
+            queryset = queryset.exclude(name__in=adapter.skipped_vm_names)
+        return queryset
 
 
 class ClusterModel(ProxmoxModelDiffSync):
@@ -425,18 +448,17 @@ class ClusterModel(ProxmoxModelDiffSync):
     cluster_group__name: Optional[str] = None
 
     @classmethod
-    def get_queryset(cls, config, cluster_filters):
+    def get_queryset(cls, adapter):
         """Return the queryset for the model, honoring cluster filters.
 
         Args:
-            config (SSOTProxmoxConfig): The integration configuration object.
-            cluster_filters (QuerySet): Clusters the sync is scoped to, or an empty value for all.
+            adapter (NBAdapter): The Nautobot adapter loading the model.
 
         Returns:
             QuerySet: The Cluster queryset to load.
         """
-        if cluster_filters:
-            return cluster_filters
+        if adapter.cluster_filters:
+            return adapter.cluster_filters
         return cls._model.objects.all()
 
 
@@ -457,6 +479,9 @@ class ClusterGroupModel(ProxmoxModelDiffSync):
 
 class TagModel(ProxmoxModelDiffSync):
     """Tag DiffSync model."""
+
+    # Tags are shared with users and other integrations, so the sync only creates or updates them.
+    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
     _model = Tag
     _modelname = "tag"

@@ -7,6 +7,7 @@ from .proxmox_fixtures import (
     _get_device_interface_dict,
     _get_node_device_dict,
     _get_virtual_machine_dict,
+    _get_vm_interface_dict,
 )
 
 
@@ -40,6 +41,23 @@ class TestProxmoxNautobotAdapter(ProxmoxSyncTestMixin, TestCase):
         self.assertEqual(vm.name, "web01")
         interface = nb_adapter.get(nb_adapter.device_interface, {"name": "eth0", "device__name": "pve1"})
         self.assertEqual(interface.mtu, 1500)
+
+    def test_empty_mac_address_loads_as_none(self):
+        """A VMInterface without a MAC address loads as None, matching the source adapter."""
+        source = self._source()
+        self._seed_cluster(source)
+        vm = source.virtual_machine(**_get_virtual_machine_dict({"name": "web01"}))
+        interface = source.interface(
+            **_get_vm_interface_dict({"name": "net0", "virtual_machine__name": "web01", "mac_address": None})
+        )
+        source.add(vm)
+        source.add(interface)
+        vm.add_child(interface)
+        source.sync_to(self._nb_adapter())
+
+        nb_adapter = self._nb_adapter()
+        loaded = nb_adapter.get(nb_adapter.interface, {"name": "net0", "virtual_machine__name": "web01"})
+        self.assertIsNone(loaded.mac_address)
 
     def test_sync_complete_is_noop_without_deferred_items(self):
         """sync_complete handles empty deferred queues without error."""

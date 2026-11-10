@@ -45,6 +45,7 @@ class ProxmoxConfig:  # pylint: disable=too-many-instance-attributes
     sync_nodes_as_devices: bool
     sync_proxmox_tags: bool
     debug: bool
+    timeout: int = 30
 
 
 class ProxmoxClient:
@@ -75,6 +76,7 @@ class ProxmoxClient:
             token_value=config.token_secret,
             verify_ssl=config.verify_ssl,
             service="PVE",
+            timeout=config.timeout,
         )
         self._authenticate()
 
@@ -143,13 +145,13 @@ class ProxmoxClient:
             node (str): The node name.
 
         Returns:
-            list: The interface entries, or an empty list if the endpoint is unavailable.
+            Optional[list]: The interface entries, or ``None`` if the endpoint is unavailable.
         """
         try:
             return self.api.nodes(node).network.get()
         except (ResourceException, OSError) as err:
             LOGGER.debug("Unable to read network config for node %s: %s", node, err)
-            return []
+            return None
 
     def get_node_status(self, node):
         """Return node hardware and version details from ``/nodes/{node}/status``.
@@ -158,13 +160,13 @@ class ProxmoxClient:
             node (str): The node name.
 
         Returns:
-            dict: The node status, or an empty dict if the endpoint is unavailable.
+            Optional[dict]: The node status, or ``None`` if the endpoint is unavailable.
         """
         try:
             return self.api.nodes(node).status.get()
         except (ResourceException, OSError) as err:
             LOGGER.debug("Unable to read status for node %s: %s", node, err)
-            return {}
+            return None
 
     def get_qemu_config(self, node, vmid):
         """Return a QEMU VM's configuration.
@@ -174,9 +176,13 @@ class ProxmoxClient:
             vmid (int): The VM ID.
 
         Returns:
-            dict: The VM configuration.
+            Optional[dict]: The VM configuration, or ``None`` if it could not be read.
         """
-        return self.api.nodes(node).qemu(vmid).config.get()
+        try:
+            return self.api.nodes(node).qemu(vmid).config.get()
+        except (ResourceException, OSError) as err:
+            LOGGER.debug("Unable to read config for VM %s on node %s: %s", vmid, node, err)
+            return None
 
     def get_lxc_config(self, node, vmid):
         """Return an LXC container's configuration.
@@ -186,9 +192,13 @@ class ProxmoxClient:
             vmid (int): The container ID.
 
         Returns:
-            dict: The container configuration.
+            Optional[dict]: The container configuration, or ``None`` if it could not be read.
         """
-        return self.api.nodes(node).lxc(vmid).config.get()
+        try:
+            return self.api.nodes(node).lxc(vmid).config.get()
+        except (ResourceException, OSError) as err:
+            LOGGER.debug("Unable to read config for container %s on node %s: %s", vmid, node, err)
+            return None
 
     def get_qemu_agent_interfaces(self, node, vmid):
         """Return a QEMU VM's network interfaces as reported by the guest agent.

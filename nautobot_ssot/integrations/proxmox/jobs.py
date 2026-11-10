@@ -59,6 +59,7 @@ def _get_proxmox_client_config(app_config, debug):
         sync_nodes_as_devices=app_config.sync_nodes_as_devices,
         sync_proxmox_tags=app_config.sync_proxmox_tags,
         debug=debug,
+        timeout=app_config.proxmox_instance.timeout,
     )
     return proxmox_client_config
 
@@ -162,6 +163,9 @@ class ProxmoxDataSource(DataSource):  # pylint: disable=too-many-instance-attrib
             sync=self.sync,
             config=self.config,
             cluster_filters=self.cluster_filters,
+            # The source adapter loads first; these limit the Nautobot side to the same VMs.
+            cluster_name=self.source_adapter.cluster_name,
+            skipped_vm_names=self.source_adapter.skipped_vm_names,
         )
         self.logger.info("Loading current data from Nautobot...")
         self.target_adapter.load()

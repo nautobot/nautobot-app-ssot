@@ -302,6 +302,67 @@ class TestProxmoxAdapter(unittest.TestCase):
         self.assertEqual(adapter.cluster_name, config.default_cluster_name)
         self.assertIsNotNone(adapter.get("cluster", config.default_cluster_name))
 
+    def _load(self, cluster_filters=None):
+        """Build and load an adapter with the current client mocks.
+
+        Args:
+            cluster_filters (Optional[list]): Clusters to limit the sync to.
+
+        Returns:
+            ProxmoxDiffSync: The loaded adapter.
+        """
+        adapter = ProxmoxDiffSync(
+            job=MagicMock(),
+            sync=MagicMock(),
+            client=self.client,
+            config=_default_config(),
+            cluster_filters=cluster_filters,
+        )
+        adapter.load()
+        return adapter
+
+    def test_offline_node_is_skipped(self):
+        """A node not reported as online is not loaded."""
+        self.client.get_nodes.return_value = [
+            {"node": "pve1", "status": "online"},
+            {"node": "pve2", "status": "offline"},
+        ]
+        adapter = self._load()
+        names = [device.name for device in adapter.get_all("device")]
+        self.assertIn("pve1", names)
+        self.assertNotIn("pve2", names)
+
+    def test_node_skipped_when_network_unreadable(self):
+        """A node whose network config cannot be read is not loaded."""
+        network = json_fixture(f"{real_path}/node_network.json")
+        self.client.get_node_network.side_effect = lambda node: None if node == "pve2" else network
+        adapter = self._load()
+        names = [device.name for device in adapter.get_all("device")]
+        self.assertIn("pve1", names)
+        self.assertNotIn("pve2", names)
+        self.assertEqual([iface for iface in adapter.get_all("device_interface") if iface.device__name == "pve2"], [])
+
+    def test_vm_skipped_when_config_unreadable(self):
+        """A VM whose config cannot be read is not loaded and is recorded as skipped."""
+        self.client.get_lxc_config.return_value = None
+        adapter = self._load()
+        names = [vm.name for vm in adapter.get_all("virtual_machine")]
+        self.assertIn("web01", names)
+        self.assertNotIn("ct-dns", names)
+        self.assertEqual(adapter.skipped_vm_names, {"ct-dns"})
+
+    def test_cluster_filter_excluding_cluster_skips_vms(self):
+        """VMs are not loaded when the cluster filters do not include this cluster."""
+        self.client.get_resources.reset_mock()
+        adapter = self._load(cluster_filters=[SimpleNamespace(name="other-cluster")])
+        self.assertEqual(list(adapter.get_all("virtual_machine")), [])
+        self.client.get_resources.assert_not_called()
+
+    def test_cluster_filter_including_cluster_loads_vms(self):
+        """VMs are loaded when the cluster filters include this cluster."""
+        adapter = self._load(cluster_filters=[SimpleNamespace(name="pve-cluster")])
+        self.assertIn("web01", [vm.name for vm in adapter.get_all("virtual_machine")])
+
 
 class TestProxmoxHelpers(unittest.TestCase):
     """Test cases for the Proxmox adapter helper functions."""

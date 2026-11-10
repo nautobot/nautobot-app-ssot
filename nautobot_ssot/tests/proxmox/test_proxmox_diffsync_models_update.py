@@ -1,8 +1,8 @@
 """Update-path tests for the Proxmox VE DiffSync models (DB-backed)."""
 
 from nautobot.apps.testing import TestCase
-from nautobot.dcim.models import Interface
-from nautobot.extras.models import Tag
+from nautobot.dcim.models import Device, Interface, Location, LocationType
+from nautobot.extras.models import Status, Tag
 from nautobot.virtualization.models import VirtualMachine
 
 from nautobot_ssot.integrations.proxmox.constants import SSOT_TAG_NAME
@@ -140,6 +140,99 @@ class TestProxmoxDiffSyncModelsUpdate(ProxmoxSyncTestMixin, TestCase):
 
         updated_eth0 = Interface.objects.get(device__name="pve1", name="eth0")
         self.assertEqual(updated_eth0.bridge.name, "vmbr0")
+
+    def test_update_virtual_machine_primary_ip_removed(self):
+        """Removing the primary IPv4 while changing the primary IPv6 clears the IPv4 and sets the new IPv6."""
+
+        def build(source, ip4, ip6):
+            self._seed_cluster(source)
+            vm = source.virtual_machine(
+                **_get_virtual_machine_dict({"name": "web01", "primary_ip4__host": ip4, "primary_ip6__host": ip6})
+            )
+            interface = source.interface(**_get_vm_interface_dict({"name": "net0", "virtual_machine__name": "web01"}))
+            source.add(vm)
+            source.add(interface)
+            vm.add_child(interface)
+            assigned = [{"name": "net0", "virtual_machine__name": "web01"}]
+            for host, mask, network in ((ip4, 24, "10.0.10.0"), (ip6, 64, "2001:db8::")):
+                if host is None:
+                    continue
+                source.add(
+                    source.ip_address(
+                        host=host, mask_length=mask, status__name="Active", vm_interfaces=assigned, interfaces=[]
+                    )
+                )
+                source.add(
+                    source.prefix(
+                        network=network,
+                        prefix_length=mask,
+                        namespace__name="Global",
+                        status__name="Active",
+                        type="network",
+                    )
+                )
+
+        source = self._source()
+        build(source, ip4="10.0.10.50", ip6="2001:db8::50")
+        source.sync_to(self._nb_adapter())
+        vm = VirtualMachine.objects.get(name="web01")
+        self.assertEqual(vm.primary_ip4.host, "10.0.10.50")
+        self.assertEqual(vm.primary_ip6.host, "2001:db8::50")
+
+        source2 = self._source()
+        build(source2, ip4=None, ip6="2001:db8::51")
+        source2.sync_to(self._nb_adapter())
+
+        vm = VirtualMachine.objects.get(name="web01")
+        self.assertIsNone(vm.primary_ip4)
+        self.assertEqual(vm.primary_ip6.host, "2001:db8::51")
+
+    def test_update_device_interface_link_keeps_other_links(self):
+        """Removing one link on re-sync leaves the interface's other links in place."""
+
+        def build(source, bridge):
+            self._seed_cluster(source)
+            device = source.device(**_get_node_device_dict({"name": "pve1"}))
+            source.add(device)
+            for attrs in (
+                {"name": "eth0"},
+                {"name": "vmbr0", "type": "bridge"},
+                {"name": "eth0.10", "type": "virtual", "parent_interface__name": "eth0", "bridge__name": bridge},
+            ):
+                interface = source.device_interface(**_get_device_interface_dict({"device__name": "pve1", **attrs}))
+                source.add(interface)
+                device.add_child(interface)
+
+        source = self._source()
+        build(source, bridge="vmbr0")
+        source.sync_to(self._nb_adapter())
+        vlan = Interface.objects.get(device__name="pve1", name="eth0.10")
+        self.assertEqual(vlan.bridge.name, "vmbr0")
+        self.assertEqual(vlan.parent_interface.name, "eth0")
+
+        source2 = self._source()
+        build(source2, bridge=None)
+        source2.sync_to(self._nb_adapter())
+        vlan = Interface.objects.get(device__name="pve1", name="eth0.10")
+        self.assertIsNone(vlan.bridge)
+        self.assertEqual(vlan.parent_interface.name, "eth0")
+
+    def test_device_uses_config_location_when_name_is_shared(self):
+        """The node Device gets the config's Location even when another Location has the same name."""
+        active = Status.objects.get(name="Active")
+        region_type = LocationType.objects.create(name="Test Region")
+        site_type = LocationType.objects.create(name="Test Site", parent=region_type)
+        region = Location.objects.create(name="Test Region 1", location_type=region_type, status=active)
+        Location.objects.create(
+            name=self.config.default_location.name, location_type=site_type, parent=region, status=active
+        )
+
+        source = self._source()
+        self._seed_cluster(source)
+        source.add(source.device(**_get_node_device_dict({"name": "pve1"})))
+        source.sync_to(self._nb_adapter())
+
+        self.assertEqual(Device.objects.get(name="pve1").location, self.config.default_location)
 
     def test_tag_model_update(self):
         """Changing a Tag's description on re-sync updates the Nautobot Tag."""

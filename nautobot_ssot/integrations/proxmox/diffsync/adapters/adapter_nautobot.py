@@ -40,7 +40,9 @@ class NBAdapter(NautobotAdapter):
     interface = VMInterfaceModel
     ip_address = IPAddressModel
 
-    def __init__(self, *args, job=None, sync=None, config, cluster_filters, **kwargs):
+    def __init__(
+        self, *args, job=None, sync=None, config, cluster_filters, cluster_name=None, skipped_vm_names=(), **kwargs
+    ):
         """Initialize the adapter.
 
         Args:
@@ -48,10 +50,15 @@ class NBAdapter(NautobotAdapter):
             sync (Sync): The Sync record for this run.
             config (SSOTProxmoxConfig): The integration config.
             cluster_filters (QuerySet): Clusters to limit the sync to.
+            cluster_name (Optional[str]): The Cluster the source adapter loaded VMs into; VMs are limited to it.
+                ``None`` loads VMs from every Cluster.
+            skipped_vm_names (Iterable[str]): VMs the source adapter could not read; they are not loaded.
         """
         super().__init__(*args, job=job, sync=sync, **kwargs)
         self.config = config
         self.cluster_filters = cluster_filters
+        self.cluster_name = cluster_name
+        self.skipped_vm_names = set(skipped_vm_names)
         self._primary_ips = []
         self._device_primary_ips = []
         self._interface_links = []
@@ -64,9 +71,10 @@ class NBAdapter(NautobotAdapter):
             database_object (Model): The ORM object to read from.
 
         Returns:
-            str: The MAC address as a string.
+            Optional[str]: The MAC address as a string, or ``None`` if it is not set.
         """
-        return str(getattr(database_object, parameter_name))
+        value = getattr(database_object, parameter_name)
+        return str(value) if value else None
 
     def _safe_get(self, model, lookup_kwargs, not_found_message, multiple_message=None):
         """Get a single object, logging a warning if it cannot be found.
@@ -127,15 +135,20 @@ class NBAdapter(NautobotAdapter):
             if vm is None:
                 continue
             for ip in ["primary_ip4", "primary_ip6"]:
-                if info[ip]:
-                    ip_obj = self._safe_get(
-                        IPAddress,
-                        {"host": info[ip]},
-                        f"IPAddress {info[ip]} not found for {vm}, skipping {ip} assignment.",
-                        f"Multiple IPAddresses found for host {info[ip]} on {vm}, skipping {ip} assignment.",
-                    )
-                    if ip_obj is not None:
-                        setattr(vm, ip, ip_obj)
+                # Absent keys were not in the diff; a None value clears the primary IP.
+                if ip not in info:
+                    continue
+                if info[ip] is None:
+                    setattr(vm, ip, None)
+                    continue
+                ip_obj = self._safe_get(
+                    IPAddress,
+                    {"host": info[ip]},
+                    f"IPAddress {info[ip]} not found for {vm}, skipping {ip} assignment.",
+                    f"Multiple IPAddresses found for host {info[ip]} on {vm}, skipping {ip} assignment.",
+                )
+                if ip_obj is not None:
+                    setattr(vm, ip, ip_obj)
             self._safe_validated_save(vm, f"set primary IP {info} on {vm}")
 
         self._link_node_interfaces()
@@ -158,7 +171,10 @@ class NBAdapter(NautobotAdapter):
                 continue
             changed = False
             for source_key, field_name in relation_fields.items():
-                target_name = link.get(source_key)
+                # Keys not in the diff keep their current link.
+                if source_key not in link:
+                    continue
+                target_name = link[source_key]
                 current = getattr(interface, field_name)
                 if target_name:
                     related = self._safe_get(
@@ -188,6 +204,10 @@ class NBAdapter(NautobotAdapter):
             )
             if device is None:
                 continue
+            if info["primary_ip4"] is None:
+                device.primary_ip4 = None
+                self._safe_validated_save(device, f"clear primary IP on {device}")
+                continue
             ip_obj = self._safe_get(
                 IPAddress,
                 {"host": info["primary_ip4"]},
@@ -206,5 +226,5 @@ class NBAdapter(NautobotAdapter):
             diffsync_model (Type[DiffSyncModel]): The DiffSync model class to load.
         """
         parameter_names = self._get_parameter_names(diffsync_model)
-        for database_object in diffsync_model._get_queryset(self.config, self.cluster_filters):
+        for database_object in diffsync_model._get_queryset(self):
             self._load_single_object(database_object, diffsync_model, parameter_names)

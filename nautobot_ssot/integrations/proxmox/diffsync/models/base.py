@@ -72,12 +72,11 @@ class ProxmoxModelDiffSync(NautobotModel):
         nautobot_object.validated_save()
 
     @classmethod
-    def _get_queryset(cls, config, cluster_filters):
+    def _get_queryset(cls, adapter):
         """Return the load queryset with foreign-key fields prefetched.
 
         Args:
-            config (SSOTProxmoxConfig): The integration configuration object.
-            cluster_filters (QuerySet): Clusters the sync is scoped to, or an empty value for all.
+            adapter (NBAdapter): The Nautobot adapter loading the model.
 
         Returns:
             QuerySet: The prefetched queryset to load the model from.
@@ -87,16 +86,15 @@ class ProxmoxModelDiffSync(NautobotModel):
             parameter for parameter in list(cls._identifiers) + list(cls._attributes) if parameter in available_fields
         ]
         prefetch_related_parameters = [parameter.split("__")[0] for parameter in parameter_names if "__" in parameter]
-        qs = cls.get_queryset(config, cluster_filters)
+        qs = cls.get_queryset(adapter)
         return qs.prefetch_related(*prefetch_related_parameters)
 
     @classmethod
-    def get_queryset(cls, config, cluster_filters):  # pylint: disable=unused-argument
+    def get_queryset(cls, adapter):  # pylint: disable=unused-argument
         """Return the queryset used to load the model.
 
         Args:
-            config (SSOTProxmoxConfig): The integration configuration object.
-            cluster_filters (QuerySet): Clusters the sync is scoped to, or an empty value for all.
+            adapter (NBAdapter): The Nautobot adapter loading the model.
 
         Returns:
             QuerySet: The queryset to load the model from.

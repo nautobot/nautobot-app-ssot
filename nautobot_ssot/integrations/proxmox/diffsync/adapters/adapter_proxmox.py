@@ -146,6 +146,8 @@ class ProxmoxDiffSync(Adapter):
         # Proxmox node name -> management IP from /cluster/status, preferred as the node primary IP.
         self.node_mgmt_ip = {}
         self.cluster_name = None
+        # VMs whose config could not be read; the Nautobot adapter leaves them out so they stay unchanged.
+        self.skipped_vm_names = set()
 
     def load_clusters(self) -> None:
         """Load the Cluster Group and Cluster from Proxmox VE cluster status."""
@@ -181,7 +183,15 @@ class ProxmoxDiffSync(Adapter):
             node_name = node.get("node")
             if not node_name:
                 continue
+            # A skipped node's Device is not in the source, so it and its interfaces stay unchanged.
+            if node.get("status") != "online":
+                self.job.logger.warning(f"Node {node_name} is {node.get('status')}, skipping.")
+                continue
             node_status = self.client.get_node_status(node_name)
+            node_network = self.client.get_node_network(node_name)
+            if node_status is None or node_network is None:
+                self.job.logger.warning(f"Unable to read status or network config for node {node_name}, skipping.")
+                continue
             memory_total = (node_status.get("memory") or {}).get("total")
             diffsync_device, _ = self.get_or_instantiate(
                 self.device,
@@ -198,16 +208,16 @@ class ProxmoxDiffSync(Adapter):
                 },
             )
             self.node_device_map[node_name] = node_name
-            self.load_node_interfaces(node_name, diffsync_device)
+            self.load_node_interfaces(node_name, diffsync_device, node_network)
 
-    def load_node_interfaces(self, node_name: str, diffsync_device: DeviceModel) -> None:
+    def load_node_interfaces(self, node_name: str, diffsync_device: DeviceModel, interfaces: List[dict]) -> None:
         """Load a node's network interfaces (with topology + IPs) as DCIM Interfaces on its Device.
 
         Args:
             node_name (str): The Proxmox VE node name.
             diffsync_device (DeviceModel): The node's Device DiffSync model.
+            interfaces (List[dict]): The node's ``/nodes/{node}/network`` entries.
         """
-        interfaces = self.client.get_node_network(node_name)
         self.job.log_debug(message=f"Loading network interfaces for node {node_name}: {interfaces}")
 
         # First pass: map each member interface to its bridge, bond, or VLAN parent.
@@ -321,6 +331,9 @@ class ProxmoxDiffSync(Adapter):
 
     def load_virtual_machines(self) -> None:
         """Load QEMU VMs (and LXC containers if enabled) from /cluster/resources."""
+        if self.cluster_filters and self.cluster_name not in {cluster.name for cluster in self.cluster_filters}:
+            self.job.logger.info(f"Cluster '{self.cluster_name}' is not in the selected Cluster Filters, skipping VMs.")
+            return
         resources = self.client.get_resources(resource_type="vm")
         for resource in resources:
             resource_type = resource.get("type")
@@ -338,6 +351,13 @@ class ProxmoxDiffSync(Adapter):
             status_name = self.config.default_vm_status_map.get(status_key)
             if not status_name:
                 self.job.logger.warning(f"Unknown Proxmox VM status '{status_key}' for {name}, skipping.")
+                continue
+
+            # Read the config first, so an unreadable VM is skipped rather than synced without interfaces.
+            vm_config = self._get_vm_config(resource)
+            if vm_config is None:
+                self.job.logger.warning(f"Unable to read config for {name} on node {node}, skipping.")
+                self.skipped_vm_names.add(name)
                 continue
 
             attrs = {
@@ -362,13 +382,27 @@ class ProxmoxDiffSync(Adapter):
                 )
                 continue
 
-            self.load_vm_interfaces(resource, diffsync_vm)
+            self.load_vm_interfaces(resource, vm_config, diffsync_vm)
 
-    def load_vm_interfaces(self, resource: dict, diffsync_vm: VirtualMachineModel) -> None:
+    def _get_vm_config(self, resource: dict) -> Optional[dict]:
+        """Return a VM's QEMU or LXC config.
+
+        Args:
+            resource (dict): The Proxmox VE VM/container resource entry.
+
+        Returns:
+            Optional[dict]: The VM config, or ``None`` if it could not be read.
+        """
+        if resource.get("type") == "qemu":
+            return self.client.get_qemu_config(resource.get("node"), resource.get("vmid"))
+        return self.client.get_lxc_config(resource.get("node"), resource.get("vmid"))
+
+    def load_vm_interfaces(self, resource: dict, vm_config: dict, diffsync_vm: VirtualMachineModel) -> None:
         """Load interfaces and IPs for a VM using the QEMU or LXC code path.
 
         Args:
             resource (dict): The Proxmox VE VM/container resource entry.
+            vm_config (dict): The VM's QEMU or LXC config.
             diffsync_vm (VirtualMachineModel): The VM DiffSync model to attach interfaces to.
         """
         node = resource.get("node")
@@ -376,13 +410,11 @@ class ProxmoxDiffSync(Adapter):
         resource_type = resource.get("type")
 
         if resource_type == "qemu":
-            vm_config = self.client.get_qemu_config(node, vmid)
             agent_interfaces = []
             if resource.get("status") == "running":
                 agent_interfaces = self.client.get_qemu_agent_interfaces(node, vmid)
             self._load_qemu_interfaces(vm_config, agent_interfaces, diffsync_vm)
         else:
-            vm_config = self.client.get_lxc_config(node, vmid)
             self._load_lxc_interfaces(vm_config, diffsync_vm)
 
     def _instantiate_interface(self, name: str, mac: Optional[str], diffsync_vm: VirtualMachineModel):

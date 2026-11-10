@@ -29,6 +29,7 @@ def _config(token_id="svc@pve!nautobot"):
         sync_nodes_as_devices=True,
         sync_proxmox_tags=True,
         debug=False,
+        timeout=60,
     )
 
 
@@ -73,16 +74,22 @@ class TestProxmoxClient(unittest.TestCase):
         self.assertEqual(client.get_qemu_agent_interfaces("pve1", 100), [])
 
     def test_get_node_network_swallows_errors(self, mock_api):
-        """Network read failures return an empty list instead of raising."""
+        """Network read failures return None instead of raising."""
         client = ProxmoxClient(_config())
         mock_api.return_value.nodes.return_value.network.get.side_effect = OSError("boom")
-        self.assertEqual(client.get_node_network("pve1"), [])
+        self.assertIsNone(client.get_node_network("pve1"))
 
     def test_get_node_status_swallows_errors(self, mock_api):
-        """Status read failures return an empty dict instead of raising."""
+        """Status read failures return None instead of raising."""
         client = ProxmoxClient(_config())
         mock_api.return_value.nodes.return_value.status.get.side_effect = OSError("boom")
-        self.assertEqual(client.get_node_status("pve1"), {})
+        self.assertIsNone(client.get_node_status("pve1"))
+
+    def test_timeout_passed_to_proxmoxer(self, mock_api):
+        """The configured timeout is passed to ProxmoxAPI."""
+        ProxmoxClient(_config())
+        _, kwargs = mock_api.call_args
+        self.assertEqual(kwargs["timeout"], 60)
 
     def test_passthrough_calls(self, mock_api):
         """Cluster/resource/node reads delegate to the proxmoxer client."""
@@ -92,19 +99,17 @@ class TestProxmoxClient(unittest.TestCase):
         mock_api.return_value.cluster.resources.get.assert_called_with(type="vm")
         self.assertIsInstance(client.api, MagicMock)
 
-    def test_get_qemu_config_propagates_exception(self, mock_api):
-        """get_qemu_config() propagates API errors."""
+    def test_get_qemu_config_swallows_errors(self, mock_api):
+        """QEMU config read failures return None instead of raising."""
         client = ProxmoxClient(_config())
         mock_api.return_value.nodes.return_value.qemu.return_value.config.get.side_effect = OSError("boom")
-        with self.assertRaises(OSError):
-            client.get_qemu_config("pve1", 100)
+        self.assertIsNone(client.get_qemu_config("pve1", 100))
 
-    def test_get_lxc_config_propagates_exception(self, mock_api):
-        """get_lxc_config() propagates API errors."""
+    def test_get_lxc_config_swallows_errors(self, mock_api):
+        """LXC config read failures return None instead of raising."""
         client = ProxmoxClient(_config())
         mock_api.return_value.nodes.return_value.lxc.return_value.config.get.side_effect = OSError("boom")
-        with self.assertRaises(OSError):
-            client.get_lxc_config("pve1", 100)
+        self.assertIsNone(client.get_lxc_config("pve1", 100))
 
     def test_get_cluster_status_propagates_exception(self, mock_api):
         """get_cluster_status() propagates API errors."""
