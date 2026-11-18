@@ -438,7 +438,7 @@ class IpFabricDataSource(DataSource):
         if not dryrun:
             self.logger.info("Syncing from IP Fabric to Nautobot")
             try:
-                dest.sync_from(ipfabric_source, flags=DiffSyncFlags.CONTINUE_ON_FAILURE)
+                dest.sync_from(ipfabric_source, flags=DiffSyncFlags.CONTINUE_ON_FAILURE, diff=diff)
             except ObjectNotCreated:
                 self.logger.debug("Unable to create object.", exc_info=True)
 
