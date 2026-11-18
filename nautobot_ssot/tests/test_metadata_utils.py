@@ -4,6 +4,7 @@ from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from django.utils.dateparse import parse_datetime
 from nautobot.apps.testing import TestCase
 from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.management import populate_status_choices
@@ -61,7 +62,7 @@ class TestAddOrUpdateMetadataOnObject(TestCase):
         metadata_type = MetadataType.objects.get(name=METADATA_TYPE_NAME)
         self.assertEqual(metadata_type.data_type, MetadataTypeDataTypeChoices.TYPE_DATETIME)
         stored = ObjectMetadata.objects.get(pk=metadata.pk)
-        self.assertIsInstance(datetime.fromisoformat(str(stored.value)), datetime)
+        self.assertIsInstance(parse_datetime(str(stored.value)), datetime)
         self.assertEqual(sorted(stored.scoped_fields), sorted(SCOPED_FIELDS["dcim.location"]))
         self.job.logger.info.assert_not_called()
 
