@@ -200,7 +200,7 @@ class SlurpitAdapterHelpersTestCase(TestCase):
         self.assertEqual("IPv4", device.family)
 
     def test_get_primary_ip(self):
-        """Test get_primary_ip() handles IPv4, IPv6, prefix notation and missing or invalid addresses."""
+        """Test _get_primary_ip() handles IPv4, IPv6, prefix notation and missing or invalid addresses."""
         cases = {
             "10.10.20.175": ipaddress.ip_address("10.10.20.175"),
             "10.10.20.175/24": ipaddress.ip_address("10.10.20.175"),
@@ -211,4 +211,4 @@ class SlurpitAdapterHelpersTestCase(TestCase):
         }
         for address, expected in cases.items():
             with self.subTest(address=address):
-                self.assertEqual(expected, SlurpitAdapter.get_primary_ip(MagicMock(address=address)))
+                self.assertEqual(expected, SlurpitAdapter._get_primary_ip(MagicMock(address=address)))  # pylint: disable=protected-access

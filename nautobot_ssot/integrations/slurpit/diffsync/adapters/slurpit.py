@@ -340,14 +340,14 @@ class SlurpitAdapter(Adapter):
                     "system_of_record": "Slurpit",
                     "last_synced_from_sor": datetime.today().date().isoformat(),
                 }
-                if primary_ip := self.get_primary_ip(device):
+                if primary_ip := self._get_primary_ip(device):
                     self.hostname_to_primary_ip[device.hostname] = primary_ip
                 self.add(self.device(**data))
             except ObjectAlreadyExists as err:
                 self.job.logger.warning(f"Duplicate device {device.hostname}. {err}")
 
     @staticmethod
-    def get_primary_ip(device):
+    def _get_primary_ip(device):
         """Return the device's management address as an `ipaddress` object, or None if unset or invalid.
 
         Slurpit reports the management address in `address` (with `family` set to IPv4 or IPv6).
