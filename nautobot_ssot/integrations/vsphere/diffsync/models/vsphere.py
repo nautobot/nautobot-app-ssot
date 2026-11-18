@@ -362,7 +362,14 @@ class ClusterGroupModel(vSphereModelDiffSync):
 
 
 class TagModel(NautobotModel):
-    """Tag Diffsync model."""
+    """Tag Diffsync model.
+
+    Nautobot Tags are a shared resource that may be created by users or other integrations, and Nautobot has no
+    marker identifying which Tags originated from vSphere. To avoid deleting Tags that vSphere does not know about,
+    unmatched Tags in Nautobot are never deleted by this integration.
+    """
+
+    model_flags: DiffSyncModelFlags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
 
     _model = Tag
     _modelname = "tag"
@@ -424,5 +431,11 @@ class TagModel(NautobotModel):
 
     @classmethod
     def get_queryset(cls, config, cluster_filters):
-        """Return the queryset for the model. This is overriden to pass in the config object."""
+        """Return the queryset for the model. This is overriden to pass in the config object.
+
+        When vSphere tag sync is disabled, only the "SSoT Synced from vSphere" Tag is managed by this integration,
+        so no other Tags are loaded.
+        """
+        if not config.sync_vsphere_tags:
+            return cls._model.objects.filter(name="SSoT Synced from vSphere")
         return cls._model.objects.all()

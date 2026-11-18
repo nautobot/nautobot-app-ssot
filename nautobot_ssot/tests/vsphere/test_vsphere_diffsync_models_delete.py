@@ -222,15 +222,37 @@ class TestVSphereDiffSyncModelsDelete(TestCase):
         self.assertEqual(nb_vm.name, "TestVM")
         self.assertEqual(nb_vm.primary_ip, None)
 
-    def test_tag_delete(self):
+    def test_tag_not_in_vsphere_is_not_deleted(self):
+        """Tags present in Nautobot but not in vSphere must survive a sync (issue #1110)."""
         tag, _ = Tag.objects.get_or_create(name="Owner__EEE", description="")
         tag.content_types.set([ContentType.objects.get_for_model(VirtualMachine)])
+        user_tag, _ = Tag.objects.get_or_create(name="User Created Tag", description="Not from vSphere")
 
         nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
         nb_adapter.job = MagicMock()
 
         nb_adapter.load()
+        diff = nb_adapter.diff_from(self.vsphere_adapter)
+        self.assertEqual(diff.summary()["delete"], 0)
         self.vsphere_adapter.sync_to(nb_adapter)
 
-        with self.assertRaises(Tag.DoesNotExist):
-            Tag.objects.get(name="Owner__EEE")
+        self.assertTrue(Tag.objects.filter(pk=tag.pk).exists())
+        self.assertTrue(Tag.objects.filter(pk=user_tag.pk).exists())
+
+    def test_tag_not_deleted_when_vsphere_tag_sync_disabled(self):
+        """Pre-existing Nautobot Tags survive a sync when vSphere tag sync is disabled (issue #1110)."""
+        self.config.sync_vsphere_tags = False
+        self.vsphere_adapter.get_or_instantiate(
+            self.vsphere_adapter.tag, {"name": "SSoT Synced from vSphere"}, {"description": ""}
+        )
+        user_tag, _ = Tag.objects.get_or_create(name="User Created Tag", description="Not from vSphere")
+
+        nb_adapter = NBAdapter(config=self.config, cluster_filters=None)
+        nb_adapter.job = MagicMock()
+
+        nb_adapter.load()
+        self.assertEqual([tag.name for tag in nb_adapter.get_all("tag")], ["SSoT Synced from vSphere"])
+        self.vsphere_adapter.sync_to(nb_adapter)
+
+        self.assertTrue(Tag.objects.filter(pk=user_tag.pk).exists())
+        self.assertTrue(Tag.objects.filter(name="SSoT Synced from vSphere").exists())

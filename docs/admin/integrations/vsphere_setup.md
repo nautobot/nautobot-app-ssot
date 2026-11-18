@@ -115,6 +115,12 @@ To maintain parity between the two systems, this SSoT sync creates Nautobot tags
 
 > Note: In the event there are spaces in either the tag name or tag category, those spaces are replaced with underscores.
 
+### Tag Deletion
+
+The vSphere sync never deletes Nautobot tags. Tags that exist in Nautobot but not in vSphere, including tags created by other integrations or by users, are left in place. When **Sync vSphere VM Tags** is disabled, only the `SSoT Synced from vSphere` tag is considered during the sync.
+
+Because Nautobot does not record which tags were created by the vSphere sync, a tag that was created from vSphere and later removed from vSphere is also left in Nautobot. Delete these tags manually if they are no longer needed.
+
 ## Custom Fields, Statuses and Tags
 
 The vSphere Integration requires the following Nautobot Custom Fields and Tags to function correctly. These are created automatically when Nautobot is started and care should be taken to ensure these are not deleted. 
