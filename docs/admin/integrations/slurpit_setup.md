@@ -10,6 +10,9 @@ Before configuring the integration, please ensure, that `nautobot-ssot` app was 
 pip install nautobot-ssot[slurpit]
 ```
 
+!!! note
+    The integration requires a Slurpit version that reports each device's management address in the `address` field of the devices API (for example Slurpit 1.4.x). This address is used to set the device's primary IP in Nautobot. Older Slurpit versions that report it as `ipv4` still sync, but devices are created without a primary IP.
+
 ## Configuration
 
 Access to your Slurpit instance is defined using the [ExternalIntegration](https://docs.nautobot.com/projects/core/en/stable/user-guide/platform-functionality/externalintegration/) model which allows you to utilize this integration with multiple instances concurrently. Each ExternalIntegration must specify a SecretsGroup that contains Secrets that contain the Slurpit token to authenticate against that instance. You can find Secrets and SecretsGroups available under the Secrets menu.

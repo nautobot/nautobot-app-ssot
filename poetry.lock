@@ -1268,7 +1268,7 @@ description = "Python library for calculating contours of 2D quadrilateral grids
 optional = true
 python-versions = ">=3.12"
 groups = ["main"]
-markers = "python_version >= \"3.12\" and (extra == \"all\" or extra == \"nautobot-device-lifecycle-mgmt\")"
+markers = "(extra == \"all\" or extra == \"nautobot-device-lifecycle-mgmt\") and python_version >= \"3.12\""
 files = [
     {file = "contourpy-1.4.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:186ba929df36d61b6127da2e89cd1357e4cb79aca647381ab1a6feb0b152877b"},
     {file = "contourpy-1.4.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:c76f3a5318164db7d9401132fc1b5364b784c613c93fa506e3b5e6d1bf353ec8"},
@@ -1839,7 +1839,7 @@ description = "Library to easily sync/diff/update 2 different data sources"
 optional = false
 python-versions = "<3.14,>=3.10"
 groups = ["main"]
-markers = "python_version <= \"3.13\""
+markers = "python_version < \"3.14\""
 files = [
     {file = "diffsync-2.2.3-py3-none-any.whl", hash = "sha256:dfc0018822c024cccf9cc0c0f688d84a65c52ea0a96b67b60261748dd11c1e8c"},
     {file = "diffsync-2.2.3.tar.gz", hash = "sha256:4fe22ccfff783409eee2801513d51adabd2afcc5162e0f55f26d7ea9f8395115"},
@@ -2538,7 +2538,7 @@ description = "Cisco DNA Center Platform SDK"
 optional = true
 python-versions = "<4.0,>=3.12"
 groups = ["main"]
-markers = "python_version >= \"3.12\" and (extra == \"all\" or extra == \"dna-center\")"
+markers = "(extra == \"all\" or extra == \"dna-center\") and python_version >= \"3.12\""
 files = [
     {file = "dnacentersdk-2.11.4-py3-none-any.whl", hash = "sha256:82153f9b3a74755ea6e3d2e9581982e8606adce6473558b52a2ed1087e23e5e4"},
     {file = "dnacentersdk-2.11.4.tar.gz", hash = "sha256:b7e8fe1c1ef88a32f413ea8defc1a8302b2185425e82f4d665b055fe470a8775"},
@@ -5726,7 +5726,7 @@ description = "Fundamental package for array computing in Python"
 optional = true
 python-versions = ">=3.12"
 groups = ["main"]
-markers = "python_version >= \"3.12\" and (extra == \"all\" or extra == \"nautobot-device-lifecycle-mgmt\")"
+markers = "(extra == \"all\" or extra == \"nautobot-device-lifecycle-mgmt\") and python_version >= \"3.12\""
 files = [
     {file = "numpy-2.5.4-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:c6342f54c67093cae5c0227eb0eb772fdb79f2a2c37a6eb278b9909ee06aa356"},
     {file = "numpy-2.5.4-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:b11e8fda06a7d69f15ebf542660b74466c2e51094800c1fb794f47ad4faeef17"},
@@ -6805,7 +6805,7 @@ description = "C parser in Python"
 optional = false
 python-versions = ">=3.11"
 groups = ["main"]
-markers = "platform_python_implementation != \"PyPy\" and implementation_name != \"PyPy\" and python_version >= \"3.11\""
+markers = "implementation_name != \"PyPy\" and platform_python_implementation != \"PyPy\" and python_version >= \"3.11\""
 files = [
     {file = "pycparser-3.12-py3-none-any.whl", hash = "sha256:a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e"},
     {file = "pycparser-3.12.tar.gz", hash = "sha256:f03387877eab82ce01bbdfd0ba7252ee55a90b1c708d5129e2ce915475cf1db6"},
@@ -7472,7 +7472,7 @@ description = "Read key-value pairs from a .env file and set them as environment
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "extra == \"all\" or extra == \"ipfabric\""
+markers = "extra == \"all\" or extra == \"ipfabric\" or extra == \"slurpit\""
 files = [
     {file = "python_dotenv-1.2.4-py3-none-any.whl", hash = "sha256:42269a8a5b3fd54ffa6f3d84b18abed50064717576b4ecf03dc4a55d8aa04fdc"},
     {file = "python_dotenv-1.2.4.tar.gz", hash = "sha256:f0d53e69935a851c0dcc78f3ab7aaccd8cabef0b92382b576b824212902873c0"},
@@ -7527,6 +7527,22 @@ text-unidecode = ">=1.3"
 
 [package.extras]
 unidecode = ["Unidecode (>=1.1.1)"]
+
+[[package]]
+name = "python-toon"
+version = "0.2.0"
+description = "TOON (Token-Oriented Object Notation) encoder/decoder for Python - Bidirectional JSON-to-TOON converter optimized for LLMs"
+optional = true
+python-versions = ">=3.8"
+groups = ["main"]
+markers = "extra == \"all\" or extra == \"slurpit\""
+files = [
+    {file = "python_toon-0.2.0-py3-none-any.whl", hash = "sha256:40056dafb8f28ad71440fce11cc12dda63045c752319a0d87bc7b95761a45955"},
+    {file = "python_toon-0.2.0.tar.gz", hash = "sha256:1b9fcb3fa225cb7973a2637834de08a26236013ab04da0cf80c4af73e141ccf2"},
+]
+
+[package.extras]
+dev = ["mypy (>=1.8.0)", "pytest (>=8.0.0)", "pytest-cov (>=4.1.0)", "ruff (>=0.8.0)"]
 
 [[package]]
 name = "python3-openid"
@@ -8546,19 +8562,21 @@ files = [
 
 [[package]]
 name = "slurpit-sdk"
-version = "0.9.107"
+version = "0.9.158"
 description = "A robust Python SDK for slurpit"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
 markers = "extra == \"all\" or extra == \"slurpit\""
 files = [
-    {file = "slurpit_sdk-0.9.107-py3-none-any.whl", hash = "sha256:8ded79307049f7c9c546211faf1fbe7a4a250ae1b465288123feef132724e5e2"},
-    {file = "slurpit_sdk-0.9.107.tar.gz", hash = "sha256:29983f0adde67de4e83356ba40324350fb6f71e266706cddf796037ea9d53b1f"},
+    {file = "slurpit_sdk-0.9.158-py3-none-any.whl", hash = "sha256:050c87fdd558afa3916a30b08a13ed6edf7567af06940c6065c2deb14ae8ba0a"},
+    {file = "slurpit_sdk-0.9.158.tar.gz", hash = "sha256:641dc8b6b8cc178155b406f7fdfb5c3f992799e8e3848ca4e12ca34e17661d68"},
 ]
 
 [package.dependencies]
-httpx = ">=0.27.0,<0.28.0"
+httpx = ">=0.27.0"
+python-dotenv = ">=1.0.0,<2.0.0"
+python-toon = "*"
 
 [package.extras]
 pandas = ["pandas (>=2.2.2,<3.0.0) ; python_version >= \"3.9\""]
@@ -9583,4 +9601,4 @@ slurpit = ["slurpit-sdk"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.15"
-content-hash = "36e0ee924661fe35ed3ef62770ab4f2d99cdf244d690e1fcdb76cd5e70e57a72"
+content-hash = "8df900a7612e6083d54c134a3ee6dd5cae482a2f401fd92fa86999c04f6dac2b"

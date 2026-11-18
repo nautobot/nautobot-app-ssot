@@ -61,7 +61,7 @@ meraki = [
     {version = ">=1.37.2,<1.46.0", python = ">=3.10,<3.11", optional = true},
     {version = ">=3.0.2,<4", python = ">=3.11", optional = true},
 ]
-slurpit-sdk = { version = "0.9.107", optional = true }  # Pinned to 0.9.107 due to significant changes being made to the sdk's api
+slurpit-sdk = { version = "0.9.158", optional = true }  # Pinned exactly: the SDK makes breaking model/API changes between patch releases
 
 [tool.poetry.group.dev.dependencies]
 coverage = "*"
