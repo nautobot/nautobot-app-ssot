@@ -1,0 +1,1 @@
+Fixed DNA Center (and other integrations using the shared metadata utilities) failing with "Date values must be in the format YYYY-MM-DD." when the "Last Sync from" MetadataType was created with the `date` data type by an older release.

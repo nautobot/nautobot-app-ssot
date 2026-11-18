@@ -10,6 +10,30 @@ from nautobot.extras.models.metadata import MetadataType, MetadataTypeDataTypeCh
 
 logger = logging.getLogger("nautobot.ssot")
 
+_DATE_TYPE_NOTICE_ATTR = "_ssot_metadata_date_type_notice_logged"
+
+
+def get_last_sync_value(metadata_type: MetadataType, now: Optional[datetime] = None) -> str:
+    """Return the "last sync" timestamp formatted for the data type of the given MetadataType.
+
+    The "Last Sync from <integration>" MetadataType is created as DATETIME, but older releases of some
+    integrations (e.g. DNA Center prior to v3.9.3) created it as DATE. Nautobot does not allow the
+    data_type of an existing MetadataType to be changed, so the value is formatted to match whatever
+    type already exists.
+
+    Args:
+        metadata_type (MetadataType): MetadataType the value will be assigned to.
+        now (Optional[datetime]): Timestamp to format. Defaults to the current time.
+
+    Returns:
+        str: `YYYY-MM-DD` for DATE MetadataTypes, otherwise an ISO 8601 datetime (`YYYY-MM-DDTHH:MM:SS`).
+    """
+    if now is None:
+        now = datetime.now()
+    if metadata_type.data_type == MetadataTypeDataTypeChoices.TYPE_DATE:
+        return now.date().isoformat()
+    return now.isoformat(timespec="seconds")
+
 
 def object_has_metadata(obj: object, integration: str) -> Optional[bool]:
     """Check if object has MetadataType assigned to it.
@@ -67,7 +91,16 @@ def add_or_update_metadata_on_object(
         metadata.scoped_fields = relevant_fields
     except ObjectMetadata.DoesNotExist:
         metadata = ObjectMetadata(assigned_object=obj, metadata_type=last_sync_type, scoped_fields=relevant_fields)
-    metadata.value = datetime.now().isoformat(timespec="seconds")
+    if last_sync_type.data_type == MetadataTypeDataTypeChoices.TYPE_DATE and not getattr(
+        adapter, _DATE_TYPE_NOTICE_ATTR, False
+    ):
+        adapter.job.logger.info(
+            f"MetadataType {last_sync_type} uses data type 'date' (created by an older release), "
+            "so only the date of the last sync will be recorded. To record full timestamps, delete this "
+            "MetadataType (this also deletes its existing values) and it will be recreated as 'datetime'."
+        )
+        setattr(adapter, _DATE_TYPE_NOTICE_ATTR, True)
+    metadata.value = get_last_sync_value(last_sync_type)
 
     if adapter.job.debug:
         adapter.job.logger.debug(f"Metadata {last_sync_type} added to {obj}.")
