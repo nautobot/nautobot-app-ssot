@@ -24,7 +24,7 @@ class EmptySourceAdapter(Adapter):
 
 
 @patch.dict(PLUGIN_CFG, {"tag": ACI_TAG})
-class TestNautobotAdapterDeviceTypes(TestCase):
+class TestNautobotAdapterDeviceTypes(TestCase):  # pylint: disable=too-many-instance-attributes
     """Test handling of Device Types shared by multiple ACI fabrics (issue #685)."""
 
     def setUp(self):
