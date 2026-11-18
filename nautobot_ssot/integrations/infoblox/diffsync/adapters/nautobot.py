@@ -11,7 +11,7 @@ from nautobot.dcim.models import Location
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Relationship, Role, Status, Tag
 from nautobot.ipam.choices import IPAddressTypeChoices
-from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup
+from nautobot.ipam.models import VLAN, VRF, IPAddress, Namespace, Prefix, VLANGroup
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices, FixedAddressTypeChoices
@@ -555,6 +555,18 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
             )
             self.add(_vlan)
 
+    def load_vrf_map(self):
+        """Build the VRF lookup used to assign VRFs from the `VRF` Extensibility Attribute.
+
+        Keyed by `(namespace_id, vrf_name)` because VRF names are not unique across Namespaces, and a Prefix can only be
+        assigned a VRF in its own Namespace. Names that are duplicated within a Namespace map to `None` so the lookup can
+        skip them with a warning instead of picking one arbitrarily.
+        """
+        self.vrf_map = {}
+        for vrf in VRF.objects.only("id", "name", "namespace_id"):
+            key = (vrf.namespace_id, vrf.name)
+            self.vrf_map[key] = None if key in self.vrf_map else vrf.id
+
     def load(self):
         """Load models with data from Nautobot."""
         include_ipv4 = self.config.import_ipv4
@@ -585,6 +597,7 @@ class NautobotAdapter(NautobotMixin, Adapter):  # pylint: disable=too-many-insta
             }
         self.tenant_map = {t.name: t.id for t in Tenant.objects.only("id", "name")}
         self.role_map = {r.name: r.id for r in Role.objects.only("id", "name")}
+        self.load_vrf_map()
         self.load_namespaces(sync_filters=sync_filters, network_view_to_namespace_map=network_view_to_namespace_map)
         if "namespace" in self.dict():
             self.job.logger.info(f"Loaded {len(self.dict()['namespace'])} Namespaces from Nautobot.")

@@ -5,7 +5,7 @@ from unittest import mock
 from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.testing import TestCase
 from nautobot.extras.models import RelationshipAssociation, Status
-from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup
+from nautobot.ipam.models import VLAN, VRF, IPAddress, Namespace, Prefix, VLANGroup
 
 from nautobot_ssot.integrations.infoblox.choices import DNSRecordTypeChoices
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
@@ -160,6 +160,22 @@ class TestNautobotAdapter(TestCase):
         self.network_view_to_namespace_map = self.config.infoblox_network_view_to_namespace_map
         self.nb_adapter = NautobotAdapter(config=self.config)
         self.nb_adapter.job = mock.Mock()
+
+    def test_load_vrf_map_keys_by_namespace_and_marks_duplicates(self):
+        """VRFs are keyed by `(namespace_id, name)`; a name duplicated within one Namespace maps to `None`."""
+        namespace_dev = Namespace.objects.get(name="dev")
+        namespace_test = Namespace.objects.get(name="test")
+        red_dev = VRF.objects.create(name="red", namespace=namespace_dev, rd="65000:1")
+        red_test = VRF.objects.create(name="red", namespace=namespace_test, rd="65000:1")
+        VRF.objects.create(name="blue", namespace=namespace_dev, rd="65000:2")
+        VRF.objects.create(name="blue", namespace=namespace_dev, rd="65000:3")
+
+        self.nb_adapter.load_vrf_map()
+
+        self.assertEqual(red_dev.id, self.nb_adapter.vrf_map[(namespace_dev.id, "red")])
+        self.assertEqual(red_test.id, self.nb_adapter.vrf_map[(namespace_test.id, "red")])
+        self.assertIsNone(self.nb_adapter.vrf_map[(namespace_dev.id, "blue")])
+        self.assertNotIn((namespace_test.id, "blue"), self.nb_adapter.vrf_map)
 
     def test_load_vlans_loads_expected_vlans(self):
         self.nb_adapter.load_vlans()

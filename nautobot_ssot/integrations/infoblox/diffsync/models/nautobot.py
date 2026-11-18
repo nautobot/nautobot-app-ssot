@@ -46,11 +46,36 @@ def _is_many_to_many(obj: object, field_name: str) -> bool:
         return False
 
 
+def _assign_vrf(adapter, obj: object, vrf_name: str, attr: str):
+    """Assign the VRF named `vrf_name` in the object's Namespace, deferring the assignment until commit.
+
+    Args:
+        adapter (object): DiffSync Adapter whose `vrf_map` is keyed by `(namespace_id, vrf_name)`.
+        obj (object): Object with a `vrfs` many-to-many field and a `namespace_id` (a Prefix).
+        vrf_name (str): VRF name from the Extensibility Attribute.
+        attr (str): Extensibility Attribute name, for log messages.
+    """
+    key = (obj.namespace_id, vrf_name)
+    if key not in adapter.vrf_map:
+        adapter.job.logger.warning(
+            f"Unable to find VRF {vrf_name} in Namespace {obj.namespace} for {obj} found in Extensibility "
+            f"Attributes '{attr}'."
+        )
+    elif adapter.vrf_map[key] is None:
+        adapter.job.logger.warning(
+            f"Multiple VRFs named {vrf_name} exist in Namespace {obj.namespace}; skipping VRF assignment for {obj} "
+            f"found in Extensibility Attributes '{attr}'."
+        )
+    else:
+        # The object may not be saved yet (Prefix create), so add the VRF once the transaction commits.
+        transaction.on_commit(functools.partial(obj.vrfs.add, adapter.vrf_map[key]))
+
+
 def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=too-many-branches,too-many-statements
     """Process Extensibility Attributes into Custom Fields or link to found objects.
 
-    Location many-to-many assignments are deferred with `transaction.on_commit`, so a caller creating a new object must
-    call this inside the same `transaction.atomic()` block as the object's save.
+    Location and VRF many-to-many assignments are deferred with `transaction.on_commit`, so a caller creating a new
+    object must call this inside the same `transaction.atomic()` block as the object's save.
 
     Args:
         adapter (object): DiffSync Adapter
@@ -98,21 +123,9 @@ def process_ext_attrs(adapter, obj: object, extattrs: dict):  # pylint: disable=
                         f"Cannot assign VRF {attr_value} to {obj} found in Extensibility Attributes '{attr}'; "
                         f"{obj._meta.verbose_name} objects do not support VRF assignment."
                     )
-                elif isinstance(attr_value, list):
-                    for vrf in attr_value:
-                        try:
-                            obj.vrfs.add(adapter.vrf_map[vrf])
-                        except KeyError as err:
-                            adapter.job.logger.warning(
-                                f"Unable to find VRF {vrf} for {obj} found in Extensibility Attributes '{attr}'. {err}"
-                            )
                 else:
-                    try:
-                        obj.vrfs.add(adapter.vrf_map[attr_value])
-                    except KeyError as err:
-                        adapter.job.logger.warning(
-                            f"Unable to find VRF {attr_value} for {obj} found in Extensibility Attributes '{attr}'. {err}"
-                        )
+                    for vrf_name in attr_value if isinstance(attr_value, list) else [attr_value]:
+                        _assign_vrf(adapter=adapter, obj=obj, vrf_name=vrf_name, attr=attr)
             if "role" in attr.lower():
                 if isinstance(obj, OrmIPAddress) and attr_value.lower() in IPAddressRoleChoices.as_dict():
                     obj.role = attr_value.lower()
