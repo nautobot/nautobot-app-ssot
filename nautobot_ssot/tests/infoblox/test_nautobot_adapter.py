@@ -12,7 +12,7 @@ from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import Nauto
 from nautobot_ssot.tests.infoblox.fixtures_infoblox import create_default_infoblox_config, create_prefix_relationship
 
 
-class TestNautobotAdapter(TestCase):
+class TestNautobotAdapter(TestCase):  # pylint: disable=too-many-public-methods
     """Test cases for InfoBlox Nautobot adapter."""
 
     def setUp(self):
