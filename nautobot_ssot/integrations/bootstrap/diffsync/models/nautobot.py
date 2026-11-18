@@ -49,7 +49,7 @@ from nautobot.tenancy.models import Tenant as ORMTenant
 from nautobot.tenancy.models import TenantGroup as ORMTenantGroup
 from nautobot.users.models import User as ORMUser
 
-from nautobot_ssot.integrations.bootstrap.constants import SCOPED_FIELDS_MAPPING
+from nautobot_ssot.integrations.bootstrap.constants import DEFAULT_COLOR, SCOPED_FIELDS_MAPPING
 from nautobot_ssot.integrations.bootstrap.diffsync.models.base import (
     VLAN,
     VRF,
@@ -252,7 +252,7 @@ class NautobotRole(Role):
             name=ids["name"],
             weight=attrs["weight"],
             description=attrs["description"],
-            color=attrs.get("color", "#999999"),
+            color=attrs.get("color") or DEFAULT_COLOR,
         )
         _new_role.validated_save()
         _new_role.content_types.set(_content_types)
@@ -272,7 +272,7 @@ class NautobotRole(Role):
             _update_role.weight = attrs["weight"]
         if "description" in attrs:
             _update_role.description = attrs["description"]
-        if "color" in attrs:
+        if attrs.get("color"):
             _update_role.color = attrs["color"]
         if "content_types" in attrs:
             for _model in attrs["content_types"]:
@@ -446,7 +446,7 @@ class NautobotLocationType(LocationType):
         _new_location_type = ORMLocationType(
             name=ids["name"],
             parent=_parent,
-            nestable=attrs["nestable"] if not None else False,
+            nestable=bool(attrs.get("nestable")),
             description=attrs["description"],
         )
         _new_location_type.validated_save()
@@ -549,7 +549,7 @@ class NautobotLocation(Location):
             _new_location = ORMLocation(
                 name=ids["name"],
                 location_type=_location_type,
-                parent=_parent if not None else None,
+                parent=_parent,
                 status=_status,
                 facility=attrs["facility"],
                 asn=attrs["asn"],
@@ -2432,7 +2432,7 @@ class NautobotTag(Tag):
                 _content_types.append(lookup_content_type_for_taggable_model_path(_model))
             except ContentType.DoesNotExist:
                 adapter.job.logger.error(f"Unable to find ContentType for {_model}.")
-        _color = attrs.get("color", "#999999")
+        _color = attrs.get("color") or DEFAULT_COLOR
         _new_tag = ORMTag(
             name=ids["name"],
             color=_color,
@@ -2868,7 +2868,7 @@ if validate_dlm_installed():
 
             _new_validated_software = ORMValidatedSoftware(
                 software=_software,
-                start=ids["valid_since"] if not None else datetime.today().date(),
+                start=ids.get("valid_since") or datetime.today().date(),
                 end=ids["valid_until"],
                 preferred=attrs["preferred_version"],
             )

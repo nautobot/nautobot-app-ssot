@@ -395,7 +395,7 @@ class NautobotAdapter(Adapter):
                 new_location_type = self.location_type(
                     name=nb_location_type.name,
                     parent=_parent,
-                    nestable=nb_location_type.nestable if not None else False,
+                    nestable=bool(nb_location_type.nestable),
                     description=nb_location_type.description,
                     content_types=_content_types,
                     system_of_record=_sor,
