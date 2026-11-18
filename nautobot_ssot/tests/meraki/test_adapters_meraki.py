@@ -152,6 +152,56 @@ class TestMerakiAdapterTestCase(TestCase):
             {net.get_unique_id() for net in self.meraki.get_all("network")},
         )
 
+    def test_load_networks_with_location_map_only(self):
+        """Test loading of Meraki networks when only location_map is defined on the job."""
+        region_loctype = LocationType.objects.get_or_create(name="Region")[0]
+        self.job.network_loctype.parent = region_loctype
+        self.job.network_loctype.validated_save()
+        self.job.parent_location = None
+        self.job.location_map = {"Lab": {"parent": "EU"}, "HQ": {"name": "New York", "parent": "US"}}
+
+        self.meraki.load_networks()
+
+        self.assertEqual(
+            {"Lab__EU", "New York__US"},
+            {net.get_unique_id() for net in self.meraki.get_all("network")},
+        )
+
+    def test_load_networks_with_parent_location_and_partial_location_map(self):
+        """Test networks in location_map use mapped parent while others fall back to the default parent_location."""
+        region_loctype = LocationType.objects.get_or_create(name="Region")[0]
+        self.job.network_loctype.parent = region_loctype
+        self.job.network_loctype.validated_save()
+        us_region = Location.objects.get_or_create(name="US", location_type=region_loctype, status=self.status_active)[
+            0
+        ]
+        self.job.parent_location = us_region
+        self.job.location_map = {"Lab": {"name": "Paris", "parent": "EU"}}
+
+        self.meraki.load_networks()
+
+        self.assertEqual(
+            {"Paris__EU", "HQ__US"},
+            {net.get_unique_id() for net in self.meraki.get_all("network")},
+        )
+
+    def test_load_networks_missing_parent_logs_warning(self):
+        """Test a warning is logged when a network requires a parent but none is defined."""
+        region_loctype = LocationType.objects.get_or_create(name="Region")[0]
+        self.job.network_loctype.parent = region_loctype
+        self.job.network_loctype.validated_save()
+        self.job.parent_location = None
+        self.job.location_map = {"Lab": {"parent": "EU"}}
+        self.job.logger.warning.reset_mock()
+
+        self.meraki.load_networks()
+
+        self.assertEqual(
+            {"Lab__EU", "HQ__None"},
+            {net.get_unique_id() for net in self.meraki.get_all("network")},
+        )
+        self.job.logger.warning.assert_called_once()
+
     def test_load_devices_success(self):
         """Test successful loading of Meraki devices."""
         self.job.hostname_mapping = []

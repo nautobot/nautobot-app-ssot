@@ -70,7 +70,9 @@ If you wish to just test the synchronization but not have any data created in Na
 
 1. The Parent Location field allows you to define a singular Location that will be assigned as the parent for all imported Network Locations.
 
-2. The Location Mapping field allows you to define a dictionary of Location mappings. This feature is intended for specifying parent Locations for the Network Locations in Meraki. This is useful if this information is missing from Meraki but required for Nautobot or to allow you to change the information as it's imported to match information from another System of Record. The expected pattern for this field is `{"<Location Name>": {"parent": "<Parent location Name>"}}`.
+2. The Location Mapping field allows you to define a dictionary of Location mappings. This feature is intended for specifying parent Locations for the Network Locations in Meraki. This is useful if this information is missing from Meraki but required for Nautobot or to allow you to change the information as it's imported to match information from another System of Record. The expected pattern for this field is `{"<Location Name>": {"parent": "<Parent location Name>"}}`. The parent Location must already exist in Nautobot with the parent LocationType of the Network LocationType.
+
+These two fields can be used independently or together. When both are defined, a Network with a `parent` in the Location Mapping is assigned that parent, while every other Network, such as one newly created in the Meraki dashboard, falls back to the Parent Location. If only the Location Mapping is used, any Network missing from it is left without a parent, so a warning is logged and that Network fails to be created if its LocationType requires a parent. If a parent Location named in the Location Mapping can't be found in Nautobot, an error is logged and Networks assigned to it aren't created.
 
 In addition, there are two methods provided to assign Roles to your imported Devices:
 

@@ -412,6 +412,19 @@ class TestNotesSync(TestCase):  # pylint: disable=too-many-instance-attributes
         device.adapter = self.adapter
         return device
 
+    def test_network_create_missing_parent_logs_error(self):
+        """Validate a Network whose parent Location isn't in region_map is logged and not created."""
+        self.adapter.region_map = {}
+        self.adapter.job.network_loctype = self.site_lt
+        result = NautobotNetwork.create(
+            adapter=self.adapter,
+            ids={"name": "New Network", "parent": "Missing Region"},
+            attrs={"timezone": None, "notes": "", "tags": [], "tenant": None, "uuid": None},
+        )
+        self.assertIsNone(result)
+        self.adapter.job.logger.error.assert_called()
+        self.assertFalse(Location.objects.filter(name="New Network").exists())
+
     def test_network_update_removes_note_when_cleared_in_meraki(self):
         """Validate a Network note deleted in Meraki is removed from Nautobot instead of being re-diffed forever."""
         self._add_note(self.test_site, self.location_ct)

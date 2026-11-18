@@ -82,6 +82,32 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         self.contenttype_map = {}
         self.version_map = {}
 
+    def load_region_map(self):
+        """Build map of parent Location names to IDs from the Parent Location and Location Mapping Job fields.
+
+        The Parent Location is the default parent for all Networks while Location Mapping entries define
+        parents for specific Networks, so both are added to the map.
+        """
+        self.region_map = {}
+        parent_loctype = self.job.network_loctype.parent
+        if self.job.parent_location:
+            self.region_map[self.job.parent_location.name] = self.job.parent_location.id
+        location_map = self.job.location_map or {}
+        for network_name, loc_data in location_map.items():
+            parent_name = loc_data.get("parent")
+            if not parent_name or parent_name in self.region_map:
+                continue
+            try:
+                self.region_map[parent_name] = Location.objects.get(name=parent_name, location_type=parent_loctype).id
+            except Location.DoesNotExist:
+                self.job.logger.error(
+                    f"Unable to find parent Location {parent_name} of LocationType {parent_loctype} defined in Location Mapping for Network {network_name}."
+                )
+            except Location.MultipleObjectsReturned:
+                self.job.logger.error(
+                    f"Multiple Locations named {parent_name} of LocationType {parent_loctype} found for Network {network_name} in Location Mapping."
+                )
+
     def load_sites(self):
         """Load Site data from Nautobot into DiffSync model."""
         for site in Location.objects.filter(location_type=self.job.network_loctype):
@@ -377,15 +403,7 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         self.namespace_map = {ns.name: ns.id for ns in Namespace.objects.only("id", "name")}
         self.contenttype_map = {c.model: c.id for c in ContentType.objects.only("id", "model")}
 
-        if self.job.parent_location:
-            self.region_map[self.job.parent_location.name] = self.job.parent_location.id
-        else:
-            self.region_map = {
-                loc_data["parent"]: Location.objects.get(
-                    name=loc_data["parent"], location_type=self.job.network_loctype.parent.location_type
-                ).id
-                for _, loc_data in self.job.location_map.items()
-            }
+        self.load_region_map()
         self.tenant_map = {t.name: t.id for t in Tenant.objects.only("id", "name")}
 
         self.load_sites()
