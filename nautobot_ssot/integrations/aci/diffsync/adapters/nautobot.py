@@ -33,8 +33,6 @@ logger = logging.getLogger(__name__)
 class NautobotAdapter(Adapter):
     """Nautobot adapter for DiffSync."""
 
-    objects_to_delete = defaultdict(list)
-
     tenant = NautobotTenant
     vrf = NautobotVrf
     device_type = NautobotDeviceType
@@ -70,6 +68,8 @@ class NautobotAdapter(Adapter):
         self.sync = sync
         self.site = site_name
         self.site_tag = Tag.objects.get_or_create(name=self.site)[0]
+        # Per-instance so that deletions queued by one sync are never carried into another.
+        self.objects_to_delete = defaultdict(list)
 
     def sync_complete(self, source: Adapter, *args, **kwargs):
         """Clean up function for DiffSync sync.

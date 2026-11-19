@@ -6,7 +6,7 @@ from diffsync import Adapter, Diff
 from diffsync.enum import DiffSyncModelFlags
 from django.contrib.contenttypes.models import ContentType
 from nautobot.apps.testing import TestCase
-from nautobot.dcim.models import Device, DeviceType, Location, LocationType, Manufacturer
+from nautobot.dcim.models import Device, DeviceType, InterfaceTemplate, Location, LocationType, Manufacturer
 from nautobot.extras.models import Role, Status, Tag
 
 from nautobot_ssot.integrations.aci.constant import PLUGIN_CFG
@@ -52,6 +52,11 @@ class TestNautobotAdapterDeviceTypes(TestCase):  # pylint: disable=too-many-inst
         for device_type in (self.dt_fabric_a, self.dt_fabric_b, self.dt_unused):
             device_type.tags.add(self.aci_tag)
 
+        # Interface Templates have no tags, so they belong only to their Device Type, not to a fabric.
+        self.tmpl_unused = InterfaceTemplate.objects.create(
+            device_type=self.dt_unused, name="Ethernet1/1", type="10gbase-x-sfpp"
+        )
+
         device_a = Device.objects.create(
             name="leaf-a", device_type=self.dt_fabric_a, role=role, location=location, status=status
         )
@@ -83,6 +88,8 @@ class TestNautobotAdapterDeviceTypes(TestCase):  # pylint: disable=too-many-inst
         self.assertTrue(DeviceType.objects.filter(pk=self.dt_fabric_a.pk).exists())
         self.assertTrue(DeviceType.objects.filter(pk=self.dt_fabric_b.pk).exists())
         self.assertFalse(DeviceType.objects.filter(pk=self.dt_unused.pk).exists())
+        # The unused Device Type's Interface Templates are removed with it.
+        self.assertFalse(InterfaceTemplate.objects.filter(pk=self.tmpl_unused.pk).exists())
         self.assertEqual(self.adapter.objects_to_delete["devicetype"], [])
 
     def test_delete_defers_until_sync_complete(self):
@@ -92,6 +99,10 @@ class TestNautobotAdapterDeviceTypes(TestCase):  # pylint: disable=too-many-inst
         unused = self.adapter.get("device_type", {"model": "N9K-UNUSED", "part_nbr": ""})
         own.delete()
         unused.delete()
+        self.assertEqual(len(self.adapter.objects_to_delete["devicetype"]), 2)
+        # A second adapter (e.g. the next job in the same worker) must not see these.
+        other = NautobotAdapter(job=MagicMock(), sync=None, site_name="FabricA")
+        self.assertEqual(other.objects_to_delete["devicetype"], [])
         # Nothing is removed from the database until sync_complete runs.
         self.assertTrue(DeviceType.objects.filter(pk=self.dt_unused.pk).exists())
 
@@ -102,3 +113,13 @@ class TestNautobotAdapterDeviceTypes(TestCase):  # pylint: disable=too-many-inst
         self.job.logger.warning.assert_any_call(
             "Device Type N9K-FABRIC-B is still in use by Devices and will not be deleted."
         )
+
+    def test_queued_deletions_are_not_shared_between_adapters(self):
+        """Deletions queued by a sync that never completes are not carried into the next adapter."""
+        self.adapter.load_devicetypes()
+        self.adapter.get("device_type", {"model": "N9K-UNUSED", "part_nbr": ""}).delete()
+        # sync_complete is never called, as if the sync had failed part way through.
+        fresh = NautobotAdapter(job=MagicMock(), sync=None, site_name="FabricB")
+        self.assertEqual(fresh.objects_to_delete["devicetype"], [])
+        fresh.sync_complete(EmptySourceAdapter(), Diff())
+        self.assertTrue(DeviceType.objects.filter(pk=self.dt_unused.pk).exists())
