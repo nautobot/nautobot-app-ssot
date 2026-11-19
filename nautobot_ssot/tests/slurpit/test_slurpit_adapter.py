@@ -2,6 +2,7 @@
 
 import ipaddress
 import json
+from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import AsyncMock, MagicMock, create_autospec
 
@@ -158,6 +159,16 @@ class SlurpitDiffSyncTestCase(TestCase):
         self.assertEqual("10.10.20.175", assignment.interface__device__primary_ip4__host)
         self.assertIsNone(assignment.interface__device__primary_ip6__host)
 
+    def test_load_devices_duplicate_logs_hostname(self):
+        """Test a device that is already loaded is reported by hostname rather than raising."""
+        job = self.slurpit.job
+        self.slurpit.job = SimpleNamespace(site_loctype=job.site_loctype, logger=MagicMock())
+        self.slurpit.load_devices()
+        warnings = [call.args[0] for call in self.slurpit.job.logger.warning.call_args_list]
+        self.assertEqual(len(DEVICE_FIXTURE), len(warnings))
+        for device, warning in zip(DEVICE_FIXTURE, warnings):
+            self.assertTrue(warning.startswith(f"Duplicate device {device.hostname}."))
+
 
 class SlurpitAdapterHelpersTestCase(TestCase):
     """Test the SlurpitAdapter helpers that call the Slurpit SDK without loading data into Nautobot."""
@@ -212,3 +223,17 @@ class SlurpitAdapterHelpersTestCase(TestCase):
         for address, expected in cases.items():
             with self.subTest(address=address):
                 self.assertEqual(expected, SlurpitAdapter._get_primary_ip(MagicMock(address=address)))  # pylint: disable=protected-access
+
+    def test_same_ip(self):
+        """Test _same_ip() compares addresses and treats a missing or invalid host as no match."""
+        primary_ip = ipaddress.ip_address("10.10.20.175")
+        cases = {
+            "10.10.20.175": True,
+            "10.10.20.176": False,
+            "2001:db8::1": False,
+            "not-an-ip": False,
+            None: False,
+        }
+        for host, expected in cases.items():
+            with self.subTest(host=host):
+                self.assertEqual(expected, SlurpitAdapter._same_ip(primary_ip, host))  # pylint: disable=protected-access
