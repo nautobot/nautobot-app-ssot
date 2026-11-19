@@ -290,6 +290,17 @@ class IPFabricSyncDataTest(TestCase):
         self.assertIsNone(source.call_args.kwargs["tenant"])
         self.assertIsNone(dest.call_args.kwargs["tenant"])
 
+    def test_sync_data_reuses_the_calculated_diff_when_syncing(self):
+        """The sync is given the diff already calculated, rather than calculating it again."""
+        _source, dest = self._run(self._job(dryrun=False))
+        adapter = dest.return_value
+        adapter.sync_from.assert_called_once()
+        self.assertIs(adapter.sync_from.call_args.kwargs["diff"], adapter.diff_from.return_value)
+
+    def test_sync_data_does_not_sync_on_a_dry_run(self):
+        _source, dest = self._run(self._job())
+        dest.return_value.sync_from.assert_not_called()
+
     def test_sync_data_defaults_bulk_write_mode_off(self):
         job = self._job()
         _source, dest = self._run(job)
