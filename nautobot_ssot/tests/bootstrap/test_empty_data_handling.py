@@ -129,6 +129,19 @@ class TestNautobotModelsEmptyData(TestCase):
         )
         self.assertEqual(Role.objects.get(name="NoColorRole").color, DEFAULT_COLOR)
 
+    def test_role_update_color(self):
+        """Updating a Role keeps its color when the new color is blank and applies it otherwise."""
+        attrs = {"weight": None, "description": "", "color": "795548", "content_types": [], "system_of_record": ""}
+        NautobotRole.create(adapter=self.adapter, ids={"name": "UpdatedRole"}, attrs=attrs)
+        role = NautobotRole(name="UpdatedRole", **attrs)
+        role.adapter = self.adapter
+
+        role.update({"color": ""})
+        self.assertEqual(Role.objects.get(name="UpdatedRole").color, "795548")
+
+        role.update({"color": "2196f3"})
+        self.assertEqual(Role.objects.get(name="UpdatedRole").color, "2196f3")
+
     def test_location_create_without_time_zone(self):
         """A Location loaded from Bootstrap data with no `time_zone` key is created in Nautobot."""
         bs_adapter = BootstrapAdapter(job=_mock_job(), sync=None, client=MagicMock())
