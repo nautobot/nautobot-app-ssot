@@ -305,3 +305,17 @@ class NautobotDiffSyncTestCase(TestCase):
             self.nb_adapter.load_region_map()
         mock_error.assert_called_once()
         self.assertEqual({"Global Region": self.global_region.id}, self.nb_adapter.region_map)
+
+    def test_load_region_map_ambiguous_mapped_parent(self):
+        """Validate a parent Location in Location Mapping that matches multiple Locations is logged and excluded."""
+        self.nb_adapter.job.network_loctype.parent = self.region_type
+        self.nb_adapter.job.parent_location = self.global_region
+        self.nb_adapter.job.location_map = {"Lab": {"parent": "EU Region"}}
+        with (
+            patch.object(Location.objects, "get", side_effect=Location.MultipleObjectsReturned),
+            patch.object(self.nb_adapter.job.logger, "error") as mock_error,
+        ):
+            self.nb_adapter.load_region_map()
+        mock_error.assert_called_once()
+        self.assertIn("Multiple Locations named EU Region", mock_error.call_args.args[0])
+        self.assertEqual({"Global Region": self.global_region.id}, self.nb_adapter.region_map)
