@@ -340,11 +340,32 @@ class SlurpitAdapter(Adapter):
                     "system_of_record": "Slurpit",
                     "last_synced_from_sor": datetime.today().date().isoformat(),
                 }
-                if device.ipv4:
-                    self.hostname_to_primary_ip[device.hostname] = device.ipv4
+                if primary_ip := self._get_primary_ip(device):
+                    self.hostname_to_primary_ip[device.hostname] = primary_ip
                 self.add(self.device(**data))
             except ObjectAlreadyExists as err:
-                self.job.logger.warning(f"Duplicate device {device.name}. {err}")
+                self.job.logger.warning(f"Duplicate device {device.hostname}. {err}")
+
+    @staticmethod
+    def _get_primary_ip(device):
+        """Return the device's management address as an `ipaddress` object, or None if unset or invalid.
+
+        Slurpit reports the management address in `address` (with `family` set to IPv4 or IPv6).
+        """
+        if not device.address:
+            return None
+        try:
+            return ipaddress.ip_interface(device.address).ip
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _same_ip(ip_obj, host):
+        """Return True if the `host` string is the same address as `ip_obj`."""
+        try:
+            return ipaddress.ip_address(host) == ip_obj
+        except ValueError:
+            return False
 
     def load_interfaces(self):
         """Load interfaces from Slurpit."""
@@ -380,8 +401,11 @@ class SlurpitAdapter(Adapter):
                                 "interface__device__name": interface.get("hostname"),
                                 "ip_address__host": ip_address.get("host"),
                             }
-                            if self.hostname_to_primary_ip.get(interface.get("hostname")) == ip_address.get("host"):
-                                interface_match_data["interface__device__primary_ip4__host"] = ip_address.get("host")
+                            primary_ip = self.hostname_to_primary_ip.get(interface.get("hostname"))
+                            if primary_ip and self._same_ip(primary_ip, ip_address.get("host")):
+                                interface_match_data[f"interface__device__primary_ip{primary_ip.version}__host"] = (
+                                    ip_address.get("host")
+                                )
 
                             self.add(self.ipassignment(**interface_match_data))
 

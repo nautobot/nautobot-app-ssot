@@ -1,0 +1,3 @@
+Fixed Slurpit integration failing with `Device.__init__() got an unexpected keyword argument 'address'` against current Slurpit servers.
+Fixed Slurpit integration failing to load planning data (interfaces, VLANs, routing table, hardware info) due to an unsupported `limit` argument.
+Fixed Slurpit integration to set the primary IPv6 address, rather than the primary IPv4 address, for devices whose management address is IPv6.
