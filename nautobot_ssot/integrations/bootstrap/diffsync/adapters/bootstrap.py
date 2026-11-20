@@ -12,6 +12,7 @@ from nautobot.extras.choices import CustomFieldFilterLogicChoices, JobExecutionT
 from nautobot.extras.datasources.git import ensure_git_repository
 from nautobot.extras.models import GitRepository
 
+from nautobot_ssot.integrations.bootstrap.constants import DEFAULT_COLOR
 from nautobot_ssot.integrations.bootstrap.diffsync.models.bootstrap import (  # noqa: F401
     BootstrapCircuit,
     BootstrapCircuitTermination,
@@ -270,7 +271,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         except ObjectNotFound:
             new_tenant_group = self.tenant_group(
                 name=bs_tenant_group["name"],
-                parent=bs_tenant_group["parent"] if not None else None,
+                parent=bs_tenant_group.get("parent") or None,
                 description=bs_tenant_group["description"],
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
             )
@@ -287,7 +288,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         except ObjectNotFound:
             new_tenant = self.tenant(
                 name=bs_tenant["name"],
-                tenant_group=bs_tenant["tenant_group"] if not None else None,
+                tenant_group=bs_tenant.get("tenant_group") or None,
                 description=bs_tenant["description"],
                 tags=bs_tenant["tags"],
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
@@ -312,7 +313,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 name=bs_role["name"],
                 weight=bs_role["weight"],
                 description=bs_role["description"],
-                color=bs_role["color"] if not None else "9e9e9e",
+                color=bs_role.get("color") or DEFAULT_COLOR,
                 content_types=_content_types,
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
             )
@@ -374,7 +375,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
             new_location_type = self.location_type(
                 name=bs_location_type["name"],
                 parent=_parent,
-                nestable=bs_location_type["nestable"],
+                nestable=bs_location_type.get("nestable") or False,
                 description=bs_location_type["description"],
                 content_types=_content_types,
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
@@ -394,7 +395,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 _parent = bs_location["parent"]
             else:
                 _parent = None
-            if bs_location["tenant"]:
+            if bs_location.get("tenant"):
                 _tenant = bs_location["tenant"]
             else:
                 _tenant = None
@@ -403,19 +404,19 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 location_type=bs_location["location_type"],
                 parent=_parent,
                 status=bs_location["status"],
-                facility=bs_location["facility"],
-                asn=bs_location["asn"],
-                time_zone=bs_location["time_zone"],
-                description=bs_location["description"],
+                facility=bs_location.get("facility") or "",
+                asn=bs_location.get("asn"),
+                time_zone=bs_location.get("time_zone") or "",
+                description=bs_location.get("description") or "",
                 tenant=_tenant,
-                physical_address=bs_location["physical_address"],
-                shipping_address=bs_location["shipping_address"],
-                latitude=bs_location["latitude"],
-                longitude=bs_location["longitude"],
-                contact_name=bs_location["contact_name"],
-                contact_phone=bs_location["contact_phone"],
-                contact_email=bs_location["contact_email"],
-                tags=bs_location["tags"],
+                physical_address=bs_location.get("physical_address") or "",
+                shipping_address=bs_location.get("shipping_address") or "",
+                latitude=bs_location.get("latitude"),
+                longitude=bs_location.get("longitude"),
+                contact_name=bs_location.get("contact_name") or "",
+                contact_phone=bs_location.get("contact_phone") or "",
+                contact_email=bs_location.get("contact_email") or "",
+                tags=bs_location.get("tags") or [],
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
             )
             self.add(new_location)
@@ -911,7 +912,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
         except ObjectNotFound:
             _new_tag = self.tag(
                 name=tag["name"],
-                color=tag["color"] if not None else "9e9e9e",
+                color=tag.get("color") or DEFAULT_COLOR,
                 content_types=_content_types,
                 description=tag["description"],
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
@@ -1069,7 +1070,7 @@ class BootstrapAdapter(Adapter, LabelMixin):
                 download_url=software_image["download_url"],
                 image_file_checksum=software_image["image_file_checksum"],
                 hashing_algorithm=_hashing_algorithm,
-                default_image=software_image["default_image"] if not None else False,
+                default_image=software_image.get("default_image") or False,
                 tags=software_image["tags"],
                 system_of_record=os.getenv("SYSTEM_OF_RECORD", "Bootstrap"),
             )
@@ -1148,7 +1149,9 @@ class BootstrapAdapter(Adapter, LabelMixin):
 
     def load(self):
         """Load data from Bootstrap into DiffSync models."""
-        environment_label = settings.PLUGINS_CONFIG["nautobot_ssot"]["bootstrap_nautobot_environment_branch"]
+        environment_label = settings.PLUGINS_CONFIG.get("nautobot_ssot", {}).get(
+            "bootstrap_nautobot_environment_branch", "develop"
+        )
 
         if is_running_tests():
             load_type = "file"

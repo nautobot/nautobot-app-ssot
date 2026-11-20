@@ -5,6 +5,9 @@ from nautobot_ssot.utils import (
     validate_dlm_installed,
 )
 
+# Fallback color for Roles and Tags when none is provided. Nautobot's ColorField expects 6 hex chars without "#".
+DEFAULT_COLOR = "9e9e9e"
+
 SCOPED_FIELDS_MAPPING = {
     "circuits.circuit": [
         "cid",

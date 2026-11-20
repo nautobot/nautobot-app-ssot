@@ -1,0 +1,3 @@
+Fixed Bootstrap integration failing to load Tags and Roles without a color and Locations without a time zone or other optional keys.
+Fixed Bootstrap `if not None` ternary expressions that never applied their fallback values.
+Fixed Bootstrap default Tag and Role color to be a valid value (`9e9e9e`).
