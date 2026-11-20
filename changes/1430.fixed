@@ -1,0 +1,1 @@
+Fixed the Infoblox integration never assigning a VRF to Prefixes from the `VRF` Extensibility Attribute; the VRF is now matched by name within the Prefix's Namespace.

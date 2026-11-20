@@ -9,7 +9,7 @@ from nautobot.apps.testing import TestCase, TransactionTestCase
 from nautobot.dcim.models import Location, LocationType
 from nautobot.extras.choices import CustomFieldTypeChoices
 from nautobot.extras.models import CustomField, Relationship, RelationshipAssociation, Role, Status, Tag
-from nautobot.ipam.models import VLAN, IPAddress, Namespace, Prefix, VLANGroup, VLANLocationAssignment
+from nautobot.ipam.models import VLAN, VRF, IPAddress, Namespace, Prefix, VLANGroup, VLANLocationAssignment
 from nautobot.tenancy.models import Tenant
 
 from nautobot_ssot.integrations.infoblox.choices import (
@@ -21,6 +21,7 @@ from nautobot_ssot.integrations.infoblox.diffsync.adapters.infoblox import Infob
 from nautobot_ssot.integrations.infoblox.diffsync.adapters.nautobot import NautobotAdapter
 from nautobot_ssot.integrations.infoblox.diffsync.models.nautobot import (
     NautobotNamespace,
+    NautobotNetwork,
     NautobotVlan,
     NautobotVlanGroup,
     process_ext_attrs,
@@ -165,6 +166,50 @@ class TestModelNautobotNetwork(TestCase):
         self.assertEqual("network", prefix.type)
         self.assertIn(self.tag_sync_from_infoblox, prefix.tags.all())
         self.assertQuerysetEqualAndNotEmpty([self.location], prefix.locations.all())
+
+    def test_network_create_network_assigns_vrf_from_ext_attr(self):
+        """A `VRF` Extensibility Attribute assigns the same-named VRF from the Prefix's Namespace (#1430)."""
+        vrf = VRF.objects.create(name="red", namespace=self.namespace_dev)
+        # Same name in another Namespace must not be picked.
+        VRF.objects.create(name="red", namespace=Namespace.objects.get(name="Global"))
+        inf_ds_network = self.infoblox_adapter.prefix(
+            **_get_network_dict({"network_type": "network", "namespace": "dev", "ext_attrs": {"vrf": "red"}})
+        )
+        self.infoblox_adapter.add(inf_ds_network)
+
+        nb_adapter = NautobotAdapter(config=self.config)
+        nb_adapter.job = Mock(debug=True, logger=Mock())
+        with self.captureOnCommitCallbacks(execute=True):
+            nb_adapter.load()
+            self.infoblox_adapter.sync_to(nb_adapter)
+
+        prefix = Prefix.objects.get(network="10.0.0.0", prefix_length="8", namespace__name="dev")
+        self.assertQuerysetEqualAndNotEmpty([vrf], prefix.vrfs.all())
+        self.assertEqual("red", prefix.custom_field_data.get("vrf"))
+
+    def test_network_update_network_assigns_vrf_from_ext_attr(self):
+        """A `VRF` Extensibility Attribute added in Infoblox assigns the VRF to an existing Prefix (#1430)."""
+        vrf = VRF.objects.create(name="red", namespace=self.namespace_dev)
+        Prefix.objects.create(
+            prefix="10.0.0.0/8",
+            status=self.status_active,
+            type="network",
+            description="TestNetwork",
+            namespace=self.namespace_dev,
+        )
+        inf_ds_network = self.infoblox_adapter.prefix(
+            **_get_network_dict({"network_type": "network", "namespace": "dev", "ext_attrs": {"vrf": "red"}})
+        )
+        self.infoblox_adapter.add(inf_ds_network)
+
+        nb_adapter = NautobotAdapter(config=self.config)
+        nb_adapter.job = Mock(debug=True, logger=Mock())
+        with self.captureOnCommitCallbacks(execute=True):
+            nb_adapter.load()
+            self.infoblox_adapter.sync_to(nb_adapter)
+
+        prefix = Prefix.objects.get(network="10.0.0.0", prefix_length="8", namespace__name="dev")
+        self.assertQuerysetEqualAndNotEmpty([vrf], prefix.vrfs.all())
 
     def test_network_update_network(self):
         """Validate network gets updated, including VLAN relationships."""
@@ -1599,6 +1644,47 @@ class TestModelNautobotBranchMatrix(TestCase):
                 self.assertIn("do not support VRF assignment", adapter.job.logger.warning.call_args[0][0])
                 self.assertEqual("red", obj.custom_field_data.get("vrf"))
 
+    def test_process_ext_attrs_vrf_uses_prefix_namespace(self):
+        """VRF lookup is scoped to the Prefix's Namespace, and list values assign every found VRF."""
+        prefix = self._base_prefix(prefix="10.99.11.0/24")
+        red = VRF.objects.create(name="red", namespace=self.namespace_dev)
+        blue = VRF.objects.create(name="blue", namespace=self.namespace_dev)
+        other_namespace = Namespace.objects.create(name="VRF Other")
+        green_other = VRF.objects.create(name="green", namespace=other_namespace)
+
+        adapter = Mock()
+        adapter.job = Mock(logger=Mock())
+        adapter.config = Mock(infoblox_location_ext_attr="")
+        adapter.vrf_map = {
+            (self.namespace_dev.id, "red"): red.id,
+            (self.namespace_dev.id, "blue"): blue.id,
+            (other_namespace.id, "green"): green_other.id,
+        }
+
+        with self.captureOnCommitCallbacks(execute=True):
+            process_ext_attrs(adapter=adapter, obj=prefix, extattrs={"vrf": ["red", "blue", "green"]})
+
+        self.assertEqual({red, blue}, set(prefix.vrfs.all()))
+        adapter.job.logger.warning.assert_called_once()
+        self.assertIn("Unable to find VRF green in Namespace dev", adapter.job.logger.warning.call_args[0][0])
+
+    def test_process_ext_attrs_vrf_duplicate_name_in_namespace_skips(self):
+        """A VRF name that is ambiguous within the Prefix's Namespace is skipped with a warning."""
+        prefix = self._base_prefix(prefix="10.99.12.0/24")
+
+        adapter = Mock()
+        adapter.job = Mock(logger=Mock())
+        adapter.config = Mock(infoblox_location_ext_attr="")
+        adapter.vrf_map = {(self.namespace_dev.id, "red"): None}
+
+        with self.captureOnCommitCallbacks(execute=True):
+            process_ext_attrs(adapter=adapter, obj=prefix, extattrs={"vrf": "red"})
+
+        self.assertEqual(0, prefix.vrfs.count())
+        adapter.job.logger.warning.assert_called_once()
+        self.assertIn("Multiple VRFs named red", adapter.job.logger.warning.call_args[0][0])
+        self.assertEqual("red", prefix.custom_field_data.get("vrf"))
+
     def test_process_ext_attrs_location_case_insensitive_match(self):
         """A location extattr resolves to a prefix-capable Location regardless of value case."""
         site_type = LocationType.objects.create(name="Matrix Site")
@@ -1876,3 +1962,36 @@ class TestModelNautobotVlanCreateAutocommit(TransactionTestCase):
         self.assertIsNone(result)
         self.assertFalse(VLAN.objects.filter(vid=200).exists())
         self.assertFalse(VLANLocationAssignment.objects.filter(location=location).exists())
+
+
+class TestModelNautobotNetworkCreateAutocommit(TransactionTestCase):
+    """Prefix creation with a `VRF` Extensibility Attribute, in autocommit mode like a real sync job.
+
+    The VRF is added to a Prefix that is not saved yet when `process_ext_attrs` runs, so it must be deferred until the
+    Prefix row exists (#1430).
+    """
+
+    def test_network_create_with_vrf_ext_attr_assigns_vrf(self):
+        status_active, _ = Status.objects.get_or_create(name="Active")
+        status_active.content_types.add(ContentType.objects.get_for_model(Prefix))
+        namespace, _ = Namespace.objects.get_or_create(name="VRF-Autocommit")
+        vrf = VRF.objects.create(name="red", namespace=namespace)
+
+        adapter = Mock(spec=NautobotAdapter)
+        adapter.job = Mock(logger=Mock())
+        adapter.config = Mock(infoblox_location_ext_attr="", infoblox_network_view_to_namespace_map={})
+        adapter.status_map = {"Active": status_active.id}
+        adapter.namespace_map = {namespace.name: namespace.id}
+        adapter.prefix_map = {}
+        adapter.vlan_map = {}
+        adapter.vrf_map = {(namespace.id, "red"): vrf.id}
+
+        NautobotNetwork.create(
+            adapter=adapter,
+            ids={"network": "10.77.0.0/16", "namespace": namespace.name},
+            attrs={"network_type": "network", "description": "", "ext_attrs": {"vrf": "red"}},
+        )
+
+        prefix = Prefix.objects.get(prefix="10.77.0.0/16", namespace=namespace)
+        self.assertEqual([vrf], list(prefix.vrfs.all()))
+        adapter.job.logger.warning.assert_not_called()
