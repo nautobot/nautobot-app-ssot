@@ -356,3 +356,36 @@ class NautobotDiffSyncTestCase(TestCase):  # pylint: disable=too-many-instance-a
         self.assertTrue(self.nb_adapter.job.logger.info.call_args_list[2].startswith("Deleting"))
         self.assertTrue(self.nb_adapter.job.logger.info.call_args_list[3].startswith("Deleting"))
         self.assertTrue(self.nb_adapter.job.logger.info.call_args_list[4].startswith("Deleting"))
+
+
+class NautobotAdapterStateTestCase(TestCase):
+    """Test that each Nautobot adapter starts a sync with its own, empty lookup maps."""
+
+    def setUp(self):
+        """Create an Area Location for the adapter to load."""
+        super().setUp()
+        area_type = LocationType.objects.get_or_create(name="Area", defaults={"nestable": True})[0]
+        status = Status.objects.get_or_create(name="Active")[0]
+        status.content_types.add(ContentType.objects.get_for_model(Location))
+        self.area = Location.objects.create(name="NY", location_type=area_type, status=status)
+        self.job = MagicMock()
+        self.job.area_loctype = area_type
+        self.job.data_source = "Catalyst Center"
+
+    def test_new_adapter_starts_with_empty_maps(self):
+        """Maps filled by one sync are not seen by the next adapter, including IDs of since-deleted objects."""
+        first = NautobotAdapter(job=self.job)
+        first.load_areas()
+        self.assertEqual(first.region_map, {None: {"NY": self.area.id}})
+        self.area.delete()
+
+        second = NautobotAdapter(job=self.job)
+        map_names = [name for name in vars(second) if name.endswith("_map")]
+        self.assertEqual(len(map_names), 12)
+        for name in map_names:
+            with self.subTest(map=name):
+                self.assertEqual(getattr(second, name), {})
+                self.assertIsNot(getattr(second, name), getattr(first, name))
+
+        second.load_areas()
+        self.assertEqual(second.region_map, {})
