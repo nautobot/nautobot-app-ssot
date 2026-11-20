@@ -37,7 +37,7 @@ from nautobot_ssot.integrations.dna_center.diffsync.models.nautobot import (
 from nautobot_ssot.integrations.metadata_utils import object_has_metadata
 
 
-class NautobotAdapter(Adapter):
+class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
     """DiffSync adapter for Nautobot."""
 
     area = NautobotArea
@@ -50,19 +50,6 @@ class NautobotAdapter(Adapter):
     ip_on_intf = NautobotIPAddressOnInterface
 
     top_level = ["area", "building", "device", "prefix", "ipaddress", "ip_on_intf"]
-
-    tenant_map = {}
-    status_map = {}
-    locationtype_map = {}
-    region_map = {}
-    site_map = {}
-    floor_map = {}
-    device_map = {}
-    platform_map = {}
-    port_map = {}
-    namespace_map = {}
-    prefix_map = {}
-    ipaddr_map = {}
 
     def __init__(self, *args, job, sync=None, tenant: Optional[OrmTenant] = None, **kwargs):
         """Initialize Nautobot.
@@ -78,6 +65,20 @@ class NautobotAdapter(Adapter):
         self.tenant = tenant
         self.objects_to_create = defaultdict(list)
         self.objects_to_delete = defaultdict(list)
+        # Lookup maps of Nautobot objects loaded by this sync. Kept per instance so that IDs from an earlier
+        # sync in the same worker are never reused.
+        self.tenant_map = {}
+        self.status_map = {}
+        self.locationtype_map = {}
+        self.region_map = {}
+        self.site_map = {}
+        self.floor_map = {}
+        self.device_map = {}
+        self.platform_map = {}
+        self.port_map = {}
+        self.namespace_map = {}
+        self.prefix_map = {}
+        self.ipaddr_map = {}
 
     def load_areas(self):
         """Load Location data from Nautobot for specified Area LocationType into DiffSync models."""
