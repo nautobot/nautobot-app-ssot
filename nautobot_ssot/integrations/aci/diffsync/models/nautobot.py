@@ -133,11 +133,17 @@ class NautobotDeviceType(DeviceType):
         return super().update(attrs)
 
     def delete(self):
-        """Delete DeviceType object in Nautobot."""
-        self.adapter.job.logger.warning(f"Device Type {self.model} will be deleted.")
+        """Delete DeviceType object in Nautobot.
+
+        Device Types are shared between every ACI fabric (and potentially non-ACI Devices), so the
+        deletion is deferred to `sync_complete()`, after Devices have been removed, and is skipped there
+        if any Device still references the Device Type.
+        """
+        self.adapter.job.logger.warning(f"Device Type {self.model} will be deleted if no Devices reference it.")
+        super().delete()
         _devicetype = OrmDeviceType.objects.get(model=self.model)
-        _devicetype.delete()
-        return super().delete()
+        self.adapter.objects_to_delete["devicetype"].append(_devicetype)
+        return self
 
 
 class NautobotDeviceRole(DeviceRole):

@@ -1,0 +1,1 @@
+Fixed ACI integration attempting to delete Device Types that are still in use by Devices from other ACI fabrics.

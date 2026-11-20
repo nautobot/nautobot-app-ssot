@@ -33,8 +33,6 @@ logger = logging.getLogger(__name__)
 class NautobotAdapter(Adapter):
     """Nautobot adapter for DiffSync."""
 
-    objects_to_delete = defaultdict(list)
-
     tenant = NautobotTenant
     vrf = NautobotVrf
     device_type = NautobotDeviceType
@@ -70,6 +68,8 @@ class NautobotAdapter(Adapter):
         self.sync = sync
         self.site = site_name
         self.site_tag = Tag.objects.get_or_create(name=self.site)[0]
+        # Per-instance so that deletions queued by one sync are never carried into another.
+        self.objects_to_delete = defaultdict(list)
 
     def sync_complete(self, source: Adapter, *args, **kwargs):
         """Clean up function for DiffSync sync.
@@ -86,8 +86,14 @@ class NautobotAdapter(Adapter):
             "vrf",
             "tenant",
             "device",
+            "devicetype",
         ):
             for nautobot_object in self.objects_to_delete[grouping]:
+                if grouping == "devicetype" and nautobot_object.devices.exists():
+                    self.job.logger.warning(
+                        f"Device Type {nautobot_object.model} is still in use by Devices and will not be deleted."
+                    )
+                    continue
                 try:
                     logger.warning("OBJECT: %s", nautobot_object)
                     nautobot_object.delete()
@@ -124,7 +130,14 @@ class NautobotAdapter(Adapter):
     def load_devicetypes(self):
         """Method to load Device Types from Nautobot."""
         _tag = Tag.objects.get(name=PLUGIN_CFG.get("tag"))
-        for nbdevicetype in DeviceType.objects.filter(tags=_tag):
+        # Device Types are shared across all ACI fabrics. Those used by Devices outside of this fabric
+        # (another fabric or non-ACI Devices) must never be deleted by this sync.
+        devicetypes_used_elsewhere = set(
+            Device.objects.filter(device_type__tags=_tag)
+            .exclude(tags=self.site_tag)
+            .values_list("device_type_id", flat=True)
+        )
+        for nbdevicetype in DeviceType.objects.filter(tags=_tag).select_related("manufacturer"):
             _devicetype = self.device_type(
                 model=nbdevicetype.model,
                 part_nbr=nbdevicetype.part_number,
@@ -132,6 +145,8 @@ class NautobotAdapter(Adapter):
                 comments=nbdevicetype.comments,
                 u_height=nbdevicetype.u_height,
             )
+            if nbdevicetype.id in devicetypes_used_elsewhere:
+                _devicetype.model_flags = DiffSyncModelFlags.SKIP_UNMATCHED_DST
             self.add(_devicetype)
 
     def load_interfacetemplates(self):
