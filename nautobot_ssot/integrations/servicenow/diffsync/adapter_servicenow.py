@@ -21,10 +21,6 @@ from . import models
 class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attributes
     """DiffSync adapter using pysnow to communicate with a ServiceNow server."""
 
-    # create defaultdict object to store objects that should be deleted from ServiceNow if they do not
-    # exist in Nautobot
-    objects_to_delete = defaultdict(list)
-
     company = models.Company
     device = models.Device  # child of location
     interface = models.Interface  # child of device
@@ -45,6 +41,9 @@ class ServiceNowDiffSync(Adapter):  # pylint: disable=too-many-instance-attribut
         self.job = job
         self.sync = sync
         self.site_filter = site_filter
+        # Records that should be deleted from ServiceNow because they no longer exist in Nautobot, deleted in
+        # sync_complete(). Kept per instance so that a sync that fails part way never passes its queue to the next.
+        self.objects_to_delete = defaultdict(list)
         # Dict of table -> sys_id -> record. Every record pulled during load, plus any fetched later.
         # Reference (foreign key) fields are resolved against this, so the write path needs no extra queries.
         self.sys_ids = {}

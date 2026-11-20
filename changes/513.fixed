@@ -1,0 +1,1 @@
+Fixed ServiceNow records queued for deletion by a failed sync being deleted by the next sync in the same worker.

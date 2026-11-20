@@ -643,6 +643,30 @@ class ServiceNowDiffSyncTestCase(TestCase):
         self.assertEqual(mock_snow_client.field_params["core_company"], [["manufacturer", "name", "sys_id"]])
 
 
+class ServiceNowDeleteQueueTestCase(TestCase):
+    """Test that records queued for deletion belong to the adapter that queued them."""
+
+    def test_queued_deletions_are_not_shared_between_adapters(self):
+        """A sync that fails before sync_complete must not pass its queued deletions to the next sync."""
+        first = ServiceNowDiffSync(client=MagicMock(), job=MagicMock())
+        record = MagicMock()
+        first.objects_to_delete["device"].append(record)
+        # sync_complete is never called on the first adapter, as if its sync had failed part way through.
+
+        second = ServiceNowDiffSync(client=MagicMock(), job=MagicMock())
+        self.assertEqual(second.objects_to_delete["device"], [])
+        second.sync_complete(source=MagicMock(), diff=MagicMock())
+        record.delete.assert_not_called()
+
+    def test_sync_complete_deletes_queued_records_and_empties_the_queue(self):
+        adapter = ServiceNowDiffSync(client=MagicMock(), job=MagicMock())
+        record = MagicMock()
+        adapter.objects_to_delete["device"].append(record)
+        adapter.sync_complete(source=MagicMock(), diff=MagicMock())
+        record.delete.assert_called_once()
+        self.assertEqual(adapter.objects_to_delete["device"], [])
+
+
 class ServiceNowClientPaginationTestCase(TestCase):
     """Test that ServiceNowClient.all_table_entries paginates the full result set."""
 

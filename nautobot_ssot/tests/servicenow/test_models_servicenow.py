@@ -2,7 +2,6 @@
 
 import json
 from base64 import b64decode
-from collections import defaultdict
 from copy import deepcopy
 from unittest.mock import MagicMock
 
@@ -80,8 +79,6 @@ def build_adapter(entry, sys_ids=None, candidates=None, result=None):
     adapter.job.debug = False
     adapter.mapping_data = {"device": entry, "interface": interface_entry()}
     adapter.sys_ids = sys_ids or {}
-    # objects_to_delete is a class attribute on the adapter, so shadow it to keep tests independent.
-    adapter.objects_to_delete = defaultdict(list)
     return adapter
 
 
