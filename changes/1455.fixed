@@ -1,0 +1,1 @@
+Fixed the Device42 Nautobot adapter reusing lookup maps from earlier syncs in the same worker.

@@ -32,7 +32,7 @@ from nautobot_ssot.integrations.device42.utils import nautobot
 logger = logging.getLogger(__name__)
 
 
-class NautobotAdapter(Adapter):
+class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
     """Nautobot adapter for DiffSync."""
 
     building = dcim.NautobotBuilding
@@ -72,29 +72,6 @@ class NautobotAdapter(Adapter):
         "conn",
     ]
 
-    status_map = {}
-    platform_map = {}
-    site_map = {}
-    room_map = {}
-    rack_map = {}
-    vendor_map = {}
-    role_map = {}
-    devicetype_map = {}
-    cluster_map = {}
-    device_map = {}
-    port_map = {}
-    vrf_map = {}
-    namespace_map = {}
-    prefix_map = {}
-    ipaddr_map = {}
-    vlan_map = {}
-    circuit_map = {}
-    cable_map = {}
-    provider_map = {}
-    rp_map = {}
-    fp_map = {}
-    relationship_map = {}
-
     def __init__(self, *args, job, sync=None, **kwargs):
         """Initialize the Nautobot DiffSync adapter.
 
@@ -107,6 +84,30 @@ class NautobotAdapter(Adapter):
         self.sync = sync
         self.objects_to_delete = defaultdict(list)
         self.objects_to_create = defaultdict(list)
+        # Lookup maps of Nautobot objects loaded by this sync. Kept per instance so that IDs from an earlier
+        # sync in the same worker are never reused.
+        self.status_map = {}
+        self.platform_map = {}
+        self.site_map = {}
+        self.room_map = {}
+        self.rack_map = {}
+        self.vendor_map = {}
+        self.role_map = {}
+        self.devicetype_map = {}
+        self.cluster_map = {}
+        self.device_map = {}
+        self.port_map = {}
+        self.vrf_map = {}
+        self.namespace_map = {}
+        self.prefix_map = {}
+        self.ipaddr_map = {}
+        self.vlan_map = {}
+        self.circuit_map = {}
+        self.cable_map = {}
+        self.provider_map = {}
+        self.rp_map = {}
+        self.fp_map = {}
+        self.relationship_map = {}
 
     def sync_complete(self, source: Adapter, *args, **kwargs):
         """Clean up function for DiffSync sync.
