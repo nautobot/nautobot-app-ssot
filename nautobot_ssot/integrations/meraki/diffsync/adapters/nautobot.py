@@ -167,6 +167,7 @@ class NautobotAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 new_port = self.port(
                     name=intf.name,
                     device=intf.device.name,
+                    description=intf.description,
                     management=intf.mgmt_only,
                     enabled=intf.enabled,
                     port_type=intf.type,

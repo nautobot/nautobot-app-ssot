@@ -210,6 +210,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     self.port,
                     ids={"name": port, "device": device.name},
                     attrs={
+                        "description": "",
                         "management": True,
                         "enabled": port_uplink_settings["enabled"],
                         "port_type": "1000base-t",
@@ -261,6 +262,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     mgmt_port = self.port(
                         name=mgmt_port_name,
                         device=device.name,
+                        description="",
                         management=True,
                         enabled=True,
                         port_type="1000base-t",
@@ -305,6 +307,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 self.port,
                 ids={"name": str(port["number"]), "device": device.name},
                 attrs={
+                    "description": "",
                     "management": False,
                     "enabled": port["enabled"],
                     "port_type": "1000base-t",
@@ -329,6 +332,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 mgmt_port = self.port(
                     name=port,
                     device=device.name,
+                    description="",
                     management=True,
                     enabled=True,
                     port_type="1000base-t",
@@ -372,6 +376,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     mgmt_port = self.port(
                         name=mgmt_port_name,
                         device=device.name,
+                        description="",
                         management=True,
                         enabled=True,
                         port_type="1000base-t",
@@ -411,6 +416,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     mgmt_port = self.port(
                         name=mgmt_port_name,
                         device=device.name,
+                        description="",
                         management=True,
                         enabled=True,
                         port_type="1000base-t",
@@ -450,6 +456,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     mgmt_port = self.port(
                         name=mgmt_port_name,
                         device=device.name,
+                        description="",
                         management=True,
                         enabled=True,
                         port_type="1000base-t",
@@ -489,6 +496,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     mgmt_port = self.port(
                         name=mgmt_port_name,
                         device=device.name,
+                        description="",
                         management=True,
                         enabled=True,
                         port_type="1000base-t",
@@ -528,6 +536,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     mgmt_port = self.port(
                         name=mgmt_port_name,
                         device=device.name,
+                        description="",
                         management=True,
                         enabled=True,
                         port_type="1000base-t",
@@ -567,6 +576,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     mgmt_port = self.port(
                         name=mgmt_port_name,
                         device=device.name,
+                        description="",
                         management=True,
                         enabled=True,
                         port_type="1000base-t",
@@ -599,6 +609,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 new_port = self.port(
                     name=port["portId"],
                     device=device.name,
+                    description=port.get("name") or "",
                     management=False,
                     enabled=port["enabled"],
                     port_type="1000base-t",
@@ -620,6 +631,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                 new_port = self.port(
                     name=port,
                     device=device.name,
+                    description="",
                     management=True,
                     enabled=True,
                     port_type="1000base-t",
@@ -670,6 +682,7 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
             self.port,
             ids={"name": port["interface"], "device": device.name},
             attrs={
+                "description": "",
                 "management": True,
                 "enabled": True,
                 "port_type": "1000base-t",
@@ -785,7 +798,8 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
                     "vlan_id": vlan_id,
                     "subnet": subnet,
                     "appliance_ip": appliance_ip,
-                    "description": None,
+                    # The getNetworkApplianceVlans endpoint has no description field, so use the VLAN name instead.
+                    "description": vlan.get("name") or "",
                 }
                 self.load_lan_svi_record(device=device, network_id=network_id, svi=svi)
         elif appliance_vlans_settings.get("vlansEnabled") is False:
@@ -817,19 +831,19 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         vlan_id = svi["vlan_id"]
         subnet = svi["subnet"]
         appliance_ip = svi["appliance_ip"]
-        description = svi.get("description")
+        description = svi.get("description") or ""
 
         port_name = f"Vlan{vlan_id}"
         new_port, loaded = self.get_or_instantiate(
             self.port,
             ids={"name": port_name, "device": device.name},
             attrs={
+                "description": description,
                 "management": False,
                 "enabled": True,
                 "port_type": "virtual",
                 "port_status": "Active",
                 "tagging": False,
-                "description": description,
                 "uuid": None,
             },
         )

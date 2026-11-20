@@ -371,7 +371,7 @@
             },
             {
                 "portId": "25",
-                "name": "",
+                "name": "Uplink to Core",
                 "tags": [],
                 "enabled": false,
                 "poeEnabled": false,

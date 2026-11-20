@@ -1,0 +1,2 @@
+Fixed blank Interface descriptions when syncing SVIs from Meraki MX/MG/Z devices by sourcing the description from the Meraki VLAN name.
+Fixed the Meraki Port model silently discarding the description attribute by adding it to the model's tracked attributes.
