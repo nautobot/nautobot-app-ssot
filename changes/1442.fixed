@@ -1,0 +1,1 @@
+Fixed `DataSyncBaseJob.execute_sync()` recomputing the diff during sync instead of reusing the diff already calculated by `calculate_diff()`.

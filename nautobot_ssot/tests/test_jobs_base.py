@@ -97,6 +97,16 @@ class TestDataSyncBaseJobStubs(TestCase):
         self.job.execute_sync()
         self.job.source_adapter.sync_to.assert_called_once()
 
+    def test_execute_sync_reuses_calculated_diff(self):
+        """execute_sync passes the diff computed by calculate_diff to sync_to instead of recomputing it."""
+        self.job.source_adapter = MagicMock()
+        self.job.target_adapter = MagicMock()
+        self.job.diff = MagicMock()
+        self.job.execute_sync()
+        self.job.source_adapter.sync_to.assert_called_once_with(
+            self.job.target_adapter, flags=self.job.diffsync_flags, diff=self.job.diff
+        )
+
     def test_lookup_object_returns_none(self):
         """The base lookup_object helper returns None."""
         self.assertIsNone(self.job.lookup_object("device", "dev1"))
