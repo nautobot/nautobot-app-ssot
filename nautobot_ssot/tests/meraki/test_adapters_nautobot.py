@@ -1,6 +1,6 @@
 """Unit tests for the Nautobot DiffSync adapter."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
@@ -44,6 +44,10 @@ class NautobotDiffSyncTestCase(TestCase):
             status=cls.status_active,
         )
         global_region.validated_save()
+        cls.global_region = global_region
+        cls.eu_region = Location.objects.create(
+            name="EU Region", location_type=cls.region_type, status=cls.status_active
+        )
         cls.site_type = LocationType.objects.get_or_create(name="Site")[0]
         cls.site_type.content_types.add(ContentType.objects.get_for_model(Device))
         cls.site_type.content_types.add(ContentType.objects.get_for_model(Prefix))
@@ -123,6 +127,7 @@ class NautobotDiffSyncTestCase(TestCase):
         job = MerakiDataSource()
         job.logger.warning = MagicMock()
         job.parent_location = global_region
+        job.location_map = {}
         job.hostname_mapping = []
         job.devicetype_mapping = [("MS", "Switch"), ("MX", "Firewall")]
         job.network_loctype = cls.site_type
@@ -264,3 +269,53 @@ class NautobotDiffSyncTestCase(TestCase):
         # Had the SoftwareVersion been processed before the Device, the protected FK would have blocked its deletion.
         self.assertFalse(Device.objects.filter(name="Lab01").exists())
         self.assertFalse(SoftwareVersion.objects.filter(version="15.42").exists())
+
+    def test_load_region_map_parent_location_only(self):
+        """Validate region_map contains only the default Parent Location when Location Mapping is undefined."""
+        self.nb_adapter.job.network_loctype.parent = self.region_type
+        self.nb_adapter.job.parent_location = self.global_region
+        self.nb_adapter.job.location_map = {}
+        self.nb_adapter.load_region_map()
+        self.assertEqual({"Global Region": self.global_region.id}, self.nb_adapter.region_map)
+
+    def test_load_region_map_location_map_only(self):
+        """Validate region_map is built from Location Mapping when Parent Location is undefined."""
+        self.nb_adapter.job.network_loctype.parent = self.region_type
+        self.nb_adapter.job.parent_location = None
+        self.nb_adapter.job.location_map = {"Lab": {"parent": "EU Region"}, "HQ": {"name": "New York"}}
+        self.nb_adapter.load_region_map()
+        self.assertEqual({"EU Region": self.eu_region.id}, self.nb_adapter.region_map)
+
+    def test_load_region_map_parent_location_and_location_map(self):
+        """Validate region_map includes both the default Parent Location and Location Mapping parents."""
+        self.nb_adapter.job.network_loctype.parent = self.region_type
+        self.nb_adapter.job.parent_location = self.global_region
+        self.nb_adapter.job.location_map = {"Lab": {"parent": "EU Region"}}
+        self.nb_adapter.load_region_map()
+        self.assertEqual(
+            {"Global Region": self.global_region.id, "EU Region": self.eu_region.id}, self.nb_adapter.region_map
+        )
+
+    def test_load_region_map_missing_mapped_parent(self):
+        """Validate a missing parent Location in Location Mapping is logged and excluded from region_map."""
+        self.nb_adapter.job.network_loctype.parent = self.region_type
+        self.nb_adapter.job.parent_location = self.global_region
+        self.nb_adapter.job.location_map = {"Lab": {"parent": "Missing Region"}}
+        with patch.object(self.nb_adapter.job.logger, "error") as mock_error:
+            self.nb_adapter.load_region_map()
+        mock_error.assert_called_once()
+        self.assertEqual({"Global Region": self.global_region.id}, self.nb_adapter.region_map)
+
+    def test_load_region_map_ambiguous_mapped_parent(self):
+        """Validate a parent Location in Location Mapping that matches multiple Locations is logged and excluded."""
+        self.nb_adapter.job.network_loctype.parent = self.region_type
+        self.nb_adapter.job.parent_location = self.global_region
+        self.nb_adapter.job.location_map = {"Lab": {"parent": "EU Region"}}
+        with (
+            patch.object(Location.objects, "get", side_effect=Location.MultipleObjectsReturned),
+            patch.object(self.nb_adapter.job.logger, "error") as mock_error,
+        ):
+            self.nb_adapter.load_region_map()
+        mock_error.assert_called_once()
+        self.assertIn("Multiple Locations named EU Region", mock_error.call_args.args[0])
+        self.assertEqual({"Global Region": self.global_region.id}, self.nb_adapter.region_map)

@@ -1,0 +1,1 @@
+Fixed Meraki integration failing when both Parent Location and Location Mapping are defined, or when only Location Mapping is used, so mapped Networks use their mapped parent and all others fall back to the Parent Location.

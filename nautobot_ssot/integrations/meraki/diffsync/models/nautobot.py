@@ -29,10 +29,18 @@ class NautobotNetwork(Network):
     @classmethod
     def create(cls, adapter, ids, attrs):
         """Create Site in Nautobot from NautobotNetwork object."""
+        parent_id = None
+        if ids.get("parent"):
+            parent_id = adapter.region_map.get(ids["parent"])
+            if not parent_id:
+                adapter.job.logger.error(
+                    f"Unable to create Network {ids['name']} as parent Location {ids['parent']} was not found."
+                )
+                return None
         new_site = Location(
             name=ids["name"],
             location_type=adapter.job.network_loctype,
-            parent_id=adapter.region_map[ids["parent"]] if ids.get("parent") else None,
+            parent_id=parent_id,
             status_id=adapter.status_map["Active"],
             time_zone=attrs["timezone"],
         )

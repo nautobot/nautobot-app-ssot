@@ -86,13 +86,17 @@ class MerakiAdapter(Adapter):  # pylint: disable=too-many-instance-attributes
         for net in self.conn.get_org_networks():
             network_name = net["name"]
             parent_name = None
-            if self.job.network_loctype.parent:
+            if self.job.network_loctype.parent and self.job.parent_location:
                 parent_name = self.job.parent_location.name
             if self.job.location_map and network_name in self.job.location_map:
                 if "parent" in self.job.location_map[network_name]:
                     parent_name = self.job.location_map[network_name]["parent"]
                 if "name" in self.job.location_map[network_name]:
                     network_name = self.job.location_map[network_name]["name"]
+            if self.job.network_loctype.parent and not parent_name:
+                self.job.logger.warning(
+                    f"Network {network_name} has no parent Location defined in the Parent Location or Location Mapping fields but {self.job.network_loctype.name} requires one."
+                )
             self.get_or_instantiate(
                 self.network,
                 ids={"name": network_name, "parent": parent_name},
