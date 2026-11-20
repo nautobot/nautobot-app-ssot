@@ -1,0 +1,1 @@
+Fixed vSphere integration deleting pre-existing Nautobot Tags that do not exist in vSphere, including when vSphere tag sync is disabled.
